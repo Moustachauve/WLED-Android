@@ -50,7 +50,7 @@
     <string name="see_update_details">查看更新详情</string>
     <string name="checking_progress_update">检查中…</string>
     <string name="updating">正在更新 %1$s</string>
-    <string name="please_do_not_close_the_app_or_turn_off_the_device">请不要关闭 APP 或设备。</string>
+    <string name="please_do_not_close_the_app_or_turn_off_the_device">请不要关闭 App 或设备。</string>
     <string name="starting_up">启动中</string>
     <string name="downloading_version">正在下载版本</string>
     <string name="installing_update">正在安装更新</string>
