@@ -19,7 +19,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "ca.cgagnier.wlednativeandroid"
+        applicationId = "ca.cgagnier.illumidel"
         minSdk = 24
         targetSdk = 36
         versionCode = 41
