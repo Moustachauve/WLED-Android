@@ -58,7 +58,7 @@ class DeviceListViewModel @Inject constructor(
     // TODO: Load devices here and apply filters (hidden devices, offline devices last, ...)
     val devices: List<DeviceWithState> = listOf(
         DeviceWithState(
-            device = Device(
+            Device(
                 "abc",
                 "192.168.11.110",
                 false,

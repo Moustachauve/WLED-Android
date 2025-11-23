@@ -75,6 +75,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
                                 newClient.connect()
                             }
                             nextClients[macAddress] = newClient
+                        } else {
+                            existingClient.updateDevice(device)
+                            nextClients[macAddress] = existingClient
                         }
                     }
                     // Return the updated map, which becomes `currentClients` for the next iteration.

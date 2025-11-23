@@ -102,6 +102,14 @@ class WebsocketClient(device: Device, private val deviceRepository: DeviceReposi
         }
     }
 
+    /**
+     * Updates the device state with a new device.
+     * @param newDevice The new device to update with.
+     */
+    fun updateDevice(newDevice: Device) {
+        deviceState.device = newDevice
+    }
+
     fun connect() {
         if (webSocket != null || isConnecting) {
             Log.w(TAG, "Already connected or connecting to ${deviceState.device.address}")
