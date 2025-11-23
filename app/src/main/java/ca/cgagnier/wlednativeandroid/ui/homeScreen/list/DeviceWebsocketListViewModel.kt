@@ -151,9 +151,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = false
         )
-
-
-    // TODO: This does not suspend websockets correctly when the app is in the background
+    
     override fun onCleared() {
         super.onCleared()
         Log.d(TAG, "ViewModel cleared. Closing all WebSocket clients.")
