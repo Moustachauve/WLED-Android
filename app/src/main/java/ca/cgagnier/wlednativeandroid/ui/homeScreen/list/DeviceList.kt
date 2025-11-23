@@ -141,7 +141,7 @@ fun DeviceList(
                                 }
                             },
                             onPowerSwitchToggle = { isOn ->
-                                viewModel.toggleDevicePower(device, isOn)
+                                deviceWebsocketListViewModel.setDevicePower(device, isOn)
                             },
                             onBrightnessChanged = { brightness ->
                                 deviceWebsocketListViewModel.setBrightness(device, brightness)

@@ -139,7 +139,7 @@ class JsonApiRequestHandler @Inject constructor(
             macAddress = deviceStateInfo.info.macAddress ?: StatefulDevice.UNKNOWN_VALUE,
             isOnline = true,
             name = if (device.isCustomName) device.name else deviceStateInfo.info.name,
-            brightness = if (device.isSliding) device.brightness else deviceStateInfo.state.brightness,
+            brightness = if (device.isSliding) device.brightness else deviceStateInfo.state.brightness ?: 0,
             isPoweredOn = deviceStateInfo.state.isOn ?: false,
             color = color,
             isRefreshing = false,
@@ -183,7 +183,7 @@ class JsonApiRequestHandler @Inject constructor(
 
         val updatedDevice = device.copy(
             isOnline = true,
-            brightness = if (device.isSliding) device.brightness else state.brightness,
+            brightness = if (device.isSliding) device.brightness else state.brightness ?: 0,
             isPoweredOn = state.isOn ?: false,
             color = color,
             isRefreshing = false,

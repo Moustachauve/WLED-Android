@@ -7,7 +7,7 @@ import com.squareup.moshi.JsonClass
 data class State(
 
     @Json(name = "on") val isOn: Boolean? = null,
-    @Json(name = "bri") val brightness: Int,
+    @Json(name = "bri") val brightness: Int? = null,
     @Json(name = "transition") val transition: Int? = null,
     @Json(name = "ps") val selectedPresetId: Int? = null,
     @Json(name = "pl") val selectedPlaylistId: Int? = null,

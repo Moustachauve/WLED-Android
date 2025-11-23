@@ -144,4 +144,16 @@ class DeviceWebsocketListViewModel @Inject constructor(
             client.sendState(State(brightness = brightness))
         }
     }
+
+    fun setDevicePower(device: DeviceWithState, isOn: Boolean) {
+        viewModelScope.launch {
+            val client = activeClients.value[device.device.macAddress]
+            if (client == null) {
+                Log.w(TAG, "setDevicePower: No active client found for MAC address ${device.device.macAddress}")
+                return@launch
+            }
+            Log.d(TAG, "Setting isOn for $device.device.macAddress to $isOn")
+            client.sendState(State(isOn = isOn))
+        }
+    }
 }

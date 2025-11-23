@@ -68,16 +68,6 @@ class DeviceListViewModel @Inject constructor(
         )
     )
 
-    fun toggleDevicePower(device: DeviceWithState, isOn: Boolean) {
-        // TODO: Redo this in websockets
-        //val deviceSetPost = JsonPost(isOn = isOn)
-        //viewModelScope.launch(Dispatchers.IO) {
-        //    stateFactory.getState(device.device).requestsManager.addRequest(
-        //        StateChangeRequest(device, deviceSetPost)
-        //    )
-        //}
-    }
-
     fun deleteDevice(device: Device) {
         viewModelScope.launch(Dispatchers.IO) {
             Log.d(TAG, "Deleting device ${device.originalName} - ${device.address}")
