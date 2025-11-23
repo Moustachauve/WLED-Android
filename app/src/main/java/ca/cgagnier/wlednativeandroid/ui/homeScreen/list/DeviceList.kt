@@ -40,8 +40,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.R
-import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.model.StatefulDevice
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.ui.theme.DeviceTheme
 import kotlinx.coroutines.delay
@@ -59,22 +57,21 @@ fun DeviceList(
     onShowHiddenDevices: () -> Unit,
     onRefresh: () -> Unit,
     onOpenDrawer: () -> Unit,
-    viewModel: DeviceListViewModel = hiltViewModel(),
-    deviceWebsocketListViewModel: DeviceWebsocketListViewModel = hiltViewModel(),
+    viewModel: DeviceWebsocketListViewModel = hiltViewModel(),
 ) {
-    val devices by deviceWebsocketListViewModel.devicesWithState.collectAsStateWithLifecycle()
-    val shouldShowDevicesAreHidden by deviceWebsocketListViewModel.shouldShowDevicesAreHidden.collectAsStateWithLifecycle()
+    val devices by viewModel.devicesWithState.collectAsStateWithLifecycle()
+    val shouldShowDevicesAreHidden by viewModel.shouldShowDevicesAreHidden.collectAsStateWithLifecycle()
 
     val pullToRefreshState = rememberPullToRefreshState()
     var isRefreshing by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
-    
-    DisposableEffect(lifecycleOwner, deviceWebsocketListViewModel) {
-        lifecycleOwner.lifecycle.addObserver(deviceWebsocketListViewModel)
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        lifecycleOwner.lifecycle.addObserver(viewModel)
         onDispose {
-            lifecycleOwner.lifecycle.removeObserver(deviceWebsocketListViewModel)
+            lifecycleOwner.lifecycle.removeObserver(viewModel)
         }
     }
 
@@ -151,10 +148,10 @@ fun DeviceList(
                                 }
                             },
                             onPowerSwitchToggle = { isOn ->
-                                deviceWebsocketListViewModel.setDevicePower(device, isOn)
+                                viewModel.setDevicePower(device, isOn)
                             },
                             onBrightnessChanged = { brightness ->
-                                deviceWebsocketListViewModel.setBrightness(device, brightness)
+                                viewModel.setBrightness(device, brightness)
                             },
                             modifier = Modifier.animateItem()
                         )

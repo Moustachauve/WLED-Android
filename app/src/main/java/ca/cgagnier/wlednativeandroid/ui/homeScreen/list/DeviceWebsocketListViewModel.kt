@@ -5,6 +5,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
@@ -36,6 +37,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
     // background, for example.
     private val isPaused = MutableStateFlow(false)
 
+    // TODO: Add support for showing offline devices last
     init {
         viewModelScope.launch {
             devicesFromDb
@@ -194,6 +196,13 @@ class DeviceWebsocketListViewModel @Inject constructor(
             }
             Log.d(TAG, "Setting isOn for $device.device.macAddress to $isOn")
             client.sendState(State(isOn = isOn))
+        }
+    }
+
+    fun deleteDevice(device: Device) {
+        viewModelScope.launch {
+            Log.d(TAG, "Deleting device ${device.originalName} - ${device.address}")
+            deviceRepository.delete(device)
         }
     }
 }
