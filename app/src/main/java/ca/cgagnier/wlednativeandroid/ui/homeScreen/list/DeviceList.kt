@@ -220,8 +220,7 @@ fun LazyListScope.onlineOfflineDevicesList(
     }
     if (offlineDevices.isNotEmpty()) {
         item {
-            // TODO: i18n this
-            Text("Offline Devices")
+            Text(stringResource(R.string.offline_devices))
         }
         itemsIndexed(
             offlineDevices, key = { _, device -> device.device.macAddress }) { _, device ->

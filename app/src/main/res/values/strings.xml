@@ -81,4 +81,5 @@
     <string name="downloading_file">Downloading File</string>
     <string name="help">WLED Help</string>
     <string name="support_me">Support Moustachauve</string>
+    <string name="offline_devices">Offline Devices</string>
 </resources>
