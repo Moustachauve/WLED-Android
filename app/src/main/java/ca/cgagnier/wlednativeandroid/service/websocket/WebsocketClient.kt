@@ -1,6 +1,7 @@
 package ca.cgagnier.wlednativeandroid.service.websocket
 
 import android.util.Log
+import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
@@ -74,12 +75,19 @@ class WebsocketClient(
                     // Update information about the device when we receive a message.
                     // Ideally, this should probably not be done in the client directly
                     coroutineScope.launch {
+                        var branch = deviceState.device.branch
+                        if (branch == Branch.UNKNOWN) {
+                            branch = if (deviceStateInfo.info.version?.contains("-b") ?: false) {
+                                Branch.BETA
+                            } else {
+                                Branch.STABLE
+                            }
+                        }
                         val newDevice = deviceState.device.copy(
                             originalName = deviceStateInfo.info.name,
                             address = deviceState.device.address,
-                            lastSeen = System.currentTimeMillis()
-                            // TODO: Add logic to update the device branch (stable/beta) if the
-                            //  current branch is "UNKNOWN".
+                            lastSeen = System.currentTimeMillis(),
+                            branch = branch,
                         )
                         deviceRepository.update(newDevice)
                     }
