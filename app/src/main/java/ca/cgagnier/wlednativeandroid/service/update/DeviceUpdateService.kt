@@ -1,15 +1,15 @@
 package ca.cgagnier.wlednativeandroid.service.update
 
 import ca.cgagnier.wlednativeandroid.model.Asset
-import ca.cgagnier.wlednativeandroid.model.StatefulDevice
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
+import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import kotlinx.coroutines.flow.Flow
 import java.io.File
 
 class DeviceUpdateService(
-    val device: StatefulDevice,
+    val device: DeviceWithState,
     private val versionWithAssets: VersionWithAssets,
     private val cacheDir: File
 ) {
@@ -34,24 +34,32 @@ class DeviceUpdateService(
 
     // Preferred method, only available since WLED 0.15.0
     private fun determineAssetByRelease(): Boolean {
-        if (device.release.isEmpty() || device.release == StatefulDevice.UNKNOWN_VALUE) {
+        val release = device.stateInfo.value?.info?.release
+        if (release.isNullOrEmpty()) {
             return false
         }
 
-        val versionWithRelease = "${versionWithAssets.version.tagName}_${device.release}".drop(1)
+        val combined = "${versionWithAssets.version.tagName}_${release}"
+        val versionWithRelease =
+            if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
         assetName = "WLED_${versionWithRelease}.bin"
         return findAsset(assetName)
     }
 
     // Legacy method for backwards compatibility with WLED older than 0.15.0
     private fun determineAssetByPlatform(): Boolean {
-        if (!supportedPlatforms.contains(device.platformName)) {
+        val deviceInfo = device.stateInfo.value?.info
+        if (deviceInfo == null || !supportedPlatforms.contains(deviceInfo.platformName)) {
             return false
         }
 
-        val ethernetVariant = if (device.isEthernet) "_Ethernet" else ""
-        val versionWithPlatform = "${versionWithAssets.version.tagName}_${device.platformName.uppercase()}".drop(1)
-        assetName = "WLED_${versionWithPlatform}${ethernetVariant}.bin"
+        // TODO: Add support for Ethernet devices. Support was never fully implemented.
+        // val ethernetVariant = if (deviceInfo.isEthernet) "_Ethernet" else ""
+        val combined =
+            "${versionWithAssets.version.tagName}_${deviceInfo.platformName?.uppercase()}"
+        val versionWithPlatform =
+            if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
+        assetName = "WLED_${versionWithPlatform}.bin"
         return findAsset(assetName)
     }
 
@@ -83,7 +91,7 @@ class DeviceUpdateService(
 
     suspend fun downloadBinary(): Flow<DownloadState> {
         if (!::asset.isInitialized) {
-            throw Exception("Asset could not be determined for ${device.name}.")
+            throw Exception("Asset could not be determined for ${device.device.macAddress}.")
         }
 
         val githubApi = GithubApi(cacheDir)

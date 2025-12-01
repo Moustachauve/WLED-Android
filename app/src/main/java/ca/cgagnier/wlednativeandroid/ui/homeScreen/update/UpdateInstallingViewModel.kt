@@ -3,7 +3,6 @@ package ca.cgagnier.wlednativeandroid.ui.homeScreen.update
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ca.cgagnier.wlednativeandroid.model.StatefulDevice
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
@@ -30,13 +29,13 @@ private const val TAG = "UpdateInstallingViewModel"
 class UpdateInstallingViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository,
     private val stateFactory: StateFactory,
-): ViewModel() {
+) : ViewModel() {
     private var updateStarted = false
 
     private var _state = MutableStateFlow(UpdateInstallingState())
     val state = _state.asStateFlow()
 
-    private var _device: MutableStateFlow<StatefulDevice?> = MutableStateFlow(null)
+    private var _device: MutableStateFlow<DeviceWithState?> = MutableStateFlow(null)
     val device = _device.asStateFlow()
 
     private var _version: MutableStateFlow<VersionWithAssets?> = MutableStateFlow(null)
@@ -68,34 +67,36 @@ class UpdateInstallingViewModel @Inject constructor(
         cacheDir: File,
     ) {
         if (updateStarted) {
-            Log.w(TAG, "Update already started, ignoring startUpdate for ${device.device.originalName}")
+            Log.w(
+                TAG,
+                "Update already started, ignoring startUpdate for ${device.device.originalName}"
+            )
             return
         }
         updateStarted = true
         Log.i(TAG, "startUpdate for device ${device.device.originalName}")
-        // TODO: Fix this update with the new device
-//        _device.update { device }
-//        _version.update { version }
-//        _state.update { previousState ->
-//            previousState.copy(
-//                canDismiss = true,
-//                step = UpdateInstallingStep.Starting
-//            )
-//        }
-//
-//        val updateService = DeviceUpdateService(device, version, cacheDir)
-//        if (!updateService.couldDetermineAsset()) {
-//            _state.update { previousState ->
-//                previousState.copy(
-//                    canDismiss = true,
-//                    step = UpdateInstallingStep.NoCompatibleVersion,
-//                    assetName = updateService.getAssetName()
-//                )
-//            }
-//            return
-//        }
-//
-//        downloadAsset(updateService)
+        _device.update { device }
+        _version.update { version }
+        _state.update { previousState ->
+            previousState.copy(
+                canDismiss = true,
+                step = UpdateInstallingStep.Starting
+            )
+        }
+
+        val updateService = DeviceUpdateService(device, version, cacheDir)
+        if (!updateService.couldDetermineAsset()) {
+            _state.update { previousState ->
+                previousState.copy(
+                    canDismiss = true,
+                    step = UpdateInstallingStep.NoCompatibleVersion,
+                    assetName = updateService.getAssetName()
+                )
+            }
+            return
+        }
+
+        downloadAsset(updateService)
     }
 
     private fun downloadAsset(
@@ -153,9 +154,9 @@ class UpdateInstallingViewModel @Inject constructor(
                 assetName = updateService.getAssetName()
             )
         }
-        stateFactory.getState(updateService.device).requestsManager.addRequest(
+        stateFactory.getState(updateService.device.device).requestsManager.addRequest(
             SoftwareUpdateRequest(
-                updateService.device,
+                updateService.device.device,
                 updateService.getPathForAsset(),
                 callback = { onSoftwareUpdateResponse(it) },
                 errorCallback = { onSoftwareUpdateError(it) },
@@ -198,16 +199,16 @@ class UpdateInstallingViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Updates the properties of a device after a software update was done.
+     */
     private fun updateDeviceUpdated() = viewModelScope.launch(Dispatchers.IO) {
         val device = device.value ?: return@launch
-        val version = version.value ?: return@launch
-        Log.d(TAG, "Saving deviceUpdated")
-        val updatedDevice = device.copy(
-            version = version.version.tagName.drop(1),
-            newUpdateVersionTagAvailable = ""
+        Log.d(TAG, "Resetting skipUpdateTag")
+        val updatedDevice = device.device.copy(
+            skipUpdateTag = ""
         )
-        // TODO: Fix this with new devices
-        //deviceRepository.update(updatedDevice)
+        deviceRepository.update(updatedDevice)
     }
 
     private fun getHtmlErrorMessage(response: Response<ResponseBody>): String {

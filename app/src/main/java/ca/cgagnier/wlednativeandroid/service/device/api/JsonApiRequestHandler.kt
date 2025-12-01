@@ -1,7 +1,7 @@
 package ca.cgagnier.wlednativeandroid.service.device.api
 
 import android.util.Log
-import ca.cgagnier.wlednativeandroid.model.StatefulDevice
+import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApi
 import ca.cgagnier.wlednativeandroid.service.device.api.request.SoftwareUpdateRequest
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -16,7 +16,7 @@ import javax.inject.Inject
 private const val TAG = "JsonApiRequestHandler"
 
 class JsonApiRequestHandler @Inject constructor() : RequestHandler() {
-    private fun getJsonApi(device: StatefulDevice, timeout: Long = 10): DeviceApi {
+    private fun getJsonApi(device: Device, timeout: Long = 10): DeviceApi {
         val okHttpClient = OkHttpClient().newBuilder()
             .connectTimeout(timeout, TimeUnit.SECONDS)
             .readTimeout(timeout, TimeUnit.SECONDS)
