@@ -9,7 +9,6 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
-import ca.cgagnier.wlednativeandroid.service.device.StateFactory
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +23,6 @@ const val TAG = "DeviceEditViewModel"
 class DeviceEditViewModel @Inject constructor(
     private val repository: DeviceRepository,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
-    private val stateFactory: StateFactory,
 ) : ViewModel() {
 
     private var _updateDetailsVersion: MutableStateFlow<VersionWithAssets?> = MutableStateFlow(null)
