@@ -80,7 +80,6 @@ class DeviceEditViewModel @Inject constructor(
     fun skipUpdate(device: Device, version: VersionWithAssets) =
         viewModelScope.launch(Dispatchers.IO) {
             Log.d(TAG, "Saving skipUpdateTag")
-            // TODO: Fix this after device migration
             val updatedDevice = device.copy(
                 skipUpdateTag = version.version.tagName
             )
