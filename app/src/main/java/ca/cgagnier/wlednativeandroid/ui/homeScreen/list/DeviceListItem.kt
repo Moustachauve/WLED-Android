@@ -6,12 +6,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -27,10 +24,8 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,15 +36,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
-import ca.cgagnier.wlednativeandroid.ui.components.deviceBatteryPercentageImage
-import ca.cgagnier.wlednativeandroid.ui.components.deviceName
-import ca.cgagnier.wlednativeandroid.ui.components.deviceNetworkStrengthImage
+import ca.cgagnier.wlednativeandroid.ui.components.DeviceInfoTwoRows
 import ca.cgagnier.wlednativeandroid.ui.theme.DeviceTheme
 import kotlin.math.roundToInt
 
@@ -219,79 +210,6 @@ private fun SwipeBox(
         },
     ) {
         content()
-    }
-}
-
-@Composable
-fun DeviceInfoTwoRows(
-    modifier: Modifier = Modifier,
-    device: DeviceWithState,
-    nameMaxLines: Int = 2,
-) {
-    val updateTag by device.updateVersionTagFlow.collectAsState(initial = null)
-
-    Column(modifier = modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                deviceName(device.device),
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = nameMaxLines,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        Row(
-            modifier = Modifier
-                .padding(bottom = 2.dp)
-                .width(IntrinsicSize.Min),
-            verticalAlignment = Alignment.Bottom
-        ) {
-            Text(
-                device.device.address,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .width(IntrinsicSize.Max)
-            )
-            deviceNetworkStrengthImage(device)
-            deviceBatteryPercentageImage(device)
-
-            // TODO: Add websocket connection status indicator
-            if (updateTag != null) {
-                Icon(
-                    painter = painterResource(R.drawable.baseline_download_24),
-                    contentDescription = stringResource(R.string.network_status),
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .height(20.dp)
-                )
-            }
-            if (!device.isOnline) {
-                Text(
-                    stringResource(R.string.is_offline),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-            }
-            if (device.device.isHidden) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_baseline_visibility_off_24),
-                    contentDescription = stringResource(R.string.description_back_button),
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .height(16.dp)
-                )
-                Text(
-                    stringResource(R.string.hidden_status),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-            }
-
-        }
     }
 }
 

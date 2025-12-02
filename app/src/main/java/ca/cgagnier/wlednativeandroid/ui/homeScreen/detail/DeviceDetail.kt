@@ -29,12 +29,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
+import ca.cgagnier.wlednativeandroid.ui.components.DeviceInfoTwoRows
 import ca.cgagnier.wlednativeandroid.ui.components.DeviceWebView
 import ca.cgagnier.wlednativeandroid.ui.components.LoadingState
 import ca.cgagnier.wlednativeandroid.ui.components.WebViewState
 import ca.cgagnier.wlednativeandroid.ui.components.rememberSaveableWebViewState
 import ca.cgagnier.wlednativeandroid.ui.components.rememberWebViewNavigator
-import ca.cgagnier.wlednativeandroid.ui.homeScreen.list.DeviceInfoTwoRows
 
 private const val TAG = "ui.DeviceDetail"
 
