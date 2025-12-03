@@ -3,6 +3,9 @@
     <string name="app_logo">WLED Logo</string>
     <string name="add_a_device">Add a New Device</string>
     <string name="add">Add</string>
+    <string name="add_adding_device">Adding <xliff:g example="192.168.1.1" id="strength">%1$s</xliff:g></string>
+    <string name="add_device_added"><xliff:g example="Device123" id="strength">%1$s</xliff:g> was added</string>
+    <string name="add_device_error">Could not connect to the device. Verify the address.</string>
     <string name="deleting_device">Delete Device?</string>
     <string name="delete">Delete</string>
     <string name="ip_address_or_url">IP Address or URL</string>
@@ -68,6 +71,7 @@
     <string name="show_error">Show Error</string>
     <string name="hide_error">Hide Error</string>
     <string name="unknown_error">Unknown Error</string>
+    <string name="success">Success!</string>
     <string name="update_channel">Update Channel</string>
     <string name="stable">Stable</string>
     <string name="beta">Beta</string>
@@ -77,4 +81,8 @@
     <string name="downloading_file">Downloading File</string>
     <string name="help">WLED Help</string>
     <string name="support_me">Support Moustachauve</string>
+    <string name="offline_devices">Offline Devices</string>
+    <string name="websocket_connected">Connected</string>
+    <string name="websocket_connecting">Connecting…</string>
+    <string name="websocket_disconnected">Disconnected</string>
 </resources>

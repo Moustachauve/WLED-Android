@@ -5,7 +5,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.dataStore
 import ca.cgagnier.wlednativeandroid.repository.AssetDao
 import ca.cgagnier.wlednativeandroid.repository.DeviceDao
-import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
@@ -14,8 +13,8 @@ import ca.cgagnier.wlednativeandroid.repository.VersionDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.repository.migrations.UserPreferencesV0ToV1
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
-import ca.cgagnier.wlednativeandroid.service.device.StateFactory
-import ca.cgagnier.wlednativeandroid.service.device.api.JsonApiRequestHandler
+import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
+import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import dagger.Module
 import dagger.Provides
@@ -25,17 +24,20 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import okhttp3.Cache
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 private const val DATA_STORE_FILE_NAME = "user_prefs.pb"
+private const val DEFAULT_TIMEOUT_SECONDS = 10L
 
 private val Context.userPreferencesStore: DataStore<UserPreferences> by dataStore(
     fileName = DATA_STORE_FILE_NAME,
     serializer = UserPreferencesSerializer(),
     produceMigrations = { _ ->
         listOf(UserPreferencesV0ToV1())
-    }
-)
+    })
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -66,12 +68,6 @@ object AppContainer {
 
     @Provides
     @Singleton
-    fun provideDeviceRepository(deviceDao: DeviceDao): DeviceRepository {
-        return DeviceRepository(deviceDao)
-    }
-
-    @Provides
-    @Singleton
     fun provideVersionWithAssetsRepository(
         versionDao: VersionDao, assetDao: AssetDao
     ): VersionWithAssetsRepository {
@@ -80,11 +76,8 @@ object AppContainer {
 
     @Provides
     @Singleton
-    fun provideStateFactory(
-        deviceRepository: DeviceRepository, versionWithAssetsRepository: VersionWithAssetsRepository
-    ): StateFactory {
-        val releaseService = ReleaseService(versionWithAssetsRepository)
-        return StateFactory(JsonApiRequestHandler(deviceRepository, releaseService))
+    fun providesReleaseService(versionWithAssetsRepository: VersionWithAssetsRepository): ReleaseService {
+        return ReleaseService(versionWithAssetsRepository)
     }
 
     @Provides
@@ -112,9 +105,31 @@ object AppContainer {
     @Provides
     @Singleton
     fun providesNetworkConnectivityManager(
-        @ApplicationContext appContext: Context,
-        coroutineScope: CoroutineScope
+        @ApplicationContext appContext: Context, coroutineScope: CoroutineScope
     ): NetworkConnectivityManager {
         return NetworkConnectivityManager(appContext, coroutineScope)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(@ApplicationContext appContext: Context): OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .pingInterval(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .cache(Cache(appContext.cacheDir, 20 * 1024 * 1024)) // 20MB cache
+            .build()
+    }
+
+    @Provides
+    fun provideDeviceApiFactory(okHttpClient: OkHttpClient): DeviceApiFactory {
+        return DeviceApiFactory(okHttpClient)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGithubApi(okHttpClient: OkHttpClient): GithubApi {
+        return GithubApi(okHttpClient)
     }
 }

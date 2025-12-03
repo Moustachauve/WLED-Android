@@ -3,6 +3,9 @@
     <string name="app_logo">Logo WLED</string>
     <string name="add_a_device">Ajouter un appareil</string>
     <string name="add">Ajouter</string>
+    <string name="add_adding_device">Ajout de <xliff:g example="192.168.1.1" id="strength">%1$s</xliff:g></string>
+    <string name="add_device_added"><xliff:g example="Device123" id="strength">%1$s</xliff:g> was added</string>
+    <string name="add_device_error">Impossible de rejoindre l\'appareil. Vérifiez l\'adresse.</string>
     <string name="deleting_device">Supprimer l\'appareil?</string>
     <string name="delete">Supprimer</string>
     <string name="ip_address_or_url">Adresse IP ou URL</string>
@@ -66,6 +69,7 @@
     <string name="show_error">Afficher l\'erreur</string>
     <string name="hide_error">Cacher l\'erreur</string>
     <string name="unknown_error">Erreur inconnue</string>
+    <string name="success">Succès!</string>
     <string name="update_channel">Variante de MàJ</string>
     <string name="stable">Stable</string>
     <string name="beta">Bêta</string>
@@ -75,4 +79,8 @@
     <string name="downloading_file">Téléchargement en cours</string>
     <string name="help">WLED Aide</string>
     <string name="support_me">Supporter Moustachauve</string>
+    <string name="offline_devices">Appareils hors-ligne</string>
+    <string name="websocket_connected">Connecté</string>
+    <string name="websocket_connecting">Connexion…</string>
+    <string name="websocket_disconnected">Déconnecté</string>
 </resources>

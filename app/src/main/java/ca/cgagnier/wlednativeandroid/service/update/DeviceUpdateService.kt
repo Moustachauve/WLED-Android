@@ -1,23 +1,32 @@
 package ca.cgagnier.wlednativeandroid.service.update
 
+import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
+import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
+import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import kotlinx.coroutines.flow.Flow
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.ResponseBody
+import retrofit2.Response
 import java.io.File
 
+private const val TAG = "DeviceUpdateService"
+
 class DeviceUpdateService(
-    val device: Device,
+    val device: DeviceWithState,
     private val versionWithAssets: VersionWithAssets,
-    private val cacheDir: File
+    private val cacheDir: File,
+    private val deviceApiFactory: DeviceApiFactory,
+    private val githubApi: GithubApi,
 ) {
     private val supportedPlatforms = listOf(
-        "esp01",
-        "esp02",
-        "esp32",
-        "esp8266"
+        "esp01", "esp02", "esp32", "esp8266"
     )
 
     private var assetName: String = ""
@@ -34,24 +43,32 @@ class DeviceUpdateService(
 
     // Preferred method, only available since WLED 0.15.0
     private fun determineAssetByRelease(): Boolean {
-        if (device.release.isEmpty() || device.release == Device.UNKNOWN_VALUE) {
+        val release = device.stateInfo.value?.info?.release
+        if (release.isNullOrEmpty()) {
             return false
         }
 
-        val versionWithRelease = "${versionWithAssets.version.tagName}_${device.release}".drop(1)
+        val combined = "${versionWithAssets.version.tagName}_${release}"
+        val versionWithRelease =
+            if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
         assetName = "WLED_${versionWithRelease}.bin"
         return findAsset(assetName)
     }
 
     // Legacy method for backwards compatibility with WLED older than 0.15.0
     private fun determineAssetByPlatform(): Boolean {
-        if (!supportedPlatforms.contains(device.platformName)) {
+        val deviceInfo = device.stateInfo.value?.info
+        if (deviceInfo == null || !supportedPlatforms.contains(deviceInfo.platformName)) {
             return false
         }
 
-        val ethernetVariant = if (device.isEthernet) "_Ethernet" else ""
-        val versionWithPlatform = "${versionWithAssets.version.tagName}_${device.platformName.uppercase()}".drop(1)
-        assetName = "WLED_${versionWithPlatform}${ethernetVariant}.bin"
+        // TODO: Add support for Ethernet devices. Support was never fully implemented.
+        // val ethernetVariant = if (deviceInfo.isEthernet) "_Ethernet" else ""
+        val combined =
+            "${versionWithAssets.version.tagName}_${deviceInfo.platformName?.uppercase()}"
+        val versionWithPlatform =
+            if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
+        assetName = "WLED_${versionWithPlatform}.bin"
         return findAsset(assetName)
     }
 
@@ -83,10 +100,8 @@ class DeviceUpdateService(
 
     suspend fun downloadBinary(): Flow<DownloadState> {
         if (!::asset.isInitialized) {
-            throw Exception("Asset could not be determined for ${device.name}.")
+            throw Exception("Asset could not be determined for ${device.device.macAddress}.")
         }
-
-        val githubApi = GithubApi(cacheDir)
         return githubApi.downloadReleaseBinary(asset, getPathForAsset())
     }
 
@@ -94,5 +109,24 @@ class DeviceUpdateService(
         val cacheDirectory = File(cacheDir, versionWithAssets.version.tagName)
         cacheDirectory.mkdirs()
         return File(cacheDirectory, asset.name)
+    }
+
+    suspend fun sendSoftwareUpdateRequest(
+        device: Device,
+        binaryFile: File,
+        callback: ((Response<ResponseBody>) -> Unit)? = null,
+        errorCallback: ((Exception) -> Unit)? = null
+    ) {
+        Log.d(TAG, "Installing software update: ${device.macAddress}")
+        try {
+            val reqFile = binaryFile.asRequestBody("application/octet-stream".toMediaTypeOrNull())
+            // Longer TTL because updates can take a bit of time to fully install
+            val response = deviceApiFactory.create(device, 120L).updateDevice(
+                MultipartBody.Part.createFormData("file", "binary", reqFile)
+            )
+            callback?.invoke(response)
+        } catch (e: Exception) {
+            errorCallback?.invoke(e)
+        }
     }
 }

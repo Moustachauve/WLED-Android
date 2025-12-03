@@ -1,17 +1,13 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen.list
 
-import SliderWithLabel
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -20,19 +16,13 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,20 +35,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ca.cgagnier.wlednativeandroid.R
-import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.ui.components.deviceName
+import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
+import ca.cgagnier.wlednativeandroid.ui.components.DeviceInfoTwoRows
+import ca.cgagnier.wlednativeandroid.ui.components.SliderWithLabel
 import ca.cgagnier.wlednativeandroid.ui.theme.DeviceTheme
 import kotlin.math.roundToInt
 
 @Composable
 fun DeviceListItem(
     modifier: Modifier = Modifier,
-    device: Device,
+    device: DeviceWithState,
     isSelected: Boolean = false,
     onClick: () -> Unit = {},
     swipeToDismissBoxState: SwipeToDismissBoxState,
@@ -66,7 +55,13 @@ fun DeviceListItem(
     onPowerSwitchToggle: (isOn: Boolean) -> Unit = {},
     onBrightnessChanged: (brightness: Int) -> Unit = {},
 ) {
-    var checked by remember(device.isPoweredOn) { mutableStateOf(device.isPoweredOn) }
+    val stateInfo by device.stateInfo
+
+    var checked by remember(stateInfo?.state?.isOn) {
+        mutableStateOf(
+            stateInfo?.state?.isOn ?: false
+        )
+    }
     val haptic = LocalHapticFeedback.current
 
     DeviceTheme(device) {
@@ -107,7 +102,10 @@ fun DeviceListItem(
                             }
                         )
                     }
-                    BrightnessSlider(device, onBrightnessChanged)
+                    BrightnessSlider(
+                        stateInfo?.state?.brightness ?: 0,
+                        onBrightnessChanged
+                    )
                 }
             }
         }
@@ -116,14 +114,13 @@ fun DeviceListItem(
 
 @Composable
 private fun BrightnessSlider(
-    device: Device,
+    brightness: Int, // Receive the brightness value directly
     onBrightnessChanged: (brightness: Int) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
-    var sliderPosition by remember(device.brightness) { mutableFloatStateOf(device.brightness.toFloat()) }
+    var sliderPosition by remember(brightness) { mutableFloatStateOf(brightness.toFloat()) }
     SliderWithLabel(
-        value = if (device.isOnline) sliderPosition else 0f,
-        enabled = device.isOnline,
+        value = sliderPosition,
         onValueChange = {
             if (it.roundToInt() != sliderPosition.roundToInt()) {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -140,7 +137,7 @@ private fun BrightnessSlider(
 @Composable
 private fun SwipeBox(
     modifier: Modifier = Modifier,
-    device: Device,
+    device: DeviceWithState,
     swipeToDismissBoxState: SwipeToDismissBoxState,
     onDismiss: (SwipeToDismissBoxValue) -> Unit = {},
     content: @Composable () -> Unit
@@ -213,115 +210,6 @@ private fun SwipeBox(
         },
     ) {
         content()
-    }
-}
-
-@Composable
-fun DeviceInfoTwoRows(
-    modifier: Modifier = Modifier,
-    device: Device,
-    nameMaxLines: Int = 2,
-) {
-    Column(modifier = modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                deviceName(device),
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = nameMaxLines,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (device.isRefreshing) {
-                val size =
-                    (MaterialTheme.typography.titleSmall.lineHeight.value - 4)
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding(start = 10.dp)
-                        .padding(bottom = 2.dp)
-                        .width(size.dp)
-                        .height(size.dp),
-                )
-            }
-        }
-        Row(
-            modifier = Modifier
-                .padding(bottom = 2.dp)
-                .width(IntrinsicSize.Min),
-            verticalAlignment = Alignment.Bottom
-        ) {
-            Text(
-                device.address,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .width(IntrinsicSize.Max)
-            )
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                tooltip = { PlainTooltip {
-                    if (device.isOnline) {
-                        Text(stringResource(R.string.signal_strength, device.networkRssi))
-                    } else {
-                        Text(stringResource(R.string.signal_strength, stringResource(R.string.is_offline)))
-                    }
-                } },
-                state = rememberTooltipState()
-            ) {
-                Icon(
-                    painter = painterResource(device.getNetworkStrengthImage()),
-                    contentDescription = stringResource(R.string.network_status),
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .height(20.dp)
-                )
-            }
-
-            if (device.hasBattery) {
-                Icon(
-                    painter = painterResource(device.getBatteryPercentageImage()),
-                    contentDescription = stringResource(R.string.battery_percentage),
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .height(20.dp)
-                )
-            }
-
-
-            if (device.hasUpdateAvailable()) {
-                Icon(
-                    painter = painterResource(R.drawable.baseline_download_24),
-                    contentDescription = stringResource(R.string.network_status),
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .height(20.dp)
-                )
-            }
-            if (!device.isOnline) {
-                Text(
-                    stringResource(R.string.is_offline),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-            }
-            if (device.isHidden) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_baseline_visibility_off_24),
-                    contentDescription = stringResource(R.string.description_back_button),
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .height(16.dp)
-                )
-                Text(
-                    stringResource(R.string.hidden_status),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-            }
-
-        }
     }
 }
 

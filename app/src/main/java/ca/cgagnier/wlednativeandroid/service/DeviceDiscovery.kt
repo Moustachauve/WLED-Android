@@ -6,18 +6,17 @@ import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiManager.MulticastLock
 import android.util.Log
-import ca.cgagnier.wlednativeandroid.model.Device
 
 
 class DeviceDiscovery(
-    val context: Context,
-    val onDeviceDiscovered: (Device) -> Unit
+    val context: Context, val onDeviceDiscovered: (address: String) -> Unit
 ) {
 
     val nsdManager: NsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     private var discoveryListener: NsdManager.DiscoveryListener? = null
 
-    private val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    private val wifi =
+        context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
     private val multicastLock: MulticastLock = wifi.createMulticastLock("multicastLock")
 
     private fun initialize() {
@@ -62,9 +61,7 @@ class DeviceDiscovery(
                         return
                     }
                     return nsdManager.resolveService(
-                        service,
-                        ResolveListener(nsdManager) { onServiceResolved(it) }
-                    )
+                        service, ResolveListener(nsdManager) { onServiceResolved(it) })
                 }
             }
 
@@ -75,19 +72,13 @@ class DeviceDiscovery(
     }
 
     private fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-        Log.i(TAG, "Device discovered!")
-
-        val deviceIp = serviceInfo.host.hostAddress!!
-        val deviceName = serviceInfo.serviceName ?: ""
-        onDeviceDiscovered(
-            Device(
-                deviceIp,
-                deviceName,
-                isCustomName = false,
-                isHidden = false,
-                macAddress = Device.UNKNOWN_VALUE
-            )
-        )
+        val deviceIp = serviceInfo.host.hostAddress
+        if (deviceIp.isNullOrEmpty()) {
+            Log.w(TAG, "Device discovered, but did not have IP")
+            return
+        }
+        Log.i(TAG, "Device discovered: $deviceIp")
+        onDeviceDiscovered(deviceIp)
     }
 
     fun start() {
@@ -116,9 +107,8 @@ class DeviceDiscovery(
     }
 
     class ResolveListener(
-        private val nsdManager: NsdManager,
-        private val serviceResolved: (NsdServiceInfo) -> Unit
-    ): NsdManager.ResolveListener {
+        private val nsdManager: NsdManager, private val serviceResolved: (NsdServiceInfo) -> Unit
+    ) : NsdManager.ResolveListener {
 
         override fun onResolveFailed(serviceInfo: NsdServiceInfo?, errorCode: Int) {
             Log.e(TAG, "Resolve failed $errorCode")

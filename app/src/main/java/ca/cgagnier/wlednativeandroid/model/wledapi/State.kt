@@ -4,15 +4,15 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
-data class State (
+data class State(
 
-    @Json(name = "on") val isOn : Boolean,
-    @Json(name = "bri") val brightness : Int,
-    @Json(name = "transition") val transition : Int? = null,
-    @Json(name = "ps") val selectedPresetId : Int? = null,
-    @Json(name = "pl") val selectedPlaylistId : Int? = null,
-    @Json(name = "nl") val nightlight : Nightlight? = null,
-    @Json(name = "lor") val liveDataOverride : Int? = null,
-    @Json(name = "mainseg") val mainSegment : Int? = null,
-    @Json(name = "seg") val segment : List<Segment>? = null
+    @param:Json(name = "on") val isOn: Boolean? = null,
+    @param:Json(name = "bri") val brightness: Int? = null,
+    @param:Json(name = "transition") val transition: Int? = null,
+    @param:Json(name = "ps") val selectedPresetId: Int? = null,
+    @param:Json(name = "pl") val selectedPlaylistId: Int? = null,
+    @param:Json(name = "nl") val nightlight: Nightlight? = null,
+    @param:Json(name = "lor") val liveDataOverride: Int? = null,
+    @param:Json(name = "mainseg") val mainSegment: Int? = null,
+    @param:Json(name = "seg") val segment: List<Segment>? = null
 )

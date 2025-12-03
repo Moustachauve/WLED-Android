@@ -3,14 +3,13 @@ package ca.cgagnier.wlednativeandroid.ui.homeScreen.update
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
-import ca.cgagnier.wlednativeandroid.service.device.StateFactory
-import ca.cgagnier.wlednativeandroid.service.device.api.request.RefreshRequest
-import ca.cgagnier.wlednativeandroid.service.device.api.request.SoftwareUpdateRequest
+import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateService
+import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,14 +28,15 @@ private const val TAG = "UpdateInstallingViewModel"
 @HiltViewModel
 class UpdateInstallingViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository,
-    private val stateFactory: StateFactory,
-): ViewModel() {
+    private val deviceApiFactory: DeviceApiFactory,
+    private val githubApi: GithubApi
+) : ViewModel() {
     private var updateStarted = false
 
     private var _state = MutableStateFlow(UpdateInstallingState())
     val state = _state.asStateFlow()
 
-    private var _device: MutableStateFlow<Device?> = MutableStateFlow(null)
+    private var _device: MutableStateFlow<DeviceWithState?> = MutableStateFlow(null)
     val device = _device.asStateFlow()
 
     private var _version: MutableStateFlow<VersionWithAssets?> = MutableStateFlow(null)
@@ -50,8 +50,7 @@ class UpdateInstallingViewModel @Inject constructor(
             val step = previousState.step as UpdateInstallingStep.Error
             previousState.copy(
                 step = UpdateInstallingStep.Error(
-                    step.error,
-                    !step.showError
+                    step.error, !step.showError
                 )
             )
         }
@@ -63,26 +62,29 @@ class UpdateInstallingViewModel @Inject constructor(
     }
 
     fun startUpdate(
-        device: Device,
+        device: DeviceWithState,
         version: VersionWithAssets,
         cacheDir: File,
     ) {
         if (updateStarted) {
-            Log.w(TAG, "Update already started, ignoring startUpdate for ${device.name}")
+            Log.w(
+                TAG,
+                "Update already started, ignoring startUpdate for ${device.device.originalName}"
+            )
             return
         }
         updateStarted = true
-        Log.i(TAG, "startUpdate for device ${device.name}")
+        Log.i(TAG, "startUpdate for device ${device.device.originalName}")
         _device.update { device }
         _version.update { version }
         _state.update { previousState ->
             previousState.copy(
-                canDismiss = true,
-                step = UpdateInstallingStep.Starting
+                canDismiss = true, step = UpdateInstallingStep.Starting
             )
         }
 
-        val updateService = DeviceUpdateService(device, version, cacheDir)
+        val updateService =
+            DeviceUpdateService(device, version, cacheDir, deviceApiFactory, githubApi)
         if (!updateService.couldDetermineAsset()) {
             _state.update { previousState ->
                 previousState.copy(
@@ -124,11 +126,9 @@ class UpdateInstallingViewModel @Inject constructor(
                     Log.e(TAG, "File download Fail: ${downloadState.error}")
                     _state.update { previousState ->
                         previousState.copy(
-                            canDismiss = true,
-                            step = UpdateInstallingStep.Error(
+                            canDismiss = true, step = UpdateInstallingStep.Error(
                                 downloadState.error.toString()
-                            ),
-                            assetName = updateService.getAssetName()
+                            ), assetName = updateService.getAssetName()
                         )
                     }
                     this.coroutineContext.job.cancel()
@@ -143,7 +143,7 @@ class UpdateInstallingViewModel @Inject constructor(
         }
     }
 
-    private fun installUpdate(updateService: DeviceUpdateService) {
+    private suspend fun installUpdate(updateService: DeviceUpdateService) {
         Log.d(TAG, "Uploading binary '${updateService.getAssetName()}' to device")
         _state.update { previousState ->
             previousState.copy(
@@ -152,13 +152,11 @@ class UpdateInstallingViewModel @Inject constructor(
                 assetName = updateService.getAssetName()
             )
         }
-        stateFactory.getState(updateService.device).requestsManager.addRequest(
-            SoftwareUpdateRequest(
-                updateService.device,
-                updateService.getPathForAsset(),
-                callback = { onSoftwareUpdateResponse(it) },
-                errorCallback = { onSoftwareUpdateError(it) },
-            )
+        updateService.sendSoftwareUpdateRequest(
+            updateService.device.device,
+            updateService.getPathForAsset(),
+            callback = { onSoftwareUpdateResponse(it) },
+            errorCallback = { onSoftwareUpdateError(it) },
         )
     }
 
@@ -166,8 +164,7 @@ class UpdateInstallingViewModel @Inject constructor(
         if (response.code() in 200..299) {
             _state.update { previousState ->
                 previousState.copy(
-                    canDismiss = true,
-                    step = UpdateInstallingStep.Done
+                    canDismiss = true, step = UpdateInstallingStep.Done
                 )
             }
         } else {
@@ -176,8 +173,7 @@ class UpdateInstallingViewModel @Inject constructor(
             Log.d(TAG, "OTA Failed onResponse, error $errorString")
             _state.update { previousState ->
                 previousState.copy(
-                    canDismiss = true,
-                    step = UpdateInstallingStep.Error(errorString)
+                    canDismiss = true, step = UpdateInstallingStep.Error(errorString)
                 )
             }
         }
@@ -191,22 +187,21 @@ class UpdateInstallingViewModel @Inject constructor(
         Log.d(TAG, "OTA Failed onFailure, error $errorString")
         _state.update { previousState ->
             previousState.copy(
-                canDismiss = true,
-                step = UpdateInstallingStep.Error(errorString)
+                canDismiss = true, step = UpdateInstallingStep.Error(errorString)
             )
         }
     }
 
+    /**
+     * Updates the properties of a device after a software update was done.
+     */
     private fun updateDeviceUpdated() = viewModelScope.launch(Dispatchers.IO) {
         val device = device.value ?: return@launch
-        val version = version.value ?: return@launch
-        Log.d(TAG, "Saving deviceUpdated")
-        val updatedDevice = device.copy(
-            version = version.version.tagName.drop(1),
-            newUpdateVersionTagAvailable = ""
+        Log.d(TAG, "Resetting skipUpdateTag")
+        val updatedDevice = device.device.copy(
+            skipUpdateTag = ""
         )
         deviceRepository.update(updatedDevice)
-        stateFactory.getState(device).requestsManager.addRequest(RefreshRequest(device))
     }
 
     private fun getHtmlErrorMessage(response: Response<ResponseBody>): String {

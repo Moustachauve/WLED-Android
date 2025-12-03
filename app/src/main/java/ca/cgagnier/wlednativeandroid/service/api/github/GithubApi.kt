@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import retrofit2.Retrofit
@@ -18,7 +17,7 @@ import java.io.File
 import java.net.UnknownHostException
 
 
-class GithubApi(private val cacheDir: File) {
+class GithubApi(private val okHttpClient: OkHttpClient) {
     fun getAllReleases(): List<Release>? {
         Log.d(TAG, "retrieving latest release")
         try {
@@ -71,15 +70,10 @@ class GithubApi(private val cacheDir: File) {
     }
 
     private fun getApi(): GithubApiEndpoints {
-        val cache = Cache(cacheDir, 10 * 1024 * 1024) // 10MB cache
-        val httpOkClient = OkHttpClient.Builder()
-            .cache(cache)
-            .build()
-
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
             .addConverterFactory(MoshiConverterFactory.create())
-            .client(httpOkClient)
+            .client(okHttpClient)
             .build()
             .create(GithubApiEndpoints::class.java)
     }

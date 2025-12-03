@@ -1,77 +1,91 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen.deviceAdd
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.domain.use_case.ValidateAddress
-import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+private const val TAG = "DeviceAddViewModel"
+
 @HiltViewModel
 class DeviceAddViewModel @Inject constructor(
-    private val repository: DeviceRepository,
-    private val validateAddress: ValidateAddress
+    private val validateAddress: ValidateAddress,
+    private val deviceFirstContactService: DeviceFirstContactService
 ) : ViewModel() {
 
-    var state by mutableStateOf(DeviceAddFormState())
+    var state by mutableStateOf(DeviceAddState())
+    private var findDeviceJob: Job? = null
 
-    private val validationEventChannel = Channel<ValidationEvent>()
-    val validationEvents = validationEventChannel.receiveAsFlow()
+    fun setAddress(address: String) {
+        if (state.step is DeviceAddStep.Form) state = state.copy(address = address)
+    }
 
-    fun onEvent(event: DeviceAddFormEvent) {
-        when (event) {
-            is DeviceAddFormEvent.AddressChanged -> {
-                state = state.copy(address = event.address)
+    fun submitCreateDevice() {
+        findDeviceJob = viewModelScope.launch(Dispatchers.IO) {
+            val emailResult = validateAddress.execute(state.address)
+            val hasError = listOf(
+                emailResult
+            ).any { !it.successful }
+            if (hasError) {
+                state = state.copy(
+                    step = DeviceAddStep.Form(addressError = emailResult.errorMessage)
+                )
+                return@launch
             }
-            is DeviceAddFormEvent.NameChanged -> {
-                state = state.copy(name = event.name)
-            }
-            is DeviceAddFormEvent.IsHiddenChanged -> {
-                state = state.copy(isHidden = event.isHidden)
-            }
-            is DeviceAddFormEvent.Submit -> {
-                submitCreateDevice()
-            }
+
+            findDevice()
         }
     }
 
-    private fun submitCreateDevice() = viewModelScope.launch(Dispatchers.IO) {
-        val emailResult = validateAddress.execute(state.address)
-        val hasError = listOf(
-            emailResult
-        ).any { !it.successful }
-        if (hasError) {
+    /**
+     * Starts searching for the device and adds it, if one is found
+     */
+    private suspend fun findDevice() {
+        state = state.copy(step = DeviceAddStep.Adding)
+        try {
+            val newDevice = deviceFirstContactService.fetchAndUpsertDevice(state.address)
+            // If the dialog was closed before we got here, don't update the state
+            if (!currentCoroutineContext().isActive) {
+                return
+            }
             state = state.copy(
-                addressError = emailResult.errorMessage
+                step = DeviceAddStep.Success(
+                    device = newDevice
+                )
             )
-            return@launch
+        } catch (e: Exception) {
+            Log.w(TAG, "Error during first contact", e)
+            // If the dialog was closed before we got here, don't update the state
+            if (!currentCoroutineContext().isActive) {
+                return
+            }
+            state = state.copy(
+                step = DeviceAddStep.Form(
+                    addressError = R.string.add_device_error
+                )
+            )
         }
-
-        val trimmedName = state.name.trim()
-        val device = Device(
-            address = state.address.trim(),
-            name = trimmedName,
-            isCustomName = trimmedName != "",
-            isHidden = state.isHidden,
-            macAddress = Device.UNKNOWN_VALUE
-        )
-        repository.insert(device)
-        validationEventChannel.send(ValidationEvent.Success)
     }
 
+    /**
+     * Clears the current state and cancels the find device job
+     */
     fun clear() {
-        state = DeviceAddFormState()
-    }
-
-    sealed class ValidationEvent {
-        data object Success: ValidationEvent()
+        // This needs to be canceled to avoid showing a "success" screen if the user
+        // reopens the "add device" screen quickly after dismissing it in the "Adding" step.
+        findDeviceJob?.cancel()
+        state = DeviceAddState()
     }
 }

@@ -10,11 +10,42 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import com.vdurmont.semver4j.Semver
-import java.io.File
 
 private const val TAG = "updateService"
-private const val WLED_BRAND = "WLED"
-private const val WLED_PRODUCT = "FOSS"
+
+enum class UpdateSourceType {
+    OFFICIAL_WLED, QUINLED, CUSTOM
+}
+
+data class UpdateSourceDefinition(
+    val type: UpdateSourceType,
+    val brandPattern: String,
+    val githubOwner: String,
+    val githubRepo: String
+)
+
+object UpdateSourceRegistry {
+    val sources = listOf(
+        UpdateSourceDefinition(
+            type = UpdateSourceType.OFFICIAL_WLED,
+            brandPattern = "WLED",
+            githubOwner = "Aircoookie",
+            githubRepo = "WLED"
+        ),
+        UpdateSourceDefinition(
+            type = UpdateSourceType.QUINLED,
+            brandPattern = "QuinLED",
+            githubOwner = "intermittech",
+            githubRepo = "QuinLED-Firmware"
+        )
+    )
+
+    fun getSource(info: Info): UpdateSourceDefinition? {
+        return sources.find {
+            info.brand == it.brandPattern
+        }
+    }
+}
 
 class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsRepository) {
 
@@ -28,52 +59,79 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
      * @return The newest version if it is newer than versionName and different than ignoreVersion,
      *      otherwise an empty string.
      */
-    suspend fun getNewerReleaseTag(deviceInfo: Info, branch: Branch, ignoreVersion: String): String {
+    suspend fun getNewerReleaseTag(
+        deviceInfo: Info,
+        branch: Branch,
+        ignoreVersion: String,
+        updateSourceDefinition: UpdateSourceDefinition,
+    ): String? {
         if (deviceInfo.version.isNullOrEmpty()) {
-            return ""
+            return null
         }
-        // This would need some major refactoring in order to support different sources for OTA.
-        if (deviceInfo.brand != WLED_BRAND || deviceInfo.product != WLED_PRODUCT) {
-            return ""
+
+        if (deviceInfo.brand != updateSourceDefinition.brandPattern) {
+            return null
         }
 
         // The options bitmask at 0x01 being 0 means OTA is disabled on the device.
         if (deviceInfo.options?.and(0x01) == 0) {
-            return ""
+            return null
         }
 
-        val latestVersion = getLatestVersionWithAssets(branch) ?: return ""
+        // TODO: Modify this to use repositoryOwner and repositoryName
+        val latestVersion = getLatestVersionWithAssets(branch) ?: return null
         if (latestVersion.version.tagName == ignoreVersion) {
-            return ""
+            return null
+        }
+
+        // Make sure we have a version that isn't prefixed with "v" to be able to properly compare
+        // it to Device's version.
+        val untaggedUpdateVersion = if (latestVersion.version.tagName.startsWith(
+                'v', ignoreCase = true
+            )
+        ) latestVersion.version.tagName.drop(1) else latestVersion.version.tagName
+
+        // Don't offer to update to the already installed version
+        if (untaggedUpdateVersion == deviceInfo.version) {
+            return null
         }
 
         val betaSuffixes = listOf("-a", "-b", "-rc")
-        Log.w(TAG, "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to ${latestVersion.version.tagName}")
-        if (branch == Branch.STABLE && betaSuffixes.any { deviceInfo.version.contains(it, ignoreCase = true)}) {
+        Log.w(
+            TAG, "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $untaggedUpdateVersion"
+        )
+        if (branch == Branch.STABLE && betaSuffixes.any {
+                deviceInfo.version.contains(
+                    it, ignoreCase = true
+                )
+            }) {
             // If we're on a beta branch but looking for a stable branch, always offer to "update" to
             // the stable branch.
             return latestVersion.version.tagName
-        } else if (branch == Branch.BETA && betaSuffixes.none { deviceInfo.version.contains(it, ignoreCase = true)}) {
+        } else if (branch == Branch.BETA && betaSuffixes.none {
+                deviceInfo.version.contains(
+                    it, ignoreCase = true
+                )
+            }) {
             // Same if we are on a stable branch but looking for a beta branch, we should offer to
             // "update" to the latest beta branch, even if its older.
             return latestVersion.version.tagName
         }
 
         try {
-            return if (Semver(
-                    latestVersion.version.tagName.drop(1),
-                    Semver.SemverType.LOOSE
-                ).isGreaterThan(deviceInfo.version)
+            return if (Semver(untaggedUpdateVersion, Semver.SemverType.LOOSE).isGreaterThan(
+                    deviceInfo.version
+                )
             ) {
                 latestVersion.version.tagName
             } else {
-                ""
+                null
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in getNewerReleaseTag: " + e.message, e)
         }
 
-        return ""
+        return null
     }
 
     private suspend fun getLatestVersionWithAssets(branch: Branch): VersionWithAssets? {
@@ -84,8 +142,8 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
         return versionWithAssetsRepository.getLatestStableVersionWithAssets()
     }
 
-    suspend fun refreshVersions(cacheDir: File) {
-        val allVersions = GithubApi(cacheDir).getAllReleases()
+    suspend fun refreshVersions(githubApi: GithubApi) {
+        val allVersions = githubApi.getAllReleases()
 
         if (allVersions == null) {
             Log.w(TAG, "Did not find any version")
@@ -103,8 +161,7 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
 
         Log.i(
             TAG,
-            "Inserting " + versionModels.count() + " versions with " +
-                    assetsModels.count() + " assets"
+            "Inserting " + versionModels.count() + " versions with " + assetsModels.count() + " assets"
         )
         versionWithAssetsRepository.insertMany(versionModels, assetsModels)
     }

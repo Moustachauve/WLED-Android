@@ -8,6 +8,6 @@ import com.squareup.moshi.JsonClass
 data class UserMods(
 
     // Battery values
-    @Json(name = "Battery level") val batteryLevel: List<Any>? = null,
-    @Json(name = "Battery voltage") val batteryVoltage: List<Any>? = null,
+    @param:Json(name = "Battery level") val batteryLevel: List<Any>? = null,
+    @param:Json(name = "Battery voltage") val batteryVoltage: List<Any>? = null,
 )

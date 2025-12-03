@@ -7,16 +7,10 @@ import javax.inject.Inject
 
 class DeviceRepository @Inject constructor(private val deviceDao: DeviceDao) {
     val allDevices: Flow<List<Device>> = deviceDao.getAlphabetizedDevices()
-    val allDevicesOfflineLast: Flow<List<Device>> = deviceDao.getAlphabetizedDevicesOfflineLast()
 
     @WorkerThread
     fun getAllDevices(): List<Device> {
         return deviceDao.getAllDevices()
-    }
-
-    @WorkerThread
-    fun findLiveDeviceByAddress(address: String): Flow<Device?> {
-        return deviceDao.findLiveDeviceByAddress(address)
     }
 
     @WorkerThread
@@ -41,9 +35,5 @@ class DeviceRepository @Inject constructor(private val deviceDao: DeviceDao) {
 
     fun contains(device: Device): Boolean {
         return deviceDao.count(device.address) > 0
-    }
-
-    suspend fun hasHiddenDevices(): Boolean {
-        return deviceDao.countHiddenDevices() > 0
     }
 }

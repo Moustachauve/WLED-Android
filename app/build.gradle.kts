@@ -30,8 +30,9 @@ android {
     }
 
     buildFeatures {
-        dataBinding = true
+        buildConfig = true
         compose = true
+        dataBinding = true
     }
 
     buildTypes {
@@ -57,6 +58,9 @@ android {
             freeCompilerArgs.add("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api")
         }
     }
+    hilt {
+        enableAggregatingTask = true
+    }
     namespace = "ca.cgagnier.wlednativeandroid"
 }
 
@@ -66,6 +70,8 @@ ksp {
 }
 
 dependencies {
+    implementation(libs.androidx.graphics.shapes)
+    implementation(libs.androidx.compose.ui.graphics)
     val composeBom = platform(libs.androidx.compose.bom)
     androidTestImplementation(composeBom)
     androidTestImplementation(libs.androidx.espresso.core)

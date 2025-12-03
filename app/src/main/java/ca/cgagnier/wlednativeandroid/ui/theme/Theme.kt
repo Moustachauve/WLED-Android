@@ -18,8 +18,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
+import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import com.materialkolor.DynamicMaterialTheme
 import com.materialkolor.PaletteStyle
 
@@ -310,26 +311,43 @@ fun WLEDNativeTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme // negate darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
+                !darkTheme // negate darkTheme
         }
     }
 }
 
+private fun getColorFromDeviceState(stateInfo: DeviceStateInfo?): Int {
+    var color = android.graphics.Color.WHITE
+    if (!stateInfo?.state?.segment.isNullOrEmpty()) {
+        val colors = stateInfo.state.segment[0].colors
+        if (!colors.isNullOrEmpty()) {
+            val colorInfo = colors[0]
+            color = if (colorInfo.size in 3..4) android.graphics.Color.rgb(
+                colorInfo[0], colorInfo[1], colorInfo[2]
+            ) else android.graphics.Color.WHITE
+        }
+    }
+    return color
+}
 
 @Composable
 fun DeviceTheme(
-    device: Device,
+    device: DeviceWithState,
     themeViewModel: ThemeViewModel = hiltViewModel(),
     content: @Composable () -> Unit
 ) {
+    val stateInfo by device.stateInfo
+
     val theme by themeViewModel.theme.collectAsStateWithLifecycle()
     val darkTheme = when (theme) {
         ThemeSettings.Auto -> isSystemInDarkTheme()
         ThemeSettings.Dark -> true
         else -> false
     }
+
     DynamicMaterialTheme(
-        seedColor = Color(device.color),
+        seedColor = Color(getColorFromDeviceState(stateInfo)),
         isDark = darkTheme,
         style = if (device.isOnline) PaletteStyle.Vibrant else PaletteStyle.Neutral,
         animate = true
