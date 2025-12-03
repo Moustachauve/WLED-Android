@@ -117,6 +117,7 @@ object AppContainer {
             .connectTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .pingInterval(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .cache(Cache(appContext.cacheDir, 20 * 1024 * 1024)) // 20MB cache
             .build()
     }

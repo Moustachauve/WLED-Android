@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 private const val TAG = "DeviceWebsocketListViewModel"
@@ -28,19 +29,18 @@ private const val TAG = "DeviceWebsocketListViewModel"
 class DeviceWebsocketListViewModel @Inject constructor(
     userPreferencesRepository: UserPreferencesRepository,
     private val deviceRepository: DeviceRepository,
-    private val deviceUpdateManager: DeviceUpdateManager
+    private val deviceUpdateManager: DeviceUpdateManager,
+    private val okHttpClient: OkHttpClient
 ) : ViewModel(), DefaultLifecycleObserver {
     private val activeClients = MutableStateFlow<Map<String, WebsocketClient>>(emptyMap())
     private val devicesFromDb = deviceRepository.allDevices
 
-    val showOfflineDevicesLast = userPreferencesRepository.showOfflineDevicesLast
-        .stateIn(
+    val showOfflineDevicesLast = userPreferencesRepository.showOfflineDevicesLast.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = false
         )
-    val showHiddenDevices = userPreferencesRepository.showHiddenDevices
-        .stateIn(
+    val showHiddenDevices = userPreferencesRepository.showHiddenDevices.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = false
@@ -52,8 +52,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            devicesFromDb
-                .scan(emptyMap<String, WebsocketClient>()) { currentClients, newDeviceList ->
+            devicesFromDb.scan(emptyMap<String, WebsocketClient>()) { currentClients, newDeviceList ->
                     // Create a mutable copy of the current client map to build the next state.
                     val nextClients = currentClients.toMutableMap()
                     val newDeviceMap = newDeviceList.associateBy { it.macAddress }
@@ -72,8 +71,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
                         if (existingClient == null) {
                             // Device added: create and connect a new client.
                             Log.d(TAG, "[Scan] Device added: $macAddress. Creating client.")
-                            val newClient =
-                                WebsocketClient(device, deviceRepository, deviceUpdateManager)
+                            val newClient = WebsocketClient(
+                                device, deviceRepository, deviceUpdateManager, okHttpClient
+                            )
                             if (!isPaused.value) {
                                 newClient.connect()
                             }
@@ -85,8 +85,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
                                 "[Scan] Device address changed for $macAddress. Reconnecting client."
                             )
                             existingClient.destroy()
-                            val newClient =
-                                WebsocketClient(device, deviceRepository, deviceUpdateManager)
+                            val newClient = WebsocketClient(
+                                device, deviceRepository, deviceUpdateManager, okHttpClient
+                            )
                             if (!isPaused.value) {
                                 newClient.connect()
                             }
@@ -99,8 +100,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
                     }
                     // Return the updated map, which becomes `currentClients` for the next iteration.
                     nextClients
-                }
-                .collect { updatedClients ->
+                }.collect { updatedClients ->
                     // Emit the new map of clients to the StateFlow.
                     activeClients.value = updatedClients
                 }
@@ -133,14 +133,13 @@ class DeviceWebsocketListViewModel @Inject constructor(
     /**
      * List of all devices with their real-time state.
      */
-    val allDevicesWithState: StateFlow<List<DeviceWithState>> =
-        activeClients.map { clients ->
-            clients.values.map { it.deviceState }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    val allDevicesWithState: StateFlow<List<DeviceWithState>> = activeClients.map { clients ->
+        clients.values.map { it.deviceState }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     override fun onCleared() {
         super.onCleared()
@@ -153,8 +152,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
      */
     fun refreshOfflineDevices() {
         Log.d(TAG, "Refreshing offline devices.")
-        val offlineClients =
-            activeClients.value.values.filter { !it.deviceState.isOnline }
+        val offlineClients = activeClients.value.values.filter { !it.deviceState.isOnline }
         offlineClients.forEach {
             it.connect()
         }

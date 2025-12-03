@@ -19,22 +19,19 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 import kotlin.math.min
 import kotlin.math.pow
 
 class WebsocketClient(
     device: Device,
     private val deviceRepository: DeviceRepository,
-    deviceUpdateManager: DeviceUpdateManager
+    deviceUpdateManager: DeviceUpdateManager,
+    private val okHttpClient: OkHttpClient,
 ) {
 
     val deviceState: DeviceWithState = DeviceWithState(device, deviceUpdateManager)
 
     private var webSocket: WebSocket? = null
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .pingInterval(10, TimeUnit.SECONDS)
-        .build()
 
     private var isManuallyDisconnected = false
     private var isConnecting = false
@@ -139,7 +136,7 @@ class WebsocketClient(
         val websocketUrl = "ws://${deviceState.device.address}/ws"
         val request = Request.Builder().url(websocketUrl).build()
         Log.d(TAG, "Connecting to ${deviceState.device.address}")
-        webSocket = client.newWebSocket(request, webSocketListener)
+        webSocket = okHttpClient.newWebSocket(request, webSocketListener)
     }
 
     fun disconnect() {
