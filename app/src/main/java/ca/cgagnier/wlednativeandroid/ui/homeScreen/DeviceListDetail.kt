@@ -1,6 +1,5 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen
 
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,7 +36,6 @@ import androidx.compose.material3.adaptive.navigation.NavigableListDetailPaneSca
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -48,8 +46,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.BuildConfig
@@ -98,26 +94,6 @@ fun DeviceListDetail(
     val isAddDeviceDialogVisible by viewModel.isAddDeviceDialogVisible.collectAsStateWithLifecycle()
     val addDevice = {
         viewModel.showAddDeviceDialog()
-    }
-
-    // TODO: Check if these life cycle events could be replaced by a custom hook or by
-    //  moving it to a lifecycle aware viewModel or something? To investigate :)
-    DisposableEffect(key1 = lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                Log.i(TAG, "== ON RESUME ==")
-                viewModel.startDiscoveryServiceTimed()
-            }
-            if (event == Lifecycle.Event.ON_PAUSE) {
-                Log.i(TAG, "== ON PAUSE ==")
-                viewModel.stopDiscoveryService()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
     }
 
     val navigateToDeviceDetail: (DeviceWithState) -> Unit = { device: DeviceWithState ->

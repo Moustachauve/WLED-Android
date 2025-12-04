@@ -3,6 +3,9 @@ package ca.cgagnier.wlednativeandroid.ui.homeScreen
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.DeviceDiscovery
@@ -27,7 +30,7 @@ class DeviceListDetailViewModel @Inject constructor(
     private val preferencesRepository: UserPreferencesRepository,
     networkManager: NetworkConnectivityManager,
     private val deviceFirstContactService: DeviceFirstContactService,
-) : AndroidViewModel(application) {
+) : AndroidViewModel(application), DefaultLifecycleObserver {
     val isWLEDCaptivePortal = networkManager.isWLEDCaptivePortal
 
     val showHiddenDevices = preferencesRepository.showHiddenDevices
@@ -47,6 +50,29 @@ class DeviceListDetailViewModel @Inject constructor(
     private val _isAddDeviceDialogVisible = MutableStateFlow(false)
     val isAddDeviceDialogVisible: StateFlow<Boolean> = _isAddDeviceDialogVisible
 
+    init {
+        // This ensures onResume/onPause are called only when the APP goes background/foreground,
+        // not when the screen rotates.
+        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+    }
+    override fun onResume(owner: LifecycleOwner) {
+        super.onResume(owner)
+        Log.i(TAG, "App in foreground, starting discovery")
+        startDiscoveryServiceTimed()
+    }
+
+    override fun onPause(owner: LifecycleOwner) {
+        super.onPause(owner)
+        Log.i(TAG, "App in background, stopping discovery")
+        stopDiscoveryService()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
+        stopDiscoveryService()
+    }
+
     private fun startDiscoveryService() {
         Log.i(TAG, "Start device discovery")
         discoveryService.start()
@@ -54,7 +80,7 @@ class DeviceListDetailViewModel @Inject constructor(
 
     fun startDiscoveryServiceTimed(timeMillis: Long = 10000) =
         viewModelScope.launch(Dispatchers.IO) {
-            Log.i(TAG, "Start device discovery")
+            Log.i(TAG, "Starting timed device discovery")
             startDiscoveryService()
             delay(timeMillis)
             stopDiscoveryService()
