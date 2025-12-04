@@ -3,6 +3,7 @@ package ca.cgagnier.wlednativeandroid.ui.homeScreen.list
 import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.Device
@@ -36,74 +37,73 @@ class DeviceWebsocketListViewModel @Inject constructor(
     private val devicesFromDb = deviceRepository.allDevices
 
     val showOfflineDevicesLast = userPreferencesRepository.showOfflineDevicesLast.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
-        )
+        scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = false
+    )
     val showHiddenDevices = userPreferencesRepository.showHiddenDevices.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
-        )
+        scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = false
+    )
 
     // Track if the ViewModel is paused or not. It would be paused if the app is in the
     // background, for example.
     private val isPaused = MutableStateFlow(false)
 
     init {
+        // Observe the ProcessLifecycle (App level) instead of Activity. This ensures onPause is
+        // only called when the *entire app* goes background, not when the screen rotates.
+        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
         viewModelScope.launch {
             devicesFromDb.scan(emptyMap<String, WebsocketClient>()) { currentClients, newDeviceList ->
-                    // Create a mutable copy of the current client map to build the next state.
-                    val nextClients = currentClients.toMutableMap()
-                    val newDeviceMap = newDeviceList.associateBy { it.macAddress }
+                // Create a mutable copy of the current client map to build the next state.
+                val nextClients = currentClients.toMutableMap()
+                val newDeviceMap = newDeviceList.associateBy { it.macAddress }
 
-                    // 1. Identify and destroy clients for devices that are no longer present.
-                    val devicesToRemove = currentClients.keys - newDeviceMap.keys
-                    devicesToRemove.forEach { macAddress ->
-                        Log.d(TAG, "[Scan] Device removed: $macAddress. Destroying client.")
-                        nextClients[macAddress]?.destroy()
-                        nextClients.remove(macAddress)
-                    }
-
-                    // 2. Identify and create/update clients for new or changed devices.
-                    newDeviceMap.forEach { (macAddress, device) ->
-                        val existingClient = currentClients[macAddress]
-                        if (existingClient == null) {
-                            // Device added: create and connect a new client.
-                            Log.d(TAG, "[Scan] Device added: $macAddress. Creating client.")
-                            val newClient = WebsocketClient(
-                                device, deviceRepository, deviceUpdateManager, okHttpClient
-                            )
-                            if (!isPaused.value) {
-                                newClient.connect()
-                            }
-                            nextClients[macAddress] = newClient
-                        } else if (existingClient.deviceState.device.address != device.address) {
-                            // Device IP changed: reconnect the client.
-                            Log.d(
-                                TAG,
-                                "[Scan] Device address changed for $macAddress. Reconnecting client."
-                            )
-                            existingClient.destroy()
-                            val newClient = WebsocketClient(
-                                device, deviceRepository, deviceUpdateManager, okHttpClient
-                            )
-                            if (!isPaused.value) {
-                                newClient.connect()
-                            }
-                            nextClients[macAddress] = newClient
-                        } else {
-                            Log.d(TAG, "[Scan] Device updated: $macAddress.")
-                            existingClient.updateDevice(device)
-                            nextClients[macAddress] = existingClient
-                        }
-                    }
-                    // Return the updated map, which becomes `currentClients` for the next iteration.
-                    nextClients
-                }.collect { updatedClients ->
-                    // Emit the new map of clients to the StateFlow.
-                    activeClients.value = updatedClients
+                // 1. Identify and destroy clients for devices that are no longer present.
+                val devicesToRemove = currentClients.keys - newDeviceMap.keys
+                devicesToRemove.forEach { macAddress ->
+                    Log.d(TAG, "[Scan] Device removed: $macAddress. Destroying client.")
+                    nextClients[macAddress]?.destroy()
+                    nextClients.remove(macAddress)
                 }
+
+                // 2. Identify and create/update clients for new or changed devices.
+                newDeviceMap.forEach { (macAddress, device) ->
+                    val existingClient = currentClients[macAddress]
+                    if (existingClient == null) {
+                        // Device added: create and connect a new client.
+                        Log.d(TAG, "[Scan] Device added: $macAddress. Creating client.")
+                        val newClient = WebsocketClient(
+                            device, deviceRepository, deviceUpdateManager, okHttpClient
+                        )
+                        if (!isPaused.value) {
+                            newClient.connect()
+                        }
+                        nextClients[macAddress] = newClient
+                    } else if (existingClient.deviceState.device.address != device.address) {
+                        // Device IP changed: reconnect the client.
+                        Log.d(
+                            TAG,
+                            "[Scan] Device address changed for $macAddress. Reconnecting client."
+                        )
+                        existingClient.destroy()
+                        val newClient = WebsocketClient(
+                            device, deviceRepository, deviceUpdateManager, okHttpClient
+                        )
+                        if (!isPaused.value) {
+                            newClient.connect()
+                        }
+                        nextClients[macAddress] = newClient
+                    } else {
+                        Log.d(TAG, "[Scan] Device updated: $macAddress.")
+                        existingClient.updateDevice(device)
+                        nextClients[macAddress] = existingClient
+                    }
+                }
+                // Return the updated map, which becomes `currentClients` for the next iteration.
+                nextClients
+            }.collect { updatedClients ->
+                // Emit the new map of clients to the StateFlow.
+                activeClients.value = updatedClients
+            }
 
         }
     }
@@ -143,6 +143,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
         Log.d(TAG, "ViewModel cleared. Closing all WebSocket clients.")
         activeClients.value.values.forEach { it.destroy() }
     }

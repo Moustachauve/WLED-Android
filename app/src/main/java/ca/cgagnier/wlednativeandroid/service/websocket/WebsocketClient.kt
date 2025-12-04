@@ -127,7 +127,10 @@ class WebsocketClient(
 
     fun connect() {
         if (webSocket != null || isConnecting) {
-            Log.w(TAG, "Already connected or connecting to ${deviceState.device.address}")
+            Log.w(
+                TAG,
+                "Already connected or connecting to ${deviceState.device.address}, isConnecting: $isConnecting"
+            )
             return
         }
         isManuallyDisconnected = false
