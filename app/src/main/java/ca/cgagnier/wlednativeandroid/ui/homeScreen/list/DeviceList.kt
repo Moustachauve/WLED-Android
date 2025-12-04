@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,24 +86,30 @@ fun DeviceList(
 
     val listState = rememberLazyListState()
 
-    var inGracePeriod by remember { mutableStateOf(true) }
-    var isInitialLoading by remember { mutableStateOf(true) }
+    var inGracePeriod by rememberSaveable { mutableStateOf(true) }
+    var isInitialLoading by rememberSaveable { mutableStateOf(true) }
 
     // Keep track of the time to update the list of online/offline devices based on lastSeen
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
-        launch {
-            // "No Devices" Flash prevention: Wait 500ms before allowing the "No Devices" item to show.
-            // If the DB loads faster than this, the user sees the list immediately.
-            // If the DB is empty, the user sees a white screen for 0.5s, then the message.
-            delay(500)
-            isInitialLoading = false
+        if (isInitialLoading) {
+            launch {
+                // "No Devices" Flash prevention: Wait 500ms before allowing the "No Devices" item to show.
+                // If the DB loads faster than this, the user sees the list immediately.
+                // If the DB is empty, the user sees a white screen for 0.5s, then the message.
+                Log.d(TAG, "Initial loading!")
+                delay(500)
+                isInitialLoading = false
+            }
         }
-        launch {
-            // Optimistic UI: Force all devices to look "Online" for the first few seconds
-            // to allow WebSockets to connect without items jumping around.
-            delay(INITIAL_GRACE_PERIOD_MS)
-            inGracePeriod = false
+        if (inGracePeriod) {
+            launch {
+                // Optimistic UI: Force all devices to look "Online" for the first few seconds
+                // to allow WebSockets to connect without items jumping around.
+                Log.d(TAG, "Grace period!")
+                delay(INITIAL_GRACE_PERIOD_MS)
+                inGracePeriod = false
+            }
         }
         while (true) {
             delay(5000)
@@ -181,7 +188,11 @@ fun DeviceList(
                 // First invisible item to keep the scroll at the top if the list changes under it.
                 // This is a "hack" suggested here: https://issuetracker.google.com/issues/234223556#comment2
                 item(key = "first_invisible") {
-                    Spacer(Modifier.padding(1.dp).height(0.dp))
+                    Spacer(
+                        Modifier
+                            .padding(1.dp)
+                            .height(0.dp)
+                    )
                 }
                 if (allDevices.isEmpty()) {
                     // Don't show the empty page during the initial load to improve the user
