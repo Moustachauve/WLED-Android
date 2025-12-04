@@ -1,11 +1,11 @@
 [versions]
 agp = "8.13.1"
-composeBom = "2025.11.00"
+composeBom = "2025.12.00"
 converterMoshi = "3.0.0"
 core = "4.6.2"
 coreKtx = "1.17.0"
 coreSplashscreen = "1.2.0"
-datastorePreferences = "1.1.7"
+datastorePreferences = "1.2.0"
 espressoCore = "3.7.0"
 fragmentKtx = "1.8.9"
 # Version 2.53.1 causes issue with compiling
@@ -20,26 +20,24 @@ kotlin = "2.2.21"
 kotlinxSerializationJson = "1.9.0"
 ksp = "2.2.21-2.0.4"
 legacySupportV4 = "1.0.0"
-lifecycleViewmodelKtx = "2.9.4"
-loggingInterceptor = "5.3.0"
+lifecycleViewmodelKtx = "2.10.0"
+loggingInterceptor = "5.3.2"
 materialKolor = "4.0.5"
 moshiKotlinCodegen = "1.15.2"
 moshiVersion = "1.15.2"
 multiplatformmarkdownrenderer = "0.38.1"
 navigationCompose = "2.9.6"
-okhttp = "5.3.0"
+okhttp = "5.3.2"
 preferenceKtx = "1.2.1"
 protobuf = "0.9.5"
-protobufJavalite = "4.33.0"
+protobufJavalite = "4.33.1"
 retrofit = "3.0.0"
 retrofit2KotlinCoroutinesAdapter = "0.9.2"
-roomVersion = "2.8.3"
-runtimeLivedata = "1.9.4"
+roomVersion = "2.8.4"
+runtimeLivedata = "1.10.0"
 semver4j = "3.1.0"
 webkit = "1.14.0"
 graphicsShapes = "1.1.0"
-uiGraphics = "1.9.5"
-uiGeometry = "1.9.5"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose" }
@@ -70,7 +68,7 @@ androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-man
 androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-graphics-shapes = { group = "androidx.graphics", name = "graphics-shapes", version.ref = "graphicsShapes" }
-androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "uiGraphics" }
+androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 androidx-webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
 converter-moshi = { module = "com.squareup.retrofit2:converter-moshi", version.ref = "converterMoshi" }
 core = { module = "io.noties.markwon:core", version.ref = "core" }
@@ -99,7 +97,7 @@ semver4j = { module = "com.vdurmont:semver4j", version.ref = "semver4j" }
 
 # TODO: Manually import the icons instead of importing this.
 compose-material-icons = { group = "androidx.compose.material", name = "material-icons-core" }
-androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geometry", version.ref = "uiGeometry" }
+androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geometry" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
