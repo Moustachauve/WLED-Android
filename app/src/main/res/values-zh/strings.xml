@@ -1,8 +1,11 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_name" translatable="false">WLED</string>
-    <string name="app_logo">WLED Logo</string>
+    <string name="app_logo">WLED 标志</string>
     <string name="add_a_device">添加新设备</string>
     <string name="add">添加</string>
+    <string name="add_adding_device">正在添加 <xliff:g example="192.168.1.1" id="strength">%1$s</xliff:g></string>
+    <string name="add_device_added"><xliff:g example="Device123" id="strength">%1$s</xliff:g> 已添加</string>
+    <string name="add_device_error">无法连接到设备。请检查地址。</string>
     <string name="deleting_device">删除设备？</string>
     <string name="delete">删除</string>
     <string name="ip_address_or_url">IP 地址或 URL</string>
@@ -13,6 +16,19 @@
     <string name="cancel">取消</string>
     <string name="default_device_name">（新设备）</string>
     <string name="is_offline">（离线）</string>
+    <string name="offline_less_than_minute">离线，不到一分钟前</string>
+    <plurals name="offline_minutes">
+        <item quantity="one">离线，%d 分钟前</item>
+        <item quantity="other">离线，%d 分钟前</item>
+    </plurals>
+    <plurals name="offline_hours">
+        <item quantity="one">离线，%d 小时前</item>
+        <item quantity="other">离线，%d 小时前</item>
+    </plurals>
+    <plurals name="offline_days">
+        <item quantity="one">离线，%d 天前</item>
+        <item quantity="other">离线，%d 天前</item>
+    </plurals>
     <string name="update_available">有可用的更新</string>
     <string name="network_status">网络状态</string>
     <string name="signal_strength">信号强度： <xliff:g example="-62" id="strength">%1$s</xliff:g></string>
@@ -39,7 +55,7 @@
     <string name="description_menu_button">打开菜单</string>
     <string name="description_back_button">返回</string>
     <string name="device_ap_mode_detected">检测到 WLED AP 模式</string>
-    <string name="device_ap_mode_detected_click">点击打开设备</string>
+    <string name="device_ap_mode_detected_click">点击此处打开设备</string>
     <string name="install">安装</string>
     <string name="later">稍后</string>
     <string name="skip_this_version">跳过</string>
@@ -47,7 +63,7 @@
     <string name="from_version_to_version">
         从 <xliff:g example="v0.13.0" id="old_version">%1$s</xliff:g> 更新至 <xliff:g example="v0.14.0" id="new_version">%2$s</xliff:g>
     </string>
-    <string name="see_update_details">查看更新详情</string>
+    <string name="see_update_details">查看更新</string>
     <string name="checking_progress_update">检查中…</string>
     <string name="updating">正在更新 %1$s</string>
     <string name="please_do_not_close_the_app_or_turn_off_the_device">请不要关闭 App 或设备。</string>
@@ -68,6 +84,7 @@
     <string name="show_error">显示错误</string>
     <string name="hide_error">隐藏错误</string>
     <string name="unknown_error">未知错误</string>
+    <string name="success">成功！</string>
     <string name="update_channel">更新频道</string>
     <string name="stable">稳定</string>
     <string name="beta">Beta</string>
@@ -77,4 +94,8 @@
     <string name="downloading_file">正在下载文件</string>
     <string name="help">WLED 帮助</string>
     <string name="support_me">支持 Moustachauve</string>
+    <string name="offline_devices">离线设备</string>
+    <string name="websocket_connected">已连接</string>
+    <string name="websocket_connecting">正在连接…</string>
+    <string name="websocket_disconnected">已断开连接</string>
 </resources>
