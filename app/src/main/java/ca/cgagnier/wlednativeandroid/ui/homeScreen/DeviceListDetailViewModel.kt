@@ -55,6 +55,7 @@ class DeviceListDetailViewModel @Inject constructor(
         // not when the screen rotates.
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
     }
+
     override fun onResume(owner: LifecycleOwner) {
         super.onResume(owner)
         Log.i(TAG, "App in foreground, starting discovery")
@@ -93,7 +94,11 @@ class DeviceListDetailViewModel @Inject constructor(
 
     private fun deviceDiscovered(address: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            deviceFirstContactService.fetchAndUpsertDevice(address)
+            try {
+                deviceFirstContactService.fetchAndUpsertDevice(address)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch/upsert device at $address", e)
+            }
         }
     }
 
