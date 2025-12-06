@@ -33,10 +33,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.R
-import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.ui.components.deviceName
+import ca.cgagnier.wlednativeandroid.ui.preview.getPreviewDevice
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
 
 @Composable
@@ -255,16 +255,6 @@ class SampleStateStepProvider : PreviewParameterProvider<UpdateInstallingState> 
             canDismiss = true,
             assetName = "WLED-1.2.3-WOW.bin"
         ),
-    )
-}
-
-fun getPreviewDevice(): DeviceWithState {
-    return DeviceWithState(
-        Device(
-            macAddress = "00:11:22:33:44:55",
-            address = "192.168.1.123",
-            customName = "Preview Device"
-        )
     )
 }
 
