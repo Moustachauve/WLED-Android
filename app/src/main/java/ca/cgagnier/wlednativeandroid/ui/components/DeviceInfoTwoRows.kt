@@ -46,8 +46,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
-import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
+import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
@@ -57,12 +58,6 @@ import androidx.graphics.shapes.toPath
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
 import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
-import ca.cgagnier.wlednativeandroid.model.wledapi.Info
-import ca.cgagnier.wlednativeandroid.model.wledapi.Leds
-import ca.cgagnier.wlednativeandroid.model.wledapi.State
-import ca.cgagnier.wlednativeandroid.model.wledapi.UserMods
-import ca.cgagnier.wlednativeandroid.model.wledapi.Wifi
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
 import ca.cgagnier.wlednativeandroid.ui.preview.DevicePreviewParameterProvider
@@ -92,59 +87,157 @@ fun DeviceInfoTwoRows(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        Row(
-            modifier = Modifier.padding(bottom = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
+        ConstraintLayout(
+            modifier = Modifier
+                .padding(bottom = 2.dp)
+                .fillMaxWidth()
         ) {
-            // TODO: This row should be replaced with a ConstraintLayout or something similar.
-            //  This would allow for the offline message to also be truncated dynamically if
-            //  the address + offline message can't both fit. Right now, only the address can be
-            //  truncated. This is due to the limitation of the weight system of a row. When using
-            //  `fill = false`, the unused space is not distributed to the other elements.
-            WebsocketStatusIndicator(device.websocketStatus.value)
+            val (
+                websocketRef,
+                addressRef,
+                networkRef,
+                batteryRef,
+                updateRef,
+                offlineRef,
+                hiddenIconRef,
+                hiddenTextRef
+            ) = createRefs()
+
+            val chain = createHorizontalChain(
+                websocketRef,
+                addressRef,
+                networkRef,
+                batteryRef,
+                updateRef,
+                offlineRef,
+                hiddenIconRef,
+                hiddenTextRef,
+                chainStyle = androidx.constraintlayout.compose.ChainStyle.Packed(0f)
+            )
+
+            // Websocket Status (Always Present)
+            Box(
+                modifier = Modifier.constrainAs(websocketRef) {
+                    start.linkTo(parent.start)
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                }
+            ) {
+                WebsocketStatusIndicator(device.websocketStatus.value)
+            }
+
+            // Address (Flexible)
             Text(
                 device.device.address,
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
+                modifier = Modifier.constrainAs(addressRef) {
+                    width = Dimension.preferredWrapContent
+                    start.linkTo(websocketRef.end)
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                }
             )
-            deviceNetworkStrengthImage(device)
-            deviceBatteryPercentageImage(device)
 
-            if (updateTag != null) {
-                Icon(
-                    painter = painterResource(R.drawable.baseline_download_24),
-                    contentDescription = stringResource(R.string.network_status),
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .height(20.dp)
-                )
-            }
-            if (!device.isOnline) {
-                OfflineSinceText(
-                    device.device,
-                    currentTime = currentTime,
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                )
-            }
-            if (device.device.isHidden) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_baseline_visibility_off_24),
-                    contentDescription = stringResource(R.string.description_back_button),
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .height(16.dp)
-                )
-                Text(
-                    stringResource(R.string.hidden_status),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
+            // Network Strength (Always Present)
+            deviceNetworkStrengthImage(
+                device,
+                modifier = Modifier.constrainAs(networkRef) {
+                    start.linkTo(addressRef.end)
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                }
+            )
+
+            // Battery (Always wrapper, content conditional)
+            Box(
+                modifier = Modifier.constrainAs(batteryRef) {
+                    start.linkTo(networkRef.end)
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                }
+            ) {
+                deviceBatteryPercentageImage(device)
             }
 
+            // Update Icon (Conditional)
+            Box(
+                modifier = Modifier.constrainAs(updateRef) {
+                    start.linkTo(batteryRef.end)
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                }
+            ) {
+                if (updateTag != null) {
+                    Icon(
+                        painter = painterResource(R.drawable.baseline_download_24),
+                        contentDescription = stringResource(R.string.network_status),
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .height(20.dp)
+                    )
+                }
+            }
+
+            // Offline Message (Flexible)
+            Box(
+                modifier = Modifier.constrainAs(offlineRef) {
+                    width = Dimension.preferredWrapContent
+                    start.linkTo(updateRef.end)
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                }
+            ) {
+                if (!device.isOnline) {
+                    OfflineSinceText(
+                        device.device,
+                        currentTime = currentTime,
+                        modifier = Modifier
+                            .padding(start = 4.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // Hidden Icon (Conditional)
+            Box(
+                modifier = Modifier.constrainAs(hiddenIconRef) {
+                    start.linkTo(offlineRef.end)
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                }
+            ) {
+                if (device.device.isHidden) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_baseline_visibility_off_24),
+                        contentDescription = stringResource(R.string.description_back_button),
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .height(16.dp)
+                    )
+                }
+            }
+
+            // Hidden Text (Conditional)
+            Box(
+                modifier = Modifier.constrainAs(hiddenTextRef) {
+                    start.linkTo(hiddenIconRef.end)
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                    end.linkTo(parent.end)
+                }
+            ) {
+                if (device.device.isHidden) {
+                    Text(
+                        stringResource(R.string.hidden_status),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -266,13 +359,17 @@ fun OfflineSinceText(
     modifier: Modifier = Modifier,
     // Used to update the lastSeen message frequently, leave 0 for no updates
     currentTime: Long = 0,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip
 ) {
     if (device.lastSeen <= 0 || currentTime <= 0) {
         Text(
             "(${stringResource(R.string.is_offline)})",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = modifier
+            modifier = modifier,
+            maxLines = maxLines,
+            overflow = overflow
         )
         return
     }
@@ -306,7 +403,9 @@ fun OfflineSinceText(
             text = "($offlineText)",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = modifier
+            modifier = modifier,
+            maxLines = maxLines,
+            overflow = overflow
         )
     }
 }

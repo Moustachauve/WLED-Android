@@ -42,7 +42,10 @@ private fun getNetworkStrenghtImage(
 }
 
 @Composable
-fun deviceNetworkStrengthImage(device: DeviceWithState) {
+fun deviceNetworkStrengthImage(
+    device: DeviceWithState,
+    modifier: Modifier = Modifier
+) {
     val stateInfo by device.stateInfo
     val rssi = stateInfo?.info?.wifi?.rssi ?: -101
     TooltipBox(
@@ -61,7 +64,8 @@ fun deviceNetworkStrengthImage(device: DeviceWithState) {
                 }
             }
         },
-        state = rememberTooltipState()
+        state = rememberTooltipState(),
+        modifier = modifier
     ) {
         Icon(
             painter = painterResource(
