@@ -106,9 +106,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 // Return the updated map, which becomes `currentClients` for the next iteration.
                 nextClients
             }.flowOn(Dispatchers.IO).collect { updatedClients ->
-                    // Emit the new map of clients to the StateFlow.
-                    activeClients.value = updatedClients
-                }
+                // Emit the new map of clients to the StateFlow.
+                activeClients.value = updatedClients
+            }
 
         }
     }
