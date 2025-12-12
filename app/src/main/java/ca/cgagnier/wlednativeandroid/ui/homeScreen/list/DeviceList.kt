@@ -116,13 +116,11 @@ fun DeviceList(
         }
     }
 
-    val visibleDevices by remember(allDevices, showHiddenDevices) {
-        derivedStateOf {
-            allDevices.filter { !it.device.isHidden || showHiddenDevices }
-                .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) {
-                    it.device.customName.ifBlank { it.device.originalName }
-                })
-        }
+    val visibleDevices = remember(allDevices, showHiddenDevices) {
+        allDevices.filter { !it.device.isHidden || showHiddenDevices }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) {
+                it.device.customName.ifBlank { it.device.originalName }
+            })
     }
 
     val (onlineDevices, offlineDevices) = remember(visibleDevices, currentTime, inGracePeriod) {
