@@ -42,8 +42,8 @@ class DeviceListDetailViewModel @Inject constructor(
 
     private val discoveryService = DeviceDiscovery(
         context = getApplication<Application>().applicationContext,
-        onDeviceDiscovered = { address ->
-            deviceDiscovered(address)
+        onDeviceDiscovered = { address, macAddress ->
+            deviceDiscovered(address, macAddress)
         }
     )
 
@@ -92,10 +92,14 @@ class DeviceListDetailViewModel @Inject constructor(
         discoveryService.stop()
     }
 
-    private fun deviceDiscovered(address: String) {
+    private fun deviceDiscovered(address: String, macAddress: String?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                deviceFirstContactService.fetchAndUpsertDevice(address)
+                // Try the fast path (database only) first
+                if (!deviceFirstContactService.tryUpdateAddress(macAddress, address)) {
+                    // Fallback: Fetch info from the device (network call)
+                    deviceFirstContactService.fetchAndUpsertDevice(address)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch/upsert device at $address", e)
             }

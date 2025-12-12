@@ -9,7 +9,7 @@ import android.util.Log
 
 
 class DeviceDiscovery(
-    val context: Context, val onDeviceDiscovered: (address: String) -> Unit
+    val context: Context, val onDeviceDiscovered: (address: String, macAddress: String?) -> Unit
 ) {
 
     val nsdManager: NsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
@@ -77,8 +77,11 @@ class DeviceDiscovery(
             Log.w(TAG, "Device discovered, but did not have IP")
             return
         }
-        Log.i(TAG, "Device discovered: $deviceIp")
-        onDeviceDiscovered(deviceIp)
+        val macBytes = serviceInfo.attributes["mac"]
+        val macAddress = if (macBytes != null) String(macBytes) else null
+
+        Log.i(TAG, "Device discovered: $deviceIp, MAC: $macAddress")
+        onDeviceDiscovered(deviceIp, macAddress)
     }
 
     fun start() {
