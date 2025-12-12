@@ -125,18 +125,9 @@ fun DeviceList(
         }
     }
 
-    val onlineDevices by remember(visibleDevices, currentTime, inGracePeriod) {
-        derivedStateOf {
-            visibleDevices.filter { device ->
-                !shouldShowAsOffline(device, currentTime, inGracePeriod)
-            }
-        }
-    }
-    val offlineDevices by remember(visibleDevices, currentTime, inGracePeriod) {
-        derivedStateOf {
-            visibleDevices.filter { device ->
-                shouldShowAsOffline(device, currentTime, inGracePeriod)
-            }
+    val (onlineDevices, offlineDevices) = remember(visibleDevices, currentTime, inGracePeriod) {
+        visibleDevices.partition { device ->
+            !shouldShowAsOffline(device, currentTime, inGracePeriod)
         }
     }
 
