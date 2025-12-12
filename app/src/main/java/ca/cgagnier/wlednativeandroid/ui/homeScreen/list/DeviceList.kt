@@ -31,7 +31,6 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,7 +47,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
-import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
 import ca.cgagnier.wlednativeandroid.service.websocket.getApModeDeviceWithState
 import ca.cgagnier.wlednativeandroid.ui.components.DeviceInfoTwoRows
 import ca.cgagnier.wlednativeandroid.ui.theme.DeviceTheme
@@ -61,11 +59,6 @@ private const val TAG = "screen_DeviceList"
  * Amount of time after a device becomes offline before it is considered offline.
  */
 private const val DEVICE_OFFLINE_TIMEOUT_MS = 60000L
-
-/**
- * Grace period where devices are "optimistically" kept online if they are connecting
- */
-private const val INITIAL_GRACE_PERIOD_MS = 5000L
 
 @Composable
 fun DeviceList(
@@ -82,11 +75,9 @@ fun DeviceList(
     val allDevices by viewModel.allDevicesWithState.collectAsStateWithLifecycle()
     val visibleDevices by viewModel.visibleDevices.collectAsStateWithLifecycle()
     val showOfflineDevicesLast by viewModel.showOfflineDevicesLast.collectAsStateWithLifecycle()
-    val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
 
     val listState = rememberLazyListState()
 
-    var inGracePeriod by rememberSaveable { mutableStateOf(true) }
     var isInitialLoading by rememberSaveable { mutableStateOf(true) }
 
     // Keep track of the time to update the list of online/offline devices based on lastSeen
@@ -102,24 +93,15 @@ fun DeviceList(
                 isInitialLoading = false
             }
         }
-        if (inGracePeriod) {
-            launch {
-                // Optimistic UI: Force all devices to look "Online" for the first few seconds
-                // to allow WebSockets to connect without items jumping around.
-                Log.d(TAG, "Grace period!")
-                delay(INITIAL_GRACE_PERIOD_MS)
-                inGracePeriod = false
-            }
-        }
         while (true) {
             delay(5000)
             currentTime = System.currentTimeMillis()
         }
     }
 
-    val (onlineDevices, offlineDevices) = remember(visibleDevices, currentTime, inGracePeriod) {
+    val (onlineDevices, offlineDevices) = remember(visibleDevices, currentTime) {
         visibleDevices.partition { device ->
-            !shouldShowAsOffline(device, currentTime, inGracePeriod)
+            !shouldShowAsOffline(device, currentTime)
         }
     }
 
@@ -434,12 +416,7 @@ fun ConfirmDeleteDialog(
  * unstable.
  */
 private fun shouldShowAsOffline(
-    device: DeviceWithState, currentTime: Long, inGracePeriod: Boolean
+    device: DeviceWithState, currentTime: Long
 ): Boolean {
-    // During grace period, only show as offline if explicitly Disconnected. This "optimistically"
-    // marks connecting devices as online.
-    val isOffline =
-        if (inGracePeriod) device.websocketStatus.value == WebsocketStatus.DISCONNECTED else !device.isOnline
-
-    return isOffline && currentTime - device.device.lastSeen >= DEVICE_OFFLINE_TIMEOUT_MS
+    return !device.isOnline && currentTime - device.device.lastSeen >= DEVICE_OFFLINE_TIMEOUT_MS
 }
