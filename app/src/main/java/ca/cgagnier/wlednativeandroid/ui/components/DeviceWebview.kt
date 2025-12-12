@@ -40,8 +40,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,7 +90,7 @@ fun DeviceWebView(
     chromeClient: CustomWebChromeClient = remember { CustomWebChromeClient(context) },
 ) {
     Log.i(TAG, "composing webview")
-    val webView = webViewViewModel.webView().observeAsState().value ?: return
+    val webView = webViewViewModel.webView().collectAsState().value
     navigator.backQueue = webViewViewModel.backQueue
 
     BackHandler(navigator.canGoBack) {
