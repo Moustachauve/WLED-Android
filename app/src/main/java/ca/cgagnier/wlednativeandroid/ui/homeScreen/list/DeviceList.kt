@@ -81,6 +81,7 @@ fun DeviceList(
 ) {
     val allDevices by viewModel.allDevicesWithState.collectAsStateWithLifecycle()
     val showOfflineDevicesLast by viewModel.showOfflineDevicesLast.collectAsStateWithLifecycle()
+    val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
 
     val listState = rememberLazyListState()
 
@@ -115,9 +116,9 @@ fun DeviceList(
         }
     }
 
-    val visibleDevices by remember(allDevices) {
+    val visibleDevices by remember(allDevices, showHiddenDevices) {
         derivedStateOf {
-            allDevices.filter { !it.device.isHidden || viewModel.showHiddenDevices.value }
+            allDevices.filter { !it.device.isHidden || showHiddenDevices }
                 .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) {
                     it.device.customName.ifBlank { it.device.originalName }
                 })
