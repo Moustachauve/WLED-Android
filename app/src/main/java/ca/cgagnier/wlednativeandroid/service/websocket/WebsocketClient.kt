@@ -28,6 +28,7 @@ class WebsocketClient(
     private val deviceRepository: DeviceRepository,
     deviceUpdateManager: DeviceUpdateManager,
     private val okHttpClient: OkHttpClient,
+    moshi: Moshi
 ) {
 
     val deviceState: DeviceWithState = DeviceWithState(device, deviceUpdateManager)
@@ -40,7 +41,6 @@ class WebsocketClient(
 
 
     // Moshi setup
-    private val moshi: Moshi = Moshi.Builder().build()
     private val deviceStateInfoJsonAdapter: JsonAdapter<DeviceStateInfo> =
         moshi.adapter(DeviceStateInfo::class.java)
     private val stateJsonAdapter: JsonAdapter<State> = moshi.adapter(State::class.java)
