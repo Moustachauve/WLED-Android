@@ -41,7 +41,11 @@ class DeviceUpdateService(
         }
     }
 
-    // Preferred method, only available since WLED 0.15.0
+    /**
+     * Determine the asset to download based on the release variable.
+     *
+     * This is the preferred method. It is only available on WLED devices since 0.15.0.
+     */
     private fun determineAssetByRelease(): Boolean {
         val release = device.stateInfo.value?.info?.release
         if (release.isNullOrEmpty()) {
@@ -55,7 +59,11 @@ class DeviceUpdateService(
         return findAsset(assetName)
     }
 
-    // Legacy method for backwards compatibility with WLED older than 0.15.0
+    /**
+     * Determine the asset to download based on the platform.
+     *
+     * Legacy method for backwards compatibility with WLED devices older than 0.15.0
+     */
     private fun determineAssetByPlatform(): Boolean {
         val deviceInfo = device.stateInfo.value?.info
         if (deviceInfo == null || !supportedPlatforms.contains(deviceInfo.platformName)) {
