@@ -209,9 +209,7 @@ class UpdateInstallingViewModel @Inject constructor(
 
         // 1. Remove specific tags we don't want (title, button, h1) and their content
         // (?s) enables "dot matches newline" mode so it works on multi-line HTML
-        html = html.replace(Regex("(?s)<title.*?>.*?</title>"), "")
-        html = html.replace(Regex("(?s)<button.*?>.*?</button>"), "")
-        html = html.replace(Regex("(?s)<h1.*?>.*?</h1>"), "")
+        html = html.replace(Regex("(?si)<(title|button|h1)\\b[^>]*>.*?</\\1>"), "")
 
         // 2. Convert the remaining HTML to plain text (handles &nbsp;, <br>, etc.)
         return HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
