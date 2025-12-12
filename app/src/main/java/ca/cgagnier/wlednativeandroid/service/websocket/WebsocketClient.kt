@@ -23,6 +23,8 @@ import java.io.IOException
 import kotlin.math.min
 import kotlin.math.pow
 
+private const val LAST_SEEN_UPDATE_THRESHOLD = 5000L // 5 seconds
+
 class WebsocketClient(
     device: Device,
     private val deviceRepository: DeviceRepository,
@@ -73,21 +75,7 @@ class WebsocketClient(
                     // Update information about the device when we receive a message.
                     // Ideally, this should probably not be done in the client directly
                     coroutineScope.launch {
-                        var branch = deviceState.device.branch
-                        if (branch == Branch.UNKNOWN) {
-                            branch = if (deviceStateInfo.info.version?.contains("-b") ?: false) {
-                                Branch.BETA
-                            } else {
-                                Branch.STABLE
-                            }
-                        }
-                        val newDevice = deviceState.device.copy(
-                            originalName = deviceStateInfo.info.name,
-                            address = deviceState.device.address,
-                            lastSeen = System.currentTimeMillis(),
-                            branch = branch,
-                        )
-                        deviceRepository.update(newDevice)
+                        saveDeviceIfChanged(deviceStateInfo)
                     }
                 } else {
                     Log.w(TAG, "Received a null message after parsing.")
@@ -115,6 +103,37 @@ class WebsocketClient(
             deviceState.websocketStatus.value = WebsocketStatus.DISCONNECTED
             isConnecting = false
             reconnect()
+        }
+    }
+
+
+    /**
+     * Saves the device information to the database if it has changed.
+     */
+    private suspend fun saveDeviceIfChanged(deviceStateInfo: DeviceStateInfo) {
+        var branch = deviceState.device.branch
+        if (branch == Branch.UNKNOWN) {
+            branch = if (deviceStateInfo.info.version?.contains("-b") ?: false) {
+                Branch.BETA
+            } else {
+                Branch.STABLE
+            }
+        }
+
+        val nameChanged = deviceState.device.originalName != deviceStateInfo.info.name
+        val branchChanged = deviceState.device.branch != branch
+        val timeSinceLastUpdate = System.currentTimeMillis() - deviceState.device.lastSeen
+
+        // Only update if data changed OR it's been more than some time since last "seen" update
+        if (nameChanged || branchChanged || timeSinceLastUpdate > LAST_SEEN_UPDATE_THRESHOLD) {
+            val newDevice = deviceState.device.copy(
+                originalName = deviceStateInfo.info.name,
+                address = deviceState.device.address,
+                lastSeen = System.currentTimeMillis(),
+                branch = branch,
+            )
+            deviceRepository.update(newDevice)
+            Log.d(TAG, "Device persisted to DB: ${newDevice.address}")
         }
     }
 
