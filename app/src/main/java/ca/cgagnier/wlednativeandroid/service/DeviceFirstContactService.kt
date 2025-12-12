@@ -14,8 +14,7 @@ private const val TAG = "DeviceFirstContactService"
  * Service class responsible for handling the first contact with a device.
  */
 class DeviceFirstContactService @Inject constructor(
-    private val repository: DeviceRepository,
-    private val deviceApiFactory: DeviceApiFactory
+    private val repository: DeviceRepository, private val deviceApiFactory: DeviceApiFactory
 ) {
     /**
      * Creates a new device record in the database.
@@ -60,7 +59,8 @@ class DeviceFirstContactService @Inject constructor(
      * @return The device information object.
      */
     private suspend fun getDeviceInfo(address: String): Info {
-        return deviceApiFactory.create(address).getInfo().body() ?: throw IOException("Response body is null")
+        return deviceApiFactory.create(address).getInfo().body()
+            ?: throw IOException("Response body is null")
     }
 
     /**
@@ -92,9 +92,32 @@ class DeviceFirstContactService @Inject constructor(
             return existingDevice
         }
         Log.d(
-            TAG,
-            "Device already exists for MAC but is different: ${existingDevice.macAddress}"
+            TAG, "Device already exists for MAC but is different: ${existingDevice.macAddress}"
         )
         return updateDeviceAddress(existingDevice, address, info.name)
+    }
+
+    /**
+     * Attempts to identify and update a device using only the MAC address from mDNS.
+     * This avoids a network call to the device if we already know who it is.
+     *
+     * @param macAddress The MAC address found via mDNS (can be null).
+     * @param address The new IP address.
+     * @return true if the device was found and processed (updated or skipped), false otherwise.
+     */
+    suspend fun tryUpdateAddress(macAddress: String?, address: String): Boolean {
+        if (macAddress.isNullOrEmpty()) {
+            return false
+        }
+        val existingDevice = repository.findDeviceByMacAddress(macAddress) ?: return false
+
+        // Device is already up to date
+        if (existingDevice.address != address) {
+            Log.i(TAG, "Fast update: IP changed for ${existingDevice.originalName} ($macAddress)")
+            updateDeviceAddress(existingDevice, address, existingDevice.originalName)
+        } else {
+            Log.d(TAG, "Fast update: Device IP unchanged for $macAddress")
+        }
+        return true
     }
 }
