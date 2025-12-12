@@ -107,7 +107,6 @@ dependencies {
     implementation(libs.datastore.core)
     implementation(libs.datastore.preferences)
     implementation(libs.hilt.android)
-    implementation(libs.jsoup)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.lifecycle.livedata.ktx)
     implementation(libs.lifecycle.viewmodel.ktx)

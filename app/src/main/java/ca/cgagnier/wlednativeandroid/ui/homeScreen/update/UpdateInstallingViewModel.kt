@@ -1,6 +1,7 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen.update
 
 import android.util.Log
+import androidx.core.text.HtmlCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
@@ -18,7 +19,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import okhttp3.ResponseBody
-import org.jsoup.Jsoup
 import retrofit2.Response
 import java.io.File
 import javax.inject.Inject
@@ -205,12 +205,15 @@ class UpdateInstallingViewModel @Inject constructor(
     }
 
     private fun getHtmlErrorMessage(response: Response<ResponseBody>): String {
-        val bodyHtml = Jsoup.parseBodyFragment(
-            response.body()?.string() ?: response.errorBody()?.string() ?: ""
-        )
-        bodyHtml.select("title").remove()
-        bodyHtml.select("button").remove()
-        bodyHtml.select("h1").remove()
-        return bodyHtml.text()
+        var html = response.body()?.string() ?: response.errorBody()?.string() ?: ""
+
+        // 1. Remove specific tags we don't want (title, button, h1) and their content
+        // (?s) enables "dot matches newline" mode so it works on multi-line HTML
+        html = html.replace(Regex("(?s)<title.*?>.*?</title>"), "")
+        html = html.replace(Regex("(?s)<button.*?>.*?</button>"), "")
+        html = html.replace(Regex("(?s)<h1.*?>.*?</h1>"), "")
+
+        // 2. Convert the remaining HTML to plain text (handles &nbsp;, <br>, etc.)
+        return HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
     }
 }
