@@ -14,9 +14,12 @@ import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.stateIn
@@ -140,6 +143,16 @@ class DeviceWebsocketListViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+
+    val visibleDevices: StateFlow<List<DeviceWithState>> = combine(
+        allDevicesWithState, showHiddenDevices
+    ) { devices, showHidden ->
+        devices.filter { !it.device.isHidden || showHidden }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) {
+                it.device.customName.ifBlank { it.device.originalName }
+            })
+    }.flowOn(Dispatchers.Default) // Run on background thread
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     override fun onCleared() {
         super.onCleared()

@@ -80,6 +80,7 @@ fun DeviceList(
     viewModel: DeviceWebsocketListViewModel = hiltViewModel(),
 ) {
     val allDevices by viewModel.allDevicesWithState.collectAsStateWithLifecycle()
+    val visibleDevices by viewModel.visibleDevices.collectAsStateWithLifecycle()
     val showOfflineDevicesLast by viewModel.showOfflineDevicesLast.collectAsStateWithLifecycle()
     val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
 
@@ -114,13 +115,6 @@ fun DeviceList(
             delay(5000)
             currentTime = System.currentTimeMillis()
         }
-    }
-
-    val visibleDevices = remember(allDevices, showHiddenDevices) {
-        allDevices.filter { !it.device.isHidden || showHiddenDevices }
-            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) {
-                it.device.customName.ifBlank { it.device.originalName }
-            })
     }
 
     val (onlineDevices, offlineDevices) = remember(visibleDevices, currentTime, inGracePeriod) {
