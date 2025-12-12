@@ -32,7 +32,6 @@ android {
     buildFeatures {
         buildConfig = true
         compose = true
-        dataBinding = true
     }
 
     buildTypes {
@@ -89,6 +88,7 @@ dependencies {
     implementation(libs.androidx.compose.navigation.ui)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.material3)
