@@ -31,6 +31,7 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -101,9 +102,16 @@ fun DeviceList(
 
     val (onlineDevices, offlineDevices) = remember(visibleDevices, currentTime) {
         visibleDevices.partition { device ->
-            !shouldShowAsOffline(device, currentTime)
+    // DerivedStateOf is necessary so that property changes (like websocketStatus) are also tracked.
+    val partitionedDevices by remember(visibleDevices, currentTime) {
+        derivedStateOf {
+            visibleDevices.partition { device ->
+                !shouldShowAsOffline(device, currentTime)
+            }
         }
     }
+    val onlineDevices = partitionedDevices.first
+    val offlineDevices = partitionedDevices.second
 
     val pullToRefreshState = rememberPullToRefreshState()
     var isRefreshing by remember { mutableStateOf(false) }
