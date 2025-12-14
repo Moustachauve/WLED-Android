@@ -74,8 +74,8 @@ fun DeviceList(
     viewModel: DeviceWebsocketListViewModel = hiltViewModel(),
 ) {
     val allDevices by viewModel.allDevicesWithState.collectAsStateWithLifecycle()
-    val visibleDevices by viewModel.visibleDevices.collectAsStateWithLifecycle()
     val showOfflineDevicesLast by viewModel.showOfflineDevicesLast.collectAsStateWithLifecycle()
+    val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
 
     val listState = rememberLazyListState()
 
@@ -100,6 +100,12 @@ fun DeviceList(
         }
     }
 
+    val visibleDevices = remember(allDevices, showHiddenDevices) {
+        allDevices.filter { !it.device.isHidden || showHiddenDevices }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) {
+                it.device.customName.ifBlank { it.device.originalName }
+            })
+    }
     // DerivedStateOf is necessary so that property changes (like websocketStatus) are also tracked.
     val partitionedDevices by remember(visibleDevices, currentTime) {
         derivedStateOf {

@@ -146,16 +146,6 @@ class DeviceWebsocketListViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    val visibleDevices: StateFlow<List<DeviceWithState>> = combine(
-        allDevicesWithState, showHiddenDevices
-    ) { devices, showHidden ->
-        devices.filter { !it.device.isHidden || showHidden }
-            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) {
-                it.device.customName.ifBlank { it.device.originalName }
-            })
-    }.flowOn(Dispatchers.Default) // Run on background thread
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     override fun onCleared() {
         super.onCleared()
         ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
