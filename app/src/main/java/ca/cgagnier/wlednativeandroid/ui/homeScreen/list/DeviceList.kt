@@ -100,8 +100,6 @@ fun DeviceList(
         }
     }
 
-    val (onlineDevices, offlineDevices) = remember(visibleDevices, currentTime) {
-        visibleDevices.partition { device ->
     // DerivedStateOf is necessary so that property changes (like websocketStatus) are also tracked.
     val partitionedDevices by remember(visibleDevices, currentTime) {
         derivedStateOf {
@@ -158,7 +156,7 @@ fun DeviceList(
                             .height(0.dp)
                     )
                 }
-                if (allDevices.isEmpty()) {
+                if (visibleDevices.isEmpty() && !isWLEDCaptivePortal) {
                     // Don't show the empty page during the initial load to improve the user
                     // experience.
                     if (isInitialLoading) {
