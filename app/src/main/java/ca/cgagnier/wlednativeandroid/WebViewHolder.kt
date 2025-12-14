@@ -14,9 +14,7 @@ private const val TAG = "WebViewHolder"
 class WebViewHolder(context: Context) {
     var firstLoad = true
 
-    // Initialize the WebView immediately with the application context to avoid memory leaks
-    // if the ViewModel outlives the Activity.
-    private val webView: WebView = WebView(context.applicationContext)
+    private val webView: WebView = WebView(context)
 
     // Expose the WebView via StateFlow
     private val _webViewFlow = MutableStateFlow(webView)
