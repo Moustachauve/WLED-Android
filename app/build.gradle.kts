@@ -19,7 +19,7 @@ android {
         applicationId = "ca.cgagnier.wlednativeandroid"
         minSdk = 24
         targetSdk = 36
-        versionCode  = 44
+        versionCode  = 46
         versionName = "6.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -32,7 +32,6 @@ android {
     buildFeatures {
         buildConfig = true
         compose = true
-        dataBinding = true
     }
 
     buildTypes {
@@ -73,6 +72,7 @@ dependencies {
     implementation(libs.androidx.graphics.shapes)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.geometry)
+    implementation(libs.androidx.compose.runtime)
     val composeBom = platform(libs.androidx.compose.bom)
     androidTestImplementation(composeBom)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -88,16 +88,14 @@ dependencies {
     implementation(libs.androidx.compose.navigation)
     implementation(libs.androidx.compose.navigation.ui)
     implementation(libs.androidx.core.splashscreen)
-    implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.hilt.navigation.compose)
-    implementation(libs.androidx.legacy.support.v4)
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.preference.ktx)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.runtime.livedata)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
@@ -109,9 +107,7 @@ dependencies {
     implementation(libs.datastore.core)
     implementation(libs.datastore.preferences)
     implementation(libs.hilt.android)
-    implementation(libs.jsoup)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.lifecycle.livedata.ktx)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.logging.interceptor)
     implementation(libs.material.kolor)

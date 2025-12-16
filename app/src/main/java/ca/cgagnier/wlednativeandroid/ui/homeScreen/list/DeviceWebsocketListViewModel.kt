@@ -13,10 +13,14 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
+import com.squareup.moshi.Moshi
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.stateIn
@@ -31,7 +35,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
     userPreferencesRepository: UserPreferencesRepository,
     private val deviceRepository: DeviceRepository,
     private val deviceUpdateManager: DeviceUpdateManager,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val moshi: Moshi
 ) : ViewModel(), DefaultLifecycleObserver {
     private val activeClients = MutableStateFlow<Map<String, WebsocketClient>>(emptyMap())
     private val devicesFromDb = deviceRepository.allDevices
@@ -72,7 +77,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
                         // Device added: create and connect a new client.
                         Log.d(TAG, "[Scan] Device added: $macAddress. Creating client.")
                         val newClient = WebsocketClient(
-                            device, deviceRepository, deviceUpdateManager, okHttpClient
+                            device, deviceRepository, deviceUpdateManager, okHttpClient, moshi
                         )
                         if (!isPaused.value) {
                             newClient.connect()
@@ -86,7 +91,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
                         )
                         existingClient.destroy()
                         val newClient = WebsocketClient(
-                            device, deviceRepository, deviceUpdateManager, okHttpClient
+                            device, deviceRepository, deviceUpdateManager, okHttpClient, moshi
                         )
                         if (!isPaused.value) {
                             newClient.connect()
@@ -100,7 +105,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 }
                 // Return the updated map, which becomes `currentClients` for the next iteration.
                 nextClients
-            }.collect { updatedClients ->
+            }.flowOn(Dispatchers.IO).collect { updatedClients ->
                 // Emit the new map of clients to the StateFlow.
                 activeClients.value = updatedClients
             }

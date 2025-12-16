@@ -36,6 +36,7 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.ui.components.deviceName
+import ca.cgagnier.wlednativeandroid.ui.preview.getPreviewDevice
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
 
 @Composable
@@ -263,12 +264,11 @@ fun UpdateInstallingDialogStepStartingPreview(
     @PreviewParameter(SampleStateStepProvider::class) state: UpdateInstallingState
 ) {
     WLEDNativeTheme(darkTheme = isSystemInDarkTheme()) {
-        // TODO: Fix this preview
-//        UpdateInstallingDialog(
-//            state = state,
-//            device = StatefulDevice.getPreviewDevice(),
-//            onDismiss = {},
-//            onToggleErrorMessage = {}
-//        )
+        UpdateInstallingDialog(
+            state = state,
+            device = getPreviewDevice(),
+            onDismiss = {},
+            onToggleErrorMessage = {}
+        )
     }
 }

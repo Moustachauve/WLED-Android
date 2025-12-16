@@ -1,5 +1,5 @@
 [versions]
-agp = "8.13.1"
+agp = "8.13.2"
 composeBom = "2025.12.00"
 converterMoshi = "3.0.0"
 core = "4.6.2"
@@ -7,19 +7,16 @@ coreKtx = "1.17.0"
 coreSplashscreen = "1.2.0"
 datastorePreferences = "1.2.0"
 espressoCore = "3.7.0"
-fragmentKtx = "1.8.9"
 # Version 2.53.1 causes issue with compiling
 # https://github.com/google/dagger/issues/4533
 hiltAndroid = "2.57.2"
 hiltCompiler = "2.57.2"
 hiltNavigationCompose = "1.3.0"
-jsoup = "1.21.2"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 kotlin = "2.2.21"
 kotlinxSerializationJson = "1.9.0"
 ksp = "2.2.21-2.0.4"
-legacySupportV4 = "1.0.0"
 lifecycleViewmodelKtx = "2.10.0"
 loggingInterceptor = "5.3.2"
 materialKolor = "4.0.5"
@@ -30,11 +27,10 @@ navigationCompose = "2.9.6"
 okhttp = "5.3.2"
 preferenceKtx = "1.2.1"
 protobuf = "0.9.5"
-protobufJavalite = "4.33.1"
+protobufJavalite = "4.33.2"
 retrofit = "3.0.0"
 retrofit2KotlinCoroutinesAdapter = "0.9.2"
 roomVersion = "2.8.4"
-runtimeLivedata = "1.10.0"
 semver4j = "3.1.0"
 webkit = "1.14.0"
 graphicsShapes = "1.1.0"
@@ -49,10 +45,9 @@ androidx-compose-navigation = { group = "androidx.navigation", name = "navigatio
 androidx-compose-navigation-ui = { group = "androidx.navigation", name = "navigation-ui-ktx", version.ref = "navigationCompose" }
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "coreSplashscreen" }
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espressoCore" }
-androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragmentKtx" }
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 androidx-junit = { module = "androidx.test.ext:junit", version.ref = "junitVersion" }
-androidx-legacy-support-v4 = { module = "androidx.legacy:legacy-support-v4", version.ref = "legacySupportV4" }
+androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "lifecycleViewmodelKtx" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose" }
 androidx-material3 = { module = "androidx.compose.material3:material3" }
@@ -60,7 +55,6 @@ androidx-preference-ktx = { module = "androidx.preference:preference-ktx", versi
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomVersion" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomVersion" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomVersion" }
-androidx-runtime-livedata = { module = "androidx.compose.runtime:runtime-livedata", version.ref = "runtimeLivedata" }
 androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
@@ -78,10 +72,8 @@ datastore-core = { module = "androidx.datastore:datastore-core", version.ref = "
 datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hiltCompiler" }
-jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 junit = { module = "junit:junit", version.ref = "junit" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
-lifecycle-livedata-ktx = { module = "androidx.lifecycle:lifecycle-livedata-ktx", version.ref = "lifecycleViewmodelKtx" }
 lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycleViewmodelKtx" }
 logging-interceptor = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "loggingInterceptor" }
 material-kolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
@@ -98,6 +90,7 @@ semver4j = { module = "com.vdurmont:semver4j", version.ref = "semver4j" }
 # TODO: Manually import the icons instead of importing this.
 compose-material-icons = { group = "androidx.compose.material", name = "material-icons-core" }
 androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geometry" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

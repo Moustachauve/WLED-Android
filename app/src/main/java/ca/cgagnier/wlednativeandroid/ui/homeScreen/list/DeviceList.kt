@@ -48,7 +48,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
-import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
 import ca.cgagnier.wlednativeandroid.service.websocket.getApModeDeviceWithState
 import ca.cgagnier.wlednativeandroid.ui.components.DeviceInfoTwoRows
 import ca.cgagnier.wlednativeandroid.ui.theme.DeviceTheme
@@ -61,11 +60,6 @@ private const val TAG = "screen_DeviceList"
  * Amount of time after a device becomes offline before it is considered offline.
  */
 private const val DEVICE_OFFLINE_TIMEOUT_MS = 60000L
-
-/**
- * Grace period where devices are "optimistically" kept online if they are connecting
- */
-private const val INITIAL_GRACE_PERIOD_MS = 5000L
 
 @Composable
 fun DeviceList(
@@ -81,10 +75,10 @@ fun DeviceList(
 ) {
     val allDevices by viewModel.allDevicesWithState.collectAsStateWithLifecycle()
     val showOfflineDevicesLast by viewModel.showOfflineDevicesLast.collectAsStateWithLifecycle()
+    val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
 
     val listState = rememberLazyListState()
 
-    var inGracePeriod by rememberSaveable { mutableStateOf(true) }
     var isInitialLoading by rememberSaveable { mutableStateOf(true) }
 
     // Keep track of the time to update the list of online/offline devices based on lastSeen
@@ -100,44 +94,28 @@ fun DeviceList(
                 isInitialLoading = false
             }
         }
-        if (inGracePeriod) {
-            launch {
-                // Optimistic UI: Force all devices to look "Online" for the first few seconds
-                // to allow WebSockets to connect without items jumping around.
-                Log.d(TAG, "Grace period!")
-                delay(INITIAL_GRACE_PERIOD_MS)
-                inGracePeriod = false
-            }
-        }
         while (true) {
             delay(5000)
             currentTime = System.currentTimeMillis()
         }
     }
 
-    val visibleDevices by remember(allDevices) {
-        derivedStateOf {
-            allDevices.filter { !it.device.isHidden || viewModel.showHiddenDevices.value }
-                .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) {
-                    it.device.customName.ifBlank { it.device.originalName }
-                })
-        }
+    val visibleDevices = remember(allDevices, showHiddenDevices) {
+        allDevices.filter { !it.device.isHidden || showHiddenDevices }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) {
+                it.device.customName.ifBlank { it.device.originalName }
+            })
     }
-
-    val onlineDevices by remember(visibleDevices, currentTime, inGracePeriod) {
+    // DerivedStateOf is necessary so that property changes (like websocketStatus) are also tracked.
+    val partitionedDevices by remember(visibleDevices, currentTime) {
         derivedStateOf {
-            visibleDevices.filter { device ->
-                !shouldShowAsOffline(device, currentTime, inGracePeriod)
+            visibleDevices.partition { device ->
+                !shouldShowAsOffline(device, currentTime)
             }
         }
     }
-    val offlineDevices by remember(visibleDevices, currentTime, inGracePeriod) {
-        derivedStateOf {
-            visibleDevices.filter { device ->
-                shouldShowAsOffline(device, currentTime, inGracePeriod)
-            }
-        }
-    }
+    val onlineDevices = partitionedDevices.first
+    val offlineDevices = partitionedDevices.second
 
     val pullToRefreshState = rememberPullToRefreshState()
     var isRefreshing by remember { mutableStateOf(false) }
@@ -184,7 +162,7 @@ fun DeviceList(
                             .height(0.dp)
                     )
                 }
-                if (allDevices.isEmpty()) {
+                if (visibleDevices.isEmpty() && !isWLEDCaptivePortal) {
                     // Don't show the empty page during the initial load to improve the user
                     // experience.
                     if (isInitialLoading) {
@@ -450,12 +428,7 @@ fun ConfirmDeleteDialog(
  * unstable.
  */
 private fun shouldShowAsOffline(
-    device: DeviceWithState, currentTime: Long, inGracePeriod: Boolean
+    device: DeviceWithState, currentTime: Long
 ): Boolean {
-    // During grace period, only show as offline if explicitly Disconnected. This "optimistically"
-    // marks connecting devices as online.
-    val isOffline =
-        if (inGracePeriod) device.websocketStatus.value == WebsocketStatus.DISCONNECTED else !device.isOnline
-
-    return isOffline && currentTime - device.device.lastSeen >= DEVICE_OFFLINE_TIMEOUT_MS
+    return !device.isOnline && currentTime - device.device.lastSeen >= DEVICE_OFFLINE_TIMEOUT_MS
 }

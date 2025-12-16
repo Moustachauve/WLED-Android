@@ -65,6 +65,7 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.UserMods
 import ca.cgagnier.wlednativeandroid.model.wledapi.Wifi
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
+import ca.cgagnier.wlednativeandroid.ui.preview.DevicePreviewParameterProvider
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -310,75 +311,10 @@ fun OfflineSinceText(
     }
 }
 
-class SampleDevicesWithStateProvider : PreviewParameterProvider<DeviceWithState> {
-    private val fakeCurrentTime = System.currentTimeMillis()
-    override val values = sequenceOf(
-        DeviceWithState(
-            Device(
-                macAddress = AP_MODE_MAC_ADDRESS,
-                address = "4.3.2.1",
-                originalName = "original name",
-                customName = "custom name",
-                lastSeen = fakeCurrentTime
-            )
-        ).apply {
-            websocketStatus.value = WebsocketStatus.CONNECTED
-        },
-        DeviceWithState(
-            Device(
-                macAddress = AP_MODE_MAC_ADDRESS, address = "4.3.2.1", lastSeen = fakeCurrentTime
-            )
-        ).apply {
-            websocketStatus.value = WebsocketStatus.CONNECTING
-        },
-        DeviceWithState(
-            Device(
-                macAddress = AP_MODE_MAC_ADDRESS,
-                address = "4.3.2.1",
-                originalName = "original name",
-                lastSeen = fakeCurrentTime - TimeUnit.MINUTES.toMillis(45)
-            )
-        ).apply {
-            websocketStatus.value = WebsocketStatus.DISCONNECTED
-        },
-        DeviceWithState(
-            Device(
-                macAddress = AP_MODE_MAC_ADDRESS,
-                address = "very-long-address-that-takes-more-than-a-full-width-so-should-be-truncated",
-                originalName = "Very long name that should also be truncated if everything is working",
-                lastSeen = fakeCurrentTime
-            )
-        ).apply {
-            websocketStatus.value = WebsocketStatus.DISCONNECTED
-        },
-        DeviceWithState(
-            Device(
-                macAddress = AP_MODE_MAC_ADDRESS,
-                address = "4.3.2.1",
-                originalName = "device with battery",
-                lastSeen = fakeCurrentTime
-            )
-        ).apply {
-            websocketStatus.value = WebsocketStatus.CONNECTED
-            stateInfo.value = DeviceStateInfo(
-                State(isOn = true, brightness = 128, transition = 7), Info(
-                    version = "0.14.0",
-                    leds = Leds(count = 60),
-                    name = "WLED",
-                    wifi = Wifi(bssid = "ff:ee:dd:cc:bb:aa", rssi = -65, signal = 70, channel = 6),
-                    userMods = UserMods(
-                        batteryLevel = listOf(75.0)
-                    )
-                )
-            )
-        },
-    )
-}
-
 @Preview
 @Composable
 fun DeviceInfoTwoRowsPreview(
-    @PreviewParameter(SampleDevicesWithStateProvider::class) device: DeviceWithState
+    @PreviewParameter(DevicePreviewParameterProvider::class) device: DeviceWithState
 ) {
     Card(
         modifier = Modifier

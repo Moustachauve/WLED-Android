@@ -2,25 +2,25 @@ package ca.cgagnier.wlednativeandroid.ui.components
 
 import android.content.Context
 import android.webkit.WebView
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import ca.cgagnier.wlednativeandroid.WebViewLiveData
+import ca.cgagnier.wlednativeandroid.WebViewHolder
 import ca.cgagnier.wlednativeandroid.model.Device
+import kotlinx.coroutines.flow.StateFlow
 
 class WebViewViewModel(context: Context) : ViewModel() {
-    private val webView = WebViewLiveData(context)
-    fun webView(): LiveData<WebView> = webView
+    private val webViewHolder = WebViewHolder(context)
+    fun webView(): StateFlow<WebView> = webViewHolder.webViewFlow
 
     val backQueue = ArrayDeque<String>(5)
     var displayedDevice: Device? = null
 
     var firstLoad: Boolean
         get() {
-            return webView.firstLoad
+            return webViewHolder.firstLoad
         }
         set(isFirstLoad) {
-            webView.firstLoad = isFirstLoad
+            webViewHolder.firstLoad = isFirstLoad
         }
 
     class Factory(private val context: Context) : ViewModelProvider.Factory {
