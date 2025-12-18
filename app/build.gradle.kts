@@ -34,6 +34,11 @@ android {
         compose = true
     }
 
+    dependenciesInfo {
+        // Disables dependency metadata when building APKs (for IzzyOnDroid/F-Droid)
+        includeInApk = false
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
