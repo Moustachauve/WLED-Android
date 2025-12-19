@@ -145,8 +145,8 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
     suspend fun refreshVersions(githubApi: GithubApi) {
         val allVersionsResult = githubApi.getAllReleases()
 
-        allVersionsResult.onFailure {
-            Log.w(TAG, "Did not find any version")
+        allVersionsResult.onFailure { exception ->
+            Log.w(TAG, "Failed to refresh versions from Github", exception)
             return
         }
 
