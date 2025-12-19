@@ -46,5 +46,5 @@ interface VersionDao {
 
     @Transaction
     @Query("DELETE FROM version")
-    fun removeAll()
+    suspend fun removeAll()
 }
