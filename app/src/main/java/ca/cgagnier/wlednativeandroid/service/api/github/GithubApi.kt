@@ -10,20 +10,18 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
-import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
 import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
 
-
-class GithubApi(private val okHttpClient: OkHttpClient) {
+@Singleton
+class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints) {
 
     suspend fun getAllReleases(): Result<List<Release>> {
         Log.d(TAG, "retrieving latest release")
         return try {
-            val api = getApi()
-            Result.success(api.getAllReleases(REPO_OWNER, REPO_NAME))
+            Result.success(apiEndpoints.getAllReleases(REPO_OWNER, REPO_NAME))
         } catch (e: Exception) {
             Log.w(TAG, "Error retrieving releases: ${e.message}")
             Result.failure(e)
@@ -33,10 +31,10 @@ class GithubApi(private val okHttpClient: OkHttpClient) {
     fun downloadReleaseBinary(
         asset: Asset, targetFile: File
     ): Flow<DownloadState> = flow {
-        val api = getApi()
         try {
             emit(DownloadState.Downloading(0))
-            val responseBody = api.downloadReleaseBinary(REPO_OWNER, REPO_NAME, asset.assetId)
+            val responseBody =
+                apiEndpoints.downloadReleaseBinary(REPO_OWNER, REPO_NAME, asset.assetId)
             emitAll(responseBody.saveFile(targetFile))
         } catch (e: Exception) {
             emit(DownloadState.Failed(e))
@@ -69,15 +67,8 @@ class GithubApi(private val okHttpClient: OkHttpClient) {
         }.flowOn(Dispatchers.IO).distinctUntilChanged()
     }
 
-    private fun getApi(): GithubApiEndpoints {
-        return Retrofit.Builder().baseUrl(BASE_URL)
-            .addConverterFactory(MoshiConverterFactory.create()).client(okHttpClient).build()
-            .create(GithubApiEndpoints::class.java)
-    }
-
     companion object {
         private const val TAG = "github-release"
-        const val BASE_URL = "https://api.github.com"
         const val REPO_OWNER = "Aircoookie"
         const val REPO_NAME = "WLED"
     }
