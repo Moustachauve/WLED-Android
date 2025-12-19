@@ -361,9 +361,9 @@ fun UriHandler.openUriSafely(uri: String) {
         this.openUri(uri)
     } catch (e: IllegalArgumentException) {
         // Log the error so you can see it in Crashlytics non-fatals if you use it
-        Log.e("DeviceListDetail", "No browser found to open: $uri", e)
+        Log.e(TAG, "No browser found to open: $uri", e)
     } catch (e: Exception) {
         // Catch generic exceptions just in case OEM implementations behave weirdly
-        Log.e("DeviceListDetail", "Error opening URI: $uri", e)
+        Log.e(TAG, "Error opening URI: $uri", e)
     }
 }
