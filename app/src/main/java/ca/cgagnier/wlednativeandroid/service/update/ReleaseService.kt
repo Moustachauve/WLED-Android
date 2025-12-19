@@ -151,6 +151,10 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
         }
 
         allVersionsResult.onSuccess { allVersions ->
+            if (allVersions.isEmpty()) {
+                Log.w(TAG, "GitHub returned 0 releases. Skipping DB update to preserve cache.")
+                return@onSuccess
+            }
             val versionModels = mutableListOf<Version>()
             val assetsModels = mutableListOf<Asset>()
             for (version in allVersions) {
