@@ -143,27 +143,29 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
     }
 
     suspend fun refreshVersions(githubApi: GithubApi) {
-        val allVersions = githubApi.getAllReleases()
+        val allVersionsResult = githubApi.getAllReleases()
 
-        if (allVersions == null) {
+        allVersionsResult.onFailure {
             Log.w(TAG, "Did not find any version")
             return
         }
 
-        versionWithAssetsRepository.removeAll()
+        allVersionsResult.onSuccess { allVersions ->
+            versionWithAssetsRepository.removeAll()
 
-        val versionModels = mutableListOf<Version>()
-        val assetsModels = mutableListOf<Asset>()
-        for (version in allVersions) {
-            versionModels.add(createVersion(version))
-            assetsModels.addAll(createAssetsForVersion(version))
+            val versionModels = mutableListOf<Version>()
+            val assetsModels = mutableListOf<Asset>()
+            for (version in allVersions) {
+                versionModels.add(createVersion(version))
+                assetsModels.addAll(createAssetsForVersion(version))
+            }
+
+            Log.i(
+                TAG,
+                "Inserting " + versionModels.count() + " versions with " + assetsModels.count() + " assets"
+            )
+            versionWithAssetsRepository.insertMany(versionModels, assetsModels)
         }
-
-        Log.i(
-            TAG,
-            "Inserting " + versionModels.count() + " versions with " + assetsModels.count() + " assets"
-        )
-        versionWithAssetsRepository.insertMany(versionModels, assetsModels)
     }
 
     private fun createVersion(version: Release): Version {

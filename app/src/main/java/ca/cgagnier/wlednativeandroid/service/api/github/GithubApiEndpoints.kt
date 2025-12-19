@@ -2,7 +2,6 @@ package ca.cgagnier.wlednativeandroid.service.api.github
 
 import ca.cgagnier.wlednativeandroid.model.githubapi.Release
 import okhttp3.ResponseBody
-import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.Headers
 import retrofit2.http.Path
@@ -13,7 +12,7 @@ interface GithubApiEndpoints {
     suspend fun getAllReleases(
         @Path("repoOwner") repoOwner: String,
         @Path("repoName") repoName: String
-    ): Call<List<Release>>
+    ): List<Release>
 
 
     @Streaming

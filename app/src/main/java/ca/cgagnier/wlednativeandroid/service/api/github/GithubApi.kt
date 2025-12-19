@@ -18,20 +18,20 @@ import java.io.File
 
 
 class GithubApi(private val okHttpClient: OkHttpClient) {
-    suspend fun getAllReleases(): List<Release>? {
+
+    suspend fun getAllReleases(): Result<List<Release>> {
         Log.d(TAG, "retrieving latest release")
         return try {
             val api = getApi()
-            api.getAllReleases(REPO_OWNER, REPO_NAME).execute().body()
+            Result.success(api.getAllReleases(REPO_OWNER, REPO_NAME))
         } catch (e: Exception) {
             Log.w(TAG, "Error retrieving releases: ${e.message}")
-            null
+            Result.failure(e)
         }
     }
 
     fun downloadReleaseBinary(
-        asset: Asset,
-        targetFile: File
+        asset: Asset, targetFile: File
     ): Flow<DownloadState> = flow {
         val api = getApi()
         try {
@@ -66,16 +66,12 @@ class GithubApi(private val okHttpClient: OkHttpClient) {
             } catch (e: Exception) {
                 emit(DownloadState.Failed(e))
             }
-        }
-            .flowOn(Dispatchers.IO).distinctUntilChanged()
+        }.flowOn(Dispatchers.IO).distinctUntilChanged()
     }
 
     private fun getApi(): GithubApiEndpoints {
-        return Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(MoshiConverterFactory.create())
-            .client(okHttpClient)
-            .build()
+        return Retrofit.Builder().baseUrl(BASE_URL)
+            .addConverterFactory(MoshiConverterFactory.create()).client(okHttpClient).build()
             .create(GithubApiEndpoints::class.java)
     }
 
