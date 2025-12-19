@@ -10,7 +10,7 @@ import retrofit2.http.Streaming
 
 interface GithubApiEndpoints {
     @GET("repos/{repoOwner}/{repoName}/releases")
-    fun getAllReleases(
+    suspend fun getAllReleases(
         @Path("repoOwner") repoOwner: String,
         @Path("repoName") repoName: String
     ): Call<List<Release>>

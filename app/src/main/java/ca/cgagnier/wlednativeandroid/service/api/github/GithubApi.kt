@@ -15,23 +15,18 @@ import okhttp3.ResponseBody
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.io.File
-import java.net.UnknownHostException
 
 
 class GithubApi(private val okHttpClient: OkHttpClient) {
-    fun getAllReleases(): List<Release>? {
+    suspend fun getAllReleases(): List<Release>? {
         Log.d(TAG, "retrieving latest release")
-        try {
+        return try {
             val api = getApi()
-            val release = api.getAllReleases(REPO_OWNER, REPO_NAME)
-            val execute = release.execute()
-            return execute.body()
-        } catch (e: UnknownHostException) {
-            Log.w(TAG, e.toString())
+            api.getAllReleases(REPO_OWNER, REPO_NAME).execute().body()
         } catch (e: Exception) {
-            Log.e(TAG, e.toString())
+            Log.w(TAG, "Error retrieving releases: ${e.message}")
+            null
         }
-        return null
     }
 
     fun downloadReleaseBinary(
