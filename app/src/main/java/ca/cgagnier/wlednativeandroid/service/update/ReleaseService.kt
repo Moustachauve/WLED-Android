@@ -10,6 +10,8 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import com.vdurmont.semver4j.Semver
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private const val TAG = "updateService"
 
@@ -31,8 +33,7 @@ object UpdateSourceRegistry {
             brandPattern = "WLED",
             githubOwner = "Aircoookie",
             githubRepo = "WLED"
-        ),
-        UpdateSourceDefinition(
+        ), UpdateSourceDefinition(
             type = UpdateSourceType.QUINLED,
             brandPattern = "QuinLED",
             githubOwner = "intermittech",
@@ -142,24 +143,23 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
         return versionWithAssetsRepository.getLatestStableVersionWithAssets()
     }
 
-    suspend fun refreshVersions(githubApi: GithubApi) {
-        val allVersionsResult = githubApi.getAllReleases()
-
-        allVersionsResult.onFailure { exception ->
+    suspend fun refreshVersions(githubApi: GithubApi) = withContext(Dispatchers.IO) {
+        githubApi.getAllReleases().onFailure { exception ->
             Log.w(TAG, "Failed to refresh versions from Github", exception)
-            return
-        }
-
-        allVersionsResult.onSuccess { allVersions ->
+            return@onFailure
+        }.onSuccess { allVersions ->
             if (allVersions.isEmpty()) {
                 Log.w(TAG, "GitHub returned 0 releases. Skipping DB update to preserve cache.")
                 return@onSuccess
             }
-            val versionModels = allVersions.map { createVersion(it) }
-            val assetsModels = allVersions.flatMap { createAssetsForVersion(it) }
+            val (versions, assets) = withContext(Dispatchers.Default) {
+                val v = allVersions.map { createVersion(it) }
+                val a = allVersions.flatMap { createAssetsForVersion(it) }
+                Pair(v, a)
+            }
 
-            Log.i(TAG, "Replacing DB with ${versionModels.size} versions and ${assetsModels.size} assets")
-            versionWithAssetsRepository.replaceAll(versionModels, assetsModels)
+            Log.i(TAG, "Replacing DB with ${versions.size} versions and ${assets.size} assets")
+            versionWithAssetsRepository.replaceAll(versions, assets)
         }
     }
 
