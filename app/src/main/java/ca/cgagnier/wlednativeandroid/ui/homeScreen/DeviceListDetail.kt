@@ -122,34 +122,26 @@ fun DeviceListDetail(
     }
 
     ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = drawerState.isOpen,
-        drawerContent = {
+        drawerState = drawerState, gesturesEnabled = drawerState.isOpen, drawerContent = {
             ModalDrawerSheet {
-                DrawerContent(
-                    showHiddenDevices = showHiddenDevices,
-                    addDevice = {
-                        coroutineScope.launch {
-                            addDevice()
-                            drawerState.close()
-                        }
-                    },
-                    toggleShowHiddenDevices = {
-                        coroutineScope.launch {
-                            viewModel.toggleShowHiddenDevices()
-                            drawerState.close()
-                        }
-                    },
-                    openSettings = {
-                        coroutineScope.launch {
-                            openSettings()
-                            drawerState.close()
-                        }
+                DrawerContent(showHiddenDevices = showHiddenDevices, addDevice = {
+                    coroutineScope.launch {
+                        addDevice()
+                        drawerState.close()
                     }
-                )
+                }, toggleShowHiddenDevices = {
+                    coroutineScope.launch {
+                        viewModel.toggleShowHiddenDevices()
+                        drawerState.close()
+                    }
+                }, openSettings = {
+                    coroutineScope.launch {
+                        openSettings()
+                        drawerState.close()
+                    }
+                })
             }
-        }
-    ) {
+        }) {
         Scaffold { innerPadding ->
             NavigableListDetailPaneScaffold(
                 modifier = modifier
@@ -179,28 +171,24 @@ fun DeviceListDetail(
                                 coroutineScope.launch {
                                     drawerState.open()
                                 }
-                            }
-                        )
+                            })
                     }
-                }, detailPane = {
+                },
+                detailPane = {
                     AnimatedPane {
                         SelectDeviceView()
                         selectedDevice?.let { device ->
-                            DeviceDetail(
-                                device = device,
-                                onItemEdit = {
-                                    navigateToDeviceEdit(device)
-                                },
-                                canNavigateBack = navigator.canNavigateBack(),
-                                navigateUp = {
-                                    coroutineScope.launch {
-                                        navigator.navigateBack()
-                                    }
+                            DeviceDetail(device = device, onItemEdit = {
+                                navigateToDeviceEdit(device)
+                            }, canNavigateBack = navigator.canNavigateBack(), navigateUp = {
+                                coroutineScope.launch {
+                                    navigator.navigateBack()
                                 }
-                            )
+                            })
                         } ?: SelectDeviceView()
                     }
-                }, extraPane = {
+                },
+                extraPane = {
                     AnimatedPane {
                         selectedDevice?.let { device ->
                             DeviceEdit(
@@ -210,12 +198,10 @@ fun DeviceListDetail(
                                     coroutineScope.launch {
                                         navigator.navigateBack()
                                     }
-                                }
-                            )
+                                })
                         }
                     }
-                }
-            )
+                })
 
         }
     }
@@ -225,8 +211,7 @@ fun DeviceListDetail(
         DeviceAdd(
             onDismissRequest = {
                 viewModel.hideAddDeviceDialog()
-            }
-        )
+            })
     }
 }
 
@@ -282,32 +267,24 @@ private fun DrawerContent(
         HorizontalDivider(modifier = Modifier.padding(12.dp))
 
         NavigationDrawerItem(
-            label = { Text(text = stringResource(R.string.help)) },
-            icon = {
-                Icon(
-                    painter = painterResource(id = R.drawable.baseline_help_24),
-                    contentDescription = stringResource(R.string.help)
-                )
-            },
-            selected = false,
-            onClick = {
-                uriHandler.openUriSafely("https://kno.wled.ge/")
-            },
-            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+            label = { Text(text = stringResource(R.string.help)) }, icon = {
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_help_24),
+                contentDescription = stringResource(R.string.help)
+            )
+        }, selected = false, onClick = {
+            uriHandler.openUriSafely("https://kno.wled.ge/")
+        }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
         )
         NavigationDrawerItem(
-            label = { Text(text = stringResource(R.string.support_me)) },
-            icon = {
-                Icon(
-                    painter = painterResource(id = R.drawable.baseline_coffee_24),
-                    contentDescription = stringResource(R.string.support_me)
-                )
-            },
-            selected = false,
-            onClick = {
-                uriHandler.openUriSafely("https://github.com/sponsors/Moustachauve")
-            },
-            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+            label = { Text(text = stringResource(R.string.support_me)) }, icon = {
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_coffee_24),
+                contentDescription = stringResource(R.string.support_me)
+            )
+        }, selected = false, onClick = {
+            uriHandler.openUriSafely("https://github.com/sponsors/Moustachauve")
+        }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
         )
         Spacer(Modifier.height(24.dp))
         Column(
@@ -323,8 +300,7 @@ private fun DrawerContent(
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                BuildConfig.APPLICATION_ID,
-                style = MaterialTheme.typography.bodySmall
+                BuildConfig.APPLICATION_ID, style = MaterialTheme.typography.bodySmall
             )
         }
     }
@@ -332,8 +308,7 @@ private fun DrawerContent(
 
 @Composable
 private fun ToggleHiddenDeviceButton(
-    showHiddenDevices: Boolean,
-    toggleShowHiddenDevices: () -> Unit
+    showHiddenDevices: Boolean, toggleShowHiddenDevices: () -> Unit
 ) {
     val hiddenDeviceText = stringResource(
         if (showHiddenDevices) R.string.hide_hidden_devices
