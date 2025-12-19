@@ -25,7 +25,6 @@ import kotlinx.coroutines.SupervisorJob
 import javax.inject.Singleton
 
 private const val DATA_STORE_FILE_NAME = "user_prefs.pb"
-private const val DEFAULT_TIMEOUT_SECONDS = 10L
 
 private val Context.userPreferencesStore: DataStore<UserPreferences> by dataStore(
     fileName = DATA_STORE_FILE_NAME,

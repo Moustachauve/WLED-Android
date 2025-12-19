@@ -21,6 +21,7 @@ object NetworkModule {
 
     private const val GITHUB_BASE_URL = "https://api.github.com"
     private const val DEFAULT_TIMEOUT_SECONDS = 10L
+    private const val CACHE_SIZE_BYTES = 20 * 1024 * 1024L // 20MB
 
     @Provides
     @Singleton
@@ -36,7 +37,7 @@ object NetworkModule {
             .readTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .pingInterval(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .cache(Cache(appContext.cacheDir, 20 * 1024 * 1024)) // 20MB cache
+            .cache(Cache(appContext.cacheDir, CACHE_SIZE_BYTES))
             .build()
     }
 
