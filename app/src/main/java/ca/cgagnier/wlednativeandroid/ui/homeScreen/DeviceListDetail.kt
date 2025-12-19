@@ -96,27 +96,30 @@ fun DeviceListDetail(
     val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
     val isWLEDCaptivePortal by viewModel.isWLEDCaptivePortal.collectAsStateWithLifecycle()
     val isAddDeviceDialogVisible by viewModel.isAddDeviceDialogVisible.collectAsStateWithLifecycle()
-    val addDevice = {
-        viewModel.showAddDeviceDialog()
+
+    val addDevice = remember(viewModel) {
+        { viewModel.showAddDeviceDialog() }
     }
 
-    val navigateToDeviceDetail: (DeviceWithState) -> Unit = { device: DeviceWithState ->
-        coroutineScope.launch {
-            navigator.navigateTo(
-                pane = ListDetailPaneScaffoldRole.Detail,
-                contentKey = device.device.macAddress
-            )
-        }
-    }
-    val navigateToDeviceEdit = { device: DeviceWithState ->
-        coroutineScope.launch {
-            navigator.navigateTo(
-                pane = ListDetailPaneScaffoldRole.Extra,
-                contentKey = device.device.macAddress
-            )
+    val navigateToDeviceDetail: (DeviceWithState) -> Unit = remember(navigator, coroutineScope) {
+        { device: DeviceWithState ->
+            coroutineScope.launch {
+                navigator.navigateTo(
+                    pane = ListDetailPaneScaffoldRole.Detail, contentKey = device.device.macAddress
+                )
+            }
         }
     }
 
+    val navigateToDeviceEdit = remember(navigator, coroutineScope) {
+        { device: DeviceWithState ->
+            coroutineScope.launch {
+                navigator.navigateTo(
+                    pane = ListDetailPaneScaffoldRole.Extra, contentKey = device.device.macAddress
+                )
+            }
+        }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
