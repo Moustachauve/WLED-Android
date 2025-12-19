@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -285,7 +287,7 @@ private fun DrawerContent(
             },
             selected = false,
             onClick = {
-                uriHandler.openUri("https://kno.wled.ge/")
+                uriHandler.openUriSafely("https://kno.wled.ge/")
             },
             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
         )
@@ -299,7 +301,7 @@ private fun DrawerContent(
             },
             selected = false,
             onClick = {
-                uriHandler.openUri("https://github.com/sponsors/Moustachauve")
+                uriHandler.openUriSafely("https://github.com/sponsors/Moustachauve")
             },
             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
         )
@@ -371,5 +373,23 @@ fun SelectDeviceView() {
             )
             Text(stringResource(R.string.select_a_device_from_the_list))
         }
+    }
+}
+
+// TODO: Move this to a utility file or somewhere else, maybe.
+/**
+ * Open Uri in external browser and do error handling.
+ *
+ * Errors can happen if, for some reason, a user doesn't have any browser installed, for example.
+ */
+fun UriHandler.openUriSafely(uri: String) {
+    try {
+        this.openUri(uri)
+    } catch (e: IllegalArgumentException) {
+        // Log the error so you can see it in Crashlytics non-fatals if you use it
+        Log.e("DeviceListDetail", "No browser found to open: $uri", e)
+    } catch (e: Exception) {
+        // Catch generic exceptions just in case OEM implementations behave weirdly
+        Log.e("DeviceListDetail", "Error opening URI: $uri", e)
     }
 }
