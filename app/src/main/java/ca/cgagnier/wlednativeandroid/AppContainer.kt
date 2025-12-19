@@ -13,10 +13,7 @@ import ca.cgagnier.wlednativeandroid.repository.VersionDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.repository.migrations.UserPreferencesV0ToV1
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
-import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
-import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
-import com.squareup.moshi.Moshi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,9 +22,6 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import okhttp3.Cache
-import okhttp3.OkHttpClient
-import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 private const val DATA_STORE_FILE_NAME = "user_prefs.pb"
@@ -109,34 +103,5 @@ object AppContainer {
         @ApplicationContext appContext: Context, coroutineScope: CoroutineScope
     ): NetworkConnectivityManager {
         return NetworkConnectivityManager(appContext, coroutineScope)
-    }
-
-    @Provides
-    @Singleton
-    fun provideOkHttpClient(@ApplicationContext appContext: Context): OkHttpClient {
-        return OkHttpClient.Builder()
-            .connectTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .readTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .writeTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .pingInterval(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .cache(Cache(appContext.cacheDir, 20 * 1024 * 1024)) // 20MB cache
-            .build()
-    }
-
-    @Provides
-    fun provideDeviceApiFactory(okHttpClient: OkHttpClient): DeviceApiFactory {
-        return DeviceApiFactory(okHttpClient)
-    }
-
-    @Provides
-    @Singleton
-    fun provideGithubApi(okHttpClient: OkHttpClient): GithubApi {
-        return GithubApi(okHttpClient)
-    }
-
-    @Provides
-    @Singleton
-    fun provideMoshi(): Moshi {
-        return Moshi.Builder().build()
     }
 }
