@@ -63,9 +63,9 @@ object AppContainer {
     @Provides
     @Singleton
     fun provideVersionWithAssetsRepository(
-        versionDao: VersionDao, assetDao: AssetDao
+        appDatabase: DevicesDatabase, versionDao: VersionDao, assetDao: AssetDao
     ): VersionWithAssetsRepository {
-        return VersionWithAssetsRepository(versionDao, assetDao)
+        return VersionWithAssetsRepository(appDatabase, versionDao, assetDao)
     }
 
     @Provides

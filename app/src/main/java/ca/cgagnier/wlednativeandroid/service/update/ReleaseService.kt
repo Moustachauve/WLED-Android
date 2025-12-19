@@ -151,8 +151,6 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
         }
 
         allVersionsResult.onSuccess { allVersions ->
-            versionWithAssetsRepository.removeAll()
-
             val versionModels = mutableListOf<Version>()
             val assetsModels = mutableListOf<Asset>()
             for (version in allVersions) {
@@ -160,11 +158,8 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
                 assetsModels.addAll(createAssetsForVersion(version))
             }
 
-            Log.i(
-                TAG,
-                "Inserting " + versionModels.count() + " versions with " + assetsModels.count() + " assets"
-            )
-            versionWithAssetsRepository.insertMany(versionModels, assetsModels)
+            Log.i(TAG, "Replacing DB with ${versionModels.size} versions and ${assetsModels.size} assets")
+            versionWithAssetsRepository.replaceAll(versionModels, assetsModels)
         }
     }
 
