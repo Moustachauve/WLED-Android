@@ -7,6 +7,7 @@ import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.model.githubapi.Release
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
+import ca.cgagnier.wlednativeandroid.model.wledapi.isOtaEnabled
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import com.vdurmont.semver4j.Semver
@@ -74,8 +75,7 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
             return null
         }
 
-        // The options bitmask at 0x01 being 0 means OTA is disabled on the device.
-        if (deviceInfo.options?.and(0x01) == 0) {
+        if (!deviceInfo.isOtaEnabled) {
             return null
         }
 

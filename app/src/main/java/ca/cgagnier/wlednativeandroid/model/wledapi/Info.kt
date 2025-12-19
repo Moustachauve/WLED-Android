@@ -49,3 +49,11 @@ data class Info (
     @param:Json(name = "ip") val ipAddress : String? = null,
     @param:Json(name = "u") val userMods : UserMods? = null
 )
+
+/**
+ * Determine whether OTA updates are enabled on the device.
+ *
+ * The options bitmask at 0x01 being 0 means OTA is disabled on the device.
+ */
+val Info.isOtaEnabled: Boolean
+    get() = options?.and(0x01) != 0
