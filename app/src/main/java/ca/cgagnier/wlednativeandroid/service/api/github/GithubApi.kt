@@ -7,6 +7,7 @@ import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import okhttp3.OkHttpClient
@@ -33,14 +34,19 @@ class GithubApi(private val okHttpClient: OkHttpClient) {
         return null
     }
 
-    suspend fun downloadReleaseBinary(
+    fun downloadReleaseBinary(
         asset: Asset,
         targetFile: File
-    ): Flow<DownloadState> {
+    ): Flow<DownloadState> = flow {
         val api = getApi()
-        return api.downloadReleaseBinary(REPO_OWNER, REPO_NAME, asset.assetId)
-            .saveFile(targetFile)
-    }
+        try {
+            emit(DownloadState.Downloading(0))
+            val responseBody = api.downloadReleaseBinary(REPO_OWNER, REPO_NAME, asset.assetId)
+            emitAll(responseBody.saveFile(targetFile))
+        } catch (e: Exception) {
+            emit(DownloadState.Failed(e))
+        }
+    }.flowOn(Dispatchers.IO)
 
     private fun ResponseBody.saveFile(destinationFile: File): Flow<DownloadState> {
         return flow {
