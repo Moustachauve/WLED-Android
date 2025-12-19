@@ -85,6 +85,7 @@ fun DeviceListDetail(
 
     val devices by deviceWebsocketListViewModel.allDevicesWithState.collectAsStateWithLifecycle()
     val selectedDeviceMacAddress = navigator.currentDestination?.contentKey as? String
+    // TODO: Move the selectedDevice to the ViewModel
     val selectedDevice = remember(devices, selectedDeviceMacAddress) {
         if (selectedDeviceMacAddress == AP_MODE_MAC_ADDRESS) {
             return@remember getApModeDeviceWithState()
