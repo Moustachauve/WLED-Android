@@ -16,10 +16,7 @@ class VersionWithAssetsRepository @Inject constructor(
     @WorkerThread
     suspend fun replaceAll(versions: List<Version>, assets: List<Asset>) {
         database.withTransaction {
-            // Delete old data first
-            versionDao.removeAll()
-
-            // Insert new data
+            versionDao.deleteAll()
             versionDao.insertMany(versions)
             assetDao.insertMany(assets)
         }
