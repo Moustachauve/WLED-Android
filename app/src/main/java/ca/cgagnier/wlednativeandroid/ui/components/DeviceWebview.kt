@@ -32,6 +32,7 @@ import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -177,6 +178,7 @@ fun DeviceWebView(
 
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
+                settings.cacheMode = WebSettings.LOAD_NO_CACHE
 
                 setDownloadListener { url, _, contentDisposition, mimetype, _ ->
                     downloadListener(device, url, contentDisposition, mimetype, currentContext)
