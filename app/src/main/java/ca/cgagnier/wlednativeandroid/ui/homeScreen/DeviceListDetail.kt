@@ -200,10 +200,10 @@ fun DeviceListDetail(
                 })
         }
 
-        // Close drawer when back button is pressed. This is to fix a state that can happen when a
-        // user navigates to another app with the drawer open and then navigates back to the app.
-        // This would cause them to be stuck in the drawer and the back button would go to the
-        // previous app instead of closing the drawer.
+        /* Close drawer when back button is pressed. This is to fix a state that can happen when a
+         * user navigates to another app with the drawer open and then navigates back to the app.
+         * This would cause them to be stuck in the drawer and the back button would go to the
+         * previous app instead of closing the drawer. */
         BackHandler(enabled = drawerState.isOpen) {
             coroutineScope.launch {
                 drawerState.close()
