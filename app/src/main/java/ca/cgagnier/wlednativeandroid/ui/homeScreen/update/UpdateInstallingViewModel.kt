@@ -1,7 +1,7 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen.update
 
+import android.text.Html
 import android.util.Log
-import androidx.core.text.HtmlCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import okhttp3.ResponseBody
 import retrofit2.Response
 import java.io.File
+import java.util.regex.Pattern
 import javax.inject.Inject
 
 private const val TAG = "UpdateInstallingViewModel"
@@ -205,13 +206,25 @@ class UpdateInstallingViewModel @Inject constructor(
     }
 
     private fun getHtmlErrorMessage(response: Response<ResponseBody>): String {
-        var html = response.body()?.string() ?: response.errorBody()?.string() ?: ""
+        val html = response.body()?.string() ?: response.errorBody()?.string() ?: ""
 
-        // 1. Remove specific tags we don't want (title, button, h1) and their content
-        // (?s) enables "dot matches newline" mode so it works on multi-line HTML
-        html = html.replace(Regex("(?si)<(title|button|h1)\\b[^>]*>.*?</\\1>"), "")
+        // Extract the body content to ignore <head> (title, scripts, styles)
+        val bodyMatcher =
+            Pattern.compile("<body[^>]*>(.*?)</body>", Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
+                .matcher(html)
+        var bodyContent = if (bodyMatcher.find()) bodyMatcher.group(1) else html
 
-        // 2. Convert the remaining HTML to plain text (handles &nbsp;, <br>, etc.)
-        return HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
+        // Remove <button>, <script>, and <style> blocks entirely so their text (e.g. "Back") doesn't appear
+        val junkMatcher = Pattern.compile(
+            "<(button|script|style)[^>]*>.*?</\\1>",
+            Pattern.CASE_INSENSITIVE or Pattern.DOTALL
+        )
+        bodyContent = junkMatcher.matcher(bodyContent).replaceAll("")
+
+        // Use Android's Html class to strip remaining tags (<h2>, <br>) and decode entities
+        val plainText = Html.fromHtml(bodyContent, Html.FROM_HTML_MODE_COMPACT).toString()
+
+        // Normalize whitespace (remove newlines from <br>/<h2> and extra spaces)
+        return plainText.trim().replace(Regex("\\s+"), " ")
     }
 }
