@@ -1,7 +1,7 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen.update
 
-import android.text.Html
 import android.util.Log
+import androidx.core.text.HtmlCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
@@ -207,24 +207,24 @@ class UpdateInstallingViewModel @Inject constructor(
 
     private fun getHtmlErrorMessage(response: Response<ResponseBody>): String {
         val html = response.body()?.string() ?: response.errorBody()?.string() ?: ""
-
         // Extract the body content to ignore <head> (title, scripts, styles)
-        val bodyMatcher =
-            Pattern.compile("<body[^>]*>(.*?)</body>", Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
-                .matcher(html)
+        val bodyMatcher = HTML_BODY_MATCHER.matcher(html)
         var bodyContent = if (bodyMatcher.find()) bodyMatcher.group(1) else html
-
         // Remove <button>, <script>, and <style> blocks entirely so their text (e.g. "Back") doesn't appear
-        val junkMatcher = Pattern.compile(
+        bodyContent = JUNK_TAG_PATTERN.matcher(bodyContent).replaceAll("")
+        // Use Android's Html class to strip remaining tags (<h2>, <br>) and decode entities
+        val plainText =
+            HtmlCompat.fromHtml(bodyContent, HtmlCompat.FROM_HTML_MODE_COMPACT).toString()
+        // Normalize whitespace (remove newlines from <br>/<h2> and extra spaces)
+        return plainText.trim().replace(Regex("\\s+"), " ")
+    }
+
+    companion object {
+        private val HTML_BODY_MATCHER =
+            Pattern.compile("<body[^>]*>(.*?)</body>", Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
+        private val JUNK_TAG_PATTERN = Pattern.compile(
             "<(button|script|style)[^>]*>.*?</\\1>",
             Pattern.CASE_INSENSITIVE or Pattern.DOTALL
         )
-        bodyContent = junkMatcher.matcher(bodyContent).replaceAll("")
-
-        // Use Android's Html class to strip remaining tags (<h2>, <br>) and decode entities
-        val plainText = Html.fromHtml(bodyContent, Html.FROM_HTML_MODE_COMPACT).toString()
-
-        // Normalize whitespace (remove newlines from <br>/<h2> and extra spaces)
-        return plainText.trim().replace(Regex("\\s+"), " ")
     }
 }
