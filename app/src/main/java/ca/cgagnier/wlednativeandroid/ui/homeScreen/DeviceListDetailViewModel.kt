@@ -98,7 +98,7 @@ class DeviceListDetailViewModel @Inject constructor(
                 // Try the fast path (database only) first
                 if (!deviceFirstContactService.tryUpdateAddress(macAddress, address)) {
                     // Fallback: Fetch info from the device (network call)
-                    deviceFirstContactService.fetchAndUpsertDevice(address)
+                    deviceFirstContactService.fetchAndUpsertDevice(address, fromDiscovery = true)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch/upsert device at $address", e)

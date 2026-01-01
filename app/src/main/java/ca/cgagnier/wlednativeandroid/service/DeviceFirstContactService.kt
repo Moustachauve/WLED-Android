@@ -72,7 +72,7 @@ class DeviceFirstContactService @Inject constructor(
      * @return The device object.
      * @throws Exception if device info cannot be fetched or lacks a MAC address.
      */
-    suspend fun fetchAndUpsertDevice(address: String): Device {
+    suspend fun fetchAndUpsertDevice(address: String, fromDiscovery: Boolean = false): Device {
         Log.d(TAG, "Trying to create a new device: $address")
         val info = getDeviceInfo(address)
 
@@ -86,6 +86,10 @@ class DeviceFirstContactService @Inject constructor(
         if (existingDevice == null) {
             Log.d(TAG, "No existing device found for MAC: ${info.macAddress}. Creating new entry.")
             return createDevice(info.macAddress, address, info.name)
+        }
+        if (fromDiscovery && !isIpAddress(existingDevice.address)) {
+            Log.i(TAG, "Device already exists for MAC, but ignoring discovery update for non-IP device: ${existingDevice.address}")
+            return existingDevice
         }
         if (existingDevice.address == address && existingDevice.originalName == info.name) {
             Log.d(TAG, "Device already exists for MAC and is unchanged: ${info.macAddress}")
@@ -111,6 +115,12 @@ class DeviceFirstContactService @Inject constructor(
         }
         val existingDevice = repository.findDeviceByMacAddress(macAddress) ?: return false
 
+        // Logic to prevent overwriting non-IP address
+        if (!isIpAddress(existingDevice.address)) {
+            Log.i(TAG, "Ignoring discovery update for non-IP device: ${existingDevice.address}")
+            return true
+        }
+
         // Device is already up to date
         if (existingDevice.address != address) {
             Log.i(TAG, "Fast update: IP changed for ${existingDevice.originalName} ($macAddress)")
@@ -119,5 +129,11 @@ class DeviceFirstContactService @Inject constructor(
             Log.d(TAG, "Fast update: Device IP unchanged for $macAddress")
         }
         return true
+    }
+
+    private fun isIpAddress(address: String): Boolean {
+        val ipv4Pattern = "^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}\$"
+        val ipv6Pattern = "^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\$"
+        return address.matches(Regex(ipv4Pattern)) || address.matches(Regex(ipv6Pattern))
     }
 }
