@@ -34,6 +34,7 @@ roomVersion = "2.8.4"
 semver4j = "3.1.0"
 webkit = "1.14.0"
 graphicsShapes = "1.1.0"
+truth = "1.4.5"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose" }
@@ -86,6 +87,7 @@ protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 retrofit2-kotlin-coroutines-adapter = { module = "com.jakewharton.retrofit:retrofit2-kotlin-coroutines-adapter", version.ref = "retrofit2KotlinCoroutinesAdapter" }
 semver4j = { module = "com.vdurmont:semver4j", version.ref = "semver4j" }
+truth = { module = "com.google.truth:truth", version.ref = "truth" }
 
 # TODO: Manually import the icons instead of importing this.
 compose-material-icons = { group = "androidx.compose.material", name = "material-icons-core" }

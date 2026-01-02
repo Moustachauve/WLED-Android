@@ -5,6 +5,7 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
+import ca.cgagnier.wlednativeandroid.util.isIpAddress
 import java.io.IOException
 import javax.inject.Inject
 
@@ -48,7 +49,12 @@ class DeviceFirstContactService @Inject constructor(
         device: Device, newAddress: String, name: String
     ): Device {
         Log.d(TAG, "Updating address for device MAC: ${device.macAddress} to: $newAddress")
-        val updatedDevice = device.copy(address = newAddress, originalName = name)
+        // If the address already assigned to the device is not an IP address, keep it. Otherwise,
+        // update the IP address. This is to avoid overriding a device being added by an url (ex:
+        // "wled.local") which could be on a different network (and couldn't be reached by IP
+        // address directly).
+        val deviceAddress = if (!device.address.isIpAddress()) device.address else newAddress
+        val updatedDevice = device.copy(address = deviceAddress, originalName = name)
         repository.update(updatedDevice)
         return updatedDevice
     }

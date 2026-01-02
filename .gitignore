@@ -89,3 +89,4 @@ lint/tmp/
 .idea/studiobot.xml
 /.idea/runConfigurations.xml
 .idea/deviceManager.xml
+.idea/androidTestResultsUserPreferences.xml
