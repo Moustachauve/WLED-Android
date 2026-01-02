@@ -29,11 +29,11 @@ interface VersionDao {
     suspend fun deleteAll()
 
     @Transaction
-    @Query("SELECT * FROM version WHERE isPrerelease = 0 ORDER BY publishedDate DESC LIMIT 1")
+    @Query("SELECT * FROM version WHERE isPrerelease = 0 AND tagName != 'nightly' ORDER BY publishedDate DESC LIMIT 1")
     suspend fun getLatestStableVersionWithAssets(): VersionWithAssets?
 
     @Transaction
-    @Query("SELECT * FROM version ORDER BY publishedDate DESC LIMIT 1")
+    @Query("SELECT * FROM version WHERE tagName != 'nightly' ORDER BY publishedDate DESC LIMIT 1")
     suspend fun getLatestBetaVersionWithAssets(): VersionWithAssets?
 
     @Transaction
