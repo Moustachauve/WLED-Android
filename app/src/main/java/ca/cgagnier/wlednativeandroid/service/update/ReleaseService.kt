@@ -70,66 +70,55 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
         if (deviceInfo.version.isNullOrEmpty()) {
             return null
         }
-
         if (deviceInfo.brand != updateSourceDefinition.brandPattern) {
             return null
         }
-
         if (!deviceInfo.isOtaEnabled) {
             return null
         }
 
         // TODO: Modify this to use repositoryOwner and repositoryName
         val latestVersion = getLatestVersionWithAssets(branch) ?: return null
-        if (latestVersion.version.tagName == ignoreVersion) {
+        val latestTagName = latestVersion.version.tagName
+
+        if (latestTagName == ignoreVersion) {
             return null
         }
 
-        // Make sure we have a version that isn't prefixed with "v" to be able to properly compare
-        // it to Device's version.
-        val untaggedUpdateVersion = if (latestVersion.version.tagName.startsWith(
-                'v', ignoreCase = true
-            )
-        ) latestVersion.version.tagName.drop(1) else latestVersion.version.tagName
-
         // Don't offer to update to the already installed version
-        if (untaggedUpdateVersion == deviceInfo.version) {
+        if (latestTagName == deviceInfo.version) {
             return null
         }
 
         val betaSuffixes = listOf("-a", "-b", "-rc")
         Log.w(
-            TAG, "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $untaggedUpdateVersion"
+            TAG, "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $latestTagName"
         )
         if (branch == Branch.STABLE && betaSuffixes.any {
-                deviceInfo.version.contains(
-                    it, ignoreCase = true
-                )
+                deviceInfo.version.contains(it, ignoreCase = true)
             }) {
             // If we're on a beta branch but looking for a stable branch, always offer to "update" to
             // the stable branch.
-            return latestVersion.version.tagName
+            return latestTagName
         } else if (branch == Branch.BETA && betaSuffixes.none {
-                deviceInfo.version.contains(
-                    it, ignoreCase = true
-                )
+                deviceInfo.version.contains(it, ignoreCase = true)
             }) {
             // Same if we are on a stable branch but looking for a beta branch, we should offer to
             // "update" to the latest beta branch, even if its older.
-            return latestVersion.version.tagName
+            return latestTagName
         }
 
         try {
-            return if (Semver(untaggedUpdateVersion, Semver.SemverType.LOOSE).isGreaterThan(
-                    deviceInfo.version
-                )
-            ) {
-                latestVersion.version.tagName
-            } else {
-                null
+            // Attempt strict SemVer comparison
+            val versionSemver = Semver(latestTagName, Semver.SemverType.LOOSE)
+
+            // If the version is mathematically greater, return it
+            if (versionSemver.isGreaterThan(deviceInfo.version)) {
+                return latestTagName
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error in getNewerReleaseTag: " + e.message, e)
+            Log.i(TAG, "Non-SemVer version detected ($latestTagName), offering update as it differs from current.")
+            return latestTagName
         }
 
         return null
@@ -165,7 +154,7 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
 
     private fun createVersion(version: Release): Version {
         return Version(
-            version.tagName,
+            sanitizeTagName(version.tagName),
             version.name,
             version.body,
             version.prerelease,
@@ -176,10 +165,11 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
 
     private fun createAssetsForVersion(version: Release): List<Asset> {
         val assetsModels = mutableListOf<Asset>()
+        val sanitizedTagName = sanitizeTagName(version.tagName)
         for (asset in version.assets) {
             assetsModels.add(
                 Asset(
-                    version.tagName,
+                    sanitizedTagName,
                     asset.name,
                     asset.size,
                     asset.browserDownloadUrl,
@@ -188,5 +178,17 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
             )
         }
         return assetsModels
+    }
+
+    /**
+     * Removes the leading 'v' from version tags (e.g., "v0.14.0" -> "0.14.0").
+     * Leaves other tags (like "nightly") untouched.
+     */
+    private fun sanitizeTagName(tagName: String): String {
+        return if (tagName.startsWith("v", ignoreCase = true)) {
+            tagName.substring(1)
+        } else {
+            tagName
+        }
     }
 }
