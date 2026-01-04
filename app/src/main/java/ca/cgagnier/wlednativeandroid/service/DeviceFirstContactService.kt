@@ -53,7 +53,7 @@ class DeviceFirstContactService @Inject constructor(
         // update the IP address. This is to avoid overriding a device being added by an url (ex:
         // "wled.local") which could be on a different network (and couldn't be reached by IP
         // address directly).
-        val deviceAddress = if (!device.address.isIpAddress()) device.address else newAddress
+        val deviceAddress = if (device.address.isIpAddress()) newAddress else device.address
         val updatedDevice = device.copy(address = deviceAddress, originalName = name)
         repository.update(updatedDevice)
         return updatedDevice
