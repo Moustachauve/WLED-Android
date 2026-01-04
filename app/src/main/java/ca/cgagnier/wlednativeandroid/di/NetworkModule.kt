@@ -20,7 +20,7 @@ import javax.inject.Singleton
 object NetworkModule {
 
     private const val GITHUB_BASE_URL = "https://api.github.com"
-    private const val DEFAULT_TIMEOUT_SECONDS = 10L
+    private const val DEFAULT_TIMEOUT_SECONDS = 30L
     private const val CACHE_SIZE_BYTES = 20 * 1024 * 1024L // 20MB
 
     @Provides
