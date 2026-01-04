@@ -15,18 +15,18 @@
     <string name="cancel">Abbrechen</string>
     <string name="default_device_name">(Neues Gerät)</string>
     <string name="is_offline">Offline</string>
-    <string name="offline_less_than_minute">Offline, vor weniger als einer Minute</string>
+    <string name="offline_less_than_minute">Offline, seit weniger als einer Minute</string>
     <plurals name="offline_minutes">
-        <item quantity="one">Offline, vor %d Minute</item>
-        <item quantity="other">Offline, vor %d Minuten</item>
+        <item quantity="one">Offline, seit %d Minute</item>
+        <item quantity="other">Offline, seit %d Minuten</item>
     </plurals>
     <plurals name="offline_hours">
-        <item quantity="one">Offline, vor %d Stunde</item>
-        <item quantity="other">Offline, vor %d Stunden</item>
+        <item quantity="one">Offline, seit %d Stunde</item>
+        <item quantity="other">Offline, seit %d Stunden</item>
     </plurals>
     <plurals name="offline_days">
-        <item quantity="one">Offline, vor %d Tag</item>
-        <item quantity="other">Offline, vor %d Tagen</item>
+        <item quantity="one">Offline, seit %d Tag</item>
+        <item quantity="other">Offline, seit %d Tagen</item>
     </plurals>
     <string name="update_available">Update verfügbar</string>
     <string name="network_status">Netzwerkstatus</string>
