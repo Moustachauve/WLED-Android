@@ -88,11 +88,12 @@ retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit
 retrofit2-kotlin-coroutines-adapter = { module = "com.jakewharton.retrofit:retrofit2-kotlin-coroutines-adapter", version.ref = "retrofit2KotlinCoroutinesAdapter" }
 semver4j = { module = "com.vdurmont:semver4j", version.ref = "semver4j" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
+protoc = { module = "com.google.protobuf:protoc", version.ref = "protobufJavalite" }
+androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geometry" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
 
 # TODO: Manually import the icons instead of importing this.
 compose-material-icons = { group = "androidx.compose.material", name = "material-icons-core" }
-androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geometry" }
-androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
