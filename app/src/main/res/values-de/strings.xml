@@ -98,4 +98,7 @@
     <string name="websocket_connecting">Verbinde…</string>
     <string name="websocket_disconnected">Getrennt</string>
     <string name="mac_address_present">MAC-Adresse: %1$s</string>
+    <string name="device_error_title">Das ausgewählte Gerät konnte nicht erreicht werden</string>
+    <string name="device_error_message">Stellen Sie sicher, dass es angeschlossen und mit dem Netzwerk verbunden ist</string>
+    <string name="retry_connection">Verbindung erneut versuchen</string>
 </resources>
