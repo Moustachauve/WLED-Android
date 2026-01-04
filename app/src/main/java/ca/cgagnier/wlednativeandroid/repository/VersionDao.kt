@@ -11,6 +11,13 @@ import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * nightly tag is not supported at the moment. Exclude it from results.
+ * TODO: Add support for nightly tags. This will need special handling since the tag itself never
+ *   changes. Probably need a new Branch option for it too.
+ */
+private const val IGNORED_TAG = "nightly"
+
 @Dao
 interface VersionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -29,11 +36,11 @@ interface VersionDao {
     suspend fun deleteAll()
 
     @Transaction
-    @Query("SELECT * FROM version WHERE isPrerelease = 0 ORDER BY publishedDate DESC LIMIT 1")
+    @Query("SELECT * FROM version WHERE isPrerelease = 0 AND tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1")
     suspend fun getLatestStableVersionWithAssets(): VersionWithAssets?
 
     @Transaction
-    @Query("SELECT * FROM version ORDER BY publishedDate DESC LIMIT 1")
+    @Query("SELECT * FROM version WHERE tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1")
     suspend fun getLatestBetaVersionWithAssets(): VersionWithAssets?
 
     @Transaction
@@ -43,8 +50,4 @@ interface VersionDao {
     @Transaction
     @Query("SELECT * FROM version")
     fun getVersionsWithAsset(): Flow<List<VersionWithAssets>>
-
-    @Transaction
-    @Query("DELETE FROM version")
-    fun removeAll()
 }

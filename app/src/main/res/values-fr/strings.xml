@@ -1,63 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_logo">Logo WLED</string>
-    <string name="add_a_device">Découvrir un appareil</string>
-    <string name="looking_for_devices">Recherche d\'appareils</string>
+    <string name="add_a_device">Ajouter un appareil</string>
+    <string name="add">Ajouter</string>
+    <string name="add_adding_device">Ajout de <xliff:g example="192.168.1.1" id="strength">%1$s</xliff:g></string>
+    <string name="add_device_added"><xliff:g example="Device123" id="strength">%1$s</xliff:g> was added</string>
+    <string name="add_device_error">Impossible de rejoindre l\'appareil. Vérifiez l\'adresse.</string>
+    <string name="deleting_device">Supprimer l\'appareil?</string>
+    <string name="delete">Supprimer</string>
     <string name="ip_address_or_url">Adresse IP ou URL</string>
     <string name="custom_name">Nom personnalisé</string>
     <string name="leave_this_empty_to_use_the_device_name">Laisser ce champ vide pour utiliser le nom de l\'appareil</string>
     <string name="please_enter_value">Veuillez entrer une valeur</string>
     <string name="please_enter_valid_value">Veuillez entrer une valeur valide</string>
     <string name="cancel">Annuler</string>
-    <string name="close">Fermer</string>
     <string name="default_device_name">(Nouvel appareil)</string>
     <string name="is_offline">Hors-ligne</string>
+    <string name="offline_less_than_minute">Hors-ligne, moins d\'une minute</string>
+    <plurals name="offline_minutes">
+        <item quantity="one">Hors-ligne depuis %d minute</item>
+        <item quantity="other">Hors-ligne depuis %d minutes</item>
+    </plurals>
+    <plurals name="offline_hours">
+        <item quantity="one">Hors-ligne depuis %d heure</item>
+        <item quantity="other">Hors-ligne depuis %d heures</item>
+    </plurals>
+    <plurals name="offline_days">
+        <item quantity="one">Hors-ligne depuis %d jour</item>
+        <item quantity="other">Hors-ligne depuis %d jours</item>
+    </plurals>
     <string name="update_available">Mise à jour disponible</string>
     <string name="network_status">Statut du réseau</string>
-    <string name="refresh_list">Rafraîchir</string>
+    <string name="signal_strength">Force du signal: <xliff:g example="-62" id="strength">%1$s</xliff:g></string>
+    <string name="battery_percentage">État de la batterie:</string>
     <string name="refresh_page">Rafraîchir</string>
-    <string name="manage_devices">Gérer les appareils</string>
-    <string name="remove">Retirer</string>
     <string name="edit_device">Modifier l\'appareil</string>
     <string name="edit_device_with_name">Modifier l\'appareil - <xliff:g example="WLED" id="device_name">%1$s</xliff:g></string>
-    <string name="remove_device">Retirer l\'appareil</string>
-    <string name="remove_device_confirm">Retirer un appareil?</string>
-    <string name="remove_device_confirm_text">Voulez-vous vraiment retirer %1$s [%2$s]?</string>
-    <string name="save_device">Enregistrer l\'appareil</string>
-    <string name="hide_device">Cacher l\'appareil</string>
+    <string name="device_is_visible">L\'appareil est visible</string>
     <string name="device_is_hidden">L\'appareil est caché</string>
-    <string name="hidden_status">[Caché]</string>
-    <string name="navigate_forward">Avancer</string>
-    <string name="navigate_backward">Reculer</string>
-    <string name="you_dont_have_any_devices_yet">Il n\'y a aucun appareil pour le moment</string>
-    <string name="find_my_device">Trouver mon appareil</string>
+    <string name="hidden_status">(Caché)</string>
+    <string name="you_dont_have_any_visible_devices">Il n\'y a pas d\'appareil visible</string>
     <string name="awkward_akemi_character">Mascotte Akemi gênée</string>
-    <string name="device_list">Mes appareils</string>
-    <string name="new_device_found">Nouvel appareil trouvé</string>
-    <string name="device_view">Vue de l\'appareil</string>
-    <string name="select_a_device">Choisissez un appareil</string>
     <string name="settings">Paramètres</string>
     <string name="theme">Thème</string>
     <string name="light">Clair</string>
     <string name="dark">Sombre</string>
     <string name="system_default">Par défaut</string>
     <string name="listing_options">Options de la liste</string>
+    <string name="discovering_devices">Découverte d\'appareil en cours</string>
     <string name="automatically_discover_new_devices">Découvrir les nouveaux appareils automatiquement</string>
+    <string name="show_hidden_devices">Afficher les appareils cachés</string>
+    <string name="hide_hidden_devices">Cacher les appareils cachés</string>
     <string name="show_offline_devices_last">Afficher les appareils hors-ligne en dernier</string>
-    <string name="description_brightness_slider">Curseur de luminosité</string>
     <string name="description_menu_button">Ouvrir le menu</string>
     <string name="description_back_button">Revenir en arrière</string>
-    <string name="description_list_of_discovered_devices">Liste des appareils découverts</string>
-    <string name="privacy">Confidentialité</string>
-    <string name="send_crash_data_to_developer">Partager les informations de débogage avec le développeur</string>
-    <string name="send_performance_data_to_developer">Partager les informations de performance avec le développeur</string>
-    <string name="device_ap_mode">WLED mode PA</string>
     <string name="device_ap_mode_detected">WLED mode PA détecté</string>
     <string name="device_ap_mode_detected_click">Appuyez ici pour ouvrir</string>
     <string name="install">Installer</string>
     <string name="later">Plus tard</string>
-    <string name="skip_this_version">Sauter cette version</string>
-    <string name="properties">Propriétés</string>
+    <string name="skip_this_version">Ignorer</string>
     <string name="check_for_update">Chercher une mise à jour</string>
     <string name="from_version_to_version">De %1$s à %2$s</string>
     <string name="see_update_details">Installer</string>
@@ -73,22 +74,27 @@
     <string name="are_you_sure">Êtes-vous sûr?</string>
     <string name="device_update_disclaimer_part1">Vous êtes sur le point d\'installer une nouvelle version de WLED sur votre appareil. Si vous aviez une version personnalisée auparavant, vous pouriez perdre des fonctionalités (par exemple, si vous aviez des « usermods », ils pourraient ne plus fonctionner).</string>
     <string name="device_update_disclaimer_part2">Si quelqu\'un a installé cet appareil pour vous, vous devriez confirmer avec eux qu\'il n\'y a pas de risque à installer cette nouvelle version.</string>
-    <string name="device_update_disclaimer_part3">WLED et WLED Native ne sont pas responsable si quelque chose ne fonctionne plus dû à une mise à jour.</string>
+    <string name="device_update_disclaimer_part3">WLED n\'est pas responsable si quelque chose ne fonctionne plus dû à une mise à jour.</string>
     <string name="install_update">Installer la mise à jour</string>
     <string name="ota_install_failed_device_locked">Votre appareil est peut-être protégé par un NIP ou un mot de passe.</string>
     <string name="no_compatible_version_found">Aucune version compatible</string>
     <string name="no_compatible_version_found_details">Aucune version compatible avec votre appareil n\'a pu être trouvé. Vous devrez faire une installation manuelle.</string>
-    <string name="device_offline">Hors ligne</string>
     <string name="show_error">Afficher l\'erreur</string>
     <string name="hide_error">Cacher l\'erreur</string>
+    <string name="unknown_error">Erreur inconnue</string>
+    <string name="success">Succès!</string>
     <string name="update_channel">Variante de MàJ</string>
     <string name="stable">Stable</string>
     <string name="beta">Bêta</string>
     <string name="version_v_num">Version <xliff:g example="v0.14.0" id="version_name">%1$s</xliff:g></string>
     <string name="your_device_is_up_to_date">Votre appareil est à jour</string>
     <string name="select_a_device_from_the_list">Veuillez choisir un appareil</string>
-    <string name="save_after_branch_change">Veuillez sauvegarder après avoir changer la variante de MàJ pour vérifier les MàJ</string>
     <string name="downloading_file">Téléchargement en cours</string>
     <string name="help">WLED Aide</string>
     <string name="support_me">Supporter Moustachauve</string>
+    <string name="offline_devices">Appareils hors-ligne</string>
+    <string name="websocket_connected">Connecté</string>
+    <string name="websocket_connecting">Connexion…</string>
+    <string name="websocket_disconnected">Déconnecté</string>
+    <string name="mac_address_present">Adresse MAC: %1$s</string>
 </resources>

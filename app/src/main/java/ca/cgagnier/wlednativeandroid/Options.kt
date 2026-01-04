@@ -5,8 +5,8 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class Options(
-    @Json(name = "version")
+    @param:Json(name = "version")
     val version: Int,
-    @Json(name = "lastSelectedAddress")
+    @param:Json(name = "lastSelectedAddress")
     val lastSelectedAddress: String
 )

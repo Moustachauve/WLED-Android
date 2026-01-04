@@ -6,6 +6,6 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class DeviceStateInfo (
 
-    @Json(name = "state") val state : State,
-    @Json(name = "info") val info : Info
+    @param:Json(name = "state") val state : State,
+    @param:Json(name = "info") val info : Info
 )

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ripple
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:color="?colorControlHighlight">
-    <item
-        android:state_selected="false"
-        android:drawable="@drawable/device_ap_mode_background" />
-</ripple>

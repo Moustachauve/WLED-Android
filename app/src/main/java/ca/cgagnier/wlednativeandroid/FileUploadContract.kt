@@ -6,9 +6,11 @@ import androidx.activity.result.contract.ActivityResultContract
 
 class FileUploadContract: ActivityResultContract<Int, FileUploadContractResult>() {
 
+    var type = "application/octet-stream"
+
     override fun createIntent(context: Context, input: Int): Intent {
         val intent = Intent(Intent.ACTION_GET_CONTENT)
-        intent.type = "application/octet-stream"
+        intent.type = type
 
         return intent
     }

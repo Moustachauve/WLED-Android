@@ -33,4 +33,6 @@ message UserPreferences {
   // propagates even if the value is the same as the old value. this hack is mostly for
   // `selected_device_address` that needs to be resent when the same device is re-selected.
   int64 date_last_written = 10;
+
+  bool show_hidden_devices = 11;
 }

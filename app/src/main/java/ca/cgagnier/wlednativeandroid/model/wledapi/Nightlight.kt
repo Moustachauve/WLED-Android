@@ -6,10 +6,10 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class Nightlight (
 
-	@Json(name = "on") val isOn : Boolean? = null,
-	@Json(name = "dur") val duration : Int? = null,
-	@Json(name = "fade") val fade : Boolean? = null,
-	@Json(name = "mode") val mode : Int? = null,
-	@Json(name = "tbri") val targetBrightness : Int? = null,
-	@Json(name = "rem") val remainingTime : Int? = null
+	@param:Json(name = "on") val isOn : Boolean? = null,
+	@param:Json(name = "dur") val duration : Int? = null,
+	@param:Json(name = "fade") val fade : Boolean? = null,
+	@param:Json(name = "mode") val mode : Int? = null,
+	@param:Json(name = "tbri") val targetBrightness : Int? = null,
+	@param:Json(name = "rem") val remainingTime : Int? = null
 )

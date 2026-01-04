@@ -61,9 +61,6 @@ captures/
 .externalNativeBuild
 .cxx/
 
-# Google Services (e.g. APIs or Firebase)
-# google-services.json
-
 # Freeline
 freeline.py
 freeline/
@@ -87,3 +84,9 @@ lint/tmp/
 # lint/reports/
 .DS_Store
 .idea/deploymentTargetDropDown.xml
+.idea/deploymentTargetSelector.xml
+.idea/inspectionProfiles/
+.idea/studiobot.xml
+/.idea/runConfigurations.xml
+.idea/deviceManager.xml
+.idea/androidTestResultsUserPreferences.xml
