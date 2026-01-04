@@ -14,7 +14,7 @@
     <string name="please_enter_valid_value">请输入有效的值</string>
     <string name="cancel">取消</string>
     <string name="default_device_name">（新设备）</string>
-    <string name="is_offline">（离线）</string>
+    <string name="is_offline">离线</string>
     <string name="offline_less_than_minute">离线，不到一分钟前</string>
     <plurals name="offline_minutes">
         <item quantity="one">离线，%d 分钟前</item>
@@ -98,4 +98,7 @@
     <string name="websocket_connecting">正在连接…</string>
     <string name="websocket_disconnected">已断开连接</string>
     <string name="mac_address_present">MAC 地址：%1$s</string>
+    <string name="device_error_title">无法连接到所选设备</string>
+    <string name="device_error_message">请确保设备已连接电源并接入网络</string>
+    <string name="retry_connection">重试连接</string>
 </resources>
