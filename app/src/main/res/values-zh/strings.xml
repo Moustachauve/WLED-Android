@@ -1,5 +1,4 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="app_name" translatable="false">WLED</string>
     <string name="app_logo">WLED 标志</string>
     <string name="add_a_device">添加新设备</string>
     <string name="add">添加</string>
