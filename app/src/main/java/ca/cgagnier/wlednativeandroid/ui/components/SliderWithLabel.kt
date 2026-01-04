@@ -49,10 +49,9 @@ fun SliderWithLabel(
         interactionSource = interactionSource,
         thumb = {
             val labelValue = value.roundToInt().coerceIn(
-                valueRange.start.roundToInt(),
-                valueRange.endInclusive.roundToInt()
+                valueRange.start.roundToInt(), valueRange.endInclusive.roundToInt()
             )
-            Label (
+            Label(
                 label = {
                     PlainTooltip(shape = MaterialTheme.shapes.large) {
                         Box(
@@ -75,6 +74,5 @@ fun SliderWithLabel(
                     interactionSource = interactionSource
                 )
             }
-        }
-    )
+        })
 }
