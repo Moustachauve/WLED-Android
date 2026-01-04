@@ -97,4 +97,7 @@
     <string name="websocket_connecting">Connexion…</string>
     <string name="websocket_disconnected">Déconnecté</string>
     <string name="mac_address_present">Adresse MAC: %1$s</string>
+    <string name="device_error_title">Impossible de joindre l\'appareil sélectionné</string>
+    <string name="device_error_message">Assurez-vous qu\'il est branché et connecté au réseau</string>
+    <string name="retry_connection">Réessayer</string>
 </resources>

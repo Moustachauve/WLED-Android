@@ -99,4 +99,7 @@
     <string name="websocket_connecting">Connecting…</string>
     <string name="websocket_disconnected">Disconnected</string>
     <string name="mac_address_present">MAC address: %1$s</string>
+    <string name="device_error_title">The selected device could not be reached</string>
+    <string name="device_error_message">Make sure it is plugged in and connected to the network</string>
+    <string name="retry_connection">Retry Connection</string>
 </resources>

@@ -36,6 +36,17 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
@@ -53,7 +64,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -148,46 +165,96 @@ fun DeviceWebView(
     client.navigator = navigator
     chromeClient.state = state
 
-    if (webViewViewModel.displayedDevice == null || webViewViewModel.displayedDevice?.address != device.address) {
-        webViewViewModel.displayedDevice = device
-        Log.i(TAG, "Device changed, resetting")
+    fun resetWebview() {
         webView.loadUrl("about:blank")
         navigator.reset()
         Log.i(TAG, "Navigating to ${device.getDeviceUrl()}")
         state.loadingState = Loading(0.0f)
+        state.isError = false
         navigator.loadUrl(device.getDeviceUrl())
     }
 
-    AndroidView(
-        factory = { currentContext ->
-            webView.apply {
-                clipToOutline = true
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-                webView.setBackgroundColor(Color.TRANSPARENT)
-                webChromeClient = chromeClient
-                webViewClient = client
+    if (webViewViewModel.displayedDevice == null || webViewViewModel.displayedDevice?.address != device.address) {
+        webViewViewModel.displayedDevice = device
+        Log.i(TAG, "Device changed, resetting")
+        resetWebview()
+    }
 
-                if (!webViewViewModel.firstLoad) {
-                    return@apply
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (state.isError) {
+            DeviceErrorScreen(
+                onRetry = {
+                    resetWebview()
                 }
-                webViewViewModel.firstLoad = false
+            )
+        } else {
+            AndroidView(
+                factory = { currentContext ->
+                    webView.apply {
+                        clipToOutline = true
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        webView.setBackgroundColor(Color.TRANSPARENT)
+                        webChromeClient = chromeClient
+                        webViewClient = client
 
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
+                        if (webViewViewModel.firstLoad) {
+                            webViewViewModel.firstLoad = false
 
-                setDownloadListener { url, _, contentDisposition, mimetype, _ ->
-                    downloadListener(device, url, contentDisposition, mimetype, currentContext)
-                }
-            }
-        },
-        update = {
-            Log.d(TAG, "update!")
-            //it.loadUrl(url)
-        },
-    )
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+
+                            setDownloadListener { url, _, contentDisposition, mimetype, _ ->
+                                downloadListener(
+                                    device,
+                                    url,
+                                    contentDisposition,
+                                    mimetype,
+                                    currentContext
+                                )
+                            }
+                        }
+                    }
+                    webView
+                },
+                update = {
+                    Log.d(TAG, "update!")
+                    //it.loadUrl(url)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+fun DeviceErrorScreen(onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Image(painter = painterResource(id = R.drawable.akemi_018_teeth), contentDescription = null)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.device_error_title),
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.device_error_message),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onRetry) {
+            Text(text = stringResource(R.string.retry_connection))
+        }
+    }
 }
 
 class CustomWebViewClient: WebViewClient() {
@@ -202,6 +269,7 @@ class CustomWebViewClient: WebViewClient() {
         state.loadingState = Loading(0.0f)
         state.errorsForCurrentRequest.clear()
         state.pageTitle = null
+        state.isError = false
     }
 
     override fun onPageFinished(view: WebView, url: String?) {
@@ -239,14 +307,9 @@ class CustomWebViewClient: WebViewClient() {
     ) {
         Log.i(TAG, "onReceivedError ${request?.url} - ${error?.description}")
         if (request?.isForMainFrame == true) {
-            Log.i(
-                TAG,
-                "Error received ${request.url} - ${error?.description}"
-            )
-
-            view?.loadUrl("file:///android_asset/device_error.html")
+            Log.i(TAG, "Error received ${request.url} - ${error?.description}")
+            state.isError = true
         }
-        super.onReceivedError(view, request, error)
         if (error != null) {
             state.errorsForCurrentRequest.add(WebViewError(request, error))
         }
@@ -393,6 +456,9 @@ class WebViewState(webContent: WebContent) {
      * The title received from the loaded content of the current page
      */
     var pageTitle: String? by mutableStateOf(null)
+        internal set
+
+    var isError: Boolean by mutableStateOf(false)
         internal set
 
     /**
@@ -787,6 +853,7 @@ fun rememberSaveableWebViewState(): WebViewState =
 val WebStateSaver: Saver<WebViewState, Any> = run {
     val pageTitleKey = "pagetitle"
     val lastLoadedUrlKey = "lastloaded"
+    val isErrorKey = "isError"
     val stateBundle = "bundle"
 
     mapSaver(
@@ -795,6 +862,7 @@ val WebStateSaver: Saver<WebViewState, Any> = run {
             mapOf(
                 pageTitleKey to it.pageTitle,
                 lastLoadedUrlKey to it.lastLoadedUrl,
+                isErrorKey to it.isError,
                 stateBundle to viewState
             )
         },
@@ -802,6 +870,7 @@ val WebStateSaver: Saver<WebViewState, Any> = run {
             WebViewState(WebContent.NavigatorOnly).apply {
                 this.pageTitle = it[pageTitleKey] as String?
                 this.lastLoadedUrl = it[lastLoadedUrlKey] as String?
+                this.isError = (it[isErrorKey] as Boolean?) ?: false
                 this.viewState = it[stateBundle] as Bundle?
             }
         }
