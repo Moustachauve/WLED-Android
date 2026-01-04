@@ -19,20 +19,26 @@ class DeviceUpdateManager @Inject constructor(
      * or null if up-to-date.
      */
     fun getUpdateFlow(deviceWithState: DeviceWithState): Flow<String?> {
-        return snapshotFlow { deviceWithState.stateInfo.value?.info to deviceWithState.device }
+        return snapshotFlow {
+            // Create a stable key containing ONLY what matters for an update check
+            val info = deviceWithState.stateInfo.value?.info
+            val branch = deviceWithState.device.branch
+            val skipTag = deviceWithState.device.skipUpdateTag
+            Triple(info, branch, skipTag)
+        }
             .distinctUntilChanged()
-            .map { (info, device) ->
+            .map { (info, branch, skipUpdateTag) ->
                 if (info == null) return@map null
 
                 val source = UpdateSourceRegistry.getSource(info) ?: return@map null
                 Log.d(
                     TAG,
-                    "Checking for software update for ${device.macAddress} on ${source.githubOwner}:${source.githubRepo}"
+                    "Checking for software update for ${deviceWithState.device.macAddress} on ${source.githubOwner}:${source.githubRepo}"
                 )
                 releaseService.getNewerReleaseTag(
                     deviceInfo = info,
-                    branch = device.branch,
-                    ignoreVersion = device.skipUpdateTag,
+                    branch = branch,
+                    ignoreVersion = skipUpdateTag,
                     updateSourceDefinition = source,
                 )
             }

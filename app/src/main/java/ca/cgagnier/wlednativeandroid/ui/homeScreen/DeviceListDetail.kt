@@ -1,5 +1,7 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen
 
+import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,6 +47,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -83,6 +86,7 @@ fun DeviceListDetail(
 
     val devices by deviceWebsocketListViewModel.allDevicesWithState.collectAsStateWithLifecycle()
     val selectedDeviceMacAddress = navigator.currentDestination?.contentKey as? String
+    // TODO: Move the selectedDevice to the ViewModel
     val selectedDevice = remember(devices, selectedDeviceMacAddress) {
         if (selectedDeviceMacAddress == AP_MODE_MAC_ADDRESS) {
             return@remember getApModeDeviceWithState()
@@ -93,57 +97,47 @@ fun DeviceListDetail(
     val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
     val isWLEDCaptivePortal by viewModel.isWLEDCaptivePortal.collectAsStateWithLifecycle()
     val isAddDeviceDialogVisible by viewModel.isAddDeviceDialogVisible.collectAsStateWithLifecycle()
-    val addDevice = {
-        viewModel.showAddDeviceDialog()
-    }
+
+    val addDevice = { viewModel.showAddDeviceDialog() }
 
     val navigateToDeviceDetail: (DeviceWithState) -> Unit = { device: DeviceWithState ->
         coroutineScope.launch {
             navigator.navigateTo(
-                pane = ListDetailPaneScaffoldRole.Detail,
-                contentKey = device.device.macAddress
+                pane = ListDetailPaneScaffoldRole.Detail, contentKey = device.device.macAddress
             )
         }
     }
+
+
     val navigateToDeviceEdit = { device: DeviceWithState ->
         coroutineScope.launch {
             navigator.navigateTo(
-                pane = ListDetailPaneScaffoldRole.Extra,
-                contentKey = device.device.macAddress
+                pane = ListDetailPaneScaffoldRole.Extra, contentKey = device.device.macAddress
             )
         }
     }
 
-
     ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = drawerState.isOpen,
-        drawerContent = {
+        drawerState = drawerState, gesturesEnabled = drawerState.isOpen, drawerContent = {
             ModalDrawerSheet {
-                DrawerContent(
-                    showHiddenDevices = showHiddenDevices,
-                    addDevice = {
-                        coroutineScope.launch {
-                            addDevice()
-                            drawerState.close()
-                        }
-                    },
-                    toggleShowHiddenDevices = {
-                        coroutineScope.launch {
-                            viewModel.toggleShowHiddenDevices()
-                            drawerState.close()
-                        }
-                    },
-                    openSettings = {
-                        coroutineScope.launch {
-                            openSettings()
-                            drawerState.close()
-                        }
+                DrawerContent(showHiddenDevices = showHiddenDevices, addDevice = {
+                    coroutineScope.launch {
+                        addDevice()
+                        drawerState.close()
                     }
-                )
+                }, toggleShowHiddenDevices = {
+                    coroutineScope.launch {
+                        viewModel.toggleShowHiddenDevices()
+                        drawerState.close()
+                    }
+                }, openSettings = {
+                    coroutineScope.launch {
+                        openSettings()
+                        drawerState.close()
+                    }
+                })
             }
-        }
-    ) {
+        }) {
         Scaffold { innerPadding ->
             NavigableListDetailPaneScaffold(
                 modifier = modifier
@@ -173,28 +167,24 @@ fun DeviceListDetail(
                                 coroutineScope.launch {
                                     drawerState.open()
                                 }
-                            }
-                        )
+                            })
                     }
-                }, detailPane = {
+                },
+                detailPane = {
                     AnimatedPane {
                         SelectDeviceView()
                         selectedDevice?.let { device ->
-                            DeviceDetail(
-                                device = device,
-                                onItemEdit = {
-                                    navigateToDeviceEdit(device)
-                                },
-                                canNavigateBack = navigator.canNavigateBack(),
-                                navigateUp = {
-                                    coroutineScope.launch {
-                                        navigator.navigateBack()
-                                    }
+                            DeviceDetail(device = device, onItemEdit = {
+                                navigateToDeviceEdit(device)
+                            }, canNavigateBack = navigator.canNavigateBack(), navigateUp = {
+                                coroutineScope.launch {
+                                    navigator.navigateBack()
                                 }
-                            )
+                            })
                         } ?: SelectDeviceView()
                     }
-                }, extraPane = {
+                },
+                extraPane = {
                     AnimatedPane {
                         selectedDevice?.let { device ->
                             DeviceEdit(
@@ -204,13 +194,20 @@ fun DeviceListDetail(
                                     coroutineScope.launch {
                                         navigator.navigateBack()
                                     }
-                                }
-                            )
+                                })
                         }
                     }
-                }
-            )
+                })
+        }
 
+        /* Close drawer when back button is pressed. This is to fix a state that can happen when a
+         * user navigates to another app with the drawer open and then navigates back to the app.
+         * This would cause them to be stuck in the drawer and the back button would go to the
+         * previous app instead of closing the drawer. */
+        BackHandler(enabled = drawerState.isOpen) {
+            coroutineScope.launch {
+                drawerState.close()
+            }
         }
     }
 
@@ -219,8 +216,7 @@ fun DeviceListDetail(
         DeviceAdd(
             onDismissRequest = {
                 viewModel.hideAddDeviceDialog()
-            }
-        )
+            })
     }
 }
 
@@ -276,32 +272,24 @@ private fun DrawerContent(
         HorizontalDivider(modifier = Modifier.padding(12.dp))
 
         NavigationDrawerItem(
-            label = { Text(text = stringResource(R.string.help)) },
-            icon = {
-                Icon(
-                    painter = painterResource(id = R.drawable.baseline_help_24),
-                    contentDescription = stringResource(R.string.help)
-                )
-            },
-            selected = false,
-            onClick = {
-                uriHandler.openUri("https://kno.wled.ge/")
-            },
-            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+            label = { Text(text = stringResource(R.string.help)) }, icon = {
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_help_24),
+                contentDescription = stringResource(R.string.help)
+            )
+        }, selected = false, onClick = {
+            uriHandler.openUriSafely("https://kno.wled.ge/")
+        }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
         )
         NavigationDrawerItem(
-            label = { Text(text = stringResource(R.string.support_me)) },
-            icon = {
-                Icon(
-                    painter = painterResource(id = R.drawable.baseline_coffee_24),
-                    contentDescription = stringResource(R.string.support_me)
-                )
-            },
-            selected = false,
-            onClick = {
-                uriHandler.openUri("https://github.com/sponsors/Moustachauve")
-            },
-            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+            label = { Text(text = stringResource(R.string.support_me)) }, icon = {
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_coffee_24),
+                contentDescription = stringResource(R.string.support_me)
+            )
+        }, selected = false, onClick = {
+            uriHandler.openUriSafely("https://github.com/sponsors/Moustachauve")
+        }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
         )
         Spacer(Modifier.height(24.dp))
         Column(
@@ -317,8 +305,7 @@ private fun DrawerContent(
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                BuildConfig.APPLICATION_ID,
-                style = MaterialTheme.typography.bodySmall
+                BuildConfig.APPLICATION_ID, style = MaterialTheme.typography.bodySmall
             )
         }
     }
@@ -326,8 +313,7 @@ private fun DrawerContent(
 
 @Composable
 private fun ToggleHiddenDeviceButton(
-    showHiddenDevices: Boolean,
-    toggleShowHiddenDevices: () -> Unit
+    showHiddenDevices: Boolean, toggleShowHiddenDevices: () -> Unit
 ) {
     val hiddenDeviceText = stringResource(
         if (showHiddenDevices) R.string.hide_hidden_devices
@@ -371,5 +357,23 @@ fun SelectDeviceView() {
             )
             Text(stringResource(R.string.select_a_device_from_the_list))
         }
+    }
+}
+
+// TODO: Move this to a utility file or somewhere else, maybe.
+/**
+ * Open Uri in external browser and do error handling.
+ *
+ * Errors can happen if, for some reason, a user doesn't have any browser installed, for example.
+ */
+fun UriHandler.openUriSafely(uri: String) {
+    try {
+        this.openUri(uri)
+    } catch (e: IllegalArgumentException) {
+        // Log the error so you can see it in Crashlytics non-fatals if you use it
+        Log.e(TAG, "No browser found to open: $uri", e)
+    } catch (e: Exception) {
+        // Catch generic exceptions just in case OEM implementations behave weirdly
+        Log.e(TAG, "Error opening URI: $uri", e)
     }
 }

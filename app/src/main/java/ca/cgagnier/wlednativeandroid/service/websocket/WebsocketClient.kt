@@ -96,7 +96,7 @@ class WebsocketClient(
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             Log.w(
                 TAG,
-                "WebSocket failure for ${deviceState.device.address}: ${t.message}",
+                "WebSocket failure for ${deviceState.device.address}: ${t.message}; Response: $response",
                 t
             )
             this@WebsocketClient.webSocket = null
@@ -157,8 +157,17 @@ class WebsocketClient(
         isConnecting = true
         deviceState.websocketStatus.value = WebsocketStatus.CONNECTING
         val websocketUrl = "ws://${deviceState.device.address}/ws"
-        val request = Request.Builder().url(websocketUrl).build()
+        val request = Request.Builder()
+            .url(websocketUrl)
+            // For some reason, adding User-Agent here is ESSENTIAL for the app to be compatible
+            // with WLED 0.14.2. This is due to some flaw in the version of ESPAsyncWebServer
+            // included in that version of WLED.
+            // TODO: Extract the user agent to a constant somewhere to avoid magic string.
+            .header("User-Agent", "WLED-Android")
+            .build()
+
         Log.d(TAG, "Connecting to ${deviceState.device.address}")
+
         webSocket = okHttpClient.newWebSocket(request, webSocketListener)
     }
 
