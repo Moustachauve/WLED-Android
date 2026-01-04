@@ -49,10 +49,9 @@ class DeviceFirstContactService @Inject constructor(
         device: Device, newAddress: String, name: String
     ): Device {
         Log.d(TAG, "Updating address for device MAC: ${device.macAddress} to: $newAddress")
-        // If the address already assigned to the device is not an IP address, keep it. Otherwise,
-        // update the IP address. This is to avoid overriding a device being added by an url (ex:
-        // "wled.local") which could be on a different network (and couldn't be reached by IP
-        // address directly).
+        // Keep user-defined hostnames (e.g. "wled.local") and only update if the existing address
+        // is an IP. This is to avoid overriding a device being added by an url which could be on a
+        // different network (and couldn't be reached by IP address directly).
         val deviceAddress = if (device.address.isIpAddress()) newAddress else device.address
         val updatedDevice = device.copy(address = deviceAddress, originalName = name)
         repository.update(updatedDevice)
