@@ -184,11 +184,5 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
      * Removes the leading 'v' from version tags (e.g., "v0.14.0" -> "0.14.0").
      * Leaves other tags (like "nightly") untouched.
      */
-    private fun sanitizeTagName(tagName: String): String {
-        return if (tagName.startsWith("v", ignoreCase = true)) {
-            tagName.substring(1)
-        } else {
-            tagName
-        }
-    }
+    private fun sanitizeTagName(tagName: String): String = tagName.removePrefix("v")
 }
