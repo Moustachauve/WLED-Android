@@ -620,9 +620,38 @@ private fun handleHttpDownload(
                 val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
                 if (id == downloadId) {
                     downloadingToast.cancel()
-                    onSuccess()
-                    // Try unregistering to prevent leaks
-                    try { context.unregisterReceiver(this) } catch (_: Exception) {}
+                    val query = DownloadManager.Query().setFilterById(downloadId)
+                    val cursor = downloadManager.query(query)
+
+                    if (cursor != null && cursor.moveToFirst()) {
+                        val status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
+
+                        if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                            // Only trigger the snackbar if it actually worked
+                            onSuccess()
+                        } else {
+                            // Handle failure
+                            val reason = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_REASON))
+                            val failureMessage = when(reason) {
+                                DownloadManager.ERROR_CANNOT_RESUME -> "Cannot resume"
+                                DownloadManager.ERROR_DEVICE_NOT_FOUND -> "Device not found"
+                                DownloadManager.ERROR_FILE_ALREADY_EXISTS -> "File already exists"
+                                DownloadManager.ERROR_FILE_ERROR -> "File error"
+                                DownloadManager.ERROR_HTTP_DATA_ERROR -> "HTTP Data error"
+                                DownloadManager.ERROR_INSUFFICIENT_SPACE -> "Insufficient space"
+                                DownloadManager.ERROR_TOO_MANY_REDIRECTS -> "Too many redirects"
+                                DownloadManager.ERROR_UNHANDLED_HTTP_CODE -> "Unhandled HTTP code"
+                                else -> "Unknown error"
+                            }
+
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.download_failed, failureMessage),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                    cursor?.close()
                 }
             }
         }
