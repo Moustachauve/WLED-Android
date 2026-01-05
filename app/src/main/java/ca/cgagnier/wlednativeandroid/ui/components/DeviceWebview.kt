@@ -43,6 +43,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -566,11 +567,20 @@ fun downloadListener(
 
     when (uri.scheme) {
         "http", "https" -> {
-            handleHttpDownload(context, url, contentDisposition, mimetype, device, onDownloadSuccess)
+            handleHttpDownload(
+                context,
+                url,
+                contentDisposition,
+                mimetype,
+                device,
+                onDownloadSuccess
+            )
         }
+
         "data" -> {
             handleDataUriDownload(context, url, mimetype, device, onDownloadSuccess)
         }
+
         else -> {
             Log.w(TAG, "Unsupported download scheme: ${uri.scheme}")
             Toast.makeText(
@@ -585,6 +595,7 @@ fun downloadListener(
 /**
  * Helper function to handle HTTP/HTTPS download requests
  */
+@RequiresApi(Build.VERSION_CODES.Q)
 private fun handleHttpDownload(
     context: Context,
     url: String,
@@ -624,15 +635,17 @@ private fun handleHttpDownload(
                     val cursor = downloadManager.query(query)
 
                     if (cursor != null && cursor.moveToFirst()) {
-                        val status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
+                        val status =
+                            cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
 
                         if (status == DownloadManager.STATUS_SUCCESSFUL) {
                             // Only trigger the snackbar if it actually worked
                             onSuccess()
                         } else {
                             // Handle failure
-                            val reason = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_REASON))
-                            val failureMessage = when(reason) {
+                            val reason =
+                                cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+                            val failureMessage = when (reason) {
                                 DownloadManager.ERROR_CANNOT_RESUME -> "Cannot resume"
                                 DownloadManager.ERROR_DEVICE_NOT_FOUND -> "Device not found"
                                 DownloadManager.ERROR_FILE_ALREADY_EXISTS -> "File already exists"
@@ -676,6 +689,7 @@ private fun handleHttpDownload(
 /**
  * Helper function to handle 'data:' URIs manually
  */
+@RequiresApi(Build.VERSION_CODES.Q)
 private fun handleDataUriDownload(
     context: Context,
     url: String,
@@ -762,7 +776,9 @@ private fun createWledFilename(
     val sanitizedDeviceName = device.originalName.replace(Regex("[^a-zA-Z0-9 \\-_]"), "_")
 
     val extension = when {
-        url != null -> URLUtil.guessFileName(url, contentDisposition, mimetype).substringAfterLast('.', "json")
+        url != null -> URLUtil.guessFileName(url, contentDisposition, mimetype)
+            .substringAfterLast('.', "json")
+
         mimetype.contains("json") -> "json"
         else -> "txt"
     }
