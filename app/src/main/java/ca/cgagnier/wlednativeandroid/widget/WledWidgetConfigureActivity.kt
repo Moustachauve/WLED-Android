@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,6 +31,8 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import javax.inject.Inject
@@ -74,8 +76,7 @@ class WledWidgetConfigureActivity : ComponentActivity() {
     }
 
     private fun saveWidgetState(device: Device) {
-        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
-        scope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             val glanceId = GlanceAppWidgetManager(this@WledWidgetConfigureActivity).getGlanceIdBy(appWidgetId)
 
             var isOn = false
@@ -126,7 +127,7 @@ fun ConfigurationScreen(
         ) {
             items(devices) { device ->
                 DeviceItem(device = device, onClick = { onDeviceSelected(device) })
-                Divider()
+                HorizontalDivider()
             }
         }
     }

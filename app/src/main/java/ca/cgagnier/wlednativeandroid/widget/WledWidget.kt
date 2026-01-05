@@ -66,13 +66,16 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
         appWidgetIds: IntArray
     ) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
+        val pendingResult = goAsync()
         // Refresh state for all widgets
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            appWidgetIds.forEach { appWidgetId ->
-                try {
-                    val glanceId = androidx.glance.appwidget.GlanceAppWidgetManager(context).getGlanceIdBy(appWidgetId)
-                    androidx.glance.appwidget.state.updateAppWidgetState(context, glanceId) { prefs ->
+            try {
+                appWidgetIds.forEach { appWidgetId ->
+                    try {
+                        val glanceId = androidx.glance.appwidget.GlanceAppWidgetManager(context).getGlanceIdBy(appWidgetId)
+                        val prefs = androidx.glance.appwidget.state.getAppWidgetState(context, androidx.glance.state.PreferencesGlanceStateDefinition, glanceId)
                         val address = prefs[DEVICE_ADDRESS_KEY]
+
                         if (address != null) {
                             val entryPoint = EntryPointAccessors.fromApplication(
                                 context,
@@ -80,22 +83,26 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
                             )
                             val client = entryPoint.okHttpClient()
                             val deviceApiFactory = DeviceApiFactory(client)
-                            val api = deviceApiFactory.create(address)
+                            val api = deviceApiFactory.create(address!!)
                             try {
                                 val response = api.postJson(JsonPost(verbose = true))
                                 if (response.isSuccessful && response.body() != null) {
                                     val isOn = response.body()!!.state.isOn ?: false
-                                    prefs[DEVICE_IS_ON_KEY] = isOn
+                                    androidx.glance.appwidget.state.updateAppWidgetState(context, glanceId) { prefs ->
+                                        prefs[DEVICE_IS_ON_KEY] = isOn
+                                    }
+                                    WledWidget().update(context, glanceId)
                                 }
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             }
                         }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
-                    WledWidget().update(context, glanceId)
-                } catch (e: Exception) {
-                    e.printStackTrace()
                 }
+            } finally {
+                pendingResult.finish()
             }
         }
     }
