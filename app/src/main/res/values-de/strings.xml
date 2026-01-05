@@ -90,7 +90,7 @@
     <string name="your_device_is_up_to_date">Dein Gerät ist auf dem neuesten Stand</string>
     <string name="version_v_num">Version <xliff:g example="v0.14.0" id="version_name">%1$s</xliff:g></string>
     <string name="select_a_device_from_the_list">Wähle ein Gerät aus der Liste</string>
-    <string name="downloading_file">Datei wird heruntergeladen</string>
+    <string name="downloading_file">Lade %1$s herunter…</string>
     <string name="help">WLED Hilfe</string>
     <string name="support_me">Unterstütze Moustachauve</string>
     <string name="offline_devices">Offline Geräte</string>
@@ -101,4 +101,14 @@
     <string name="device_error_title">Das ausgewählte Gerät konnte nicht erreicht werden</string>
     <string name="device_error_message">Stellen Sie sicher, dass es angeschlossen und mit dem Netzwerk verbunden ist</string>
     <string name="retry_connection">Verbindung erneut versuchen</string>
+    <string name="download_completed">Download abgeschlossen</string>
+    <string name="download_scheme_not_supported">Download für Schema nicht unterstützt: %1$s</string>
+    <string name="download_failed">Download fehlgeschlagen: %1$s</string>
+    <string name="download_not_supported_old_android">Diese Funktion erfordert Android 10 oder neuer</string>
+    <string name="file_creation_failed">Datei konnte nicht erstellt werden</string>
+    <string name="error_saving_file">Fehler beim Speichern der Datei</string>
+    <string name="invalid_data_uri">Ungültiges Data-URI-Format</string>
+    <string name="non_base64_not_supported">Nicht-Base64 Data-URIs werden nicht unterstützt</string>
+    <string name="open">Öffnen</string>
+    <string name="dismiss">Schließen</string>
 </resources>
