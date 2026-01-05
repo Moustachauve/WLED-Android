@@ -112,5 +112,10 @@
     <string name="non_base64_not_supported">Non-base64 data URIs are not currently supported</string>
     <string name="open">Open</string>
     <string name="dismiss">Dismiss</string>
+    <string name="widget_description">WLED Widget</string>
+    <string name="widget_turn_on">Turn On</string>
+    <string name="widget_turn_off">Turn Off</string>
+    <string name="widget_select_device">Select Device</string>
+    <string name="widget_please_configure">Please configure</string>
 
 </resources>
