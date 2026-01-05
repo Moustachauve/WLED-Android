@@ -90,7 +90,7 @@
     <string name="your_device_is_up_to_date">您的设备已是最新版本</string>
     <string name="version_v_num">版本 <xliff:g example="v0.14.0" id="version_name">%1$s</xliff:g></string>
     <string name="select_a_device_from_the_list">从列表中选择一个设备</string>
-    <string name="downloading_file">正在下载文件</string>
+    <string name="downloading_file">正在下载 %1$s…</string>
     <string name="help">WLED 帮助</string>
     <string name="support_me">支持 Moustachauve</string>
     <string name="offline_devices">离线设备</string>
@@ -101,4 +101,14 @@
     <string name="device_error_title">无法连接到所选设备</string>
     <string name="device_error_message">请确保设备已连接电源并接入网络</string>
     <string name="retry_connection">重试连接</string>
+    <string name="download_completed">下载完成</string>
+    <string name="download_scheme_not_supported">不支持该协议的下载：%1$s</string>
+    <string name="download_failed">下载失败：%1$s</string>
+    <string name="download_not_supported_old_android">此下载功能需要 Android 10 或更高版本。</string>
+    <string name="file_creation_failed">创建文件失败</string>
+    <string name="error_saving_file">保存文件时出错</string>
+    <string name="invalid_data_uri">无效的数据 URI 格式</string>
+    <string name="non_base64_not_supported">暂不支持非 Base64 数据 URI</string>
+    <string name="open">打开</string>
+    <string name="dismiss">关闭</string>
 </resources>
