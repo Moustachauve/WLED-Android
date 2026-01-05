@@ -564,7 +564,7 @@ fun downloadListener(
             Log.w(TAG, "Unsupported download scheme: ${uri.scheme}")
             Toast.makeText(
                 context,
-                context.getString(R.string.download_scheme_not_supported),
+                context.getString(R.string.download_scheme_not_supported, uri.scheme),
                 Toast.LENGTH_LONG
             ).show()
         }
