@@ -551,6 +551,17 @@ fun downloadListener(
     context: Context,
     onDownloadSuccess: () -> Unit
 ) {
+    // Devices older than Android 10 (API 29) would need special permission handling for
+    // MediaStore.Downloads. I decided to not support it for now for simplicity.
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+        Toast.makeText(
+            context,
+            context.getString(R.string.download_not_supported_old_android),
+            Toast.LENGTH_LONG
+        ).show()
+        return
+    }
+
     val uri = url.toUri()
 
     when (uri.scheme) {
@@ -582,16 +593,6 @@ private fun handleHttpDownload(
     device: Device,
     onSuccess: () -> Unit
 ) {
-    // Devices older than Android 10 (API 29) would need special permission handling for
-    // MediaStore.Downloads. I decided to not support it for now for simplicity.
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-        Toast.makeText(
-            context,
-            context.getString(R.string.download_not_supported_old_android),
-            Toast.LENGTH_LONG
-        ).show()
-        return
-    }
     val request = DownloadManager.Request(url.toUri())
     request.setNotificationVisibility(
         DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
@@ -653,17 +654,6 @@ private fun handleDataUriDownload(
     device: Device,
     onSuccess: () -> Unit
 ) {
-    // Devices older than Android 10 (API 29) would need special permission handling for
-    // MediaStore.Downloads. I decided to not support it for now for simplicity.
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-        Toast.makeText(
-            context,
-            context.getString(R.string.download_not_supported_old_android),
-            Toast.LENGTH_LONG
-        ).show()
-        return
-    }
-
     try {
         // Robust data URI parsing
         val commaIndex = url.indexOf(",")
