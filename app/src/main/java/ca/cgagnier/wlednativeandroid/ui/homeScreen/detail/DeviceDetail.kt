@@ -62,7 +62,7 @@ fun DeviceDetail(
                     navigator.reload()
                 },
             )
-        }
+        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -71,20 +71,20 @@ fun DeviceDetail(
                 .fillMaxSize()
                 .clip(shape = MaterialTheme.shapes.large),
             verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             LaunchedEffect(navigator) {
                 val bundle = webViewState.viewState
                 if (bundle == null) {
                     Log.i(TAG, "Loading device for first time")
                     // This is the first time load, so load the home page.
-                    //navigator.loadUrl(device.getDeviceUrl())
+                    // navigator.loadUrl(device.getDeviceUrl())
                 }
             }
             DeviceWebView(
                 device.device,
                 state = webViewState,
-                navigator = navigator
+                navigator = navigator,
             )
         }
     }
@@ -98,7 +98,7 @@ fun DeviceDetailAppBar(
     navigateUp: () -> Unit,
     refreshPage: () -> Unit,
     editItem: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     TopAppBar(
         title = {
@@ -123,7 +123,7 @@ fun DeviceDetailAppBar(
                 IconButton(onClick = navigateUp) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.description_back_button)
+                        contentDescription = stringResource(R.string.description_back_button),
                     )
                 }
             }
@@ -132,17 +132,17 @@ fun DeviceDetailAppBar(
             IconButton(onClick = refreshPage) {
                 Icon(
                     imageVector = Icons.Filled.Refresh,
-                    contentDescription = stringResource(R.string.refresh_page)
+                    contentDescription = stringResource(R.string.refresh_page),
                 )
             }
             if (!device.isAPMode) {
                 IconButton(onClick = editItem) {
                     Icon(
                         imageVector = Icons.Filled.Edit,
-                        contentDescription = stringResource(R.string.edit_device)
+                        contentDescription = stringResource(R.string.edit_device),
                     )
                 }
             }
-        }
+        },
     )
 }

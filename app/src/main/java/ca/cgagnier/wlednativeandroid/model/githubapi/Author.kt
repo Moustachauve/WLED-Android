@@ -22,5 +22,5 @@ data class Author(
     @field:Json(name = "events_url") var eventsUrl: String,
     @field:Json(name = "received_events_url") var receivedEventsUrl: String,
     @field:Json(name = "type") var type: String,
-    @field:Json(name = "site_admin") var siteAdmin: Boolean
+    @field:Json(name = "site_admin") var siteAdmin: Boolean,
 )

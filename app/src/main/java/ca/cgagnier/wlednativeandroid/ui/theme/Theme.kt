@@ -257,11 +257,14 @@ data class ColorFamily(
     val color: Color,
     val onColor: Color,
     val colorContainer: Color,
-    val onColorContainer: Color
+    val onColorContainer: Color,
 )
 
 val unspecified_scheme = ColorFamily(
-    Color.Unspecified, Color.Unspecified, Color.Unspecified, Color.Unspecified
+    Color.Unspecified,
+    Color.Unspecified,
+    Color.Unspecified,
+    Color.Unspecified,
 )
 
 @Composable
@@ -269,7 +272,7 @@ fun WLEDNativeTheme(
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     themeViewModel: ThemeViewModel = hiltViewModel(),
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val theme by themeViewModel.theme.collectAsStateWithLifecycle()
     val darkTheme = when (theme) {
@@ -280,7 +283,7 @@ fun WLEDNativeTheme(
     WLEDNativeTheme(
         darkTheme = darkTheme,
         dynamicColor = dynamicColor,
-        content = content
+        content = content,
     )
 }
 
@@ -289,7 +292,7 @@ fun WLEDNativeTheme(
     darkTheme: Boolean,
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val view = LocalView.current
     val colorScheme = when {
@@ -304,8 +307,8 @@ fun WLEDNativeTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = AppTypography,
-        content = content
+        typography = appTypography,
+        content = content,
     )
 
     if (!view.isInEditMode) {
@@ -323,9 +326,15 @@ private fun getColorFromDeviceState(stateInfo: DeviceStateInfo?): Int {
         val colors = stateInfo.state.segment[0].colors
         if (!colors.isNullOrEmpty()) {
             val colorInfo = colors[0]
-            color = if (colorInfo.size in 3..4) android.graphics.Color.rgb(
-                colorInfo[0], colorInfo[1], colorInfo[2]
-            ) else android.graphics.Color.WHITE
+            color = if (colorInfo.size in 3..4) {
+                android.graphics.Color.rgb(
+                    colorInfo[0],
+                    colorInfo[1],
+                    colorInfo[2],
+                )
+            } else {
+                android.graphics.Color.WHITE
+            }
         }
     }
     return color
@@ -335,7 +344,7 @@ private fun getColorFromDeviceState(stateInfo: DeviceStateInfo?): Int {
 fun DeviceTheme(
     device: DeviceWithState,
     themeViewModel: ThemeViewModel = hiltViewModel(),
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val stateInfo by device.stateInfo
 
@@ -350,7 +359,7 @@ fun DeviceTheme(
         seedColor = Color(getColorFromDeviceState(stateInfo)),
         isDark = darkTheme,
         style = if (device.isOnline) PaletteStyle.Vibrant else PaletteStyle.Neutral,
-        animate = true
+        animate = true,
     ) {
         content()
     }

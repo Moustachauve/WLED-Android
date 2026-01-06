@@ -46,7 +46,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.ui.components.deviceName
 
-
 @Composable
 fun DeviceAdd(
     modifier: Modifier = Modifier,
@@ -61,10 +60,11 @@ fun DeviceAdd(
     }
 
     Dialog(
-        onDismissRequest = dismissRequest
+        onDismissRequest = dismissRequest,
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
         ) {
             Column(
                 modifier = modifier
@@ -73,12 +73,12 @@ fun DeviceAdd(
                     .verticalScroll(rememberScrollState())
                     .fillMaxSize()
                     .height(IntrinsicSize.Max),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     text = stringResource(R.string.add_a_device),
                     style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 16.dp),
                 )
 
                 when (state.step) {
@@ -86,12 +86,13 @@ fun DeviceAdd(
                         state = state,
                         step = state.step,
                         viewModel = viewModel,
-                        onDismissRequest = dismissRequest
+                        onDismissRequest = dismissRequest,
                     )
 
                     is DeviceAddStep.Adding -> step2Loading(state)
                     is DeviceAddStep.Success -> step3Complete(
-                        step = state.step, onDismissRequest = dismissRequest
+                        step = state.step,
+                        onDismissRequest = dismissRequest,
                     )
                 }
             }
@@ -134,14 +135,16 @@ private fun step1AddressForm(
         keyboardActions = KeyboardActions(
             onNext = {
                 focusManager.moveFocus(FocusDirection.Down)
-            }),
+            },
+        ),
         modifier = Modifier
             .fillMaxWidth()
-            .focusRequester(focusRequester)
+            .focusRequester(focusRequester),
     )
 
     Row(
-        Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
     ) {
         TextButton(
             onClick = {
@@ -157,7 +160,7 @@ private fun step1AddressForm(
         ) {
             Icon(
                 imageVector = Icons.Filled.Add,
-                contentDescription = stringResource(R.string.add_a_device)
+                contentDescription = stringResource(R.string.add_a_device),
             )
             Text(stringResource(R.string.add))
         }
@@ -183,7 +186,8 @@ private fun step2Loading(state: DeviceAddState) {
 
 @Composable
 private fun step3Complete(
-    step: DeviceAddStep.Success, onDismissRequest: () -> Unit
+    step: DeviceAddStep.Success,
+    onDismissRequest: () -> Unit,
 ) {
     Icon(
         modifier = Modifier
@@ -191,22 +195,22 @@ private fun step3Complete(
             .width(48.dp),
         painter = painterResource(id = R.drawable.baseline_add_task_24),
         contentDescription = stringResource(R.string.success),
-        tint = Color(0xFF00b300) // Green
+        tint = Color(0xFF00b300), // Green
     )
     Text(
         stringResource(R.string.success),
         style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(top = 12.dp)
+        modifier = Modifier.padding(top = 12.dp),
     )
     Text(
         stringResource(R.string.add_device_added, deviceName(step.device)),
         maxLines = 1,
-        overflow = TextOverflow.MiddleEllipsis
+        overflow = TextOverflow.MiddleEllipsis,
     )
 
-
     Row(
-        Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
     ) {
         TextButton(
             onClick = {

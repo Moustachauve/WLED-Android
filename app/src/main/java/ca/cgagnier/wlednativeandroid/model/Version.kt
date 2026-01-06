@@ -22,7 +22,7 @@ data class Version(
                 description = "this is a test version",
                 isPrerelease = false,
                 publishedDate = "2024-10-13T15:54:31Z",
-                htmlUrl = "https://github.com/"
+                htmlUrl = "https://github.com/",
             )
         }
     }

@@ -37,14 +37,14 @@ class DeviceListDetailViewModel @Inject constructor(
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
-            initialValue = false
+            initialValue = false,
         )
 
     private val discoveryService = DeviceDiscovery(
         context = getApplication<Application>().applicationContext,
         onDeviceDiscovered = { address, macAddress ->
             deviceDiscovered(address, macAddress)
-        }
+        },
     )
 
     private val _isAddDeviceDialogVisible = MutableStateFlow(false)

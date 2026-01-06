@@ -4,7 +4,7 @@ import androidx.datastore.core.DataMigration
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
 
-class UserPreferencesV0ToV1: DataMigration<UserPreferences> {
+class UserPreferencesV0ToV1 : DataMigration<UserPreferences> {
     override suspend fun cleanUp() {
     }
 

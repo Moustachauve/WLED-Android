@@ -23,7 +23,7 @@ const val TAG = "DeviceEditViewModel"
 class DeviceEditViewModel @Inject constructor(
     private val repository: DeviceRepository,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
-    private val githubApi: GithubApi
+    private val githubApi: GithubApi,
 ) : ViewModel() {
 
     private var _updateDetailsVersion: MutableStateFlow<VersionWithAssets?> = MutableStateFlow(null)
@@ -55,15 +55,15 @@ class DeviceEditViewModel @Inject constructor(
             Log.d(TAG, "updateDeviceHidden: ${device.originalName}, isHidden: $isHidden")
             repository.update(
                 device.copy(
-                    isHidden = isHidden
-                )
+                    isHidden = isHidden,
+                ),
             )
         }
 
     fun updateDeviceBranch(device: Device, branch: Branch) = viewModelScope.launch(Dispatchers.IO) {
         Log.d(TAG, "updateDeviceBranch: ${device.originalName}, updateChannel: $branch")
         val updatedDevice = device.copy(
-            branch = branch
+            branch = branch,
         )
         repository.update(updatedDevice)
     }
@@ -80,7 +80,7 @@ class DeviceEditViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             Log.d(TAG, "Saving skipUpdateTag")
             val updatedDevice = device.copy(
-                skipUpdateTag = version.version.tagName
+                skipUpdateTag = version.version.tagName,
             )
             repository.update(updatedDevice)
             _updateDetailsVersion.value = null

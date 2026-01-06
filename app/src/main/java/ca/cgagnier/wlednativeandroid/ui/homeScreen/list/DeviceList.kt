@@ -102,9 +102,11 @@ fun DeviceList(
 
     val visibleDevices = remember(allDevices, showHiddenDevices) {
         allDevices.filter { !it.device.isHidden || showHiddenDevices }
-            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) {
-                it.device.customName.ifBlank { it.device.originalName }
-            })
+            .sortedWith(
+                compareBy(String.CASE_INSENSITIVE_ORDER) {
+                    it.device.customName.ifBlank { it.device.originalName }
+                },
+            )
     }
     // DerivedStateOf is necessary so that property changes (like websocketStatus) are also tracked.
     val partitionedDevices by remember(visibleDevices, currentTime) {
@@ -159,7 +161,7 @@ fun DeviceList(
                     Spacer(
                         Modifier
                             .padding(1.dp)
-                            .height(0.dp)
+                            .height(0.dp),
                     )
                 }
                 if (visibleDevices.isEmpty() && !isWLEDCaptivePortal) {
@@ -175,7 +177,7 @@ fun DeviceList(
                                 modifier = Modifier.fillParentMaxSize(),
                                 shouldShowHiddenDevices = visibleDevices.isEmpty() && allDevices.isNotEmpty(),
                                 onAddDevice = onAddDevice,
-                                onShowHiddenDevices = onShowHiddenDevices
+                                onShowHiddenDevices = onShowHiddenDevices,
                             )
                         }
                     }
@@ -186,7 +188,7 @@ fun DeviceList(
                             DeviceAPListItem(
                                 isSelected = device.device.macAddress == selectedDevice?.device?.macAddress,
                                 onClick = { onItemClick(device) },
-                                modifier = Modifier.animateItem()
+                                modifier = Modifier.animateItem(),
                             )
                         }
                     }
@@ -198,7 +200,7 @@ fun DeviceList(
                             currentTime = currentTime,
                             onItemClick = onItemClick,
                             onItemEdit = onItemEdit,
-                            viewModel = viewModel
+                            viewModel = viewModel,
                         )
                     } else {
                         allDevicesList(
@@ -207,7 +209,7 @@ fun DeviceList(
                             currentTime = currentTime,
                             onItemClick = onItemClick,
                             onItemEdit = onItemEdit,
-                            viewModel = viewModel
+                            viewModel = viewModel,
                         )
                     }
 
@@ -226,7 +228,7 @@ fun DeviceList(
                 if (!listState.isScrollInProgress) {
                     listState.requestScrollToItem(
                         index = listState.firstVisibleItemIndex,
-                        scrollOffset = listState.firstVisibleItemScrollOffset
+                        scrollOffset = listState.firstVisibleItemScrollOffset,
                     )
                 }
             }
@@ -240,10 +242,12 @@ fun LazyListScope.allDevicesList(
     currentTime: Long,
     onItemClick: (DeviceWithState) -> Unit,
     onItemEdit: (DeviceWithState) -> Unit,
-    viewModel: DeviceWebsocketListViewModel
+    viewModel: DeviceWebsocketListViewModel,
 ) {
     itemsIndexed(
-        devices, key = { _, device -> device.device.macAddress }) { _, device ->
+        devices,
+        key = { _, device -> device.device.macAddress },
+    ) { _, device ->
 
         DeviceRow(
             device = device,
@@ -251,7 +255,7 @@ fun LazyListScope.allDevicesList(
             currentTime = currentTime,
             onClick = onItemClick,
             onEdit = onItemEdit,
-            viewModel = viewModel
+            viewModel = viewModel,
         )
     }
 }
@@ -263,10 +267,12 @@ fun LazyListScope.onlineOfflineDevicesList(
     currentTime: Long,
     onItemClick: (DeviceWithState) -> Unit,
     onItemEdit: (DeviceWithState) -> Unit,
-    viewModel: DeviceWebsocketListViewModel
+    viewModel: DeviceWebsocketListViewModel,
 ) {
     itemsIndexed(
-        onlineDevices, key = { _, device -> device.device.macAddress }) { _, device ->
+        onlineDevices,
+        key = { _, device -> device.device.macAddress },
+    ) { _, device ->
 
         DeviceRow(
             device = device,
@@ -274,7 +280,7 @@ fun LazyListScope.onlineOfflineDevicesList(
             currentTime = currentTime,
             onClick = onItemClick,
             onEdit = onItemEdit,
-            viewModel = viewModel
+            viewModel = viewModel,
         )
     }
     if (offlineDevices.isNotEmpty()) {
@@ -282,7 +288,9 @@ fun LazyListScope.onlineOfflineDevicesList(
             Text(stringResource(R.string.offline_devices))
         }
         itemsIndexed(
-            offlineDevices, key = { _, device -> device.device.macAddress }) { _, device ->
+            offlineDevices,
+            key = { _, device -> device.device.macAddress },
+        ) { _, device ->
 
             DeviceRow(
                 device = device,
@@ -290,7 +298,7 @@ fun LazyListScope.onlineOfflineDevicesList(
                 currentTime = currentTime,
                 onClick = onItemClick,
                 onEdit = onItemEdit,
-                viewModel = viewModel
+                viewModel = viewModel,
             )
         }
     }
@@ -303,7 +311,7 @@ fun LazyItemScope.DeviceRow(
     currentTime: Long = 0,
     onClick: (DeviceWithState) -> Unit,
     onEdit: (DeviceWithState) -> Unit,
-    viewModel: DeviceWebsocketListViewModel
+    viewModel: DeviceWebsocketListViewModel,
 ) {
     val coroutineScope = rememberCoroutineScope()
     var isConfirmingDelete by remember { mutableStateOf(false) }
@@ -333,7 +341,7 @@ fun LazyItemScope.DeviceRow(
         onBrightnessChanged = { brightness ->
             viewModel.setBrightness(device, brightness)
         },
-        modifier = Modifier.animateItem()
+        modifier = Modifier.animateItem(),
     )
     LaunchedEffect(isConfirmingDelete) {
         if (!isConfirmingDelete) {
@@ -363,20 +371,20 @@ fun DeviceListAppBar(
     CenterAlignedTopAppBar(modifier = modifier, title = {
         Image(
             painter = painterResource(id = R.drawable.wled_logo_akemi),
-            contentDescription = stringResource(R.string.app_logo)
+            contentDescription = stringResource(R.string.app_logo),
         )
     }, navigationIcon = {
         IconButton(onClick = onOpenDrawer) {
             Icon(
                 imageVector = Icons.Filled.Menu,
-                contentDescription = stringResource(R.string.description_menu_button)
+                contentDescription = stringResource(R.string.description_menu_button),
             )
         }
     }, actions = {
         IconButton(onClick = onAddDevice) {
             Icon(
                 imageVector = Icons.Filled.Add,
-                contentDescription = stringResource(R.string.add_a_device)
+                contentDescription = stringResource(R.string.add_a_device),
             )
         }
     })
@@ -395,7 +403,8 @@ fun ConfirmDeleteDialog(
             DeviceTheme(device) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     DeviceInfoTwoRows(
-                        modifier = Modifier.padding(16.dp), device = device
+                        modifier = Modifier.padding(16.dp),
+                        device = device,
                     )
                 }
             }
@@ -405,16 +414,19 @@ fun ConfirmDeleteDialog(
             TextButton(
                 onClick = {
                     onConfirm()
-                }) {
+                },
+            ) {
                 Text(
-                    stringResource(R.string.delete), color = MaterialTheme.colorScheme.error
+                    stringResource(R.string.delete),
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
         }, dismissButton = {
             TextButton(
                 onClick = {
                     onDismiss()
-                }) {
+                },
+            ) {
                 Text(stringResource(R.string.cancel))
             }
         })
@@ -428,7 +440,8 @@ fun ConfirmDeleteDialog(
  * unstable.
  */
 private fun shouldShowAsOffline(
-    device: DeviceWithState, currentTime: Long
+    device: DeviceWithState,
+    currentTime: Long,
 ): Boolean {
     return !device.isOnline && currentTime - device.device.lastSeen >= DEVICE_OFFLINE_TIMEOUT_MS
 }

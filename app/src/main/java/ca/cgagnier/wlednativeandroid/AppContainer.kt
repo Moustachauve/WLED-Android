@@ -31,7 +31,8 @@ private val Context.userPreferencesStore: DataStore<UserPreferences> by dataStor
     serializer = UserPreferencesSerializer(),
     produceMigrations = { _ ->
         listOf(UserPreferencesV0ToV1())
-    })
+    },
+)
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -63,7 +64,9 @@ object AppContainer {
     @Provides
     @Singleton
     fun provideVersionWithAssetsRepository(
-        appDatabase: DevicesDatabase, versionDao: VersionDao, assetDao: AssetDao
+        appDatabase: DevicesDatabase,
+        versionDao: VersionDao,
+        assetDao: AssetDao,
     ): VersionWithAssetsRepository {
         return VersionWithAssetsRepository(appDatabase, versionDao, assetDao)
     }
@@ -77,7 +80,7 @@ object AppContainer {
     @Provides
     @Singleton
     fun provideUserPreferencesStore(
-        @ApplicationContext appContext: Context
+        @ApplicationContext appContext: Context,
     ): DataStore<UserPreferences> {
         return appContext.userPreferencesStore
     }
@@ -85,7 +88,7 @@ object AppContainer {
     @Provides
     @Singleton
     fun provideUserPreferencesRepository(
-        @ApplicationContext appContext: Context
+        @ApplicationContext appContext: Context,
     ): UserPreferencesRepository {
         return UserPreferencesRepository(appContext.userPreferencesStore)
     }
@@ -99,7 +102,8 @@ object AppContainer {
     @Provides
     @Singleton
     fun providesNetworkConnectivityManager(
-        @ApplicationContext appContext: Context, coroutineScope: CoroutineScope
+        @ApplicationContext appContext: Context,
+        coroutineScope: CoroutineScope,
     ): NetworkConnectivityManager {
         return NetworkConnectivityManager(appContext, coroutineScope)
     }

@@ -21,7 +21,7 @@ interface DeviceApi {
     @Multipart
     @POST("update")
     suspend fun updateDevice(
-        @Part binaryFile: MultipartBody.Part
+        @Part binaryFile: MultipartBody.Part,
     ): Response<ResponseBody>
 }
 

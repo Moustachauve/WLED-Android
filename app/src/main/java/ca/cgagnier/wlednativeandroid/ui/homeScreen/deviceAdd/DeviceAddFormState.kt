@@ -5,7 +5,7 @@ import ca.cgagnier.wlednativeandroid.model.Device
 
 data class DeviceAddState(
     val address: String = "",
-    val step: DeviceAddStep = DeviceAddStep.Form(addressError = null)
+    val step: DeviceAddStep = DeviceAddStep.Form(addressError = null),
 )
 
 sealed class DeviceAddStep {

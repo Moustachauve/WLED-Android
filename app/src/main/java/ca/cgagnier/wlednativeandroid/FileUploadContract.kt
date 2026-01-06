@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContract
 
-class FileUploadContract: ActivityResultContract<Int, FileUploadContractResult>() {
+class FileUploadContract : ActivityResultContract<Int, FileUploadContractResult>() {
 
     var type = "application/octet-stream"
 

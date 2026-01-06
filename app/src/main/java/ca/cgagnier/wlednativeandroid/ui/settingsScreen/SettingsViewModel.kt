@@ -13,10 +13,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val preferencesRepository: UserPreferencesRepository
+    private val preferencesRepository: UserPreferencesRepository,
 ) : ViewModel() {
 
     private val theme = preferencesRepository.themeMode
@@ -52,11 +51,10 @@ class SettingsViewModel @Inject constructor(
     }
 }
 
-
 @Stable
 data class SettingsState(
-    val isAutoDiscoveryEnabled : Boolean = true,
-    val showOfflineLast : Boolean = true,
-    val showHiddenDevices : Boolean = false,
+    val isAutoDiscoveryEnabled: Boolean = true,
+    val showOfflineLast: Boolean = true,
+    val showHiddenDevices: Boolean = false,
     val theme: ThemeSettings = ThemeSettings.UNRECOGNIZED,
 )
