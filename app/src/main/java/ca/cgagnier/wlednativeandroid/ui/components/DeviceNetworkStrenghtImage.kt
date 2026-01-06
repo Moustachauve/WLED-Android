@@ -21,7 +21,7 @@ import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 
 private fun getNetworkStrenghtImage(
     networkRssi: Int,
-    isOnline: Boolean
+    isOnline: Boolean,
 ): Int {
     if (!isOnline) {
         return R.drawable.twotone_signal_wifi_connected_no_internet_0_24
@@ -55,26 +55,26 @@ fun deviceNetworkStrengthImage(device: DeviceWithState) {
                     Text(
                         stringResource(
                             R.string.signal_strength,
-                            stringResource(R.string.is_offline)
-                        )
+                            stringResource(R.string.is_offline),
+                        ),
                     )
                 }
             }
         },
-        state = rememberTooltipState()
+        state = rememberTooltipState(),
     ) {
         Icon(
             painter = painterResource(
                 getNetworkStrenghtImage(
                     rssi,
-                    device.isOnline
-                )
+                    device.isOnline,
+                ),
             ),
             contentDescription = stringResource(R.string.network_status),
             modifier = Modifier
                 .padding(start = 4.dp)
                 .height(16.dp)
-                .offset(y = (-2).dp)
+                .offset(y = (-2).dp),
         )
     }
 }

@@ -30,7 +30,7 @@ class WebsocketClient(
     private val deviceRepository: DeviceRepository,
     deviceUpdateManager: DeviceUpdateManager,
     private val okHttpClient: OkHttpClient,
-    moshi: Moshi
+    moshi: Moshi,
 ) {
 
     val deviceState: DeviceWithState = DeviceWithState(device, deviceUpdateManager)
@@ -40,7 +40,6 @@ class WebsocketClient(
     private var isManuallyDisconnected = false
     private var isConnecting = false
     private var retryCount = 0
-
 
     // Moshi setup
     private val deviceStateInfoJsonAdapter: JsonAdapter<DeviceStateInfo> =
@@ -88,7 +87,7 @@ class WebsocketClient(
         override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
             Log.d(
                 TAG,
-                "WebSocket closing for ${deviceState.device.address}. Code: $code, Reason: $reason"
+                "WebSocket closing for ${deviceState.device.address}. Code: $code, Reason: $reason",
             )
             deviceState.websocketStatus.value = WebsocketStatus.DISCONNECTED
         }
@@ -97,7 +96,7 @@ class WebsocketClient(
             Log.w(
                 TAG,
                 "WebSocket failure for ${deviceState.device.address}: ${t.message}; Response: $response",
-                t
+                t,
             )
             this@WebsocketClient.webSocket = null
             deviceState.websocketStatus.value = WebsocketStatus.DISCONNECTED
@@ -105,7 +104,6 @@ class WebsocketClient(
             reconnect()
         }
     }
-
 
     /**
      * Saves the device information to the database if it has changed.
@@ -149,7 +147,7 @@ class WebsocketClient(
         if (webSocket != null || isConnecting) {
             Log.w(
                 TAG,
-                "Already connected or connecting to ${deviceState.device.address}, isConnecting: $isConnecting"
+                "Already connected or connecting to ${deviceState.device.address}, isConnecting: $isConnecting",
             )
             return
         }
@@ -181,14 +179,13 @@ class WebsocketClient(
         isConnecting = false
     }
 
-
     private fun reconnect() {
         if (isManuallyDisconnected || isConnecting) return
 
         coroutineScope.launch {
             val delay = min(
                 RECONNECTION_DELAY * 2.0.pow(retryCount).toLong(),
-                MAX_RECONNECTION_DELAY
+                MAX_RECONNECTION_DELAY,
             )
             Log.d(TAG, "Reconnecting to ${deviceState.device.address} in ${delay / 1000}s")
             delay(delay)
@@ -227,7 +224,6 @@ class WebsocketClient(
         val json = stateJsonAdapter.toJson(state)
         sendMessage(json)
     }
-
 
     fun destroy() {
         Log.d(TAG, "Websocket client is destroyed for ${deviceState.device.address}")

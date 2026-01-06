@@ -40,13 +40,13 @@ class NetworkConnectivityManager(context: Context, externalScope: CoroutineScope
             // For now we don't care about this callback, but maybe we will in the future. In that
             // case, we would need to figure out how to not lose the linkProperties when emitting a
             // new NetworkProperties.
-            //override fun onCapabilitiesChanged(
+            // override fun onCapabilitiesChanged(
             //    network: Network,
             //    networkCapabilities: NetworkCapabilities
-            //) {
+            // ) {
             //    Log.d(TAG, "onCapabilitiesChanged: $network, $networkCapabilities")
             //    trySend(NetworkProperties(network, networkCapabilities, null))
-            //}
+            // }
         }
         subscribe(networkCallback)
         awaitClose {
@@ -55,7 +55,7 @@ class NetworkConnectivityManager(context: Context, externalScope: CoroutineScope
     }.stateIn(
         scope = externalScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = _currentNetwork
+        initialValue = _currentNetwork,
     )
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -68,11 +68,10 @@ class NetworkConnectivityManager(context: Context, externalScope: CoroutineScope
         }
 
         false
-
     }.stateIn(
         scope = externalScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = false
+        initialValue = false,
     )
 
     private val _currentNetwork: NetworkProperties
@@ -81,11 +80,11 @@ class NetworkConnectivityManager(context: Context, externalScope: CoroutineScope
             return if (activeNetwork == null) {
                 NetworkProperties(network = null, linkProperties = null)
             } else {
-                //val netCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+                // val netCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
                 val linkProperties = connectivityManager.getLinkProperties(activeNetwork)
                 NetworkProperties(
                     network = activeNetwork,
-                    linkProperties = linkProperties
+                    linkProperties = linkProperties,
                 )
             }
         }
@@ -101,6 +100,6 @@ class NetworkConnectivityManager(context: Context, externalScope: CoroutineScope
 
 data class NetworkProperties(
     val network: Network?,
-    val linkProperties: LinkProperties?
+    val linkProperties: LinkProperties?,
 
 )

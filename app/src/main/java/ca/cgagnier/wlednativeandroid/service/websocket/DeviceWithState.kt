@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.flowOf
 
 class DeviceWithState(
     initialDevice: Device,
-    deviceUpdateManager: DeviceUpdateManager? = null
+    deviceUpdateManager: DeviceUpdateManager? = null,
 ) {
     var device: Device by mutableStateOf(initialDevice)
     val stateInfo: MutableState<DeviceStateInfo?> = mutableStateOf(null)
@@ -35,7 +35,7 @@ class DeviceWithState(
 enum class WebsocketStatus {
     CONNECTED,
     CONNECTING,
-    DISCONNECTED
+    DISCONNECTED,
 }
 
 /**
@@ -46,7 +46,7 @@ fun getApModeDeviceWithState(): DeviceWithState {
         Device(
             macAddress = AP_MODE_MAC_ADDRESS,
             address = "4.3.2.1",
-        )
+        ),
     )
     device.websocketStatus.value = WebsocketStatus.CONNECTED
 

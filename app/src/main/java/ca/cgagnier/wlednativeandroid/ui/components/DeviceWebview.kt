@@ -101,7 +101,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-
 private const val TAG = "ui.components.DeviceWebView"
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -110,8 +109,8 @@ fun DeviceWebView(
     device: Device,
     webViewViewModel: WebViewViewModel = viewModel(
         factory = WebViewViewModel.Factory(
-            context = LocalContext.current
-        )
+            context = LocalContext.current,
+        ),
     ),
     state: WebViewState,
     navigator: WebViewNavigator = rememberWebViewNavigator(),
@@ -163,14 +162,14 @@ fun DeviceWebView(
                         content.data,
                         content.mimeType,
                         content.encoding,
-                        content.historyUrl
+                        content.historyUrl,
                     )
                 }
 
                 is WebContent.Post -> {
                     webView.postUrl(
                         content.url,
-                        content.postData
+                        content.postData,
                     )
                 }
 
@@ -205,7 +204,7 @@ fun DeviceWebView(
             DeviceErrorScreen(
                 onRetry = {
                     resetWebview()
-                }
+                },
             )
         } else {
             AndroidView(
@@ -214,7 +213,7 @@ fun DeviceWebView(
                         clipToOutline = true
                         layoutParams = ViewGroup.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
+                            ViewGroup.LayoutParams.MATCH_PARENT,
                         )
                         webView.setBackgroundColor(Color.TRANSPARENT)
                         webChromeClient = chromeClient
@@ -241,10 +240,10 @@ fun DeviceWebView(
                             context,
                             onDownloadSuccess = {
                                 showDownloadCompleteToast = true
-                            }
+                            },
                         )
                     }
-                    //it.loadUrl(url)
+                    // it.loadUrl(url)
                 },
             )
         }
@@ -265,7 +264,7 @@ fun DeviceWebView(
                     TextButton(onClick = { showDownloadCompleteToast = false }) {
                         Text(stringResource(R.string.dismiss))
                     }
-                }
+                },
             ) {
                 Text(stringResource(R.string.download_completed))
             }
@@ -280,20 +279,20 @@ fun DeviceErrorScreen(onRetry: () -> Unit) {
             .fillMaxSize()
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
+        verticalArrangement = Arrangement.Top,
     ) {
         Image(painter = painterResource(id = R.drawable.akemi_018_teeth), contentDescription = null)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = stringResource(R.string.device_error_title),
             style = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = stringResource(R.string.device_error_message),
             style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(onClick = onRetry) {
@@ -348,7 +347,7 @@ class CustomWebViewClient : WebViewClient() {
     override fun onReceivedError(
         view: WebView?,
         request: WebResourceRequest?,
-        error: WebResourceError?
+        error: WebResourceError?,
     ) {
         Log.i(TAG, "onReceivedError ${request?.url} - ${error?.description}")
         if (request?.isForMainFrame == true) {
@@ -379,11 +378,11 @@ class CustomWebChromeClient(private val context: Context) : WebChromeClient() {
     override fun onShowFileChooser(
         webView: WebView?,
         filePathCallback: ValueCallback<Array<Uri>>,
-        fileChooserParams: FileChooserParams
+        fileChooserParams: FileChooserParams,
     ): Boolean {
         val activity = context as MainActivity
         activity.uploadMessage = filePathCallback
-        //activity.fileUploadContract.type = fileChooserParams.acceptTypes[0]
+        // activity.fileUploadContract.type = fileChooserParams.acceptTypes[0]
         val contract = activity.fileUpload.contract as FileUploadContract
         contract.type = getMimeType(fileChooserParams.acceptTypes)
         activity.fileUpload.launch(123)
@@ -414,12 +413,12 @@ sealed class WebContent {
         val baseUrl: String? = null,
         val encoding: String = "utf-8",
         val mimeType: String? = null,
-        val historyUrl: String? = null
+        val historyUrl: String? = null,
     ) : WebContent()
 
     data class Post(
         val url: String,
-        val postData: ByteArray
+        val postData: ByteArray,
     ) : WebContent() {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -538,7 +537,7 @@ data class WebViewError(
     /**
      * The error that was reported.
      */
-    val error: WebResourceError
+    val error: WebResourceError,
 )
 
 /**
@@ -550,7 +549,7 @@ fun downloadListener(
     contentDisposition: String,
     mimetype: String,
     context: Context,
-    onDownloadSuccess: () -> Unit
+    onDownloadSuccess: () -> Unit,
 ) {
     // Devices older than Android 10 (API 29) would need special permission handling for
     // MediaStore.Downloads. I decided to not support it for now for simplicity.
@@ -558,7 +557,7 @@ fun downloadListener(
         Toast.makeText(
             context,
             context.getString(R.string.download_not_supported_old_android),
-            Toast.LENGTH_LONG
+            Toast.LENGTH_LONG,
         ).show()
         return
     }
@@ -573,7 +572,7 @@ fun downloadListener(
                 contentDisposition,
                 mimetype,
                 device,
-                onDownloadSuccess
+                onDownloadSuccess,
             )
         }
 
@@ -586,7 +585,7 @@ fun downloadListener(
             Toast.makeText(
                 context,
                 context.getString(R.string.download_scheme_not_supported, uri.scheme),
-                Toast.LENGTH_LONG
+                Toast.LENGTH_LONG,
             ).show()
         }
     }
@@ -602,18 +601,18 @@ private fun handleHttpDownload(
     contentDisposition: String,
     mimetype: String,
     device: Device,
-    onSuccess: () -> Unit
+    onSuccess: () -> Unit,
 ) {
     val request = DownloadManager.Request(url.toUri())
     request.setNotificationVisibility(
-        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED,
     )
 
     val fileName = createWledFilename(device, url, contentDisposition, mimetype)
 
     request.setDestinationInExternalPublicDir(
         Environment.DIRECTORY_DOWNLOADS,
-        fileName
+        fileName,
     )
 
     val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager?
@@ -622,7 +621,7 @@ private fun handleHttpDownload(
         val downloadingToast = Toast.makeText(
             context,
             context.getString(R.string.downloading_file, fileName),
-            Toast.LENGTH_SHORT
+            Toast.LENGTH_SHORT,
         )
         downloadingToast.show()
         // Listen for the "Download Complete" event to show the success message
@@ -660,7 +659,7 @@ private fun handleHttpDownload(
                             Toast.makeText(
                                 context,
                                 context.getString(R.string.download_failed, failureMessage),
-                                Toast.LENGTH_LONG
+                                Toast.LENGTH_LONG,
                             ).show()
                         }
                     }
@@ -674,14 +673,14 @@ private fun handleHttpDownload(
             context.applicationContext,
             onComplete,
             IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-            ContextCompat.RECEIVER_EXPORTED
+            ContextCompat.RECEIVER_EXPORTED,
         )
     } catch (e: Exception) {
         Log.e(TAG, "DownloadManager failed: ${e.message}")
         Toast.makeText(
             context,
             context.getString(R.string.download_failed, e.message ?: "Unknown error"),
-            Toast.LENGTH_SHORT
+            Toast.LENGTH_SHORT,
         ).show()
     }
 }
@@ -695,7 +694,7 @@ private fun handleDataUriDownload(
     url: String,
     mimetype: String,
     device: Device,
-    onSuccess: () -> Unit
+    onSuccess: () -> Unit,
 ) {
     try {
         // Robust data URI parsing
@@ -705,7 +704,7 @@ private fun handleDataUriDownload(
             Toast.makeText(
                 context,
                 context.getString(R.string.invalid_data_uri),
-                Toast.LENGTH_SHORT
+                Toast.LENGTH_SHORT,
             ).show()
             return
         }
@@ -717,7 +716,7 @@ private fun handleDataUriDownload(
             Toast.makeText(
                 context,
                 context.getString(R.string.non_base64_not_supported),
-                Toast.LENGTH_SHORT
+                Toast.LENGTH_SHORT,
             ).show()
             return
         }
@@ -745,7 +744,7 @@ private fun handleDataUriDownload(
             Toast.makeText(
                 context,
                 context.getString(R.string.file_creation_failed),
-                Toast.LENGTH_SHORT
+                Toast.LENGTH_SHORT,
             ).show()
         }
     } catch (e: Exception) {
@@ -753,7 +752,7 @@ private fun handleDataUriDownload(
         Toast.makeText(
             context,
             context.getString(R.string.error_saving_file),
-            Toast.LENGTH_SHORT
+            Toast.LENGTH_SHORT,
         ).show()
     }
 }
@@ -766,7 +765,7 @@ private fun createWledFilename(
     device: Device,
     url: String?,
     contentDisposition: String?,
-    mimetype: String
+    mimetype: String,
 ): String {
     val formatter = SimpleDateFormat("yyyyMMdd", Locale.US)
     val currentDate = formatter.format(Date())
@@ -836,7 +835,7 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
 
         data class LoadUrl(
             val url: String,
-            val additionalHttpHeaders: Map<String, String> = emptyMap()
+            val additionalHttpHeaders: Map<String, String> = emptyMap(),
         ) : NavigationEvent
 
         data class LoadHtml(
@@ -844,12 +843,12 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
             val baseUrl: String? = null,
             val mimeType: String? = null,
             val encoding: String? = "utf-8",
-            val historyUrl: String? = null
+            val historyUrl: String? = null,
         ) : NavigationEvent
 
         data class PostUrl(
             val url: String,
-            val postData: ByteArray
+            val postData: ByteArray,
         ) : NavigationEvent {
             override fun equals(other: Any?): Boolean {
                 if (this === other) return true
@@ -886,7 +885,7 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
                     event.html,
                     event.mimeType,
                     event.encoding,
-                    event.historyUrl
+                    event.historyUrl,
                 )
 
                 is NavigationEvent.LoadUrl -> {
@@ -961,8 +960,8 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
             navigationEvents.emit(
                 NavigationEvent.LoadUrl(
                     url,
-                    additionalHttpHeaders
-                )
+                    additionalHttpHeaders,
+                ),
             )
         }
     }
@@ -972,7 +971,7 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
         baseUrl: String? = null,
         mimeType: String? = null,
         encoding: String? = "utf-8",
-        historyUrl: String? = null
+        historyUrl: String? = null,
     ) {
         coroutineScope.launch {
             navigationEvents.emit(
@@ -981,22 +980,22 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
                     baseUrl,
                     mimeType,
                     encoding,
-                    historyUrl
-                )
+                    historyUrl,
+                ),
             )
         }
     }
 
     fun postUrl(
         url: String,
-        postData: ByteArray
+        postData: ByteArray,
     ) {
         coroutineScope.launch {
             navigationEvents.emit(
                 NavigationEvent.PostUrl(
                     url,
-                    postData
-                )
+                    postData,
+                ),
             )
         }
     }
@@ -1036,7 +1035,7 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
  */
 @Composable
 fun rememberWebViewNavigator(
-    coroutineScope: CoroutineScope = rememberCoroutineScope()
+    coroutineScope: CoroutineScope = rememberCoroutineScope(),
 ): WebViewNavigator = remember(coroutineScope) { WebViewNavigator(coroutineScope) }
 
 /**
@@ -1050,7 +1049,7 @@ fun rememberWebViewNavigator(
 @Composable
 fun rememberWebViewState(
     url: String,
-    additionalHttpHeaders: Map<String, String> = emptyMap()
+    additionalHttpHeaders: Map<String, String> = emptyMap(),
 ): WebViewState =
 // Rather than using .apply {} here we will recreate the state, this prevents
     // a recomposition loop when the webview updates the url itself.
@@ -1058,13 +1057,13 @@ fun rememberWebViewState(
         WebViewState(
             WebContent.Url(
                 url = url,
-                additionalHttpHeaders = additionalHttpHeaders
-            )
+                additionalHttpHeaders = additionalHttpHeaders,
+            ),
         )
     }.apply {
         this.content = WebContent.Url(
             url = url,
-            additionalHttpHeaders = additionalHttpHeaders
+            additionalHttpHeaders = additionalHttpHeaders,
         )
     }
 
@@ -1079,13 +1078,17 @@ fun rememberWebViewStateWithHTMLData(
     baseUrl: String? = null,
     encoding: String = "utf-8",
     mimeType: String? = null,
-    historyUrl: String? = null
+    historyUrl: String? = null,
 ): WebViewState =
     remember {
         WebViewState(WebContent.Data(data, baseUrl, encoding, mimeType, historyUrl))
     }.apply {
         this.content = WebContent.Data(
-            data, baseUrl, encoding, mimeType, historyUrl
+            data,
+            baseUrl,
+            encoding,
+            mimeType,
+            historyUrl,
         )
     }
 
@@ -1098,7 +1101,7 @@ fun rememberWebViewStateWithHTMLData(
 @Composable
 fun rememberWebViewState(
     url: String,
-    postData: ByteArray
+    postData: ByteArray,
 ): WebViewState =
 // Rather than using .apply {} here we will recreate the state, this prevents
     // a recomposition loop when the webview updates the url itself.
@@ -1106,13 +1109,13 @@ fun rememberWebViewState(
         WebViewState(
             WebContent.Post(
                 url = url,
-                postData = postData
-            )
+                postData = postData,
+            ),
         )
     }.apply {
         this.content = WebContent.Post(
             url = url,
-            postData = postData
+            postData = postData,
         )
     }
 
@@ -1127,11 +1130,11 @@ fun rememberWebViewState(
  */
 @Composable
 fun rememberSaveableWebViewState(): WebViewState =
-    rememberSaveable(saver = WebStateSaver) {
+    rememberSaveable(saver = webStateSaver) {
         WebViewState(WebContent.NavigatorOnly)
     }
 
-val WebStateSaver: Saver<WebViewState, Any> = run {
+val webStateSaver: Saver<WebViewState, Any> = run {
     val pageTitleKey = "pagetitle"
     val lastLoadedUrlKey = "lastloaded"
     val isErrorKey = "isError"
@@ -1144,7 +1147,7 @@ val WebStateSaver: Saver<WebViewState, Any> = run {
                 pageTitleKey to it.pageTitle,
                 lastLoadedUrlKey to it.lastLoadedUrl,
                 isErrorKey to it.isError,
-                stateBundle to viewState
+                stateBundle to viewState,
             )
         },
         restore = {
@@ -1154,6 +1157,6 @@ val WebStateSaver: Saver<WebViewState, Any> = run {
                 this.isError = (it[isErrorKey] as Boolean?) ?: false
                 this.viewState = it[stateBundle] as Bundle?
             }
-        }
+        },
     )
 }

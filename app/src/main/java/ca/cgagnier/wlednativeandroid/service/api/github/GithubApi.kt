@@ -29,7 +29,8 @@ class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints
     }
 
     fun downloadReleaseBinary(
-        asset: Asset, targetFile: File
+        asset: Asset,
+        targetFile: File,
     ): Flow<DownloadState> = flow {
         try {
             emit(DownloadState.Downloading(0))

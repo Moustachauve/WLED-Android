@@ -11,7 +11,7 @@ import javax.inject.Inject
 private const val TAG = "DeviceUpdateManager"
 
 class DeviceUpdateManager @Inject constructor(
-    private val releaseService: ReleaseService
+    private val releaseService: ReleaseService,
 ) {
 
     /**
@@ -33,7 +33,7 @@ class DeviceUpdateManager @Inject constructor(
                 val source = UpdateSourceRegistry.getSource(info) ?: return@map null
                 Log.d(
                     TAG,
-                    "Checking for software update for ${deviceWithState.device.macAddress} on ${source.githubOwner}:${source.githubRepo}"
+                    "Checking for software update for ${deviceWithState.device.macAddress} on ${source.githubOwner}:${source.githubRepo}",
                 )
                 releaseService.getNewerReleaseTag(
                     deviceInfo = info,

@@ -37,7 +37,7 @@ fun deviceBatteryPercentageImage(device: DeviceWithState) {
             contentDescription = stringResource(R.string.battery_percentage),
             modifier = Modifier
                 .height(16.dp)
-                .offset(y = (-1).dp)
+                .offset(y = (-1).dp),
         )
     }
 }

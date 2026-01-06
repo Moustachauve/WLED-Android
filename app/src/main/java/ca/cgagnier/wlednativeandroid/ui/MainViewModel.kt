@@ -19,7 +19,7 @@ private const val TAG = "MainViewModel"
 class MainViewModel @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val releaseService: ReleaseService,
-    private val githubApi: GithubApi
+    private val githubApi: GithubApi,
 ) : ViewModel() {
 
     fun downloadUpdateMetadata() {

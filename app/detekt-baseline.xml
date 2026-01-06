@@ -1,0 +1,264 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>EmptyFunctionBlock:UserPreferencesV0ToV1.kt$UserPreferencesV0ToV1${ }</ID>
+    <ID>ForbiddenComment:DeviceAdd.kt$// TODO: Replace this by a `LoadingIndicator` once it is available/out of experimental</ID>
+    <ID>ForbiddenComment:DeviceInfoTwoRows.kt$// TODO: Replace those RoundedPolygon with MaterialShapes (cookies) when available</ID>
+    <ID>ForbiddenComment:DeviceInfoTwoRows.kt$// TODO: This row should be replaced with a ConstraintLayout or something similar.</ID>
+    <ID>ForbiddenComment:DeviceListDetail.kt$// TODO: Move the selectedDevice to the ViewModel</ID>
+    <ID>ForbiddenComment:DeviceListDetail.kt$// TODO: Move this to a utility file or somewhere else, maybe.</ID>
+    <ID>ForbiddenComment:DeviceUpdateService.kt$DeviceUpdateService$// TODO: Add support for Ethernet devices. Support was never fully implemented.</ID>
+    <ID>ForbiddenComment:ReleaseService.kt$ReleaseService$// TODO: Modify this to use repositoryOwner and repositoryName</ID>
+    <ID>ForbiddenComment:VersionDao.kt$* nightly tag is not supported at the moment. Exclude it from results. * TODO: Add support for nightly tags. This will need special handling since the tag itself never * changes. Probably need a new Branch option for it too.</ID>
+    <ID>ForbiddenComment:WebsocketClient.kt$WebsocketClient$// TODO: Extract the user agent to a constant somewhere to avoid magic string.</ID>
+    <ID>FunctionNaming:DeviceAPListItem.kt$@Composable fun DeviceAPListItem( modifier: Modifier = Modifier, isSelected: Boolean = false, onClick: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:DeviceAdd.kt$@Composable fun DeviceAdd( modifier: Modifier = Modifier, onDismissRequest: () -&gt; Unit, viewModel: DeviceAddViewModel = hiltViewModel(), )</ID>
+    <ID>FunctionNaming:DeviceDetail.kt$@Composable fun DeviceDetailAppBar( device: DeviceWithState, canNavigateBack: Boolean, webViewState: WebViewState, navigateUp: () -&gt; Unit, refreshPage: () -&gt; Unit, editItem: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:DeviceDetail.kt$@SuppressLint("SetJavaScriptEnabled") @Composable fun DeviceDetail( device: DeviceWithState, onItemEdit: (DeviceWithState) -&gt; Unit, canNavigateBack: Boolean, navigateUp: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DeviceEdit.kt$@Composable fun DeviceEdit( device: DeviceWithState, canNavigateBack: Boolean, navigateUp: () -&gt; Unit, viewModel: DeviceEditViewModel = hiltViewModel(), )</ID>
+    <ID>FunctionNaming:DeviceEdit.kt$@Composable fun DeviceEditAppBar( modifier: Modifier = Modifier, device: DeviceWithState, canNavigateBack: Boolean, navigateUp: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DeviceEdit.kt$@Composable fun NoUpdateAvailable( device: DeviceWithState, isCheckingUpdates: Boolean, checkForUpdate: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DeviceEdit.kt$@Composable fun UpdateAvailable(device: DeviceWithState, updateTag: String, seeUpdateDetails: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:DeviceEdit.kt$@Composable private fun CustomNameTextField( device: Device, onValueChange: (String) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DeviceInfoTwoRows.kt$@Composable fun DeviceInfoTwoRows( modifier: Modifier = Modifier, device: DeviceWithState, // Used to update the lastSeen message frequently, leave 0 for no updates currentTime: Long = 0, nameMaxLines: Int = 2, )</ID>
+    <ID>FunctionNaming:DeviceInfoTwoRows.kt$@Composable fun OfflineSinceText( device: Device, modifier: Modifier = Modifier, // Used to update the lastSeen message frequently, leave 0 for no updates currentTime: Long = 0, )</ID>
+    <ID>FunctionNaming:DeviceInfoTwoRows.kt$@Composable fun WebsocketStatusIndicator(websocketState: WebsocketStatus)</ID>
+    <ID>FunctionNaming:DeviceInfoTwoRows.kt$@Composable fun WebsocketStatusShape(websocketState: WebsocketStatus)</ID>
+    <ID>FunctionNaming:DeviceInfoTwoRows.kt$@Preview @Composable fun DeviceInfoTwoRowsPreview( @PreviewParameter(DevicePreviewParameterProvider::class) device: DeviceWithState, )</ID>
+    <ID>FunctionNaming:DeviceInfoTwoRows.kt$@Preview(showBackground = true, name = "Live Animation Preview") @Composable fun AnimatedWebsocketPreview()</ID>
+    <ID>FunctionNaming:DeviceList.kt$@Composable fun ConfirmDeleteDialog( device: DeviceWithState? = null, onConfirm: () -&gt; Unit, onDismiss: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DeviceList.kt$@Composable fun DeviceList( selectedDevice: DeviceWithState?, isWLEDCaptivePortal: Boolean = false, onItemClick: (DeviceWithState) -&gt; Unit, onItemEdit: (DeviceWithState) -&gt; Unit, onAddDevice: () -&gt; Unit, onShowHiddenDevices: () -&gt; Unit, onRefresh: () -&gt; Unit, onOpenDrawer: () -&gt; Unit, viewModel: DeviceWebsocketListViewModel = hiltViewModel(), )</ID>
+    <ID>FunctionNaming:DeviceList.kt$@Composable fun DeviceListAppBar( modifier: Modifier = Modifier, onOpenDrawer: () -&gt; Unit, onAddDevice: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DeviceList.kt$@Composable fun LazyItemScope.DeviceRow( device: DeviceWithState, isSelected: Boolean, currentTime: Long = 0, onClick: (DeviceWithState) -&gt; Unit, onEdit: (DeviceWithState) -&gt; Unit, viewModel: DeviceWebsocketListViewModel, )</ID>
+    <ID>FunctionNaming:DeviceListDetail.kt$@Composable fun SelectDeviceView()</ID>
+    <ID>FunctionNaming:DeviceListDetail.kt$@Composable private fun DrawerContent( showHiddenDevices: Boolean, addDevice: () -&gt; Unit, toggleShowHiddenDevices: () -&gt; Unit, openSettings: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DeviceListDetail.kt$@Composable private fun ToggleHiddenDeviceButton( showHiddenDevices: Boolean, toggleShowHiddenDevices: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DeviceListDetail.kt$@OptIn(ExperimentalMaterial3AdaptiveApi::class) @Composable fun DeviceListDetail( modifier: Modifier = Modifier, openSettings: () -&gt; Unit, viewModel: DeviceListDetailViewModel = hiltViewModel(), deviceWebsocketListViewModel: DeviceWebsocketListViewModel = hiltViewModel(), )</ID>
+    <ID>FunctionNaming:DeviceListItem.kt$@Composable fun DeviceListItem( modifier: Modifier = Modifier, device: DeviceWithState, isSelected: Boolean = false, // Used to update the lastSeen message frequently, leave 0 for no updates currentTime: Long = 0, onClick: () -&gt; Unit = {}, swipeToDismissBoxState: SwipeToDismissBoxState, onDismiss: (SwipeToDismissBoxValue) -&gt; Unit, onPowerSwitchToggle: (isOn: Boolean) -&gt; Unit = {}, onBrightnessChanged: (brightness: Int) -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:DeviceListItem.kt$@Composable fun SelectableCard( modifier: Modifier = Modifier, isSelected: Boolean, colors: CardColors = CardDefaults.outlinedCardColors(), onClick: () -&gt; Unit, content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DeviceListItem.kt$@Composable fun SkeletonDeviceRow()</ID>
+    <ID>FunctionNaming:DeviceListItem.kt$@Composable private fun BrightnessSlider( // Receive the brightness value directly brightness: Int, onBrightnessChanged: (brightness: Int) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DeviceListItem.kt$@Composable private fun SwipeBox( modifier: Modifier = Modifier, device: DeviceWithState, swipeToDismissBoxState: SwipeToDismissBoxState, onDismiss: (SwipeToDismissBoxValue) -&gt; Unit = {}, content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DeviceListItem.kt$@Preview(showBackground = true) @Composable fun SkeletonDeviceRowPreview()</ID>
+    <ID>FunctionNaming:DeviceVisibleSwitch.kt$@Composable fun DeviceVisibleSwitch( modifier: Modifier = Modifier, isHidden: Boolean, onCheckedChange: ((Boolean) -&gt; Unit), )</ID>
+    <ID>FunctionNaming:DeviceWebview.kt$@Composable fun DeviceErrorScreen(onRetry: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:DeviceWebview.kt$@SuppressLint("SetJavaScriptEnabled") @Composable fun DeviceWebView( device: Device, webViewViewModel: WebViewViewModel = viewModel( factory = WebViewViewModel.Factory( context = LocalContext.current, ), ), state: WebViewState, navigator: WebViewNavigator = rememberWebViewNavigator(), client: CustomWebViewClient = remember { CustomWebViewClient() }, context: Context = LocalContext.current, chromeClient: CustomWebChromeClient = remember { CustomWebChromeClient(context) }, )</ID>
+    <ID>FunctionNaming:MainNavHost.kt$@Composable fun MainNavHost( navController: NavHostController = rememberNavController(), )</ID>
+    <ID>FunctionNaming:NoDeviceItem.kt$@Composable fun NoDevicesItem( modifier: Modifier = Modifier, shouldShowHiddenDevices: Boolean, onAddDevice: () -&gt; Unit, onShowHiddenDevices: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:Settings.kt$@Composable fun DeviceSettingsAppBar( modifier: Modifier = Modifier, navigateUp: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:Settings.kt$@Composable fun ListingOptions( showHiddenDevices: Boolean, isAutoDiscoveryEnabled: Boolean, showOfflineDevicesLast: Boolean, setShowHiddenDevices: (Boolean) -&gt; Unit, setAutoDiscover: (Boolean) -&gt; Unit, setShowOfflineDevicesLast: (Boolean) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:Settings.kt$@Composable fun OneOrTwoColumnLayout( modifier: Modifier = Modifier, firstColumn: @Composable () -&gt; Unit, secondColumn: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:Settings.kt$@Composable fun RadioRow( label: String, checked: Boolean, onSelected: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:Settings.kt$@Composable fun Settings( navigateUp: () -&gt; Unit, viewModel: SettingsViewModel = hiltViewModel(), )</ID>
+    <ID>FunctionNaming:Settings.kt$@Composable fun SwitchRow( label: String, checked: Boolean, onCheckedChange: (Boolean) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:Settings.kt$@Composable fun ThemeOptions( currentTheme: ThemeSettings, setTheme: (ThemeSettings) -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:SliderWithLabel.kt$@Composable fun SliderWithLabel( value: Float, enabled: Boolean = true, valueRange: ClosedFloatingPointRange&lt;Float&gt;, onValueChange: (Float) -&gt; Unit, onValueChangeFinished: (() -&gt; Unit)? = null, )</ID>
+    <ID>FunctionNaming:Theme.kt$@Composable fun DeviceTheme( device: DeviceWithState, themeViewModel: ThemeViewModel = hiltViewModel(), content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:Theme.kt$@Composable fun WLEDNativeTheme( // Dynamic color is available on Android 12+ dynamicColor: Boolean = true, themeViewModel: ThemeViewModel = hiltViewModel(), content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:Theme.kt$@Composable fun WLEDNativeTheme( darkTheme: Boolean, // Dynamic color is available on Android 12+ dynamicColor: Boolean = true, content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:UpdateDetails.kt$@Composable fun UpdateDetailsDialog( device: DeviceWithState, version: VersionWithAssets, onDismiss: () -&gt; Unit, onInstall: (VersionWithAssets) -&gt; Unit, onSkip: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:UpdateDetails.kt$@Composable private fun BottomNavigationBar( onDismiss: () -&gt; Unit, onInstall: () -&gt; Unit, onSkip: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:UpdateDetails.kt$@Composable private fun ReleaseNotes( modifier: Modifier = Modifier, version: VersionWithAssets? = null, )</ID>
+    <ID>FunctionNaming:UpdateDetails.kt$@Composable private fun TopHeader(device: DeviceWithState)</ID>
+    <ID>FunctionNaming:UpdateDisclaimer.kt$@Composable fun UpdateDisclaimerDialog( onDismiss: () -&gt; Unit = {}, onAccept: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:UpdateDisclaimer.kt$@Composable private fun UpdateDisclaimerDialogContent()</ID>
+    <ID>FunctionNaming:UpdateDisclaimer.kt$@Preview(showBackground = true) @Composable fun UpdateDisclaimerDialogPreview()</ID>
+    <ID>FunctionNaming:UpdateInstalling.kt$@Composable fun UpdateDialogContent(state: UpdateInstallingState)</ID>
+    <ID>FunctionNaming:UpdateInstalling.kt$@Composable fun UpdateInstallingDialog( device: DeviceWithState, version: VersionWithAssets, onDismiss: () -&gt; Unit, viewModel: UpdateInstallingViewModel = hiltViewModel(), )</ID>
+    <ID>FunctionNaming:UpdateInstalling.kt$@Composable fun UpdateInstallingDialog( state: UpdateInstallingState, device: DeviceWithState, onDismiss: () -&gt; Unit, onToggleErrorMessage: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:UpdateInstalling.kt$@Composable private fun ErrorMessageCard(errorMessage: String)</ID>
+    <ID>FunctionNaming:UpdateInstalling.kt$@Composable private fun UpdateInstallingStatus( modifier: Modifier = Modifier, step: UpdateInstallingStep, )</ID>
+    <ID>FunctionNaming:UpdateInstalling.kt$@Preview(showBackground = true) @Composable fun UpdateInstallingDialogStepStartingPreview( @PreviewParameter(SampleStateStepProvider::class) state: UpdateInstallingState, )</ID>
+    <ID>LongMethod:DeviceEdit.kt$@Composable fun DeviceEdit( device: DeviceWithState, canNavigateBack: Boolean, navigateUp: () -&gt; Unit, viewModel: DeviceEditViewModel = hiltViewModel(), )</ID>
+    <ID>LongMethod:DeviceInfoTwoRows.kt$@Composable fun DeviceInfoTwoRows( modifier: Modifier = Modifier, device: DeviceWithState, // Used to update the lastSeen message frequently, leave 0 for no updates currentTime: Long = 0, nameMaxLines: Int = 2, )</ID>
+    <ID>LongMethod:DeviceInfoTwoRows.kt$@Composable fun WebsocketStatusShape(websocketState: WebsocketStatus)</ID>
+    <ID>LongMethod:DeviceList.kt$@Composable fun DeviceList( selectedDevice: DeviceWithState?, isWLEDCaptivePortal: Boolean = false, onItemClick: (DeviceWithState) -&gt; Unit, onItemEdit: (DeviceWithState) -&gt; Unit, onAddDevice: () -&gt; Unit, onShowHiddenDevices: () -&gt; Unit, onRefresh: () -&gt; Unit, onOpenDrawer: () -&gt; Unit, viewModel: DeviceWebsocketListViewModel = hiltViewModel(), )</ID>
+    <ID>LongMethod:DeviceListDetail.kt$@Composable private fun DrawerContent( showHiddenDevices: Boolean, addDevice: () -&gt; Unit, toggleShowHiddenDevices: () -&gt; Unit, openSettings: () -&gt; Unit, )</ID>
+    <ID>LongMethod:DeviceListDetail.kt$@OptIn(ExperimentalMaterial3AdaptiveApi::class) @Composable fun DeviceListDetail( modifier: Modifier = Modifier, openSettings: () -&gt; Unit, viewModel: DeviceListDetailViewModel = hiltViewModel(), deviceWebsocketListViewModel: DeviceWebsocketListViewModel = hiltViewModel(), )</ID>
+    <ID>LongMethod:DeviceListItem.kt$@Composable private fun SwipeBox( modifier: Modifier = Modifier, device: DeviceWithState, swipeToDismissBoxState: SwipeToDismissBoxState, onDismiss: (SwipeToDismissBoxValue) -&gt; Unit = {}, content: @Composable () -&gt; Unit, )</ID>
+    <ID>LongMethod:DeviceWebview.kt$@SuppressLint("SetJavaScriptEnabled") @Composable fun DeviceWebView( device: Device, webViewViewModel: WebViewViewModel = viewModel( factory = WebViewViewModel.Factory( context = LocalContext.current, ), ), state: WebViewState, navigator: WebViewNavigator = rememberWebViewNavigator(), client: CustomWebViewClient = remember { CustomWebViewClient() }, context: Context = LocalContext.current, chromeClient: CustomWebChromeClient = remember { CustomWebChromeClient(context) }, )</ID>
+    <ID>LongParameterList:DeviceDetail.kt$( device: DeviceWithState, canNavigateBack: Boolean, webViewState: WebViewState, navigateUp: () -&gt; Unit, refreshPage: () -&gt; Unit, editItem: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:DeviceList.kt$( device: DeviceWithState, isSelected: Boolean, currentTime: Long = 0, onClick: (DeviceWithState) -&gt; Unit, onEdit: (DeviceWithState) -&gt; Unit, viewModel: DeviceWebsocketListViewModel, )</ID>
+    <ID>LongParameterList:DeviceList.kt$( devices: List&lt;DeviceWithState&gt;, selectedDevice: DeviceWithState?, currentTime: Long, onItemClick: (DeviceWithState) -&gt; Unit, onItemEdit: (DeviceWithState) -&gt; Unit, viewModel: DeviceWebsocketListViewModel, )</ID>
+    <ID>LongParameterList:DeviceList.kt$( onlineDevices: List&lt;DeviceWithState&gt;, offlineDevices: List&lt;DeviceWithState&gt;, selectedDevice: DeviceWithState?, currentTime: Long, onItemClick: (DeviceWithState) -&gt; Unit, onItemEdit: (DeviceWithState) -&gt; Unit, viewModel: DeviceWebsocketListViewModel, )</ID>
+    <ID>LongParameterList:DeviceList.kt$( selectedDevice: DeviceWithState?, isWLEDCaptivePortal: Boolean = false, onItemClick: (DeviceWithState) -&gt; Unit, onItemEdit: (DeviceWithState) -&gt; Unit, onAddDevice: () -&gt; Unit, onShowHiddenDevices: () -&gt; Unit, onRefresh: () -&gt; Unit, onOpenDrawer: () -&gt; Unit, viewModel: DeviceWebsocketListViewModel = hiltViewModel(), )</ID>
+    <ID>LongParameterList:DeviceListItem.kt$( modifier: Modifier = Modifier, device: DeviceWithState, isSelected: Boolean = false, // Used to update the lastSeen message frequently, leave 0 for no updates currentTime: Long = 0, onClick: () -&gt; Unit = {}, swipeToDismissBoxState: SwipeToDismissBoxState, onDismiss: (SwipeToDismissBoxValue) -&gt; Unit, onPowerSwitchToggle: (isOn: Boolean) -&gt; Unit = {}, onBrightnessChanged: (brightness: Int) -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:DeviceWebview.kt$( context: Context, url: String, contentDisposition: String, mimetype: String, device: Device, onSuccess: () -&gt; Unit, )</ID>
+    <ID>LongParameterList:DeviceWebview.kt$( device: Device, url: String, contentDisposition: String, mimetype: String, context: Context, onDownloadSuccess: () -&gt; Unit, )</ID>
+    <ID>LongParameterList:DeviceWebview.kt$( device: Device, webViewViewModel: WebViewViewModel = viewModel( factory = WebViewViewModel.Factory( context = LocalContext.current, ), ), state: WebViewState, navigator: WebViewNavigator = rememberWebViewNavigator(), client: CustomWebViewClient = remember { CustomWebViewClient() }, context: Context = LocalContext.current, chromeClient: CustomWebChromeClient = remember { CustomWebChromeClient(context) }, )</ID>
+    <ID>LongParameterList:Settings.kt$( showHiddenDevices: Boolean, isAutoDiscoveryEnabled: Boolean, showOfflineDevicesLast: Boolean, setShowHiddenDevices: (Boolean) -&gt; Unit, setAutoDiscover: (Boolean) -&gt; Unit, setShowOfflineDevicesLast: (Boolean) -&gt; Unit, )</ID>
+    <ID>MagicNumber:Color.kt$0xFF000000</ID>
+    <ID>MagicNumber:Color.kt$0xFF00182A</ID>
+    <ID>MagicNumber:Color.kt$0xFF001A1B</ID>
+    <ID>MagicNumber:Color.kt$0xFF001D32</ID>
+    <ID>MagicNumber:Color.kt$0xFF002020</ID>
+    <ID>MagicNumber:Color.kt$0xFF00243C</ID>
+    <ID>MagicNumber:Color.kt$0xFF002728</ID>
+    <ID>MagicNumber:Color.kt$0xFF002C49</ID>
+    <ID>MagicNumber:Color.kt$0xFF003352</ID>
+    <ID>MagicNumber:Color.kt$0xFF003738</ID>
+    <ID>MagicNumber:Color.kt$0xFF004B4C</ID>
+    <ID>MagicNumber:Color.kt$0xFF004F51</ID>
+    <ID>MagicNumber:Color.kt$0xFF00696B</ID>
+    <ID>MagicNumber:Color.kt$0xFF03466E</ID>
+    <ID>MagicNumber:Color.kt$0xFF0B0F12</ID>
+    <ID>MagicNumber:Color.kt$0xFF0C4A72</ID>
+    <ID>MagicNumber:Color.kt$0xFF0E4B74</ID>
+    <ID>MagicNumber:Color.kt$0xFF101418</ID>
+    <ID>MagicNumber:Color.kt$0xFF181C20</ID>
+    <ID>MagicNumber:Color.kt$0xFF1C2024</ID>
+    <ID>MagicNumber:Color.kt$0xFF1F242A</ID>
+    <ID>MagicNumber:Color.kt$0xFF238183</ID>
+    <ID>MagicNumber:Color.kt$0xFF271000</ID>
+    <ID>MagicNumber:Color.kt$0xFF272A2F</ID>
+    <ID>MagicNumber:Color.kt$0xFF2D3135</ID>
+    <ID>MagicNumber:Color.kt$0xFF2E628C</ID>
+    <ID>MagicNumber:Color.kt$0xFF2F1500</ID>
+    <ID>MagicNumber:Color.kt$0xFF323539</ID>
+    <ID>MagicNumber:Color.kt$0xFF330403</ID>
+    <ID>MagicNumber:Color.kt$0xFF36393E</ID>
+    <ID>MagicNumber:Color.kt$0xFF381A00</ID>
+    <ID>MagicNumber:Color.kt$0xFF3B0907</ID>
+    <ID>MagicNumber:Color.kt$0xFF3E434A</ID>
+    <ID>MagicNumber:Color.kt$0xFF42474E</ID>
+    <ID>MagicNumber:Color.kt$0xFF44100C</ID>
+    <ID>MagicNumber:Color.kt$0xFF4779A3</ID>
+    <ID>MagicNumber:Color.kt$0xFF479D9F</ID>
+    <ID>MagicNumber:Color.kt$0xFF4D2600</ID>
+    <ID>MagicNumber:Color.kt$0xFF561E19</ID>
+    <ID>MagicNumber:Color.kt$0xFF5A6066</ID>
+    <ID>MagicNumber:Color.kt$0xFF6495C1</ID>
+    <ID>MagicNumber:Color.kt$0xFF673603</ID>
+    <ID>MagicNumber:Color.kt$0xFF6C3A07</ID>
+    <ID>MagicNumber:Color.kt$0xFF6E302A</ID>
+    <ID>MagicNumber:Color.kt$0xFF72777F</ID>
+    <ID>MagicNumber:Color.kt$0xFF73342D</ID>
+    <ID>MagicNumber:Color.kt$0xFF767B82</ID>
+    <ID>MagicNumber:Color.kt$0xFF7E848B</ID>
+    <ID>MagicNumber:Color.kt$0xFF80D4D6</ID>
+    <ID>MagicNumber:Color.kt$0xFF84D9DA</ID>
+    <ID>MagicNumber:Color.kt$0xFF88511E</ID>
+    <ID>MagicNumber:Color.kt$0xFF8C9198</ID>
+    <ID>MagicNumber:Color.kt$0xFF904A43</ID>
+    <ID>MagicNumber:Color.kt$0xFF9ACBFA</ID>
+    <ID>MagicNumber:Color.kt$0xFF9CF1F2</ID>
+    <ID>MagicNumber:Color.kt$0xFF9EA3AB</ID>
+    <ID>MagicNumber:Color.kt$0xFF9FD0FF</ID>
+    <ID>MagicNumber:Color.kt$0xFFA36732</ID>
+    <ID>MagicNumber:Color.kt$0xFFAA6057</ID>
+    <ID>MagicNumber:Color.kt$0xFFC2C7CF</ID>
+    <ID>MagicNumber:Color.kt$0xFFC3824B</ID>
+    <ID>MagicNumber:Color.kt$0xFFC6CBD3</ID>
+    <ID>MagicNumber:Color.kt$0xFFCC7B72</ID>
+    <ID>MagicNumber:Color.kt$0xFFCDE5FF</ID>
+    <ID>MagicNumber:Color.kt$0xFFD8DAE0</ID>
+    <ID>MagicNumber:Color.kt$0xFFDEE3EB</ID>
+    <ID>MagicNumber:Color.kt$0xFFDFEEFF</ID>
+    <ID>MagicNumber:Color.kt$0xFFE0E2E8</ID>
+    <ID>MagicNumber:Color.kt$0xFFE6E8EE</ID>
+    <ID>MagicNumber:Color.kt$0xFFE9FFFF</ID>
+    <ID>MagicNumber:Color.kt$0xFFECEEF3</ID>
+    <ID>MagicNumber:Color.kt$0xFFEEF1F6</ID>
+    <ID>MagicNumber:Color.kt$0xFFF1F3F9</ID>
+    <ID>MagicNumber:Color.kt$0xFFF7F9FF</ID>
+    <ID>MagicNumber:Color.kt$0xFFFAFAFF</ID>
+    <ID>MagicNumber:Color.kt$0xFFFFB4AB</ID>
+    <ID>MagicNumber:Color.kt$0xFFFFB77D</ID>
+    <ID>MagicNumber:Color.kt$0xFFFFBAB1</ID>
+    <ID>MagicNumber:Color.kt$0xFFFFBD89</ID>
+    <ID>MagicNumber:Color.kt$0xFFFFDAD5</ID>
+    <ID>MagicNumber:Color.kt$0xFFFFDCC3</ID>
+    <ID>MagicNumber:Color.kt$0xFFFFF9F9</ID>
+    <ID>MagicNumber:Color.kt$0xFFFFFAF8</ID>
+    <ID>MagicNumber:Color.kt$0xFFFFFFFF</ID>
+    <ID>MagicNumber:DeviceAdd.kt$0xFF00b300</ID>
+    <ID>MagicNumber:DeviceBatteryPercentageImage.kt$10</ID>
+    <ID>MagicNumber:DeviceBatteryPercentageImage.kt$20</ID>
+    <ID>MagicNumber:DeviceBatteryPercentageImage.kt$40</ID>
+    <ID>MagicNumber:DeviceBatteryPercentageImage.kt$60</ID>
+    <ID>MagicNumber:DeviceBatteryPercentageImage.kt$70</ID>
+    <ID>MagicNumber:DeviceBatteryPercentageImage.kt$80</ID>
+    <ID>MagicNumber:DeviceBatteryPercentageImage.kt$90</ID>
+    <ID>MagicNumber:DeviceEdit.kt$4</ID>
+    <ID>MagicNumber:DeviceEdit.kt$800</ID>
+    <ID>MagicNumber:DeviceInfoTwoRows.kt$0.1f</ID>
+    <ID>MagicNumber:DeviceInfoTwoRows.kt$0.25f</ID>
+    <ID>MagicNumber:DeviceInfoTwoRows.kt$1500</ID>
+    <ID>MagicNumber:DeviceInfoTwoRows.kt$24</ID>
+    <ID>MagicNumber:DeviceInfoTwoRows.kt$4</ID>
+    <ID>MagicNumber:DeviceInfoTwoRows.kt$60</ID>
+    <ID>MagicNumber:DeviceInfoTwoRows.kt$60_000</ID>
+    <ID>MagicNumber:DeviceInfoTwoRows.kt$8</ID>
+    <ID>MagicNumber:DeviceList.kt$1800</ID>
+    <ID>MagicNumber:DeviceList.kt$3</ID>
+    <ID>MagicNumber:DeviceList.kt$500</ID>
+    <ID>MagicNumber:DeviceList.kt$5000</ID>
+    <ID>MagicNumber:DeviceListDetailViewModel.kt$DeviceListDetailViewModel$5000</ID>
+    <ID>MagicNumber:DeviceListItem.kt$0.4f</ID>
+    <ID>MagicNumber:DeviceListItem.kt$0.6f</ID>
+    <ID>MagicNumber:DeviceNetworkStrenghtImage.kt$100</ID>
+    <ID>MagicNumber:DeviceNetworkStrenghtImage.kt$101</ID>
+    <ID>MagicNumber:DeviceNetworkStrenghtImage.kt$50</ID>
+    <ID>MagicNumber:DeviceNetworkStrenghtImage.kt$70</ID>
+    <ID>MagicNumber:DeviceNetworkStrenghtImage.kt$80</ID>
+    <ID>MagicNumber:DevicePreviewParameterProvider.kt$DevicePreviewParameterProvider$45</ID>
+    <ID>MagicNumber:DevicePreviewParameterProvider.kt$DevicePreviewParameterProvider$75.0</ID>
+    <ID>MagicNumber:DeviceUpdateService.kt$DeviceUpdateService$120L</ID>
+    <ID>MagicNumber:DeviceWebsocketListViewModel.kt$DeviceWebsocketListViewModel$5000</ID>
+    <ID>MagicNumber:DeviceWebview.kt$8000</ID>
+    <ID>MagicNumber:DeviceWebview.kt$CustomWebChromeClient$100.0f</ID>
+    <ID>MagicNumber:DeviceWebview.kt$CustomWebChromeClient$123</ID>
+    <ID>MagicNumber:DeviceWebview.kt$WebViewNavigator$5</ID>
+    <ID>MagicNumber:GithubApi.kt$GithubApi$100</ID>
+    <ID>MagicNumber:NetworkConnectivityManager.kt$NetworkConnectivityManager$5000</ID>
+    <ID>MagicNumber:SettingsViewModel.kt$SettingsViewModel$5000</ID>
+    <ID>MagicNumber:Theme.kt$3</ID>
+    <ID>MagicNumber:Theme.kt$4</ID>
+    <ID>MagicNumber:ThemeViewModel.kt$ThemeViewModel$5000</ID>
+    <ID>MagicNumber:UpdateInstalling.kt$0xFF00b300</ID>
+    <ID>MagicNumber:UpdateInstallingViewModel.kt$UpdateInstallingViewModel$200</ID>
+    <ID>MagicNumber:UpdateInstallingViewModel.kt$UpdateInstallingViewModel$299</ID>
+    <ID>MagicNumber:WebViewViewModel.kt$WebViewViewModel$5</ID>
+    <ID>MagicNumber:WebsocketClient.kt$WebsocketClient$1000</ID>
+    <ID>MaxLineLength:DeviceAPListItem.kt$if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest</ID>
+    <ID>MaxLineLength:DeviceListItem.kt$if (swipeToDismissBoxState.targetValue == SwipeToDismissBoxValue.EndToStart) Icons.Filled.Delete else Icons.Outlined.Delete</ID>
+    <ID>MaxLineLength:DeviceListItem.kt$if (swipeToDismissBoxState.targetValue == SwipeToDismissBoxValue.StartToEnd) Icons.Filled.Edit else Icons.Outlined.Edit</ID>
+    <ID>MaxLineLength:DeviceUpdateManager.kt$DeviceUpdateManager$"Checking for software update for ${deviceWithState.device.macAddress} on ${source.githubOwner}:${source.githubRepo}"</ID>
+    <ID>MaxLineLength:DeviceVisibleSwitch.kt$val isVisibleIcon = painterResource(if (isHidden) R.drawable.ic_baseline_visibility_off_24 else R.drawable.baseline_visibility_24)</ID>
+    <ID>MaxLineLength:Info.kt$Info$@Deprecated("lwip is deprecated and is supposed to be removed in 0.14.0") @param:Json(name = "lwip") val lwip: Int? = null</ID>
+    <ID>MaxLineLength:VersionDao.kt$VersionDao$@Query("SELECT * FROM version WHERE isPrerelease = 0 AND tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1")</ID>
+    <ID>NestedBlockDepth:DeviceWebview.kt$@RequiresApi(Build.VERSION_CODES.Q) private fun handleHttpDownload( context: Context, url: String, contentDisposition: String, mimetype: String, device: Device, onSuccess: () -&gt; Unit, )</ID>
+    <ID>ReturnCount:DeviceFirstContactService.kt$DeviceFirstContactService$suspend fun fetchAndUpsertDevice(address: String): Device</ID>
+    <ID>ReturnCount:DeviceFirstContactService.kt$DeviceFirstContactService$suspend fun tryUpdateAddress(macAddress: String?, address: String): Boolean</ID>
+    <ID>ReturnCount:DeviceNetworkStrenghtImage.kt$private fun getNetworkStrenghtImage( networkRssi: Int, isOnline: Boolean, ): Int</ID>
+    <ID>ReturnCount:ReleaseService.kt$ReleaseService$suspend fun getNewerReleaseTag( deviceInfo: Info, branch: Branch, ignoreVersion: String, updateSourceDefinition: UpdateSourceDefinition, ): String?</ID>
+    <ID>ReturnCount:StringExtensions.kt$fun String.isIpAddress(): Boolean</ID>
+    <ID>ReturnCount:ValidateAddress.kt$ValidateAddress$fun execute(address: String): ValidationResult</ID>
+    <ID>SwallowedException:DeviceWebview.kt$e: Exception</ID>
+    <ID>SwallowedException:ReleaseService.kt$ReleaseService$e: Exception</ID>
+    <ID>SwallowedException:StringExtensions.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DeviceAddViewModel.kt$DeviceAddViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DeviceDiscovery.kt$DeviceDiscovery$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DeviceDiscovery.kt$DeviceDiscovery.&lt;no name provided&gt;$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DeviceListDetail.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DeviceListDetailViewModel.kt$DeviceListDetailViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DeviceUpdateService.kt$DeviceUpdateService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DeviceWebview.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:GithubApi.kt$GithubApi$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ReleaseService.kt$ReleaseService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:StringExtensions.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:WebsocketClient.kt$WebsocketClient$e: Exception</ID>
+    <ID>TooGenericExceptionThrown:DeviceFirstContactService.kt$DeviceFirstContactService$throw Exception("Could not retrieve MAC address for device at $address")</ID>
+    <ID>TooGenericExceptionThrown:DeviceUpdateService.kt$DeviceUpdateService$throw Exception("Asset could not be determined for ${device.device.macAddress}.")</ID>
+    <ID>TooManyFunctions:DeviceDao.kt$DeviceDao</ID>
+    <ID>TooManyFunctions:DeviceEditViewModel.kt$DeviceEditViewModel : ViewModel</ID>
+    <ID>TooManyFunctions:DeviceWebview.kt$WebViewNavigator</ID>
+    <ID>TooManyFunctions:DeviceWebview.kt$ca.cgagnier.wlednativeandroid.ui.components.DeviceWebview.kt</ID>
+    <ID>UnusedPrivateProperty:Theme.kt$private val highContrastDarkColorScheme = darkColorScheme( primary = primaryDarkHighContrast, onPrimary = onPrimaryDarkHighContrast, primaryContainer = primaryContainerDarkHighContrast, onPrimaryContainer = onPrimaryContainerDarkHighContrast, secondary = secondaryDarkHighContrast, onSecondary = onSecondaryDarkHighContrast, secondaryContainer = secondaryContainerDarkHighContrast, onSecondaryContainer = onSecondaryContainerDarkHighContrast, tertiary = tertiaryDarkHighContrast, onTertiary = onTertiaryDarkHighContrast, tertiaryContainer = tertiaryContainerDarkHighContrast, onTertiaryContainer = onTertiaryContainerDarkHighContrast, error = errorDarkHighContrast, onError = onErrorDarkHighContrast, errorContainer = errorContainerDarkHighContrast, onErrorContainer = onErrorContainerDarkHighContrast, background = backgroundDarkHighContrast, onBackground = onBackgroundDarkHighContrast, surface = surfaceDarkHighContrast, onSurface = onSurfaceDarkHighContrast, surfaceVariant = surfaceVariantDarkHighContrast, onSurfaceVariant = onSurfaceVariantDarkHighContrast, outline = outlineDarkHighContrast, outlineVariant = outlineVariantDarkHighContrast, scrim = scrimDarkHighContrast, inverseSurface = inverseSurfaceDarkHighContrast, inverseOnSurface = inverseOnSurfaceDarkHighContrast, inversePrimary = inversePrimaryDarkHighContrast, surfaceDim = surfaceDimDarkHighContrast, surfaceBright = surfaceBrightDarkHighContrast, surfaceContainerLowest = surfaceContainerLowestDarkHighContrast, surfaceContainerLow = surfaceContainerLowDarkHighContrast, surfaceContainer = surfaceContainerDarkHighContrast, surfaceContainerHigh = surfaceContainerHighDarkHighContrast, surfaceContainerHighest = surfaceContainerHighestDarkHighContrast, )</ID>
+    <ID>UnusedPrivateProperty:Theme.kt$private val highContrastLightColorScheme = lightColorScheme( primary = primaryLightHighContrast, onPrimary = onPrimaryLightHighContrast, primaryContainer = primaryContainerLightHighContrast, onPrimaryContainer = onPrimaryContainerLightHighContrast, secondary = secondaryLightHighContrast, onSecondary = onSecondaryLightHighContrast, secondaryContainer = secondaryContainerLightHighContrast, onSecondaryContainer = onSecondaryContainerLightHighContrast, tertiary = tertiaryLightHighContrast, onTertiary = onTertiaryLightHighContrast, tertiaryContainer = tertiaryContainerLightHighContrast, onTertiaryContainer = onTertiaryContainerLightHighContrast, error = errorLightHighContrast, onError = onErrorLightHighContrast, errorContainer = errorContainerLightHighContrast, onErrorContainer = onErrorContainerLightHighContrast, background = backgroundLightHighContrast, onBackground = onBackgroundLightHighContrast, surface = surfaceLightHighContrast, onSurface = onSurfaceLightHighContrast, surfaceVariant = surfaceVariantLightHighContrast, onSurfaceVariant = onSurfaceVariantLightHighContrast, outline = outlineLightHighContrast, outlineVariant = outlineVariantLightHighContrast, scrim = scrimLightHighContrast, inverseSurface = inverseSurfaceLightHighContrast, inverseOnSurface = inverseOnSurfaceLightHighContrast, inversePrimary = inversePrimaryLightHighContrast, surfaceDim = surfaceDimLightHighContrast, surfaceBright = surfaceBrightLightHighContrast, surfaceContainerLowest = surfaceContainerLowestLightHighContrast, surfaceContainerLow = surfaceContainerLowLightHighContrast, surfaceContainer = surfaceContainerLightHighContrast, surfaceContainerHigh = surfaceContainerHighLightHighContrast, surfaceContainerHighest = surfaceContainerHighestLightHighContrast, )</ID>
+    <ID>UnusedPrivateProperty:Theme.kt$private val mediumContrastDarkColorScheme = darkColorScheme( primary = primaryDarkMediumContrast, onPrimary = onPrimaryDarkMediumContrast, primaryContainer = primaryContainerDarkMediumContrast, onPrimaryContainer = onPrimaryContainerDarkMediumContrast, secondary = secondaryDarkMediumContrast, onSecondary = onSecondaryDarkMediumContrast, secondaryContainer = secondaryContainerDarkMediumContrast, onSecondaryContainer = onSecondaryContainerDarkMediumContrast, tertiary = tertiaryDarkMediumContrast, onTertiary = onTertiaryDarkMediumContrast, tertiaryContainer = tertiaryContainerDarkMediumContrast, onTertiaryContainer = onTertiaryContainerDarkMediumContrast, error = errorDarkMediumContrast, onError = onErrorDarkMediumContrast, errorContainer = errorContainerDarkMediumContrast, onErrorContainer = onErrorContainerDarkMediumContrast, background = backgroundDarkMediumContrast, onBackground = onBackgroundDarkMediumContrast, surface = surfaceDarkMediumContrast, onSurface = onSurfaceDarkMediumContrast, surfaceVariant = surfaceVariantDarkMediumContrast, onSurfaceVariant = onSurfaceVariantDarkMediumContrast, outline = outlineDarkMediumContrast, outlineVariant = outlineVariantDarkMediumContrast, scrim = scrimDarkMediumContrast, inverseSurface = inverseSurfaceDarkMediumContrast, inverseOnSurface = inverseOnSurfaceDarkMediumContrast, inversePrimary = inversePrimaryDarkMediumContrast, surfaceDim = surfaceDimDarkMediumContrast, surfaceBright = surfaceBrightDarkMediumContrast, surfaceContainerLowest = surfaceContainerLowestDarkMediumContrast, surfaceContainerLow = surfaceContainerLowDarkMediumContrast, surfaceContainer = surfaceContainerDarkMediumContrast, surfaceContainerHigh = surfaceContainerHighDarkMediumContrast, surfaceContainerHighest = surfaceContainerHighestDarkMediumContrast, )</ID>
+    <ID>UnusedPrivateProperty:Theme.kt$private val mediumContrastLightColorScheme = lightColorScheme( primary = primaryLightMediumContrast, onPrimary = onPrimaryLightMediumContrast, primaryContainer = primaryContainerLightMediumContrast, onPrimaryContainer = onPrimaryContainerLightMediumContrast, secondary = secondaryLightMediumContrast, onSecondary = onSecondaryLightMediumContrast, secondaryContainer = secondaryContainerLightMediumContrast, onSecondaryContainer = onSecondaryContainerLightMediumContrast, tertiary = tertiaryLightMediumContrast, onTertiary = onTertiaryLightMediumContrast, tertiaryContainer = tertiaryContainerLightMediumContrast, onTertiaryContainer = onTertiaryContainerLightMediumContrast, error = errorLightMediumContrast, onError = onErrorLightMediumContrast, errorContainer = errorContainerLightMediumContrast, onErrorContainer = onErrorContainerLightMediumContrast, background = backgroundLightMediumContrast, onBackground = onBackgroundLightMediumContrast, surface = surfaceLightMediumContrast, onSurface = onSurfaceLightMediumContrast, surfaceVariant = surfaceVariantLightMediumContrast, onSurfaceVariant = onSurfaceVariantLightMediumContrast, outline = outlineLightMediumContrast, outlineVariant = outlineVariantLightMediumContrast, scrim = scrimLightMediumContrast, inverseSurface = inverseSurfaceLightMediumContrast, inverseOnSurface = inverseOnSurfaceLightMediumContrast, inversePrimary = inversePrimaryLightMediumContrast, surfaceDim = surfaceDimLightMediumContrast, surfaceBright = surfaceBrightLightMediumContrast, surfaceContainerLowest = surfaceContainerLowestLightMediumContrast, surfaceContainerLow = surfaceContainerLowLightMediumContrast, surfaceContainer = surfaceContainerLightMediumContrast, surfaceContainerHigh = surfaceContainerHighLightMediumContrast, surfaceContainerHighest = surfaceContainerHighestLightMediumContrast, )</ID>
+    <ID>UnusedPrivateProperty:WebViewHolder.kt$private const val TAG = "WebViewHolder"</ID>
+  </CurrentIssues>
+</SmellBaseline>

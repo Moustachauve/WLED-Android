@@ -30,7 +30,7 @@ private const val TAG = "UpdateInstallingViewModel"
 class UpdateInstallingViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository,
     private val deviceApiFactory: DeviceApiFactory,
-    private val githubApi: GithubApi
+    private val githubApi: GithubApi,
 ) : ViewModel() {
     private var updateStarted = false
 
@@ -51,8 +51,9 @@ class UpdateInstallingViewModel @Inject constructor(
             val step = previousState.step as UpdateInstallingStep.Error
             previousState.copy(
                 step = UpdateInstallingStep.Error(
-                    step.error, !step.showError
-                )
+                    step.error,
+                    !step.showError,
+                ),
             )
         }
     }
@@ -70,7 +71,7 @@ class UpdateInstallingViewModel @Inject constructor(
         if (updateStarted) {
             Log.w(
                 TAG,
-                "Update already started, ignoring startUpdate for ${device.device.originalName}"
+                "Update already started, ignoring startUpdate for ${device.device.originalName}",
             )
             return
         }
@@ -80,7 +81,8 @@ class UpdateInstallingViewModel @Inject constructor(
         _version.update { version }
         _state.update { previousState ->
             previousState.copy(
-                canDismiss = true, step = UpdateInstallingStep.Starting
+                canDismiss = true,
+                step = UpdateInstallingStep.Starting,
             )
         }
 
@@ -91,7 +93,7 @@ class UpdateInstallingViewModel @Inject constructor(
                 previousState.copy(
                     canDismiss = true,
                     step = UpdateInstallingStep.NoCompatibleVersion,
-                    assetName = updateService.getAssetName()
+                    assetName = updateService.getAssetName(),
                 )
             }
             return
@@ -101,7 +103,7 @@ class UpdateInstallingViewModel @Inject constructor(
     }
 
     private fun downloadAsset(
-        updateService: DeviceUpdateService
+        updateService: DeviceUpdateService,
     ) = viewModelScope.launch(Dispatchers.IO) {
         if (updateService.isAssetFileCached()) {
             Log.d(TAG, "asset '${updateService.getAssetName()}' is already downloaded, reusing")
@@ -118,7 +120,7 @@ class UpdateInstallingViewModel @Inject constructor(
                         previousState.copy(
                             canDismiss = true,
                             step = UpdateInstallingStep.Downloading(downloadState.progress),
-                            assetName = updateService.getAssetName()
+                            assetName = updateService.getAssetName(),
                         )
                     }
                 }
@@ -127,9 +129,11 @@ class UpdateInstallingViewModel @Inject constructor(
                     Log.e(TAG, "File download Fail: ${downloadState.error}")
                     _state.update { previousState ->
                         previousState.copy(
-                            canDismiss = true, step = UpdateInstallingStep.Error(
-                                downloadState.error.toString()
-                            ), assetName = updateService.getAssetName()
+                            canDismiss = true,
+                            step = UpdateInstallingStep.Error(
+                                downloadState.error.toString(),
+                            ),
+                            assetName = updateService.getAssetName(),
                         )
                     }
                     this.coroutineContext.job.cancel()
@@ -150,7 +154,7 @@ class UpdateInstallingViewModel @Inject constructor(
             previousState.copy(
                 canDismiss = false,
                 step = UpdateInstallingStep.Installing,
-                assetName = updateService.getAssetName()
+                assetName = updateService.getAssetName(),
             )
         }
         updateService.sendSoftwareUpdateRequest(
@@ -165,7 +169,8 @@ class UpdateInstallingViewModel @Inject constructor(
         if (response.code() in 200..299) {
             _state.update { previousState ->
                 previousState.copy(
-                    canDismiss = true, step = UpdateInstallingStep.Done
+                    canDismiss = true,
+                    step = UpdateInstallingStep.Done,
                 )
             }
         } else {
@@ -174,7 +179,8 @@ class UpdateInstallingViewModel @Inject constructor(
             Log.d(TAG, "OTA Failed onResponse, error $errorString")
             _state.update { previousState ->
                 previousState.copy(
-                    canDismiss = true, step = UpdateInstallingStep.Error(errorString)
+                    canDismiss = true,
+                    step = UpdateInstallingStep.Error(errorString),
                 )
             }
         }
@@ -188,7 +194,8 @@ class UpdateInstallingViewModel @Inject constructor(
         Log.d(TAG, "OTA Failed onFailure, error $errorString")
         _state.update { previousState ->
             previousState.copy(
-                canDismiss = true, step = UpdateInstallingStep.Error(errorString)
+                canDismiss = true,
+                step = UpdateInstallingStep.Error(errorString),
             )
         }
     }
@@ -200,7 +207,7 @@ class UpdateInstallingViewModel @Inject constructor(
         val device = device.value ?: return@launch
         Log.d(TAG, "Resetting skipUpdateTag")
         val updatedDevice = device.device.copy(
-            skipUpdateTag = ""
+            skipUpdateTag = "",
         )
         deviceRepository.update(updatedDevice)
     }
@@ -208,10 +215,10 @@ class UpdateInstallingViewModel @Inject constructor(
     private fun getHtmlErrorMessage(response: Response<ResponseBody>): String {
         val html = response.body()?.string() ?: response.errorBody()?.string() ?: ""
         // Extract the body content to ignore <head> (title, scripts, styles)
-        val bodyMatcher = HTML_BODY_MATCHER.matcher(html)
+        val bodyMatcher = htmlBodyMatcher.matcher(html)
         var bodyContent = if (bodyMatcher.find()) bodyMatcher.group(1) else html
         // Remove <button>, <script>, and <style> blocks entirely so their text (e.g. "Back") doesn't appear
-        bodyContent = JUNK_TAG_PATTERN.matcher(bodyContent).replaceAll("")
+        bodyContent = junkTagPattern.matcher(bodyContent).replaceAll("")
         // Use Android's Html class to strip remaining tags (<h2>, <br>) and decode entities
         val plainText =
             HtmlCompat.fromHtml(bodyContent, HtmlCompat.FROM_HTML_MODE_COMPACT).toString()
@@ -220,11 +227,11 @@ class UpdateInstallingViewModel @Inject constructor(
     }
 
     companion object {
-        private val HTML_BODY_MATCHER =
+        private val htmlBodyMatcher =
             Pattern.compile("<body[^>]*>(.*?)</body>", Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
-        private val JUNK_TAG_PATTERN = Pattern.compile(
+        private val junkTagPattern = Pattern.compile(
             "<(button|script|style)[^>]*>.*?</\\1>",
-            Pattern.CASE_INSENSITIVE or Pattern.DOTALL
+            Pattern.CASE_INSENSITIVE or Pattern.DOTALL,
         )
     }
 }

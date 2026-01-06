@@ -46,7 +46,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
-import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
@@ -57,12 +56,6 @@ import androidx.graphics.shapes.toPath
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
 import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
-import ca.cgagnier.wlednativeandroid.model.wledapi.Info
-import ca.cgagnier.wlednativeandroid.model.wledapi.Leds
-import ca.cgagnier.wlednativeandroid.model.wledapi.State
-import ca.cgagnier.wlednativeandroid.model.wledapi.UserMods
-import ca.cgagnier.wlednativeandroid.model.wledapi.Wifi
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
 import ca.cgagnier.wlednativeandroid.ui.preview.DevicePreviewParameterProvider
@@ -71,7 +64,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-
 
 @Composable
 fun DeviceInfoTwoRows(
@@ -89,12 +81,12 @@ fun DeviceInfoTwoRows(
                 deviceName(device.device),
                 style = MaterialTheme.typography.titleLarge,
                 maxLines = nameMaxLines,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
         Row(
             modifier = Modifier.padding(bottom = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             // TODO: This row should be replaced with a ConstraintLayout or something similar.
             //  This would allow for the offline message to also be truncated dynamically if
@@ -107,7 +99,7 @@ fun DeviceInfoTwoRows(
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
+                modifier = Modifier.weight(1f, fill = false),
             )
             deviceNetworkStrengthImage(device)
             deviceBatteryPercentageImage(device)
@@ -118,7 +110,7 @@ fun DeviceInfoTwoRows(
                     contentDescription = stringResource(R.string.network_status),
                     modifier = Modifier
                         .padding(start = 4.dp)
-                        .height(20.dp)
+                        .height(20.dp),
                 )
             }
             if (!device.isOnline) {
@@ -126,7 +118,7 @@ fun DeviceInfoTwoRows(
                     device.device,
                     currentTime = currentTime,
                     modifier = Modifier
-                        .padding(start = 4.dp)
+                        .padding(start = 4.dp),
                 )
             }
             if (device.device.isHidden) {
@@ -135,16 +127,15 @@ fun DeviceInfoTwoRows(
                     contentDescription = stringResource(R.string.description_back_button),
                     modifier = Modifier
                         .padding(start = 4.dp)
-                        .height(16.dp)
+                        .height(16.dp),
                 )
                 Text(
                     stringResource(R.string.hidden_status),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier.padding(start = 4.dp),
                 )
             }
-
         }
     }
 }
@@ -157,11 +148,13 @@ fun WebsocketStatusIndicator(websocketState: WebsocketStatus) {
         WebsocketStatus.DISCONNECTED -> R.string.websocket_disconnected
     }
     TooltipBox(
-        positionProvider = rememberTooltipPositionProvider(TooltipAnchorPosition.Above), tooltip = {
+        positionProvider = rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        tooltip = {
             PlainTooltip {
                 Text(stringResource(tooltipTextResource))
             }
-        }, state = rememberTooltipState()
+        },
+        state = rememberTooltipState(),
     ) {
         WebsocketStatusShape(websocketState)
     }
@@ -181,25 +174,31 @@ fun WebsocketStatusShape(websocketState: WebsocketStatus) {
     val animatedColor by animateColorAsState(
         targetValue = targetColor,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
-        label = "ColorAnimation"
+        label = "ColorAnimation",
     )
 
     // Infinite Rotation for "Connecting" state
     val infiniteTransition = rememberInfiniteTransition(label = "Spin")
     val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 360f, animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Restart
-        ), label = "Rotation"
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "Rotation",
     )
 
     // TODO: Replace those RoundedPolygon with MaterialShapes (cookies) when available
-    fun getShape(status: WebsocketStatus): RoundedPolygon {
+    fun getWebsocketShape(status: WebsocketStatus): RoundedPolygon {
         return when (status) {
             // Circle = Stable, Connected
             WebsocketStatus.CONNECTED -> RoundedPolygon.circle()
             // Scalloped/Star shape = Active, Gear-like
             WebsocketStatus.CONNECTING -> RoundedPolygon.star(
-                8, innerRadius = 0.7f, rounding = CornerRounding(0.1f)
+                8,
+                innerRadius = 0.7f,
+                rounding = CornerRounding(0.1f),
             )
             // Square/Diamond = Stopped, Error
             WebsocketStatus.DISCONNECTED -> RoundedPolygon(4, rounding = CornerRounding(0.25f))
@@ -208,21 +207,23 @@ fun WebsocketStatusShape(websocketState: WebsocketStatus) {
 
     // State to hold the transition shapes
     // We initialize both to the current state so it starts static
-    var startShape by remember { mutableStateOf(getShape(websocketState)) }
-    var endShape by remember { mutableStateOf(getShape(websocketState)) }
+    var startShape by remember { mutableStateOf(getWebsocketShape(websocketState)) }
+    var endShape by remember { mutableStateOf(getWebsocketShape(websocketState)) }
     val progress = remember { Animatable(1f) }
 
     // When the state changes, shift the shapes and trigger animation
     LaunchedEffect(websocketState) {
         startShape = endShape // The old 'end' becomes the new 'start'
-        endShape = getShape(websocketState) // Create the new target
+        endShape = getWebsocketShape(websocketState) // Create the new target
 
         // Reset progress to 0 and animate to 1
         progress.snapTo(0f)
         progress.animateTo(
-            targetValue = 1f, animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium
-            )
+            targetValue = 1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMedium,
+            ),
         )
     }
     val morph = remember(startShape, endShape) {
@@ -252,10 +253,12 @@ fun WebsocketStatusShape(websocketState: WebsocketStatus) {
                         Fill
                     }
                     drawPath(
-                        path, color = animatedColor, style = style
+                        path,
+                        color = animatedColor,
+                        style = style,
                     )
                 }
-            }
+            },
 
     )
 }
@@ -272,7 +275,7 @@ fun OfflineSinceText(
             "(${stringResource(R.string.is_offline)})",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = modifier
+            modifier = modifier,
         )
         return
     }
@@ -296,17 +299,19 @@ fun OfflineSinceText(
     }
 
     TooltipBox(
-        positionProvider = rememberTooltipPositionProvider(TooltipAnchorPosition.Above), tooltip = {
+        positionProvider = rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        tooltip = {
             PlainTooltip {
                 Text(lastSeenDate)
             }
-        }, state = rememberTooltipState()
+        },
+        state = rememberTooltipState(),
     ) {
         Text(
             text = "($offlineText)",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = modifier
+            modifier = modifier,
         )
     }
 }
@@ -314,18 +319,18 @@ fun OfflineSinceText(
 @Preview
 @Composable
 fun DeviceInfoTwoRowsPreview(
-    @PreviewParameter(DevicePreviewParameterProvider::class) device: DeviceWithState
+    @PreviewParameter(DevicePreviewParameterProvider::class) device: DeviceWithState,
 ) {
     Card(
         modifier = Modifier
             .padding(16.dp)
             .padding(top = 20.dp)
-            .fillMaxWidth()
+            .fillMaxWidth(),
     ) {
         DeviceInfoTwoRows(
             device = device,
             currentTime = System.currentTimeMillis(),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
         )
     }
 }
@@ -351,17 +356,16 @@ fun AnimatedWebsocketPreview() {
         Device(
             macAddress = AP_MODE_MAC_ADDRESS,
             address = "4.3.2.1",
-        )
+        ),
     )
     device.websocketStatus.value = currentState
 
     MaterialTheme {
-
         Card(
             modifier = Modifier
                 .padding(16.dp)
                 .padding(top = 20.dp)
-                .fillMaxWidth()
+                .fillMaxWidth(),
         ) {
             DeviceInfoTwoRows(device = device, modifier = Modifier.padding(16.dp))
         }

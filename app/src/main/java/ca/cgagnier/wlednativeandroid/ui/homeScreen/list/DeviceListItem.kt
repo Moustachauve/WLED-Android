@@ -78,7 +78,7 @@ fun DeviceListItem(
 
     var checked by remember(stateInfo?.state?.isOn) {
         mutableStateOf(
-            stateInfo?.state?.isOn ?: false
+            stateInfo?.state?.isOn ?: false,
         )
     }
     val haptic = LocalHapticFeedback.current
@@ -101,16 +101,17 @@ fun DeviceListItem(
                 colors = CardDefaults.cardColors(
                     containerColor = cardColor,
                 ),
-                onClick = onClick
+                onClick = onClick,
             ) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Row(
-                        modifier = Modifier, verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         DeviceInfoTwoRows(
                             device = device,
                             currentTime = currentTime,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                         Switch(
                             modifier = Modifier.padding(start = 10.dp),
@@ -119,10 +120,12 @@ fun DeviceListItem(
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 checked = isOn
                                 onPowerSwitchToggle(isOn)
-                            })
+                            },
+                        )
                     }
                     BrightnessSlider(
-                        stateInfo?.state?.brightness ?: 0, onBrightnessChanged
+                        stateInfo?.state?.brightness ?: 0,
+                        onBrightnessChanged,
                     )
                 }
             }
@@ -132,8 +135,9 @@ fun DeviceListItem(
 
 @Composable
 private fun BrightnessSlider(
-    brightness: Int, // Receive the brightness value directly
-    onBrightnessChanged: (brightness: Int) -> Unit
+    // Receive the brightness value directly
+    brightness: Int,
+    onBrightnessChanged: (brightness: Int) -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
     var sliderPosition by remember(brightness) { mutableFloatStateOf(brightness.toFloat()) }
@@ -158,7 +162,7 @@ private fun SwipeBox(
     device: DeviceWithState,
     swipeToDismissBoxState: SwipeToDismissBoxState,
     onDismiss: (SwipeToDismissBoxValue) -> Unit = {},
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
     LaunchedEffect(key1 = swipeToDismissBoxState.targetValue, block = {
@@ -177,19 +181,20 @@ private fun SwipeBox(
                     SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceDim
                     SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
                     SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
-                }, label = "ColorAnimation"
+                },
+                label = "ColorAnimation",
             )
             Box(
                 Modifier
                     .fillMaxSize()
                     .padding(bottom = 6.dp)
-                    .background(color, shape = CardDefaults.shape)
+                    .background(color, shape = CardDefaults.shape),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (swipeToDismissBoxState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
                         val penIcon =
@@ -197,7 +202,7 @@ private fun SwipeBox(
                         Crossfade(
                             modifier = Modifier.padding(end = 16.dp),
                             targetState = penIcon,
-                            label = "pen icon"
+                            label = "pen icon",
                         ) {
                             Icon(
                                 imageVector = it,
@@ -206,7 +211,8 @@ private fun SwipeBox(
                         }
                     }
                     DeviceInfoTwoRows(
-                        modifier = Modifier.weight(1f), device = device
+                        modifier = Modifier.weight(1f),
+                        device = device,
                     )
                     if (swipeToDismissBoxState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
                         val deleteIcon =
@@ -214,7 +220,7 @@ private fun SwipeBox(
                         Crossfade(
                             modifier = Modifier.padding(start = 16.dp),
                             targetState = deleteIcon,
-                            label = "delete icon"
+                            label = "delete icon",
                         ) {
                             Icon(
                                 imageVector = it,
@@ -236,7 +242,7 @@ fun SelectableCard(
     isSelected: Boolean,
     colors: CardColors = CardDefaults.outlinedCardColors(),
     onClick: () -> Unit,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     if (isSelected) {
         OutlinedCard(
@@ -265,8 +271,8 @@ fun SkeletonDeviceRow() {
             .padding(bottom = 6.dp),
         shape = CardDefaults.shape,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -277,7 +283,7 @@ fun SkeletonDeviceRow() {
                             .height(16.dp)
                             .fillMaxWidth(0.6f)
                             .clip(RoundedCornerShape(4.dp))
-                            .shimmerEffect()
+                            .shimmerEffect(),
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Box(
@@ -285,7 +291,7 @@ fun SkeletonDeviceRow() {
                             .height(12.dp)
                             .fillMaxWidth(0.4f)
                             .clip(RoundedCornerShape(4.dp))
-                            .shimmerEffect()
+                            .shimmerEffect(),
                     )
                 }
 
@@ -296,7 +302,7 @@ fun SkeletonDeviceRow() {
                     modifier = Modifier
                         .size(width = 50.dp, height = 30.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .shimmerEffect()
+                        .shimmerEffect(),
                 )
             }
 
@@ -308,7 +314,7 @@ fun SkeletonDeviceRow() {
                     .height(24.dp)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .shimmerEffect()
+                    .shimmerEffect(),
             )
         }
     }
@@ -319,11 +325,16 @@ fun Modifier.shimmerEffect(): Modifier = composed {
     val transition = rememberInfiniteTransition(label = "shimmer")
 
     val startOffsetX by transition.animateFloat(
-        initialValue = 0f, targetValue = 1f, animationSpec = infiniteRepeatable(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = 1500, easing = FastOutSlowInEasing
-            ), repeatMode = RepeatMode.Restart
-        ), label = "shimmer"
+                durationMillis = 1500,
+                easing = FastOutSlowInEasing,
+            ),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "shimmer",
     )
 
     val shimmerColors = listOf(
@@ -336,7 +347,9 @@ fun Modifier.shimmerEffect(): Modifier = composed {
         brush = if (size.width == 0) {
             // Fallback before we know the size
             Brush.linearGradient(
-                colors = shimmerColors, start = Offset.Zero, end = Offset.Zero
+                colors = shimmerColors,
+                start = Offset.Zero,
+                end = Offset.Zero,
             )
         } else {
             // Calculate the diagonal length to ensure smooth coverage
@@ -347,14 +360,15 @@ fun Modifier.shimmerEffect(): Modifier = composed {
             val end = start + diagonal // Keep the gradient band fixed width
 
             Brush.linearGradient(
-                colors = shimmerColors, start = Offset(start, start), end = Offset(end, end)
+                colors = shimmerColors,
+                start = Offset(start, start),
+                end = Offset(end, end),
             )
-        }
+        },
     ).onGloballyPositioned {
         size = it.size
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable

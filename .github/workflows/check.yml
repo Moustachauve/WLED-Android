@@ -22,6 +22,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Run Spotless
+        run: ./gradlew spotlessCheck
+
+      - name: Run Detekt
+        run: ./gradlew detekt
+
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest
 

@@ -35,28 +35,28 @@ fun UpdateDetailsDialog(
     version: VersionWithAssets,
     onDismiss: () -> Unit,
     onInstall: (VersionWithAssets) -> Unit,
-    onSkip: () -> Unit
+    onSkip: () -> Unit,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
     ) {
         Card(
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
-            )
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
         ) {
             Column {
                 TopHeader(device)
                 ReleaseNotes(
                     modifier = Modifier.weight(1f),
-                    version = version
+                    version = version,
                 )
                 BottomNavigationBar(
                     onDismiss = onDismiss,
                     onInstall = {
                         onInstall(version)
                     },
-                    onSkip = onSkip
+                    onSkip = onSkip,
                 )
             }
         }
@@ -69,17 +69,17 @@ private fun TopHeader(device: DeviceWithState) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp, horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column {
             Text(
                 stringResource(R.string.update_available),
-                style = MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.titleLarge,
             )
             Row {
                 Text(
                     deviceName(device.device) + " - " + device.device.address,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }
@@ -89,7 +89,7 @@ private fun TopHeader(device: DeviceWithState) {
 @Composable
 private fun ReleaseNotes(
     modifier: Modifier = Modifier,
-    version: VersionWithAssets? = null
+    version: VersionWithAssets? = null,
 ) {
     if (version != null) {
         Column(
@@ -97,7 +97,7 @@ private fun ReleaseNotes(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(16.dp),
         ) {
             Markdown(
                 version.version.description.trimIndent(),
@@ -105,7 +105,7 @@ private fun ReleaseNotes(
                     h1 = MaterialTheme.typography.headlineLarge,
                     h2 = MaterialTheme.typography.headlineMedium,
                     h3 = MaterialTheme.typography.headlineSmall,
-                )
+                ),
             )
         }
     } else {
@@ -124,41 +124,40 @@ private fun BottomNavigationBar(
             icon = {
                 Icon(
                     painter = painterResource(R.drawable.baseline_download_24),
-                    contentDescription = stringResource(R.string.install)
+                    contentDescription = stringResource(R.string.install),
                 )
             },
             label = {
                 Text(stringResource(R.string.install))
             },
             selected = true,
-            onClick = onInstall
+            onClick = onInstall,
         )
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(R.drawable.baseline_update_24),
-                    contentDescription = stringResource(R.string.later)
+                    contentDescription = stringResource(R.string.later),
                 )
             },
             label = {
                 Text(stringResource(R.string.later))
             },
             selected = false,
-            onClick = onDismiss
+            onClick = onDismiss,
         )
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(R.drawable.baseline_update_disabled_24),
-                    contentDescription = stringResource(R.string.skip_this_version)
+                    contentDescription = stringResource(R.string.skip_this_version),
                 )
             },
             label = {
                 Text(stringResource(R.string.skip_this_version))
             },
             selected = false,
-            onClick = onSkip
+            onClick = onSkip,
         )
-
     }
 }

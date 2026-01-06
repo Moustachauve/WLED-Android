@@ -17,7 +17,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ca.cgagnier.wlednativeandroid.R
 
-
 @Composable
 fun DeviceAPListItem(
     modifier: Modifier = Modifier,
@@ -34,25 +33,26 @@ fun DeviceAPListItem(
             containerColor = cardColor,
         ),
         shape = MaterialTheme.shapes.extraLarge,
-        onClick = onClick
+        onClick = onClick,
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 28.dp).fillMaxWidth()) {
             Row(
-                modifier = Modifier, verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_baseline_router_24),
                     contentDescription = stringResource(R.string.device_ap_mode_detected),
-                    modifier = Modifier.padding(end = 16.dp)
+                    modifier = Modifier.padding(end = 16.dp),
                 )
                 Column {
                     Text(
                         stringResource(R.string.device_ap_mode_detected),
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
                         stringResource(R.string.device_ap_mode_detected_click),
-                        style = MaterialTheme.typography.labelLarge
+                        style = MaterialTheme.typography.labelLarge,
                     )
                 }
             }

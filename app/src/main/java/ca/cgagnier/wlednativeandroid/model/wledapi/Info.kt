@@ -51,7 +51,7 @@ data class Info(
     @param:Json(name = "product") val product: String? = null,
     @param:Json(name = "mac") val macAddress: String? = null,
     @param:Json(name = "ip") val ipAddress: String? = null,
-    @param:Json(name = "u") val userMods: UserMods? = null
+    @param:Json(name = "u") val userMods: UserMods? = null,
 )
 
 /**

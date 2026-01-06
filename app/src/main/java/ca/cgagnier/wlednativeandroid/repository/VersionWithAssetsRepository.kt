@@ -10,7 +10,7 @@ import javax.inject.Inject
 class VersionWithAssetsRepository @Inject constructor(
     private val database: DevicesDatabase,
     private val versionDao: VersionDao,
-    private val assetDao: AssetDao
+    private val assetDao: AssetDao,
 ) {
 
     @WorkerThread

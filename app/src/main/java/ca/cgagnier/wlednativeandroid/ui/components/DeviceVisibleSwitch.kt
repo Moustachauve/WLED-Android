@@ -39,12 +39,17 @@ fun DeviceVisibleSwitch(
                 role = Role.Switch,
                 onClick = {
                     onCheckedChange(!isHidden)
-                }
+                },
             ),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        val isVisibleText = if (isHidden) stringResource(R.string.device_is_hidden) else stringResource(
-            R.string.device_is_visible)
+        val isVisibleText = if (isHidden) {
+            stringResource(R.string.device_is_hidden)
+        } else {
+            stringResource(
+                R.string.device_is_visible,
+            )
+        }
         val isVisibleIcon = painterResource(if (isHidden) R.drawable.ic_baseline_visibility_off_24 else R.drawable.baseline_visibility_24)
         AnimatedContent(
             targetState = isVisibleText,
@@ -52,7 +57,7 @@ fun DeviceVisibleSwitch(
                 fadeIn() togetherWith fadeOut()
             },
             label = "isVisibleTextAnimation",
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         ) {
             Text(
                 it,
@@ -75,7 +80,7 @@ fun DeviceVisibleSwitch(
                     contentDescription = null,
                     modifier = Modifier.size(SwitchDefaults.IconSize),
                 )
-            }
+            },
         )
     }
 }
