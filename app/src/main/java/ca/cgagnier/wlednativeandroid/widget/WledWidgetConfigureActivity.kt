@@ -85,7 +85,7 @@ class WledWidgetConfigureActivity : ComponentActivity() {
                 val api = deviceApiFactory.create(device.address)
                 val response = api.postJson(JsonPost(verbose = true))
                 if (response.isSuccessful && response.body() != null) {
-                    isOn = response.body()!!.state.isOn ?: false
+                    isOn = response.body()!!.isOn ?: false
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

@@ -87,7 +87,7 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
                             try {
                                 val response = api.postJson(JsonPost(verbose = true))
                                 if (response.isSuccessful && response.body() != null) {
-                                    val isOn = response.body()!!.state.isOn ?: false
+                                    val isOn = response.body()!!.isOn ?: false
                                     androidx.glance.appwidget.state.updateAppWidgetState(context, glanceId) { prefs ->
                                         prefs[DEVICE_IS_ON_KEY] = isOn
                                     }

@@ -119,7 +119,7 @@ class TogglePowerAction : ActionCallback {
         try {
             val response = api.postJson(JsonPost(isOn = newIsOn, verbose = true))
             if (response.isSuccessful && response.body() != null) {
-                val updatedIsOn = response.body()!!.state.isOn ?: newIsOn
+                val updatedIsOn = response.body()!!.isOn ?: newIsOn
                 updateAppWidgetState(context, glanceId) { prefs ->
                     prefs[DEVICE_IS_ON_KEY] = updatedIsOn
                 }

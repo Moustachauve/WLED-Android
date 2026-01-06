@@ -1,9 +1,9 @@
 package ca.cgagnier.wlednativeandroid.service.api
 
 import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
+import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
@@ -22,7 +22,7 @@ interface DeviceApi {
     suspend fun getInfo(): Response<Info>
 
     @POST("json/state")
-    suspend fun postJson(@Body state: JsonPost): Response<DeviceStateInfo>
+    suspend fun postJson(@Body state: JsonPost): Response<State>
 
     @Multipart
     @POST("update")
