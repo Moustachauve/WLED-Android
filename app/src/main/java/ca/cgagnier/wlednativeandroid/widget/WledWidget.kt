@@ -102,7 +102,7 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
                     }
                 }
             } finally {
-                pendingResult.finish()
+                pendingResult?.finish()
             }
         }
     }
