@@ -17,15 +17,12 @@
     <string name="is_offline">离线</string>
     <string name="offline_less_than_minute">离线，不到一分钟前</string>
     <plurals name="offline_minutes">
-        <item quantity="one">离线，%d 分钟前</item>
         <item quantity="other">离线，%d 分钟前</item>
     </plurals>
     <plurals name="offline_hours">
-        <item quantity="one">离线，%d 小时前</item>
         <item quantity="other">离线，%d 小时前</item>
     </plurals>
     <plurals name="offline_days">
-        <item quantity="one">离线，%d 天前</item>
         <item quantity="other">离线，%d 天前</item>
     </plurals>
     <string name="update_available">有可用的更新</string>
