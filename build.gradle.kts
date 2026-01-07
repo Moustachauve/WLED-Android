@@ -12,6 +12,8 @@ plugins {
 }
 
 spotless {
+    ratchetFrom("origin/dev")
+
     kotlinGradle {
         target("*.kts") // Targets root build.gradle.kts and settings.gradle.kts
         ktlint()
@@ -25,6 +27,8 @@ subprojects {
     apply(plugin = "io.gitlab.arturbosch.detekt")
 
     configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+        ratchetFrom("origin/dev")
+
         kotlin {
             target("**/*.kt")
             // Exclude build folders to save performance
