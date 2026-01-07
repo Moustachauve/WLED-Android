@@ -4,9 +4,9 @@ import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,21 +21,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.lifecycle.lifecycleScope
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
-import android.util.Log
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -59,7 +57,8 @@ class WledWidgetConfigureActivity : ComponentActivity() {
         val extras = intent.extras
         if (extras != null) {
             appWidgetId = extras.getInt(
-                AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID,
             )
         }
 
@@ -75,7 +74,7 @@ class WledWidgetConfigureActivity : ComponentActivity() {
                 devices = devices,
                 onDeviceSelected = { device ->
                     saveWidgetState(device)
-                }
+                },
             )
         }
     }
@@ -114,23 +113,20 @@ class WledWidgetConfigureActivity : ComponentActivity() {
 }
 
 @Composable
-fun ConfigurationScreen(
-    devices: List<Device>,
-    onDeviceSelected: (Device) -> Unit
-) {
+fun ConfigurationScreen(devices: List<Device>, onDeviceSelected: (Device) -> Unit) {
     Scaffold(
         topBar = {
             Text(
                 text = "Select Device",
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(16.dp),
             )
-        }
+        },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(padding),
         ) {
             items(devices) { device ->
                 DeviceItem(device = device, onClick = { onDeviceSelected(device) })
@@ -146,16 +142,16 @@ fun DeviceItem(device: Device, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(16.dp)
+            .padding(16.dp),
     ) {
         Text(
             text = if (device.customName.isNotBlank()) device.customName else device.originalName,
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
         )
         Text(
             text = device.address,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

@@ -1,32 +1,13 @@
 package ca.cgagnier.wlednativeandroid.widget
 
 import android.content.Context
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.unit.dp
-import androidx.glance.Button
+import android.util.Log
 import androidx.glance.GlanceId
-import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
-import androidx.glance.action.ActionParameters
-import androidx.glance.action.actionParametersOf
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
-import androidx.glance.appwidget.action.ActionCallback
-import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.state.updateAppWidgetState
-import androidx.glance.background
-import androidx.glance.layout.Alignment
-import androidx.glance.layout.Box
-import androidx.glance.layout.Column
-import androidx.glance.layout.Row
-import androidx.glance.layout.fillMaxSize
-import androidx.glance.layout.padding
-import androidx.glance.text.Text
-import androidx.glance.text.TextStyle
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
@@ -36,7 +17,6 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
-import android.util.Log
 
 class WledWidget : GlanceAppWidget() {
 
@@ -68,7 +48,7 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
     override fun onUpdate(
         context: Context,
         appWidgetManager: android.appwidget.AppWidgetManager,
-        appWidgetIds: IntArray
+        appWidgetIds: IntArray,
     ) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
         val pendingResult = goAsync()
@@ -77,14 +57,20 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
             try {
                 appWidgetIds.forEach { appWidgetId ->
                     try {
-                        val glanceId = androidx.glance.appwidget.GlanceAppWidgetManager(context).getGlanceIdBy(appWidgetId)
-                        val prefs = androidx.glance.appwidget.state.getAppWidgetState(context, androidx.glance.state.PreferencesGlanceStateDefinition, glanceId)
+                        val glanceId = androidx.glance.appwidget.GlanceAppWidgetManager(
+                            context,
+                        ).getGlanceIdBy(appWidgetId)
+                        val prefs = androidx.glance.appwidget.state.getAppWidgetState(
+                            context,
+                            androidx.glance.state.PreferencesGlanceStateDefinition,
+                            glanceId,
+                        )
                         val address = prefs[DEVICE_ADDRESS_KEY]
 
                         address?.let {
                             val entryPoint = EntryPointAccessors.fromApplication(
                                 context,
-                                WledWidget.WidgetEntryPoint::class.java
+                                WledWidget.WidgetEntryPoint::class.java,
                             )
                             val client = entryPoint.okHttpClient()
                             val deviceApiFactory = DeviceApiFactory(client)
@@ -94,7 +80,10 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
                                 if (response.isSuccessful) {
                                     response.body()?.let { body ->
                                         val isOn = body.isOn ?: false
-                                        androidx.glance.appwidget.state.updateAppWidgetState(context, glanceId) { prefs ->
+                                        androidx.glance.appwidget.state.updateAppWidgetState(
+                                            context,
+                                            glanceId,
+                                        ) { prefs ->
                                             prefs[DEVICE_IS_ON_KEY] = isOn
                                         }
                                         WledWidget().update(context, glanceId)
