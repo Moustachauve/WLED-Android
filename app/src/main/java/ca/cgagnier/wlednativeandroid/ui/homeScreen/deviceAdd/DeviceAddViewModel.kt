@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.R
-import ca.cgagnier.wlednativeandroid.domain.use_case.ValidateAddress
+import ca.cgagnier.wlednativeandroid.domain.usecase.ValidateAddress
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +22,7 @@ private const val TAG = "DeviceAddViewModel"
 @HiltViewModel
 class DeviceAddViewModel @Inject constructor(
     private val validateAddress: ValidateAddress,
-    private val deviceFirstContactService: DeviceFirstContactService
+    private val deviceFirstContactService: DeviceFirstContactService,
 ) : ViewModel() {
 
     var state by mutableStateOf(DeviceAddState())
@@ -36,11 +36,11 @@ class DeviceAddViewModel @Inject constructor(
         findDeviceJob = viewModelScope.launch(Dispatchers.IO) {
             val emailResult = validateAddress.execute(state.address)
             val hasError = listOf(
-                emailResult
+                emailResult,
             ).any { !it.successful }
             if (hasError) {
                 state = state.copy(
-                    step = DeviceAddStep.Form(addressError = emailResult.errorMessage)
+                    step = DeviceAddStep.Form(addressError = emailResult.errorMessage),
                 )
                 return@launch
             }
@@ -62,8 +62,8 @@ class DeviceAddViewModel @Inject constructor(
             }
             state = state.copy(
                 step = DeviceAddStep.Success(
-                    device = newDevice
-                )
+                    device = newDevice,
+                ),
             )
         } catch (e: Exception) {
             Log.w(TAG, "Error during first contact", e)
@@ -73,8 +73,8 @@ class DeviceAddViewModel @Inject constructor(
             }
             state = state.copy(
                 step = DeviceAddStep.Form(
-                    addressError = R.string.add_device_error
-                )
+                    addressError = R.string.add_device_error,
+                ),
             )
         }
     }

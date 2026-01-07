@@ -90,3 +90,4 @@ lint/tmp/
 /.idea/runConfigurations.xml
 .idea/deviceManager.xml
 .idea/androidTestResultsUserPreferences.xml
+/.idea/spotless-applier.xml

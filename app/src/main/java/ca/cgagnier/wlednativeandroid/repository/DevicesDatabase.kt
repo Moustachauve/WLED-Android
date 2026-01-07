@@ -29,7 +29,7 @@ import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
         AutoMigration(from = 6, to = 7),
         AutoMigration(from = 7, to = 8, spec = DbMigration7To8::class),
         AutoMigration(from = 8, to = 9, spec = DbMigration8To9::class),
-    ]
+    ],
 )
 @TypeConverters(Converters::class)
 abstract class DevicesDatabase : RoomDatabase() {
@@ -39,18 +39,16 @@ abstract class DevicesDatabase : RoomDatabase() {
 
     companion object {
         @Volatile
-        private var INSTANCE: DevicesDatabase? = null
+        private var instance: DevicesDatabase? = null
 
-        fun getDatabase(context: Context): DevicesDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    DevicesDatabase::class.java,
-                    "devices_database"
-                ).build()
-                INSTANCE = instance
-                instance
-            }
+        fun getDatabase(context: Context): DevicesDatabase = instance ?: synchronized(this) {
+            val newInstance = Room.databaseBuilder(
+                context.applicationContext,
+                DevicesDatabase::class.java,
+                "devices_database",
+            ).build()
+            instance = newInstance
+            newInstance
         }
     }
 }

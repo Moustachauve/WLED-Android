@@ -17,14 +17,16 @@ import kotlinx.coroutines.withContext
 private const val TAG = "updateService"
 
 enum class UpdateSourceType {
-    OFFICIAL_WLED, QUINLED, CUSTOM
+    OFFICIAL_WLED,
+    QUINLED,
+    CUSTOM,
 }
 
 data class UpdateSourceDefinition(
     val type: UpdateSourceType,
     val brandPattern: String,
     val githubOwner: String,
-    val githubRepo: String
+    val githubRepo: String,
 )
 
 object UpdateSourceRegistry {
@@ -33,19 +35,18 @@ object UpdateSourceRegistry {
             type = UpdateSourceType.OFFICIAL_WLED,
             brandPattern = "WLED",
             githubOwner = "Aircoookie",
-            githubRepo = "WLED"
-        ), UpdateSourceDefinition(
+            githubRepo = "WLED",
+        ),
+        UpdateSourceDefinition(
             type = UpdateSourceType.QUINLED,
             brandPattern = "QuinLED",
             githubOwner = "intermittech",
-            githubRepo = "QuinLED-Firmware"
-        )
+            githubRepo = "QuinLED-Firmware",
+        ),
     )
 
-    fun getSource(info: Info): UpdateSourceDefinition? {
-        return sources.find {
-            info.brand == it.brandPattern
-        }
+    fun getSource(info: Info): UpdateSourceDefinition? = sources.find {
+        info.brand == it.brandPattern
     }
 }
 
@@ -92,17 +93,20 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
 
         val betaSuffixes = listOf("-a", "-b", "-rc")
         Log.w(
-            TAG, "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $latestTagName"
+            TAG,
+            "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $latestTagName",
         )
         if (branch == Branch.STABLE && betaSuffixes.any {
                 deviceInfo.version.contains(it, ignoreCase = true)
-            }) {
+            }
+        ) {
             // If we're on a beta branch but looking for a stable branch, always offer to "update" to
             // the stable branch.
             return latestTagName
         } else if (branch == Branch.BETA && betaSuffixes.none {
                 deviceInfo.version.contains(it, ignoreCase = true)
-            }) {
+            }
+        ) {
             // Same if we are on a stable branch but looking for a beta branch, we should offer to
             // "update" to the latest beta branch, even if its older.
             return latestTagName
@@ -152,16 +156,14 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
         }
     }
 
-    private fun createVersion(version: Release): Version {
-        return Version(
-            sanitizeTagName(version.tagName),
-            version.name,
-            version.body,
-            version.prerelease,
-            version.publishedAt,
-            version.htmlUrl
-        )
-    }
+    private fun createVersion(version: Release): Version = Version(
+        sanitizeTagName(version.tagName),
+        version.name,
+        version.body,
+        version.prerelease,
+        version.publishedAt,
+        version.htmlUrl,
+    )
 
     private fun createAssetsForVersion(version: Release): List<Asset> {
         val assetsModels = mutableListOf<Asset>()
@@ -174,7 +176,7 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
                     asset.size,
                     asset.browserDownloadUrl,
                     asset.id,
-                )
+                ),
             )
         }
         return assetsModels

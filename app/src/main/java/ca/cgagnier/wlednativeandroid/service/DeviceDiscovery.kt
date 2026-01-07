@@ -7,10 +7,7 @@ import android.net.wifi.WifiManager
 import android.net.wifi.WifiManager.MulticastLock
 import android.util.Log
 
-
-class DeviceDiscovery(
-    val context: Context, val onDeviceDiscovered: (address: String, macAddress: String?) -> Unit
-) {
+class DeviceDiscovery(val context: Context, val onDeviceDiscovered: (address: String, macAddress: String?) -> Unit) {
 
     val nsdManager: NsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     private var discoveryListener: NsdManager.DiscoveryListener? = null
@@ -61,7 +58,9 @@ class DeviceDiscovery(
                         return
                     }
                     return nsdManager.resolveService(
-                        service, ResolveListener(nsdManager) { onServiceResolved(it) })
+                        service,
+                        ResolveListener(nsdManager) { onServiceResolved(it) },
+                    )
                 }
             }
 
@@ -109,9 +108,8 @@ class DeviceDiscovery(
         }
     }
 
-    class ResolveListener(
-        private val nsdManager: NsdManager, private val serviceResolved: (NsdServiceInfo) -> Unit
-    ) : NsdManager.ResolveListener {
+    class ResolveListener(private val nsdManager: NsdManager, private val serviceResolved: (NsdServiceInfo) -> Unit) :
+        NsdManager.ResolveListener {
 
         override fun onResolveFailed(serviceInfo: NsdServiceInfo?, errorCode: Int) {
             Log.e(TAG, "Resolve failed $errorCode")
@@ -119,7 +117,8 @@ class DeviceDiscovery(
                 NsdManager.FAILURE_ALREADY_ACTIVE -> {
                     Log.e(TAG, "FAILURE ALREADY ACTIVE")
                     nsdManager.resolveService(
-                        serviceInfo, ResolveListener(nsdManager, serviceResolved)
+                        serviceInfo,
+                        ResolveListener(nsdManager, serviceResolved),
                     )
                 }
 
@@ -143,7 +142,6 @@ class DeviceDiscovery(
                 Log.e(TAG, "Resolve Succeeded, but serviceInfo null.")
             }
         }
-
     }
 
     companion object {

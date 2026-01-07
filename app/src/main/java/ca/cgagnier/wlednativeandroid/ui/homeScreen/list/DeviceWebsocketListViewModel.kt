@@ -35,16 +35,21 @@ class DeviceWebsocketListViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository,
     private val deviceUpdateManager: DeviceUpdateManager,
     private val okHttpClient: OkHttpClient,
-    private val moshi: Moshi
-) : ViewModel(), DefaultLifecycleObserver {
+    private val moshi: Moshi,
+) : ViewModel(),
+    DefaultLifecycleObserver {
     private val activeClients = MutableStateFlow<Map<String, WebsocketClient>>(emptyMap())
     private val devicesFromDb = deviceRepository.allDevices
 
     val showOfflineDevicesLast = userPreferencesRepository.showOfflineDevicesLast.stateIn(
-        scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = false
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false,
     )
     val showHiddenDevices = userPreferencesRepository.showHiddenDevices.stateIn(
-        scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = false
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false,
     )
 
     // Track if the ViewModel is paused or not. It would be paused if the app is in the
@@ -76,7 +81,11 @@ class DeviceWebsocketListViewModel @Inject constructor(
                         // Device added: create and connect a new client.
                         Log.d(TAG, "[Scan] Device added: $macAddress. Creating client.")
                         val newClient = WebsocketClient(
-                            device, deviceRepository, deviceUpdateManager, okHttpClient, moshi
+                            device,
+                            deviceRepository,
+                            deviceUpdateManager,
+                            okHttpClient,
+                            moshi,
                         )
                         if (!isPaused.value) {
                             newClient.connect()
@@ -86,11 +95,15 @@ class DeviceWebsocketListViewModel @Inject constructor(
                         // Device IP changed: reconnect the client.
                         Log.d(
                             TAG,
-                            "[Scan] Device address changed for $macAddress. Reconnecting client."
+                            "[Scan] Device address changed for $macAddress. Reconnecting client.",
                         )
                         existingClient.destroy()
                         val newClient = WebsocketClient(
-                            device, deviceRepository, deviceUpdateManager, okHttpClient, moshi
+                            device,
+                            deviceRepository,
+                            deviceUpdateManager,
+                            okHttpClient,
+                            moshi,
                         )
                         if (!isPaused.value) {
                             newClient.connect()
@@ -107,7 +120,6 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 // Emit the new map of clients to the StateFlow.
                 activeClients.value = updatedClients
             }
-
         }
     }
 
@@ -141,7 +153,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
+        initialValue = emptyList(),
     )
 
     override fun onCleared() {
@@ -174,7 +186,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
             if (client == null) {
                 Log.w(
                     TAG,
-                    "setBrightness: No active client found for MAC address ${device.device.macAddress}"
+                    "setBrightness: No active client found for MAC address ${device.device.macAddress}",
                 )
                 return@launch
             }
@@ -189,7 +201,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
             if (client == null) {
                 Log.w(
                     TAG,
-                    "setDevicePower: No active client found for MAC address ${device.device.macAddress}"
+                    "setDevicePower: No active client found for MAC address ${device.device.macAddress}",
                 )
                 return@launch
             }

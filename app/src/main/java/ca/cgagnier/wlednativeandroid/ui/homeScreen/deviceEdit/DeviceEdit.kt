@@ -66,7 +66,7 @@ fun DeviceEdit(
     device: DeviceWithState,
     canNavigateBack: Boolean,
     navigateUp: () -> Unit,
-    viewModel: DeviceEditViewModel = hiltViewModel()
+    viewModel: DeviceEditViewModel = hiltViewModel(),
 ) {
     val options = listOf(
         Pair(Branch.STABLE, stringResource(R.string.stable)),
@@ -87,7 +87,7 @@ fun DeviceEdit(
                 canNavigateBack = canNavigateBack,
                 navigateUp = navigateUp,
             )
-        }
+        },
     ) { innerPadding ->
         Card(
             modifier = Modifier
@@ -96,13 +96,13 @@ fun DeviceEdit(
                 .fillMaxHeight()
                 .height(IntrinsicSize.Max),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
-            )
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
         ) {
             Column(
                 modifier = Modifier
                     .verticalScroll(rememberScrollState())
-                    .padding(12.dp)
+                    .padding(12.dp),
             ) {
                 OutlinedTextField(
                     value = device.device.address,
@@ -111,7 +111,7 @@ fun DeviceEdit(
                     label = { Text(stringResource(R.string.ip_address_or_url)) },
                     singleLine = true,
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxWidth(),
                 )
                 CustomNameTextField(device.device) {
                     viewModel.updateCustomName(device.device, it)
@@ -121,7 +121,7 @@ fun DeviceEdit(
                     isHidden = device.device.isHidden,
                     onCheckedChange = {
                         viewModel.updateDeviceHidden(device.device, it)
-                    }
+                    },
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -135,7 +135,7 @@ fun DeviceEdit(
                             SegmentedButton(
                                 shape = SegmentedButtonDefaults.itemShape(
                                     index = index,
-                                    count = options.size
+                                    count = options.size,
                                 ),
                                 onClick = {
                                     viewModel.updateDeviceBranch(
@@ -143,7 +143,7 @@ fun DeviceEdit(
                                         option.first,
                                     )
                                 },
-                                selected = option.first == device.device.branch
+                                selected = option.first == device.device.branch,
                             ) {
                                 Text(text = option.second)
                             }
@@ -153,12 +153,12 @@ fun DeviceEdit(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
+                        .padding(top = 8.dp),
                 ) {
                     Column(
                         modifier = Modifier
                             .padding(12.dp)
-                            .fillMaxWidth()
+                            .fillMaxWidth(),
                     ) {
                         // Create a local immutable copy of the variable to please the compiler
                         // type check in the condition below.
@@ -169,7 +169,7 @@ fun DeviceEdit(
                                 currentUpdateTag,
                                 seeUpdateDetails = {
                                     viewModel.showUpdateDetails(currentUpdateTag)
-                                }
+                                },
                             )
                         } else {
                             NoUpdateAvailable(
@@ -177,7 +177,7 @@ fun DeviceEdit(
                                 isCheckingUpdates,
                                 checkForUpdate = {
                                     viewModel.checkForUpdates(device.device)
-                                }
+                                },
                             )
                         }
                     }
@@ -185,7 +185,7 @@ fun DeviceEdit(
                 Spacer(Modifier.height(24.dp))
                 Text(
                     stringResource(R.string.mac_address_present, device.device.macAddress),
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
                 )
             }
         }
@@ -204,7 +204,7 @@ fun DeviceEdit(
             },
             onSkip = {
                 viewModel.skipUpdate(device.device, versionDetails)
-            }
+            },
         )
     }
     updateDisclaimerVersion?.let { versionDisclaimer ->
@@ -215,7 +215,7 @@ fun DeviceEdit(
             onAccept = {
                 viewModel.hideUpdateDisclaimer()
                 viewModel.startUpdateInstall(versionDisclaimer)
-            }
+            },
         )
     }
     updateInstallVersion?.let { version ->
@@ -230,10 +230,7 @@ fun DeviceEdit(
 }
 
 @Composable
-private fun CustomNameTextField(
-    device: Device,
-    onValueChange: (String) -> Unit
-) {
+private fun CustomNameTextField(device: Device, onValueChange: (String) -> Unit) {
     val deviceName = device.customName
     var inputText by remember { mutableStateOf(TextFieldValue(deviceName)) }
     OutlinedTextField(
@@ -245,16 +242,17 @@ private fun CustomNameTextField(
         supportingText = { Text(stringResource(R.string.leave_this_empty_to_use_the_device_name)) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(
-            imeAction = ImeAction.Done
+            imeAction = ImeAction.Done,
         ),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp)
+            .padding(top = 4.dp),
     )
     // Only save after changes and after typing has stopped for at least 0.8 seconds
     LaunchedEffect(key1 = inputText.text) {
-        if (deviceName == inputText.text)
+        if (deviceName == inputText.text) {
             return@LaunchedEffect
+        }
         delay(800)
         onValueChange(inputText.text)
     }
@@ -272,7 +270,7 @@ fun DeviceEditAppBar(
             Text(
                 text = stringResource(R.string.edit_device_with_name, deviceName(device.device)),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         },
         modifier = modifier,
@@ -281,7 +279,7 @@ fun DeviceEditAppBar(
                 IconButton(onClick = navigateUp) {
                     Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.description_back_button)
+                        contentDescription = stringResource(R.string.description_back_button),
                     )
                 }
             }
@@ -290,35 +288,34 @@ fun DeviceEditAppBar(
 }
 
 @Composable
-fun NoUpdateAvailable(
-    device: DeviceWithState,
-    isCheckingUpdates: Boolean,
-    checkForUpdate: () -> Unit
-) {
+fun NoUpdateAvailable(device: DeviceWithState, isCheckingUpdates: Boolean, checkForUpdate: () -> Unit) {
     Text(
         stringResource(R.string.your_device_is_up_to_date),
-        style = MaterialTheme.typography.titleMedium
+        style = MaterialTheme.typography.titleMedium,
     )
     Text(
         stringResource(R.string.version_v_num, device.stateInfo.value?.info?.version ?: "<?>"),
-        style = MaterialTheme.typography.bodyMedium
+        style = MaterialTheme.typography.bodyMedium,
     )
     OutlinedButton(onClick = checkForUpdate) {
         val buttonText =
-            if (isCheckingUpdates) stringResource(R.string.checking_progress_update)
-            else stringResource(R.string.check_for_update)
+            if (isCheckingUpdates) {
+                stringResource(R.string.checking_progress_update)
+            } else {
+                stringResource(R.string.check_for_update)
+            }
         AnimatedContent(
             targetState = buttonText,
             transitionSpec = {
                 scaleIn() togetherWith fadeOut()
             },
-            label = ""
+            label = "",
         ) {
             Text(it)
         }
 
         AnimatedVisibility(
-            visible = isCheckingUpdates
+            visible = isCheckingUpdates,
         ) {
             val size = (MaterialTheme.typography.titleSmall.lineHeight.value - 4)
             CircularProgressIndicator(
@@ -345,20 +342,20 @@ fun UpdateAvailable(device: DeviceWithState, updateTag: String, seeUpdateDetails
         Column {
             Text(
                 stringResource(R.string.update_available),
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
             )
             Text(
                 stringResource(
                     R.string.from_version_to_version,
                     device.stateInfo.value?.info?.version
                         ?: "<?>",
-                    updateTag
+                    updateTag,
                 ),
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
             Button(
                 modifier = Modifier.padding(top = 6.dp),
-                onClick = seeUpdateDetails
+                onClick = seeUpdateDetails,
             ) {
                 Text(stringResource(R.string.see_update_details))
             }

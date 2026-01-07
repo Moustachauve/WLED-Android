@@ -15,15 +15,13 @@ data class Version(
 ) {
 
     companion object {
-        fun getPreviewVersion(): Version {
-            return Version(
-                tagName = "v1.0.0",
-                name = "new version",
-                description = "this is a test version",
-                isPrerelease = false,
-                publishedDate = "2024-10-13T15:54:31Z",
-                htmlUrl = "https://github.com/"
-            )
-        }
+        fun getPreviewVersion(): Version = Version(
+            tagName = "v1.0.0",
+            name = "new version",
+            description = "this is a test version",
+            isPrerelease = false,
+            publishedDate = "2024-10-13T15:54:31Z",
+            htmlUrl = "https://github.com/",
+        )
     }
 }
