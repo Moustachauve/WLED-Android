@@ -1,4 +1,5 @@
 package ca.cgagnier.wlednativeandroid.di
+
 import android.content.Context
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApiEndpoints
@@ -25,40 +26,31 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideMoshi(): Moshi {
-        return Moshi.Builder().build()
-    }
+    fun provideMoshi(): Moshi = Moshi.Builder().build()
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(@ApplicationContext appContext: Context): OkHttpClient {
-        return OkHttpClient.Builder()
-            .connectTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .readTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .writeTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .pingInterval(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .cache(Cache(appContext.cacheDir, CACHE_SIZE_BYTES))
-            .build()
-    }
+    fun provideOkHttpClient(@ApplicationContext appContext: Context): OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .readTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .writeTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .pingInterval(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .cache(Cache(appContext.cacheDir, CACHE_SIZE_BYTES))
+        .build()
 
     @Provides
     @Singleton
-    fun provideGithubRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl(GITHUB_BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-    }
+    fun provideGithubRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit = Retrofit.Builder()
+        .baseUrl(GITHUB_BASE_URL)
+        .client(okHttpClient)
+        .addConverterFactory(MoshiConverterFactory.create(moshi))
+        .build()
 
     @Provides
     @Singleton
-    fun provideGithubApiEndpoints(retrofit: Retrofit): GithubApiEndpoints {
-        return retrofit.create(GithubApiEndpoints::class.java)
-    }
+    fun provideGithubApiEndpoints(retrofit: Retrofit): GithubApiEndpoints =
+        retrofit.create(GithubApiEndpoints::class.java)
 
     @Provides
-    fun provideDeviceApiFactory(okHttpClient: OkHttpClient): DeviceApiFactory {
-        return DeviceApiFactory(okHttpClient)
-    }
+    fun provideDeviceApiFactory(okHttpClient: OkHttpClient): DeviceApiFactory = DeviceApiFactory(okHttpClient)
 }

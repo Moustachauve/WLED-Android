@@ -14,7 +14,6 @@ import ca.cgagnier.wlednativeandroid.FileUploadContractResult
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -27,8 +26,8 @@ class MainActivity : ComponentActivity() {
             uploadMessage?.onReceiveValue(
                 WebChromeClient.FileChooserParams.parseResult(
                     result.resultCode,
-                    result.intent
-                )
+                    result.intent,
+                ),
             )
             uploadMessage = null
         }

@@ -35,6 +35,8 @@ semver4j = "3.1.0"
 webkit = "1.15.0"
 graphicsShapes = "1.1.0"
 truth = "1.4.5"
+detekt = "1.23.8"
+spotless = "8.1.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose" }
@@ -107,3 +109,5 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "hiltAndroid" }
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

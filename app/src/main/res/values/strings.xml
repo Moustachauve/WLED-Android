@@ -112,6 +112,7 @@
     <string name="non_base64_not_supported">Non-base64 data URIs are not currently supported</string>
     <string name="open">Open</string>
     <string name="dismiss">Dismiss</string>
+    <string name="some_devices_hidden">Some of your devices are hidden</string>
     <string name="widget_description" tools:ignore="MissingTranslation">WLED Widget</string>
     <string name="widget_turn_on" tools:ignore="MissingTranslation">Turn On</string>
     <string name="widget_turn_off" tools:ignore="MissingTranslation">Turn Off</string>

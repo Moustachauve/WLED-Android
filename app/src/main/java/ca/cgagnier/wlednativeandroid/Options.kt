@@ -8,5 +8,5 @@ data class Options(
     @param:Json(name = "version")
     val version: Int,
     @param:Json(name = "lastSelectedAddress")
-    val lastSelectedAddress: String
+    val lastSelectedAddress: String,
 )

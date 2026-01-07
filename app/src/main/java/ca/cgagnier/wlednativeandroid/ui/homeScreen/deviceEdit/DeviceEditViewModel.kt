@@ -23,7 +23,7 @@ const val TAG = "DeviceEditViewModel"
 class DeviceEditViewModel @Inject constructor(
     private val repository: DeviceRepository,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
-    private val githubApi: GithubApi
+    private val githubApi: GithubApi,
 ) : ViewModel() {
 
     private var _updateDetailsVersion: MutableStateFlow<VersionWithAssets?> = MutableStateFlow(null)
@@ -50,20 +50,19 @@ class DeviceEditViewModel @Inject constructor(
         repository.update(updatedDevice)
     }
 
-    fun updateDeviceHidden(device: Device, isHidden: Boolean) =
-        viewModelScope.launch(Dispatchers.IO) {
-            Log.d(TAG, "updateDeviceHidden: ${device.originalName}, isHidden: $isHidden")
-            repository.update(
-                device.copy(
-                    isHidden = isHidden
-                )
-            )
-        }
+    fun updateDeviceHidden(device: Device, isHidden: Boolean) = viewModelScope.launch(Dispatchers.IO) {
+        Log.d(TAG, "updateDeviceHidden: ${device.originalName}, isHidden: $isHidden")
+        repository.update(
+            device.copy(
+                isHidden = isHidden,
+            ),
+        )
+    }
 
     fun updateDeviceBranch(device: Device, branch: Branch) = viewModelScope.launch(Dispatchers.IO) {
         Log.d(TAG, "updateDeviceBranch: ${device.originalName}, updateChannel: $branch")
         val updatedDevice = device.copy(
-            branch = branch
+            branch = branch,
         )
         repository.update(updatedDevice)
     }
@@ -76,15 +75,14 @@ class DeviceEditViewModel @Inject constructor(
         _updateDetailsVersion.value = null
     }
 
-    fun skipUpdate(device: Device, version: VersionWithAssets) =
-        viewModelScope.launch(Dispatchers.IO) {
-            Log.d(TAG, "Saving skipUpdateTag")
-            val updatedDevice = device.copy(
-                skipUpdateTag = version.version.tagName
-            )
-            repository.update(updatedDevice)
-            _updateDetailsVersion.value = null
-        }
+    fun skipUpdate(device: Device, version: VersionWithAssets) = viewModelScope.launch(Dispatchers.IO) {
+        Log.d(TAG, "Saving skipUpdateTag")
+        val updatedDevice = device.copy(
+            skipUpdateTag = version.version.tagName,
+        )
+        repository.update(updatedDevice)
+        _updateDetailsVersion.value = null
+    }
 
     fun showUpdateDisclaimer(version: VersionWithAssets) {
         _updateDisclaimerVersion.value = version
@@ -102,16 +100,15 @@ class DeviceEditViewModel @Inject constructor(
         _updateInstallVersion.value = null
     }
 
-    fun checkForUpdates(device: Device) =
-        viewModelScope.launch(Dispatchers.IO) {
-            _isCheckingUpdates.value = true
-            val updatedDevice = device.copy(skipUpdateTag = "")
-            repository.update(updatedDevice)
-            try {
-                val releaseService = ReleaseService(versionWithAssetsRepository)
-                releaseService.refreshVersions(githubApi)
-            } finally {
-                _isCheckingUpdates.value = false
-            }
+    fun checkForUpdates(device: Device) = viewModelScope.launch(Dispatchers.IO) {
+        _isCheckingUpdates.value = true
+        val updatedDevice = device.copy(skipUpdateTag = "")
+        repository.update(updatedDevice)
+        try {
+            val releaseService = ReleaseService(versionWithAssetsRepository)
+            releaseService.refreshVersions(githubApi)
+        } finally {
+            _isCheckingUpdates.value = false
         }
+    }
 }

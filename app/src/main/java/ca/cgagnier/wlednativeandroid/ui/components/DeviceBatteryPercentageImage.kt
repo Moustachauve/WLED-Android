@@ -12,19 +12,15 @@ import androidx.compose.ui.unit.dp
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 
-private fun getBatteryImage(
-    batteryPercentage: Double,
-): Int {
-    return when {
-        batteryPercentage <= 10 -> R.drawable.baseline_battery_0_bar_24
-        batteryPercentage <= 20 -> R.drawable.baseline_battery_1_bar_24
-        batteryPercentage <= 40 -> R.drawable.baseline_battery_2_bar_24
-        batteryPercentage <= 60 -> R.drawable.baseline_battery_3_bar_24
-        batteryPercentage <= 70 -> R.drawable.baseline_battery_4_bar_24
-        batteryPercentage <= 80 -> R.drawable.baseline_battery_5_bar_24
-        batteryPercentage <= 90 -> R.drawable.baseline_battery_6_bar_24
-        else -> R.drawable.baseline_battery_full_24
-    }
+private fun getBatteryImage(batteryPercentage: Double): Int = when {
+    batteryPercentage <= 10 -> R.drawable.baseline_battery_0_bar_24
+    batteryPercentage <= 20 -> R.drawable.baseline_battery_1_bar_24
+    batteryPercentage <= 40 -> R.drawable.baseline_battery_2_bar_24
+    batteryPercentage <= 60 -> R.drawable.baseline_battery_3_bar_24
+    batteryPercentage <= 70 -> R.drawable.baseline_battery_4_bar_24
+    batteryPercentage <= 80 -> R.drawable.baseline_battery_5_bar_24
+    batteryPercentage <= 90 -> R.drawable.baseline_battery_6_bar_24
+    else -> R.drawable.baseline_battery_full_24
 }
 
 @Composable
@@ -37,7 +33,7 @@ fun deviceBatteryPercentageImage(device: DeviceWithState) {
             contentDescription = stringResource(R.string.battery_percentage),
             modifier = Modifier
                 .height(16.dp)
-                .offset(y = (-1).dp)
+                .offset(y = (-1).dp),
         )
     }
 }

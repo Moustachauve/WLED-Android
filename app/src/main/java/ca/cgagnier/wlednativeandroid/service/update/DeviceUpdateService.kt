@@ -26,7 +26,10 @@ class DeviceUpdateService(
     private val githubApi: GithubApi,
 ) {
     private val supportedPlatforms = listOf(
-        "esp01", "esp02", "esp32", "esp8266"
+        "esp01",
+        "esp02",
+        "esp32",
+        "esp8266",
     )
 
     private var assetName: String = ""
@@ -52,10 +55,10 @@ class DeviceUpdateService(
             return false
         }
 
-        val combined = "${versionWithAssets.version.tagName}_${release}"
+        val combined = "${versionWithAssets.version.tagName}_$release"
         val versionWithRelease =
             if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
-        assetName = "WLED_${versionWithRelease}.bin"
+        assetName = "WLED_$versionWithRelease.bin"
         return findAsset(assetName)
     }
 
@@ -76,7 +79,7 @@ class DeviceUpdateService(
             "${versionWithAssets.version.tagName}_${deviceInfo.platformName?.uppercase()}"
         val versionWithPlatform =
             if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
-        assetName = "WLED_${versionWithPlatform}.bin"
+        assetName = "WLED_$versionWithPlatform.bin"
         return findAsset(assetName)
     }
 
@@ -94,17 +97,11 @@ class DeviceUpdateService(
     /**
      * Get the name of the asset to download.
      */
-    fun getAssetName(): String {
-        return assetName
-    }
+    fun getAssetName(): String = assetName
 
-    fun couldDetermineAsset(): Boolean {
-        return couldDetermineAsset
-    }
+    fun couldDetermineAsset(): Boolean = couldDetermineAsset
 
-    fun isAssetFileCached(): Boolean {
-        return getPathForAsset().exists()
-    }
+    fun isAssetFileCached(): Boolean = getPathForAsset().exists()
 
     suspend fun downloadBinary(): Flow<DownloadState> {
         if (!::asset.isInitialized) {
@@ -123,14 +120,14 @@ class DeviceUpdateService(
         device: Device,
         binaryFile: File,
         callback: ((Response<ResponseBody>) -> Unit)? = null,
-        errorCallback: ((Exception) -> Unit)? = null
+        errorCallback: ((Exception) -> Unit)? = null,
     ) {
         Log.d(TAG, "Installing software update: ${device.macAddress}")
         try {
             val reqFile = binaryFile.asRequestBody("application/octet-stream".toMediaTypeOrNull())
             // Longer TTL because updates can take a bit of time to fully install
             val response = deviceApiFactory.create(device, 120L).updateDevice(
-                MultipartBody.Part.createFormData("file", "binary", reqFile)
+                MultipartBody.Part.createFormData("file", "binary", reqFile),
             )
             callback?.invoke(response)
         } catch (e: Exception) {

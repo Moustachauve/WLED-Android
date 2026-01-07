@@ -9,14 +9,10 @@ class DeviceRepository @Inject constructor(private val deviceDao: DeviceDao) {
     val allDevices: Flow<List<Device>> = deviceDao.getAlphabetizedDevices()
 
     @WorkerThread
-    fun getAllDevices(): List<Device> {
-        return deviceDao.getAllDevices()
-    }
+    fun getAllDevices(): List<Device> = deviceDao.getAllDevices()
 
     @WorkerThread
-    suspend fun findDeviceByMacAddress(address: String): Device? {
-        return deviceDao.findDeviceByMacAddress(address)
-    }
+    suspend fun findDeviceByMacAddress(address: String): Device? = deviceDao.findDeviceByMacAddress(address)
 
     @WorkerThread
     suspend fun insert(device: Device) {
@@ -33,7 +29,5 @@ class DeviceRepository @Inject constructor(private val deviceDao: DeviceDao) {
         deviceDao.delete(device)
     }
 
-    fun contains(device: Device): Boolean {
-        return deviceDao.count(device.address) > 0
-    }
+    fun contains(device: Device): Boolean = deviceDao.count(device.address) > 0
 }

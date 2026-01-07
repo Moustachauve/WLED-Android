@@ -14,5 +14,5 @@ data class State(
     @param:Json(name = "nl") val nightlight: Nightlight? = null,
     @param:Json(name = "lor") val liveDataOverride: Int? = null,
     @param:Json(name = "mainseg") val mainSegment: Int? = null,
-    @param:Json(name = "seg") val segment: List<Segment>? = null
+    @param:Json(name = "seg") val segment: List<Segment>? = null,
 )
