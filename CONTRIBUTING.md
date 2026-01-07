@@ -11,6 +11,12 @@
 3. **IMPORTANT:** When opening a Pull Request, you must change the **base branch** from `main` to **`dev`**.
    *(GitHub defaults to `main`, so please double-check this!)*
 
+## Pull Request Labels
+To ensure release notes are generated correctly, please add appropriate labels to your Pull Request. The automation relies on these labels to categorize changes and determine the version number.
+
+- **For categorization:** `feature`, `enhancement`, `bug`, `fix`, `documentation`, `chore`, `refactor`.
+- **For versioning:** `major` (for breaking changes), `minor` (for features), `patch` (for fixes).
+
 ## Hotfixes
 If you are fixing a critical bug in production:
 1. Branch off `main`.
