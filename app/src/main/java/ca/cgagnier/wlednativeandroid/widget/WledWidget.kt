@@ -36,6 +36,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import android.util.Log
 
 class WledWidget : GlanceAppWidget() {
 
@@ -60,6 +61,10 @@ class WledWidget : GlanceAppWidget() {
 class WledWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = WledWidget()
 
+    companion object {
+        private const val TAG = "WledWidgetReceiver"
+    }
+
     override fun onUpdate(
         context: Context,
         appWidgetManager: android.appwidget.AppWidgetManager,
@@ -76,29 +81,31 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
                         val prefs = androidx.glance.appwidget.state.getAppWidgetState(context, androidx.glance.state.PreferencesGlanceStateDefinition, glanceId)
                         val address = prefs[DEVICE_ADDRESS_KEY]
 
-                        if (address != null) {
+                        address?.let {
                             val entryPoint = EntryPointAccessors.fromApplication(
                                 context,
                                 WledWidget.WidgetEntryPoint::class.java
                             )
                             val client = entryPoint.okHttpClient()
                             val deviceApiFactory = DeviceApiFactory(client)
-                            val api = deviceApiFactory.create(address!!)
+                            val api = deviceApiFactory.create(it)
                             try {
                                 val response = api.postJson(JsonPost(verbose = true))
-                                if (response.isSuccessful && response.body() != null) {
-                                    val isOn = response.body()!!.isOn ?: false
-                                    androidx.glance.appwidget.state.updateAppWidgetState(context, glanceId) { prefs ->
-                                        prefs[DEVICE_IS_ON_KEY] = isOn
+                                if (response.isSuccessful) {
+                                    response.body()?.let { body ->
+                                        val isOn = body.isOn ?: false
+                                        androidx.glance.appwidget.state.updateAppWidgetState(context, glanceId) { prefs ->
+                                            prefs[DEVICE_IS_ON_KEY] = isOn
+                                        }
+                                        WledWidget().update(context, glanceId)
                                     }
-                                    WledWidget().update(context, glanceId)
                                 }
                             } catch (e: Exception) {
-                                e.printStackTrace()
+                                Log.e(TAG, "Failed to update widget state for $it", e)
                             }
                         }
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        Log.e(TAG, "Failed to update widget $appWidgetId", e)
                     }
                 }
             } finally {

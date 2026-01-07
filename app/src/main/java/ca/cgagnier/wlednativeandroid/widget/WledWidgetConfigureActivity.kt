@@ -35,6 +35,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import android.util.Log
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -47,6 +48,10 @@ class WledWidgetConfigureActivity : ComponentActivity() {
     lateinit var okHttpClient: OkHttpClient
 
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+
+    companion object {
+        private const val TAG = "WledWidgetConfigureActivity"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,11 +89,13 @@ class WledWidgetConfigureActivity : ComponentActivity() {
                 val deviceApiFactory = DeviceApiFactory(okHttpClient)
                 val api = deviceApiFactory.create(device.address)
                 val response = api.postJson(JsonPost(verbose = true))
-                if (response.isSuccessful && response.body() != null) {
-                    isOn = response.body()!!.isOn ?: false
+                if (response.isSuccessful) {
+                    response.body()?.let { body ->
+                        isOn = body.isOn ?: false
+                    }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "Failed to get device state", e)
             }
 
             updateAppWidgetState(this@WledWidgetConfigureActivity, glanceId) { prefs ->

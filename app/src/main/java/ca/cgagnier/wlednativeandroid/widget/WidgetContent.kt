@@ -43,6 +43,7 @@ import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.util.Log
 
 val DEVICE_ADDRESS_KEY = stringPreferencesKey("device_address")
 val DEVICE_NAME_KEY = stringPreferencesKey("device_name")
@@ -82,13 +83,13 @@ fun WidgetContent(context: Context) {
             }
         }
 
-        if (deviceAddress != null) {
+        deviceAddress?.let { address ->
             Switch(
                 checked = isOn,
                 onCheckedChange = actionRunCallback<TogglePowerAction>(
                     actionParametersOf(
-                        ActionParameters.Key<String>("address") to deviceAddress,
-                        ActionParameters.Key<Boolean>("isOn") to isOn
+                        TogglePowerAction.keyAddress to address,
+                        TogglePowerAction.keyIsOn to isOn
                     )
                 )
             )
@@ -97,15 +98,21 @@ fun WidgetContent(context: Context) {
 }
 
 class TogglePowerAction : ActionCallback {
+    companion object {
+        private const val TAG = "TogglePowerAction"
+        val keyAddress = ActionParameters.Key<String>("address")
+        val keyIsOn = ActionParameters.Key<Boolean>("isOn")
+    }
+
     override suspend fun onAction(
         context: Context,
         glanceId: GlanceId,
         parameters: ActionParameters
     ) {
-        val address = parameters[ActionParameters.Key<String>("address")] ?: return
+        val address = parameters[keyAddress] ?: return
         // Note: The toggle action toggles based on the *current* state known to the widget.
         // If the widget is out of sync, this might be incorrect, but the API call sets the absolute state.
-        val currentIsOn = parameters[ActionParameters.Key<Boolean>("isOn")] ?: false
+        val currentIsOn = parameters[keyIsOn] ?: false
         val newIsOn = !currentIsOn
 
         val entryPoint = EntryPointAccessors.fromApplication(
@@ -118,15 +125,17 @@ class TogglePowerAction : ActionCallback {
 
         try {
             val response = api.postJson(JsonPost(isOn = newIsOn, verbose = true))
-            if (response.isSuccessful && response.body() != null) {
-                val updatedIsOn = response.body()!!.isOn ?: newIsOn
-                updateAppWidgetState(context, glanceId) { prefs ->
-                    prefs[DEVICE_IS_ON_KEY] = updatedIsOn
+            if (response.isSuccessful) {
+                response.body()?.let { body ->
+                    val updatedIsOn = body.isOn ?: newIsOn
+                    updateAppWidgetState(context, glanceId) { prefs ->
+                        prefs[DEVICE_IS_ON_KEY] = updatedIsOn
+                    }
+                    WledWidget().update(context, glanceId)
                 }
-                WledWidget().update(context, glanceId)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Failed to toggle power", e)
         }
     }
 }
