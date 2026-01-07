@@ -84,10 +84,10 @@ tasks.register("installGitHooks") {
         preCommitFile.writeText(
             """
             #!/bin/bash
-            echo "Running Spotless Check..."
+            echo "Running Spotless and Detekt checks..."
             
             # Run spotlessCheck
-            ./gradlew spotlessCheck
+            ./gradlew spotlessCheck detekt
             
             RETVAL=${"$"}?
             
@@ -95,10 +95,12 @@ tasks.register("installGitHooks") {
                 echo "Spotless check failed. Formatting code..."
                 # Run spotlessApply to fix the issues
                 ./gradlew spotlessApply
-                echo "Code has been reformatted."
-                echo "Please stage the changes (git add) and commit again."
+                echo "Code has been reformatted by Spotless."
+                echo "Please review the changes, stage them (git add), and commit again."
+                echo "You may also need to fix Detekt issues manually."
                 exit 1
             fi
+            echo "Checks passed!"
             exit 0
             """.trimIndent(),
         )
