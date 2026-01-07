@@ -209,10 +209,10 @@ class UpdateInstallingViewModel @Inject constructor(
     private fun getHtmlErrorMessage(response: Response<ResponseBody>): String {
         val html = response.body()?.string() ?: response.errorBody()?.string() ?: ""
         // Extract the body content to ignore <head> (title, scripts, styles)
-        val bodyMatcher = htmlBodyMatcher.matcher(html)
+        val bodyMatcher = HTML_BODY_MATCHER.matcher(html)
         var bodyContent = if (bodyMatcher.find()) bodyMatcher.group(1) else html
         // Remove <button>, <script>, and <style> blocks entirely so their text (e.g. "Back") doesn't appear
-        bodyContent = junkTagPattern.matcher(bodyContent).replaceAll("")
+        bodyContent = JUNK_TAG_PATTERN.matcher(bodyContent).replaceAll("")
         // Use Android's Html class to strip remaining tags (<h2>, <br>) and decode entities
         val plainText =
             HtmlCompat.fromHtml(bodyContent, HtmlCompat.FROM_HTML_MODE_COMPACT).toString()
@@ -221,9 +221,9 @@ class UpdateInstallingViewModel @Inject constructor(
     }
 
     companion object {
-        private val htmlBodyMatcher =
+        private val HTML_BODY_MATCHER =
             Pattern.compile("<body[^>]*>(.*?)</body>", Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
-        private val junkTagPattern = Pattern.compile(
+        private val JUNK_TAG_PATTERN = Pattern.compile(
             "<(button|script|style)[^>]*>.*?</\\1>",
             Pattern.CASE_INSENSITIVE or Pattern.DOTALL,
         )
