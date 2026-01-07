@@ -8,8 +8,17 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.detekt) apply false
-    alias(libs.plugins.spotless) apply false
+    alias(libs.plugins.spotless)
 }
+
+spotless {
+    kotlinGradle {
+        target("*.kts") // Targets root build.gradle.kts and settings.gradle.kts
+        ktlint()
+    }
+}
+
+val detektVersion = libs.versions.detekt.get()
 
 subprojects {
     apply(plugin = "com.diffplug.spotless")
@@ -18,24 +27,41 @@ subprojects {
     configure<com.diffplug.gradle.spotless.SpotlessExtension> {
         kotlin {
             target("**/*.kt")
+            // Exclude build folders to save performance
+            targetExclude("**/build/**/*.kt")
             ktlint().editorConfigOverride(
                 mapOf(
                     "ktlint_standard_value-argument-comment" to "disabled",
-                    "ktlint_function_naming_ignore_when_annotated_with" to "Composable"
-                )
+                    "ktlint_function_naming_ignore_when_annotated_with" to "Composable",
+                ),
             )
+            trimTrailingWhitespace()
+            indentWithSpaces()
+            endWithNewline()
+        }
+
+        kotlinGradle {
+            target("*.kts")
+            ktlint()
+            trimTrailingWhitespace()
+            indentWithSpaces()
+            endWithNewline()
+        }
+
+        format("xml") {
+            target("**/*.xml")
+            targetExclude("**/build/**/*.xml", ".idea/**/*.xml")
+            trimTrailingWhitespace()
+            indentWithSpaces()
+            endWithNewline()
         }
     }
 
     configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
-        toolVersion = "1.23.7"
+        toolVersion = detektVersion
         buildUponDefaultConfig = true
         baseline = file("$projectDir/detekt-baseline.xml")
     }
-}
-
-tasks.register("clean",Delete::class){
-    delete(layout.buildDirectory)
 }
 
 tasks.register("installGitHooks") {
@@ -51,7 +77,8 @@ tasks.register("installGitHooks") {
             hooksDir.mkdirs()
         }
         val preCommitFile = File(hooksDir, "pre-commit")
-        preCommitFile.writeText("""
+        preCommitFile.writeText(
+            """
             #!/bin/bash
             echo "Running Spotless Check..."
             
@@ -69,7 +96,8 @@ tasks.register("installGitHooks") {
                 exit 1
             fi
             exit 0
-        """.trimIndent())
+            """.trimIndent(),
+        )
 
         preCommitFile.setExecutable(true)
         println("Git pre-commit hook installed successfully.")

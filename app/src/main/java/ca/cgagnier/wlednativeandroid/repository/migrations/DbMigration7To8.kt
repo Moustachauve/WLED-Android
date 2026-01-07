@@ -34,20 +34,20 @@ class DbMigration7To8 : AutoMigrationSpec {
         db.execSQL(
             """
             INSERT OR IGNORE INTO Device2 (
-                macAddress, 
-                address, 
-                isHidden, 
-                customName, 
-                originalName, 
-                skipUpdateTag, 
-                branch, 
+                macAddress,
+                address,
+                isHidden,
+                customName,
+                originalName,
+                skipUpdateTag,
+                branch,
                 lastSeen
             )
-            SELECT 
-                macAddress, 
-                address, 
-                isHidden, 
-                CASE WHEN isCustomName = 1 THEN name ELSE '' END, 
+            SELECT
+                macAddress,
+                address,
+                isHidden,
+                CASE WHEN isCustomName = 1 THEN name ELSE '' END,
                 CASE WHEN isCustomName = 0 THEN name ELSE '' END,
                 '',
                 'UNKNOWN',
