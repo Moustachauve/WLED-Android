@@ -23,18 +23,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Run Spotless
-        run: ./gradlew spotlessCheck
-
-      - name: Run Detekt
-        run: ./gradlew detekt
-
-      - name: Run Spotless
-        run: ./gradlew spotlessCheck
-
-      - name: Run Detekt
-        run: ./gradlew detekt
-
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest
 
@@ -60,6 +48,12 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
+
+      - name: Run Spotless
+        run: ./gradlew spotlessCheck
+
+      - name: Run Detekt
+        run: ./gradlew detekt
 
       - name: Run lint
         run: ./gradlew lintDebug
