@@ -85,24 +85,24 @@ tasks.register("installGitHooks") {
         val preCommitFile = File(hooksDir, "pre-commit")
         preCommitFile.writeText(
             """
-            #!/bin/bash
-            echo "Running Spotless and Detekt checks..."
-            
-            # Run spotlessCheck
-            ./gradlew spotlessCheck detekt
-            
-            RETVAL=${"$"}?
-            
-            if [ ${"$"}RETVAL -ne 0 ]; then
-                echo "Spotless check failed. Formatting code..."
-                # Run spotlessApply to fix the issues
+                        #!/bin/bash
+            echo "Running Spotless check..."
+            ./gradlew spotlessCheck
+            if [ ${'$'}{'$'}? -ne 0 ]; then
+                echo "Spotless check failed. Automatically formatting..."
                 ./gradlew spotlessApply
-                echo "Code has been reformatted by Spotless."
-                echo "Please review the changes, stage them (git add), and commit again."
-                echo "You may also need to fix Detekt issues manually."
+                echo "Code has been reformatted. Please review, stage, and commit again."
                 exit 1
             fi
-            echo "Checks passed!"
+
+            echo "Running Detekt check..."
+            ./gradlew detekt
+            if [ ${'$'}{'$'}? -ne 0 ]; then
+                echo "Detekt found issues. Please fix them manually and commit again."
+                exit 1
+            fi
+
+            echo "All checks passed!"
             exit 0
             """.trimIndent(),
         )
