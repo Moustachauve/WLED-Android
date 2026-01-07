@@ -37,3 +37,41 @@ subprojects {
 tasks.register("clean",Delete::class){
     delete(layout.buildDirectory)
 }
+
+tasks.register("installGitHooks") {
+    description = "Installs a git pre-commit hook to run Spotless"
+    group = "help"
+
+    // Capture the root directory here, during configuration, not execution
+    val rootDir = layout.projectDirectory.asFile
+
+    doLast {
+        val hooksDir = File(rootDir, ".git/hooks")
+        if (!hooksDir.exists()) {
+            hooksDir.mkdirs()
+        }
+        val preCommitFile = File(hooksDir, "pre-commit")
+        preCommitFile.writeText("""
+            #!/bin/bash
+            echo "Running Spotless Check..."
+            
+            # Run spotlessCheck
+            ./gradlew spotlessCheck
+            
+            RETVAL=${"$"}?
+            
+            if [ ${"$"}RETVAL -ne 0 ]; then
+                echo "Spotless check failed. Formatting code..."
+                # Run spotlessApply to fix the issues
+                ./gradlew spotlessApply
+                echo "Code has been reformatted."
+                echo "Please stage the changes (git add) and commit again."
+                exit 1
+            fi
+            exit 0
+        """.trimIndent())
+
+        preCommitFile.setExecutable(true)
+        println("Git pre-commit hook installed successfully.")
+    }
+}
