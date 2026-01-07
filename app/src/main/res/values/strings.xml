@@ -112,5 +112,5 @@
     <string name="non_base64_not_supported">Non-base64 data URIs are not currently supported</string>
     <string name="open">Open</string>
     <string name="dismiss">Dismiss</string>
-
+    <string name="some_devices_hidden">Some of your devices are hidden</string>
 </resources>

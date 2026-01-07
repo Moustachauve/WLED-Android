@@ -71,7 +71,7 @@ fun NoDevicesItem(
 
             if (shouldShowHiddenDevices) {
                 Text(
-                    "Some of your devices are hidden.",
+                    stringResource(R.string.some_devices_hidden),
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.padding(top = 32.dp),
                 )
