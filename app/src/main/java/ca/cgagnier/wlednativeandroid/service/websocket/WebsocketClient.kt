@@ -198,15 +198,13 @@ class WebsocketClient(
      * Sends a message to the device.
      * @param message The message to send.
      */
-    private fun sendMessage(message: String): Boolean {
-        return try {
-            Log.d(TAG, "Sending message to ${deviceState.device.address}: $message")
-            webSocket?.send(message) ?: false
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send message to ${deviceState.device.address}", e)
-            reconnect()
-            false
-        }
+    private fun sendMessage(message: String): Boolean = try {
+        Log.d(TAG, "Sending message to ${deviceState.device.address}: $message")
+        webSocket?.send(message) ?: false
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to send message to ${deviceState.device.address}", e)
+        reconnect()
+        false
     }
 
     /**

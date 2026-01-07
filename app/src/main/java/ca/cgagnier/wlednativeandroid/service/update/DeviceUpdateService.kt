@@ -97,17 +97,11 @@ class DeviceUpdateService(
     /**
      * Get the name of the asset to download.
      */
-    fun getAssetName(): String {
-        return assetName
-    }
+    fun getAssetName(): String = assetName
 
-    fun couldDetermineAsset(): Boolean {
-        return couldDetermineAsset
-    }
+    fun couldDetermineAsset(): Boolean = couldDetermineAsset
 
-    fun isAssetFileCached(): Boolean {
-        return getPathForAsset().exists()
-    }
+    fun isAssetFileCached(): Boolean = getPathForAsset().exists()
 
     suspend fun downloadBinary(): Flow<DownloadState> {
         if (!::asset.isInitialized) {

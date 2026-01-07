@@ -363,11 +363,7 @@ fun LazyItemScope.DeviceRow(
 }
 
 @Composable
-fun DeviceListAppBar(
-    modifier: Modifier = Modifier,
-    onOpenDrawer: () -> Unit,
-    onAddDevice: () -> Unit,
-) {
+fun DeviceListAppBar(modifier: Modifier = Modifier, onOpenDrawer: () -> Unit, onAddDevice: () -> Unit) {
     CenterAlignedTopAppBar(modifier = modifier, title = {
         Image(
             painter = painterResource(id = R.drawable.wled_logo_akemi),
@@ -391,11 +387,7 @@ fun DeviceListAppBar(
 }
 
 @Composable
-fun ConfirmDeleteDialog(
-    device: DeviceWithState? = null,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
+fun ConfirmDeleteDialog(device: DeviceWithState? = null, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     device?.let {
         AlertDialog(title = {
             Text(text = stringResource(R.string.deleting_device))
@@ -439,9 +431,5 @@ fun ConfirmDeleteDialog(
  * This is to avoid devices jumping between online and offline constantly if the connection is
  * unstable.
  */
-private fun shouldShowAsOffline(
-    device: DeviceWithState,
-    currentTime: Long,
-): Boolean {
-    return !device.isOnline && currentTime - device.device.lastSeen >= DEVICE_OFFLINE_TIMEOUT_MS
-}
+private fun shouldShowAsOffline(device: DeviceWithState, currentTime: Long): Boolean =
+    !device.isOnline && currentTime - device.device.lastSeen >= DEVICE_OFFLINE_TIMEOUT_MS

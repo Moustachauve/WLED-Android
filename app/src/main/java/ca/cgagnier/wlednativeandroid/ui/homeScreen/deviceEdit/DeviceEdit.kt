@@ -230,10 +230,7 @@ fun DeviceEdit(
 }
 
 @Composable
-private fun CustomNameTextField(
-    device: Device,
-    onValueChange: (String) -> Unit,
-) {
+private fun CustomNameTextField(device: Device, onValueChange: (String) -> Unit) {
     val deviceName = device.customName
     var inputText by remember { mutableStateOf(TextFieldValue(deviceName)) }
     OutlinedTextField(
@@ -291,11 +288,7 @@ fun DeviceEditAppBar(
 }
 
 @Composable
-fun NoUpdateAvailable(
-    device: DeviceWithState,
-    isCheckingUpdates: Boolean,
-    checkForUpdate: () -> Unit,
-) {
+fun NoUpdateAvailable(device: DeviceWithState, isCheckingUpdates: Boolean, checkForUpdate: () -> Unit) {
     Text(
         stringResource(R.string.your_device_is_up_to_date),
         style = MaterialTheme.typography.titleMedium,

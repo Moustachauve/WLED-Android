@@ -18,13 +18,13 @@ import androidx.compose.ui.unit.dp
 import ca.cgagnier.wlednativeandroid.R
 
 @Composable
-fun DeviceAPListItem(
-    modifier: Modifier = Modifier,
-    isSelected: Boolean = false,
-    onClick: () -> Unit = {},
-) {
+fun DeviceAPListItem(modifier: Modifier = Modifier, isSelected: Boolean = false, onClick: () -> Unit = {}) {
     val cardColor =
-        if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest
+        if (isSelected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHighest
+        }
 
     OutlinedCard(
         modifier = modifier

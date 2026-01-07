@@ -10,9 +10,7 @@ import javax.inject.Inject
 
 private const val TAG = "DeviceUpdateManager"
 
-class DeviceUpdateManager @Inject constructor(
-    private val releaseService: ReleaseService,
-) {
+class DeviceUpdateManager @Inject constructor(private val releaseService: ReleaseService) {
 
     /**
      * Returns a Flow that emits the version tag (e.g., "v0.14.0") if an update is available,

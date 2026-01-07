@@ -45,10 +45,8 @@ object UpdateSourceRegistry {
         ),
     )
 
-    fun getSource(info: Info): UpdateSourceDefinition? {
-        return sources.find {
-            info.brand == it.brandPattern
-        }
+    fun getSource(info: Info): UpdateSourceDefinition? = sources.find {
+        info.brand == it.brandPattern
     }
 }
 
@@ -158,16 +156,14 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
         }
     }
 
-    private fun createVersion(version: Release): Version {
-        return Version(
-            sanitizeTagName(version.tagName),
-            version.name,
-            version.body,
-            version.prerelease,
-            version.publishedAt,
-            version.htmlUrl,
-        )
-    }
+    private fun createVersion(version: Release): Version = Version(
+        sanitizeTagName(version.tagName),
+        version.name,
+        version.body,
+        version.prerelease,
+        version.publishedAt,
+        version.htmlUrl,
+    )
 
     private fun createAssetsForVersion(version: Release): List<Asset> {
         val assetsModels = mutableListOf<Asset>()

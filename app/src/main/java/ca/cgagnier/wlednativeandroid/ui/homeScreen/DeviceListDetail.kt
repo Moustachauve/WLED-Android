@@ -328,10 +328,7 @@ private fun DrawerContent(
 }
 
 @Composable
-private fun ToggleHiddenDeviceButton(
-    showHiddenDevices: Boolean,
-    toggleShowHiddenDevices: () -> Unit,
-) {
+private fun ToggleHiddenDeviceButton(showHiddenDevices: Boolean, toggleShowHiddenDevices: () -> Unit) {
     val hiddenDeviceText = stringResource(
         if (showHiddenDevices) {
             R.string.hide_hidden_devices
@@ -384,6 +381,7 @@ fun SelectDeviceView() {
 }
 
 // TODO: Move this to a utility file or somewhere else, maybe.
+
 /**
  * Open Uri in external browser and do error handling.
  *

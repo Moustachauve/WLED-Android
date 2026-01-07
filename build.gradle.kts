@@ -37,10 +37,11 @@ subprojects {
                 mapOf(
                     "ktlint_standard_value-argument-comment" to "disabled",
                     "ktlint_function_naming_ignore_when_annotated_with" to "Composable",
+                    "max_line_length" to "120",
                 ),
             )
             trimTrailingWhitespace()
-            indentWithSpaces()
+            leadingTabsToSpaces()
             endWithNewline()
         }
 
@@ -48,7 +49,7 @@ subprojects {
             target("*.kts")
             ktlint()
             trimTrailingWhitespace()
-            indentWithSpaces()
+            leadingTabsToSpaces()
             endWithNewline()
         }
 
@@ -56,7 +57,7 @@ subprojects {
             target("**/*.xml")
             targetExclude("**/build/**/*.xml", ".idea/**/*.xml")
             trimTrailingWhitespace()
-            indentWithSpaces()
+            leadingTabsToSpaces()
             endWithNewline()
         }
     }
@@ -64,6 +65,7 @@ subprojects {
     configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
         toolVersion = detektVersion
         buildUponDefaultConfig = true
+        config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
         baseline = file("$projectDir/detekt-baseline.xml")
     }
 }

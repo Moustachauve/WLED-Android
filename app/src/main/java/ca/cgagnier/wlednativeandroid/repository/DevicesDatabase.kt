@@ -41,16 +41,14 @@ abstract class DevicesDatabase : RoomDatabase() {
         @Volatile
         private var instance: DevicesDatabase? = null
 
-        fun getDatabase(context: Context): DevicesDatabase {
-            return instance ?: synchronized(this) {
-                val newInstance = Room.databaseBuilder(
-                    context.applicationContext,
-                    DevicesDatabase::class.java,
-                    "devices_database",
-                ).build()
-                instance = newInstance
-                newInstance
-            }
+        fun getDatabase(context: Context): DevicesDatabase = instance ?: synchronized(this) {
+            val newInstance = Room.databaseBuilder(
+                context.applicationContext,
+                DevicesDatabase::class.java,
+                "devices_database",
+            ).build()
+            instance = newInstance
+            newInstance
         }
     }
 }

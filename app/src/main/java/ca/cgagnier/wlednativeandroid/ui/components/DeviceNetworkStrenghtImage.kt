@@ -19,26 +19,13 @@ import androidx.compose.ui.unit.dp
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 
-private fun getNetworkStrenghtImage(
-    networkRssi: Int,
-    isOnline: Boolean,
-): Int {
-    if (!isOnline) {
-        return R.drawable.twotone_signal_wifi_connected_no_internet_0_24
-    }
-    if (networkRssi >= -50) {
-        return R.drawable.twotone_signal_wifi_4_bar_24
-    }
-    if (networkRssi >= -70) {
-        return R.drawable.twotone_signal_wifi_3_bar_24
-    }
-    if (networkRssi >= -80) {
-        return R.drawable.twotone_signal_wifi_2_bar_24
-    }
-    if (networkRssi >= -100) {
-        return R.drawable.twotone_signal_wifi_1_bar_24
-    }
-    return R.drawable.twotone_signal_wifi_0_bar_24
+private fun getNetworkStrengthImage(networkRssi: Int, isOnline: Boolean): Int = when {
+    !isOnline -> R.drawable.twotone_signal_wifi_connected_no_internet_0_24
+    networkRssi >= -50 -> R.drawable.twotone_signal_wifi_4_bar_24
+    networkRssi >= -70 -> R.drawable.twotone_signal_wifi_3_bar_24
+    networkRssi >= -80 -> R.drawable.twotone_signal_wifi_2_bar_24
+    networkRssi >= -100 -> R.drawable.twotone_signal_wifi_1_bar_24
+    else -> R.drawable.twotone_signal_wifi_0_bar_24
 }
 
 @Composable
@@ -65,7 +52,7 @@ fun deviceNetworkStrengthImage(device: DeviceWithState) {
     ) {
         Icon(
             painter = painterResource(
-                getNetworkStrenghtImage(
+                getNetworkStrengthImage(
                     rssi,
                     device.isOnline,
                 ),

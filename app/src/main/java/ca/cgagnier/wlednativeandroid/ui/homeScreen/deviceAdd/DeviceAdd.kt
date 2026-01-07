@@ -185,10 +185,7 @@ private fun step2Loading(state: DeviceAddState) {
 }
 
 @Composable
-private fun step3Complete(
-    step: DeviceAddStep.Success,
-    onDismissRequest: () -> Unit,
-) {
+private fun step3Complete(step: DeviceAddStep.Success, onDismissRequest: () -> Unit) {
     Icon(
         modifier = Modifier
             .height(48.dp)

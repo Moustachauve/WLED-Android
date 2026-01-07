@@ -21,10 +21,7 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
 
 @Composable
-fun UpdateDisclaimerDialog(
-    onDismiss: () -> Unit = {},
-    onAccept: () -> Unit = {},
-) {
+fun UpdateDisclaimerDialog(onDismiss: () -> Unit = {}, onAccept: () -> Unit = {}) {
     AlertDialog(
         title = {
             Text(stringResource(R.string.are_you_sure))

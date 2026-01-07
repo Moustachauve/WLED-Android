@@ -34,10 +34,7 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 
 @Composable
-fun Settings(
-    navigateUp: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel(),
-) {
+fun Settings(navigateUp: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
@@ -88,10 +85,7 @@ fun Settings(
 }
 
 @Composable
-fun DeviceSettingsAppBar(
-    modifier: Modifier = Modifier,
-    navigateUp: () -> Unit,
-) {
+fun DeviceSettingsAppBar(modifier: Modifier = Modifier, navigateUp: () -> Unit) {
     CenterAlignedTopAppBar(
         modifier = modifier,
         title = {
@@ -109,11 +103,7 @@ fun DeviceSettingsAppBar(
 }
 
 @Composable
-fun SwitchRow(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
+fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier.clickable { onCheckedChange(!checked) },
         verticalAlignment = Alignment.CenterVertically,
@@ -128,11 +118,7 @@ fun SwitchRow(
 }
 
 @Composable
-fun RadioRow(
-    label: String,
-    checked: Boolean,
-    onSelected: () -> Unit,
-) {
+fun RadioRow(label: String, checked: Boolean, onSelected: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -183,10 +169,7 @@ fun ListingOptions(
 }
 
 @Composable
-fun ThemeOptions(
-    currentTheme: ThemeSettings,
-    setTheme: (ThemeSettings) -> Unit = {},
-) {
+fun ThemeOptions(currentTheme: ThemeSettings, setTheme: (ThemeSettings) -> Unit = {}) {
     val themes = listOf(
         Pair(ThemeSettings.Dark, stringResource(R.string.dark)),
         Pair(ThemeSettings.Light, stringResource(R.string.light)),

@@ -344,11 +344,7 @@ class CustomWebViewClient : WebViewClient() {
         navigator.canGoForward = view.canGoForward()
     }
 
-    override fun onReceivedError(
-        view: WebView?,
-        request: WebResourceRequest?,
-        error: WebResourceError?,
-    ) {
+    override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
         Log.i(TAG, "onReceivedError ${request?.url} - ${error?.description}")
         if (request?.isForMainFrame == true) {
             Log.i(TAG, "Error received ${request.url} - ${error?.description}")
@@ -403,10 +399,7 @@ class CustomWebChromeClient(private val context: Context) : WebChromeClient() {
 }
 
 sealed class WebContent {
-    data class Url(
-        val url: String,
-        val additionalHttpHeaders: Map<String, String> = emptyMap(),
-    ) : WebContent()
+    data class Url(val url: String, val additionalHttpHeaders: Map<String, String> = emptyMap()) : WebContent()
 
     data class Data(
         val data: String,
@@ -416,10 +409,7 @@ sealed class WebContent {
         val historyUrl: String? = null,
     ) : WebContent()
 
-    data class Post(
-        val url: String,
-        val postData: ByteArray,
-    ) : WebContent() {
+    data class Post(val url: String, val postData: ByteArray) : WebContent() {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
@@ -761,12 +751,7 @@ private fun handleDataUriDownload(
  * Shared helper to generate consistent filenames for WLED exports.
  * Removes illegal characters but keeps spaces for readability.
  */
-private fun createWledFilename(
-    device: Device,
-    url: String?,
-    contentDisposition: String?,
-    mimetype: String,
-): String {
+private fun createWledFilename(device: Device, url: String?, contentDisposition: String?, mimetype: String): String {
     val formatter = SimpleDateFormat("yyyyMMdd", Locale.US)
     val currentDate = formatter.format(Date())
 
@@ -833,10 +818,8 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
         data object Reload : NavigationEvent
         data object StopLoading : NavigationEvent
 
-        data class LoadUrl(
-            val url: String,
-            val additionalHttpHeaders: Map<String, String> = emptyMap(),
-        ) : NavigationEvent
+        data class LoadUrl(val url: String, val additionalHttpHeaders: Map<String, String> = emptyMap()) :
+            NavigationEvent
 
         data class LoadHtml(
             val html: String,
@@ -846,10 +829,7 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
             val historyUrl: String? = null,
         ) : NavigationEvent
 
-        data class PostUrl(
-            val url: String,
-            val postData: ByteArray,
-        ) : NavigationEvent {
+        data class PostUrl(val url: String, val postData: ByteArray) : NavigationEvent {
             override fun equals(other: Any?): Boolean {
                 if (this === other) return true
                 if (javaClass != other?.javaClass) return false
@@ -986,10 +966,7 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
         }
     }
 
-    fun postUrl(
-        url: String,
-        postData: ByteArray,
-    ) {
+    fun postUrl(url: String, postData: ByteArray) {
         coroutineScope.launch {
             navigationEvents.emit(
                 NavigationEvent.PostUrl(
@@ -1034,9 +1011,8 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
  * override.
  */
 @Composable
-fun rememberWebViewNavigator(
-    coroutineScope: CoroutineScope = rememberCoroutineScope(),
-): WebViewNavigator = remember(coroutineScope) { WebViewNavigator(coroutineScope) }
+fun rememberWebViewNavigator(coroutineScope: CoroutineScope = rememberCoroutineScope()): WebViewNavigator =
+    remember(coroutineScope) { WebViewNavigator(coroutineScope) }
 
 /**
  * Creates a WebView state that is remembered across Compositions.
@@ -1047,11 +1023,8 @@ fun rememberWebViewNavigator(
  */
 
 @Composable
-fun rememberWebViewState(
-    url: String,
-    additionalHttpHeaders: Map<String, String> = emptyMap(),
-): WebViewState =
-// Rather than using .apply {} here we will recreate the state, this prevents
+fun rememberWebViewState(url: String, additionalHttpHeaders: Map<String, String> = emptyMap()): WebViewState =
+    // Rather than using .apply {} here we will recreate the state, this prevents
     // a recomposition loop when the webview updates the url itself.
     remember {
         WebViewState(
@@ -1079,18 +1052,17 @@ fun rememberWebViewStateWithHTMLData(
     encoding: String = "utf-8",
     mimeType: String? = null,
     historyUrl: String? = null,
-): WebViewState =
-    remember {
-        WebViewState(WebContent.Data(data, baseUrl, encoding, mimeType, historyUrl))
-    }.apply {
-        this.content = WebContent.Data(
-            data,
-            baseUrl,
-            encoding,
-            mimeType,
-            historyUrl,
-        )
-    }
+): WebViewState = remember {
+    WebViewState(WebContent.Data(data, baseUrl, encoding, mimeType, historyUrl))
+}.apply {
+    this.content = WebContent.Data(
+        data,
+        baseUrl,
+        encoding,
+        mimeType,
+        historyUrl,
+    )
+}
 
 /**
  * Creates a WebView state that is remembered across Compositions.
@@ -1099,11 +1071,8 @@ fun rememberWebViewStateWithHTMLData(
  * @param postData The data to be posted to the WebView with the url
  */
 @Composable
-fun rememberWebViewState(
-    url: String,
-    postData: ByteArray,
-): WebViewState =
-// Rather than using .apply {} here we will recreate the state, this prevents
+fun rememberWebViewState(url: String, postData: ByteArray): WebViewState =
+    // Rather than using .apply {} here we will recreate the state, this prevents
     // a recomposition loop when the webview updates the url itself.
     remember {
         WebViewState(
@@ -1129,10 +1098,9 @@ fun rememberWebViewState(
  * @sample com.google.accompanist.sample.webview.WebViewSaveStateSample
  */
 @Composable
-fun rememberSaveableWebViewState(): WebViewState =
-    rememberSaveable(saver = webStateSaver) {
-        WebViewState(WebContent.NavigatorOnly)
-    }
+fun rememberSaveableWebViewState(): WebViewState = rememberSaveable(saver = webStateSaver) {
+    WebViewState(WebContent.NavigatorOnly)
+}
 
 val webStateSaver: Saver<WebViewState, Any> = run {
     val pageTitleKey = "pagetitle"

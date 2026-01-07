@@ -11,10 +11,7 @@ import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
-class DeviceWithState(
-    initialDevice: Device,
-    deviceUpdateManager: DeviceUpdateManager? = null,
-) {
+class DeviceWithState(initialDevice: Device, deviceUpdateManager: DeviceUpdateManager? = null) {
     var device: Device by mutableStateOf(initialDevice)
     val stateInfo: MutableState<DeviceStateInfo?> = mutableStateOf(null)
     val websocketStatus: MutableState<WebsocketStatus> =

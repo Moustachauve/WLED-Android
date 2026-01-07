@@ -87,10 +87,7 @@ private fun TopHeader(device: DeviceWithState) {
 }
 
 @Composable
-private fun ReleaseNotes(
-    modifier: Modifier = Modifier,
-    version: VersionWithAssets? = null,
-) {
+private fun ReleaseNotes(modifier: Modifier = Modifier, version: VersionWithAssets? = null) {
     if (version != null) {
         Column(
             modifier = modifier
@@ -114,11 +111,7 @@ private fun ReleaseNotes(
 }
 
 @Composable
-private fun BottomNavigationBar(
-    onDismiss: () -> Unit,
-    onInstall: () -> Unit,
-    onSkip: () -> Unit,
-) {
+private fun BottomNavigationBar(onDismiss: () -> Unit, onInstall: () -> Unit, onSkip: () -> Unit) {
     NavigationBar {
         NavigationBarItem(
             icon = {

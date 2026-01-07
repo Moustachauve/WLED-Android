@@ -26,11 +26,7 @@ class DeviceFirstContactService @Inject constructor(
      * @param name - The name of the new device.
      * @return The newly created device object.
      */
-    private suspend fun createDevice(
-        macAddress: String,
-        address: String,
-        name: String,
-    ): Device {
+    private suspend fun createDevice(macAddress: String, address: String, name: String): Device {
         Log.d(TAG, "Creating new device entry for MAC: $macAddress at address: $address")
         val device = Device(
             macAddress = macAddress,
@@ -48,11 +44,7 @@ class DeviceFirstContactService @Inject constructor(
      * @param name - The new name of the device.
      * @return The updated device object.
      */
-    private suspend fun updateDeviceAddress(
-        device: Device,
-        newAddress: String,
-        name: String,
-    ): Device {
+    private suspend fun updateDeviceAddress(device: Device, newAddress: String, name: String): Device {
         Log.d(TAG, "Updating address for device MAC: ${device.macAddress} to: $newAddress")
         // Keep user-defined hostnames (e.g. "wled.local") and only update if the existing address
         // is an IP. This is to avoid overriding a device being added by an url which could be on a
@@ -68,10 +60,8 @@ class DeviceFirstContactService @Inject constructor(
      * @param address - The network address (e.g., IP) to query.
      * @return The device information object.
      */
-    private suspend fun getDeviceInfo(address: String): Info {
-        return deviceApiFactory.create(address).getInfo().body()
-            ?: throw IOException("Response body is null")
-    }
+    private suspend fun getDeviceInfo(address: String): Info = deviceApiFactory.create(address).getInfo().body()
+        ?: throw IOException("Response body is null")
 
     /**
      * Fetches device information using its address, then ensures a corresponding

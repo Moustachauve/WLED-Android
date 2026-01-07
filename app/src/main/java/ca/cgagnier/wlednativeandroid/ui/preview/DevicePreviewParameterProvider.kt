@@ -81,12 +81,10 @@ class DevicePreviewParameterProvider : PreviewParameterProvider<DeviceWithState>
     )
 }
 
-fun getPreviewDevice(): DeviceWithState {
-    return DeviceWithState(
-        Device(
-            macAddress = "00:11:22:33:44:55",
-            address = "192.168.1.123",
-            customName = "Preview Device",
-        ),
-    )
-}
+fun getPreviewDevice(): DeviceWithState = DeviceWithState(
+    Device(
+        macAddress = "00:11:22:33:44:55",
+        address = "192.168.1.123",
+        customName = "Preview Device",
+    ),
+)

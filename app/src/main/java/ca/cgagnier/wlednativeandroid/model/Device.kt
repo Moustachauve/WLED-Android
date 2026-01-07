@@ -38,7 +38,5 @@ data class Device(
     val lastSeen: Long = System.currentTimeMillis(),
 ) : Parcelable {
 
-    fun getDeviceUrl(): String {
-        return "http://$address"
-    }
+    fun getDeviceUrl(): String = "http://$address"
 }

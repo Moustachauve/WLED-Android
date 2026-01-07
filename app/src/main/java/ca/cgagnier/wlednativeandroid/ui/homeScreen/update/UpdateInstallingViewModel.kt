@@ -63,11 +63,7 @@ class UpdateInstallingViewModel @Inject constructor(
         updateStarted = false
     }
 
-    fun startUpdate(
-        device: DeviceWithState,
-        version: VersionWithAssets,
-        cacheDir: File,
-    ) {
+    fun startUpdate(device: DeviceWithState, version: VersionWithAssets, cacheDir: File) {
         if (updateStarted) {
             Log.w(
                 TAG,
@@ -102,9 +98,7 @@ class UpdateInstallingViewModel @Inject constructor(
         downloadAsset(updateService)
     }
 
-    private fun downloadAsset(
-        updateService: DeviceUpdateService,
-    ) = viewModelScope.launch(Dispatchers.IO) {
+    private fun downloadAsset(updateService: DeviceUpdateService) = viewModelScope.launch(Dispatchers.IO) {
         if (updateService.isAssetFileCached()) {
             Log.d(TAG, "asset '${updateService.getAssetName()}' is already downloaded, reusing")
             installUpdate(updateService)

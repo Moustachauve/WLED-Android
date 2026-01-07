@@ -20,9 +20,7 @@ interface DeviceApi {
 
     @Multipart
     @POST("update")
-    suspend fun updateDevice(
-        @Part binaryFile: MultipartBody.Part,
-    ): Response<ResponseBody>
+    suspend fun updateDevice(@Part binaryFile: MultipartBody.Part): Response<ResponseBody>
 }
 
 /**
@@ -55,9 +53,7 @@ class DeviceApiFactory(private val client: OkHttpClient) {
      *
      * @param device The device to create the API for.
      */
-    fun create(device: Device): DeviceApi {
-        return createForDeviceAndClient(device.getDeviceUrl(), client)
-    }
+    fun create(device: Device): DeviceApi = createForDeviceAndClient(device.getDeviceUrl(), client)
 
     /**
      * Create a new DeviceApi instance with a custom timeout.
@@ -72,9 +68,8 @@ class DeviceApiFactory(private val client: OkHttpClient) {
         return createForDeviceAndClient(device.getDeviceUrl(), customClient)
     }
 
-    private fun createForDeviceAndClient(address: String, client: OkHttpClient): DeviceApi {
-        return Retrofit.Builder().baseUrl(address).client(client)
+    private fun createForDeviceAndClient(address: String, client: OkHttpClient): DeviceApi =
+        Retrofit.Builder().baseUrl(address).client(client)
             .addConverterFactory(MoshiConverterFactory.create()).build()
             .create(DeviceApi::class.java)
-    }
 }

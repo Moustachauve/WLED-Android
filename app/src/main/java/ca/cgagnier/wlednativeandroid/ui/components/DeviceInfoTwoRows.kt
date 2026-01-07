@@ -190,19 +190,17 @@ fun WebsocketStatusShape(websocketState: WebsocketStatus) {
     )
 
     // TODO: Replace those RoundedPolygon with MaterialShapes (cookies) when available
-    fun getWebsocketShape(status: WebsocketStatus): RoundedPolygon {
-        return when (status) {
-            // Circle = Stable, Connected
-            WebsocketStatus.CONNECTED -> RoundedPolygon.circle()
-            // Scalloped/Star shape = Active, Gear-like
-            WebsocketStatus.CONNECTING -> RoundedPolygon.star(
-                8,
-                innerRadius = 0.7f,
-                rounding = CornerRounding(0.1f),
-            )
-            // Square/Diamond = Stopped, Error
-            WebsocketStatus.DISCONNECTED -> RoundedPolygon(4, rounding = CornerRounding(0.25f))
-        }
+    fun getWebsocketShape(status: WebsocketStatus): RoundedPolygon = when (status) {
+        // Circle = Stable, Connected
+        WebsocketStatus.CONNECTED -> RoundedPolygon.circle()
+        // Scalloped/Star shape = Active, Gear-like
+        WebsocketStatus.CONNECTING -> RoundedPolygon.star(
+            8,
+            innerRadius = 0.7f,
+            rounding = CornerRounding(0.1f),
+        )
+        // Square/Diamond = Stopped, Error
+        WebsocketStatus.DISCONNECTED -> RoundedPolygon(4, rounding = CornerRounding(0.25f))
     }
 
     // State to hold the transition shapes
@@ -318,9 +316,7 @@ fun OfflineSinceText(
 
 @Preview
 @Composable
-fun DeviceInfoTwoRowsPreview(
-    @PreviewParameter(DevicePreviewParameterProvider::class) device: DeviceWithState,
-) {
+fun DeviceInfoTwoRowsPreview(@PreviewParameter(DevicePreviewParameterProvider::class) device: DeviceWithState) {
     Card(
         modifier = Modifier
             .padding(16.dp)

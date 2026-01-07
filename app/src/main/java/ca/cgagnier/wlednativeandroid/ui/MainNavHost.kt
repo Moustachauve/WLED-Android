@@ -10,9 +10,7 @@ import ca.cgagnier.wlednativeandroid.ui.settingsScreen.Settings
 import kotlinx.serialization.Serializable
 
 @Composable
-fun MainNavHost(
-    navController: NavHostController = rememberNavController(),
-) {
+fun MainNavHost(navController: NavHostController = rememberNavController()) {
     NavHost(
         navController = navController,
         startDestination = DeviceListDetailScreen,

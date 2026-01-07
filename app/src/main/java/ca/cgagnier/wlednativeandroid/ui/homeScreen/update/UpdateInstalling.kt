@@ -159,10 +159,7 @@ fun UpdateDialogContent(state: UpdateInstallingState) {
 }
 
 @Composable
-private fun UpdateInstallingStatus(
-    modifier: Modifier = Modifier,
-    step: UpdateInstallingStep,
-) {
+private fun UpdateInstallingStatus(modifier: Modifier = Modifier, step: UpdateInstallingStep) {
     when (step) {
         is UpdateInstallingStep.Starting -> CircularProgressIndicator(modifier)
         is UpdateInstallingStep.Downloading -> CircularProgressIndicator(
@@ -186,17 +183,13 @@ private fun UpdateInstallingStatus(
 }
 
 @Composable
-private fun updateInstallingStatusMessage(
-    step: UpdateInstallingStep,
-): String {
-    return when (step) {
-        is UpdateInstallingStep.Starting -> stringResource(R.string.starting_up)
-        is UpdateInstallingStep.Downloading -> stringResource(R.string.downloading_version)
-        is UpdateInstallingStep.Installing -> stringResource(R.string.installing_update)
-        is UpdateInstallingStep.NoCompatibleVersion -> stringResource(R.string.no_compatible_version_found)
-        is UpdateInstallingStep.Error -> stringResource(R.string.update_failed)
-        is UpdateInstallingStep.Done -> stringResource(R.string.update_completed)
-    }
+private fun updateInstallingStatusMessage(step: UpdateInstallingStep): String = when (step) {
+    is UpdateInstallingStep.Starting -> stringResource(R.string.starting_up)
+    is UpdateInstallingStep.Downloading -> stringResource(R.string.downloading_version)
+    is UpdateInstallingStep.Installing -> stringResource(R.string.installing_update)
+    is UpdateInstallingStep.NoCompatibleVersion -> stringResource(R.string.no_compatible_version_found)
+    is UpdateInstallingStep.Error -> stringResource(R.string.update_failed)
+    is UpdateInstallingStep.Done -> stringResource(R.string.update_completed)
 }
 
 @Composable

@@ -55,7 +55,7 @@ class NetworkConnectivityManager(context: Context, externalScope: CoroutineScope
     }.stateIn(
         scope = externalScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = _currentNetwork,
+        initialValue = currentNetwork,
     )
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -74,7 +74,7 @@ class NetworkConnectivityManager(context: Context, externalScope: CoroutineScope
         initialValue = false,
     )
 
-    private val _currentNetwork: NetworkProperties
+    private val currentNetwork: NetworkProperties
         get() {
             val activeNetwork = connectivityManager.activeNetwork
             return if (activeNetwork == null) {
@@ -98,8 +98,4 @@ class NetworkConnectivityManager(context: Context, externalScope: CoroutineScope
     }
 }
 
-data class NetworkProperties(
-    val network: Network?,
-    val linkProperties: LinkProperties?,
-
-)
+data class NetworkProperties(val network: Network?, val linkProperties: LinkProperties?)

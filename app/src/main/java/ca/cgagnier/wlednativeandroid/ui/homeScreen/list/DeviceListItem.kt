@@ -198,7 +198,13 @@ private fun SwipeBox(
                 ) {
                     if (swipeToDismissBoxState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
                         val penIcon =
-                            if (swipeToDismissBoxState.targetValue == SwipeToDismissBoxValue.StartToEnd) Icons.Filled.Edit else Icons.Outlined.Edit
+                            if (swipeToDismissBoxState.targetValue ==
+                                SwipeToDismissBoxValue.StartToEnd
+                            ) {
+                                Icons.Filled.Edit
+                            } else {
+                                Icons.Outlined.Edit
+                            }
                         Crossfade(
                             modifier = Modifier.padding(end = 16.dp),
                             targetState = penIcon,
@@ -216,7 +222,13 @@ private fun SwipeBox(
                     )
                     if (swipeToDismissBoxState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
                         val deleteIcon =
-                            if (swipeToDismissBoxState.targetValue == SwipeToDismissBoxValue.EndToStart) Icons.Filled.Delete else Icons.Outlined.Delete
+                            if (swipeToDismissBoxState.targetValue ==
+                                SwipeToDismissBoxValue.EndToStart
+                            ) {
+                                Icons.Filled.Delete
+                            } else {
+                                Icons.Outlined.Delete
+                            }
                         Crossfade(
                             modifier = Modifier.padding(start = 16.dp),
                             targetState = deleteIcon,

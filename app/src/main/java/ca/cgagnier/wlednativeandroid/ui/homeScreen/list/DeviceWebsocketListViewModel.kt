@@ -36,7 +36,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
     private val deviceUpdateManager: DeviceUpdateManager,
     private val okHttpClient: OkHttpClient,
     private val moshi: Moshi,
-) : ViewModel(), DefaultLifecycleObserver {
+) : ViewModel(),
+    DefaultLifecycleObserver {
     private val activeClients = MutableStateFlow<Map<String, WebsocketClient>>(emptyMap())
     private val devicesFromDb = deviceRepository.allDevices
 

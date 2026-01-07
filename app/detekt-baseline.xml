@@ -231,7 +231,7 @@
     <ID>NestedBlockDepth:DeviceWebview.kt$@RequiresApi(Build.VERSION_CODES.Q) private fun handleHttpDownload( context: Context, url: String, contentDisposition: String, mimetype: String, device: Device, onSuccess: () -&gt; Unit, )</ID>
     <ID>ReturnCount:DeviceFirstContactService.kt$DeviceFirstContactService$suspend fun fetchAndUpsertDevice(address: String): Device</ID>
     <ID>ReturnCount:DeviceFirstContactService.kt$DeviceFirstContactService$suspend fun tryUpdateAddress(macAddress: String?, address: String): Boolean</ID>
-    <ID>ReturnCount:DeviceNetworkStrenghtImage.kt$private fun getNetworkStrenghtImage( networkRssi: Int, isOnline: Boolean, ): Int</ID>
+    <ID>ReturnCount:DeviceNetworkStrenghtImage.kt$private fun getNetworkStrengthImage( networkRssi: Int, isOnline: Boolean, ): Int</ID>
     <ID>ReturnCount:ReleaseService.kt$ReleaseService$suspend fun getNewerReleaseTag( deviceInfo: Info, branch: Branch, ignoreVersion: String, updateSourceDefinition: UpdateSourceDefinition, ): String?</ID>
     <ID>ReturnCount:StringExtensions.kt$fun String.isIpAddress(): Boolean</ID>
     <ID>ReturnCount:ValidateAddress.kt$ValidateAddress$fun execute(address: String): ValidationResult</ID>

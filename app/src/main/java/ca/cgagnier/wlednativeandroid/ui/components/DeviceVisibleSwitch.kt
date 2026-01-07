@@ -25,11 +25,7 @@ import androidx.compose.ui.unit.dp
 import ca.cgagnier.wlednativeandroid.R
 
 @Composable
-fun DeviceVisibleSwitch(
-    modifier: Modifier = Modifier,
-    isHidden: Boolean,
-    onCheckedChange: ((Boolean) -> Unit),
-) {
+fun DeviceVisibleSwitch(modifier: Modifier = Modifier, isHidden: Boolean, onCheckedChange: ((Boolean) -> Unit)) {
     val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
@@ -50,7 +46,10 @@ fun DeviceVisibleSwitch(
                 R.string.device_is_visible,
             )
         }
-        val isVisibleIcon = painterResource(if (isHidden) R.drawable.ic_baseline_visibility_off_24 else R.drawable.baseline_visibility_24)
+        val isVisibleIcon =
+            painterResource(
+                if (isHidden) R.drawable.ic_baseline_visibility_off_24 else R.drawable.baseline_visibility_24,
+            )
         AnimatedContent(
             targetState = isVisibleText,
             transitionSpec = {

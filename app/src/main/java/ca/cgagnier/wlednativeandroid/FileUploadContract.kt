@@ -15,7 +15,6 @@ class FileUploadContract : ActivityResultContract<Int, FileUploadContractResult>
         return intent
     }
 
-    override fun parseResult(resultCode: Int, intent: Intent?): FileUploadContractResult {
-        return FileUploadContractResult(resultCode, intent)
-    }
+    override fun parseResult(resultCode: Int, intent: Intent?): FileUploadContractResult =
+        FileUploadContractResult(resultCode, intent)
 }
