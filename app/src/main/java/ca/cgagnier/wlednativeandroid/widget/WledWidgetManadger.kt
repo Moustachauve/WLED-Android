@@ -8,6 +8,7 @@ import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
+import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -15,7 +16,8 @@ import javax.inject.Singleton
 
 @Singleton
 class WledWidgetManager @Inject constructor(
-    private val deviceApiFactory: DeviceApiFactory
+    private val deviceApiFactory: DeviceApiFactory,
+    private val deviceRepository: DeviceRepository
 ) {
     companion object {
         private const val TAG = "WledWidgetManager"
@@ -33,22 +35,7 @@ class WledWidgetManager @Inject constructor(
         val stateData = getWidgetState(context, glanceId) ?: return
 
         try {
-            val api = deviceApiFactory.create(stateData.address)
-            // Fetch status
-            val response = api.postJson(JsonPost(verbose = true))
-
-            if (response.isSuccessful) {
-                response.body()?.let { body ->
-                    val newData = stateData.copy(
-                        isOn = body.isOn ?: stateData.isOn,
-                        color = -1, // logic to extract color if needed
-                        lastUpdated = System.currentTimeMillis()
-                    )
-                    saveStateAndPush(context, glanceId, newData)
-                }
-            } else {
-                Log.e(TAG, "Error updating widget ${stateData.address}: ${response.code()}")
-            }
+            sendRequestAndUpdateData(stateData, context, glanceId)
         } catch (e: Exception) {
             Log.e(TAG, "Exception updating widget ${stateData.address}", e)
         }
@@ -58,20 +45,38 @@ class WledWidgetManager @Inject constructor(
         val stateData = getWidgetState(context, glanceId) ?: return
 
         try {
-            val api = deviceApiFactory.create(stateData.address)
-            val response = api.postJson(JsonPost(isOn = targetState, verbose = true))
-
-            if (response.isSuccessful) {
-                response.body()?.let { body ->
-                    val newData = stateData.copy(
-                        isOn = body.isOn ?: targetState,
-                        lastUpdated = System.currentTimeMillis()
-                    )
-                    saveStateAndPush(context, glanceId, newData)
-                }
-            }
+            sendRequestAndUpdateData(
+                stateData,
+                context,
+                glanceId,
+                JsonPost(isOn = targetState, verbose = true)
+            )
         } catch (e: Exception) {
-            Log.e(TAG, "Exception toggling widget ${stateData.address}", e)
+            Log.e(TAG, "Exception toggling widget ${stateData.macAddress}", e)
+        }
+    }
+
+    private suspend fun sendRequestAndUpdateData(
+        widgetData: WidgetStateData,
+        context: Context,
+        glanceId: GlanceId,
+        jsonPost: JsonPost = JsonPost(verbose = true)
+    ) {
+        val device = deviceRepository.findDeviceByMacAddress(widgetData.macAddress)
+        val targetAddress = device?.address ?: widgetData.address
+
+        val api = deviceApiFactory.create(targetAddress)
+        val response = api.postJson(jsonPost)
+
+        if (response.isSuccessful) {
+            response.body()?.let { body ->
+                val newData = widgetData.copy(
+                    address = targetAddress,
+                    isOn = body.isOn ?: jsonPost.isOn ?: widgetData.isOn,
+                    lastUpdated = System.currentTimeMillis()
+                )
+                saveStateAndPush(context, glanceId, newData)
+            }
         }
     }
 

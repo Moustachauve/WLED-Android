@@ -79,6 +79,7 @@ class WledWidgetConfigureActivity : ComponentActivity() {
 
             // Create initial state (Assume OFF or Unknown, do not block UI for network)
             val widgetData = WidgetStateData(
+                macAddress = device.macAddress,
                 address = device.address,
                 name = device.customName.ifBlank { device.originalName },
                 isOn = false,

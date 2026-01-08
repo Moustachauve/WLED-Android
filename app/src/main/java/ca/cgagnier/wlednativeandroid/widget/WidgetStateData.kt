@@ -7,6 +7,7 @@ import java.util.Locale
 
 @Serializable
 data class WidgetStateData(
+    val macAddress: String,
     val address: String,
     val name: String,
     val isOn: Boolean,
