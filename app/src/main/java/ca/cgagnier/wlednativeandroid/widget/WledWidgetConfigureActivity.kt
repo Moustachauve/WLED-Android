@@ -89,7 +89,7 @@ class WledWidgetConfigureActivity : ComponentActivity() {
                 address = device.address,
                 name = device.customName.ifBlank { device.originalName },
                 isOn = false,
-                lastUpdated = System.currentTimeMillis()
+                lastUpdated = System.currentTimeMillis(),
             )
 
             updateAppWidgetState(this@WledWidgetConfigureActivity, glanceId) { prefs ->

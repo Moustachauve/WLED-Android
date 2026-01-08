@@ -11,16 +11,16 @@ data class WidgetStateData(
     val address: String,
     val name: String,
     val isOn: Boolean,
-    val color: Int = -1,           // Store as ARGB Int. -1 or default could indicate "unknown"
+    val color: Int = -1, // Store as ARGB Int. -1 or default could indicate "unknown"
     val batteryLevel: Int? = null,
-    val lastUpdated: Long = System.currentTimeMillis()
+    val lastUpdated: Long = System.currentTimeMillis(),
 ) {
     val lastUpdatedFormatted: String
         get() {
             return DateFormat.getDateTimeInstance(
                 DateFormat.SHORT,
                 DateFormat.SHORT,
-                Locale.getDefault()
+                Locale.getDefault(),
             ).format(Date(lastUpdated))
         }
 }

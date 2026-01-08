@@ -91,3 +91,4 @@ lint/tmp/
 .idea/deviceManager.xml
 .idea/androidTestResultsUserPreferences.xml
 /.idea/spotless-applier.xml
+/.idea/detekt.xml

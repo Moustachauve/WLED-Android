@@ -53,7 +53,7 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
             try {
                 val entryPoint = EntryPointAccessors.fromApplication(
                     context,
-                    WledWidget.WidgetEntryPoint::class.java
+                    WledWidget.WidgetEntryPoint::class.java,
                 )
                 entryPoint.widgetManager().updateAllWidgets(context)
             } finally {

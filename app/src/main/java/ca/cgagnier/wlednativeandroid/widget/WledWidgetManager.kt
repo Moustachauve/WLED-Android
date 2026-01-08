@@ -10,6 +10,7 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,7 +18,7 @@ import javax.inject.Singleton
 @Singleton
 class WledWidgetManager @Inject constructor(
     private val deviceApiFactory: DeviceApiFactory,
-    private val deviceRepository: DeviceRepository
+    private val deviceRepository: DeviceRepository,
 ) {
     companion object {
         private const val TAG = "WledWidgetManager"
@@ -36,7 +37,7 @@ class WledWidgetManager @Inject constructor(
 
         try {
             sendRequestAndUpdateData(stateData, context, glanceId)
-        } catch (e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Log.e(TAG, "Exception updating widget ${stateData.address}", e)
         }
     }
@@ -49,9 +50,9 @@ class WledWidgetManager @Inject constructor(
                 stateData,
                 context,
                 glanceId,
-                JsonPost(isOn = targetState, verbose = true)
+                JsonPost(isOn = targetState, verbose = true),
             )
-        } catch (e: Exception) {
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Log.e(TAG, "Exception toggling widget ${stateData.macAddress}", e)
         }
     }
@@ -60,7 +61,7 @@ class WledWidgetManager @Inject constructor(
         widgetData: WidgetStateData,
         context: Context,
         glanceId: GlanceId,
-        jsonPost: JsonPost = JsonPost(verbose = true)
+        jsonPost: JsonPost = JsonPost(verbose = true),
     ) {
         val device = deviceRepository.findDeviceByMacAddress(widgetData.macAddress)
         val targetAddress = device?.address ?: widgetData.address
@@ -73,7 +74,7 @@ class WledWidgetManager @Inject constructor(
                 val newData = widgetData.copy(
                     address = targetAddress,
                     isOn = body.isOn ?: jsonPost.isOn ?: widgetData.isOn,
-                    lastUpdated = System.currentTimeMillis()
+                    lastUpdated = System.currentTimeMillis(),
                 )
                 saveStateAndPush(context, glanceId, newData)
             }
@@ -85,7 +86,10 @@ class WledWidgetManager @Inject constructor(
         val jsonString = prefs[WIDGET_DATA_KEY] ?: return null
         return try {
             Json.decodeFromString<WidgetStateData>(jsonString)
-        } catch (e: Exception) {
+        } catch (e: SerializationException) {
+            Log.e(TAG, "Failed to parse widget data", e)
+            null
+        } catch (e: IllegalArgumentException) {
             Log.e(TAG, "Failed to parse widget data", e)
             null
         }

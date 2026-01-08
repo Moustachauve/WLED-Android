@@ -45,28 +45,38 @@ fun WidgetContent(context: Context, appWidgetId: Int) {
         null
     }
     if (data == null) {
-        // Error State: Make it clickable to open the configuration
-        val configureIntent = Intent(context, WledWidgetConfigureActivity::class.java).apply {
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        }
-        Column(
-            modifier = GlanceModifier
-                .fillMaxSize()
-                .background(GlanceTheme.colors.widgetBackground)
-                .padding(8.dp)
-                .clickable(actionStartActivity(configureIntent)),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = context.getString(R.string.widget_please_configure),
-                style = TextStyle(color = GlanceTheme.colors.error),
-            )
-        }
+        ErrorState(context, appWidgetId)
         return
     }
 
+    DeviceWidgetContent(data)
+}
+
+@Composable
+private fun ErrorState(context: Context, appWidgetId: Int) {
+    // Error State: Make it clickable to open the configuration
+    val configureIntent = Intent(context, WledWidgetConfigureActivity::class.java).apply {
+        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    }
+    Column(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .background(GlanceTheme.colors.widgetBackground)
+            .padding(8.dp)
+            .clickable(actionStartActivity(configureIntent)),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = context.getString(R.string.widget_please_configure),
+            style = TextStyle(color = GlanceTheme.colors.error),
+        )
+    }
+}
+
+@Composable
+private fun DeviceWidgetContent(data: WidgetStateData) {
     Row(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -83,18 +93,18 @@ fun WidgetContent(context: Context, appWidgetId: Int) {
                     color = GlanceTheme.colors.onSurface,
                     fontWeight = FontWeight.Bold,
                 ),
-                maxLines = 1
+                maxLines = 1,
             )
             Text(
                 text = data.address,
                 style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
-                maxLines = 1
+                maxLines = 1,
             )
             Text(
                 text = data.lastUpdatedFormatted,
                 style = TextStyle(
                     color = GlanceTheme.colors.outline,
-                    fontSize = 10.sp
+                    fontSize = 10.sp,
                 ),
             )
         }
