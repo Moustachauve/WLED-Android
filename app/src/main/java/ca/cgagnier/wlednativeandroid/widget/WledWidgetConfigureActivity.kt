@@ -41,7 +41,6 @@ class WledWidgetConfigureActivity : ComponentActivity() {
     @Inject
     lateinit var widgetManager: WledWidgetManager
 
-    // TODO: Is this really the appWidgetId I want?
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
     override fun onCreate(savedInstanceState: Bundle?) {

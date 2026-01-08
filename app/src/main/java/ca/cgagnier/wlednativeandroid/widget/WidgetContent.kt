@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.widget
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
@@ -34,7 +35,7 @@ import kotlinx.serialization.json.Json
 val WIDGET_DATA_KEY = stringPreferencesKey("widget_data")
 
 @Composable
-fun WidgetContent(context: Context) {
+fun WidgetContent(context: Context, appWidgetId: Int) {
     val prefs = currentState<Preferences>()
     val jsonString = prefs[WIDGET_DATA_KEY]
 
@@ -45,12 +46,16 @@ fun WidgetContent(context: Context) {
     }
     if (data == null) {
         // Error State: Make it clickable to open the configuration
+        val configureIntent = Intent(context, WledWidgetConfigureActivity::class.java).apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(GlanceTheme.colors.widgetBackground)
                 .padding(8.dp)
-                .clickable(actionStartActivity(Intent(context, WledWidgetConfigureActivity::class.java))),
+                .clickable(actionStartActivity(configureIntent)),
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -89,7 +94,7 @@ fun WidgetContent(context: Context) {
                 text = data.lastUpdatedFormatted,
                 style = TextStyle(
                     color = GlanceTheme.colors.outline,
-                    fontSize = 12.sp
+                    fontSize = 10.sp
                 ),
             )
         }
