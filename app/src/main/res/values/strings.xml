@@ -113,10 +113,9 @@
     <string name="open">Open</string>
     <string name="dismiss">Dismiss</string>
     <string name="some_devices_hidden">Some of your devices are hidden</string>
+    <!-- TODO: Translate the widget texts -->
     <string name="widget_description" tools:ignore="MissingTranslation">WLED Widget</string>
-    <string name="widget_turn_on" tools:ignore="MissingTranslation">Turn On</string>
-    <string name="widget_turn_off" tools:ignore="MissingTranslation">Turn Off</string>
-    <string name="widget_select_device" tools:ignore="MissingTranslation">Select Device</string>
     <string name="widget_please_configure" tools:ignore="MissingTranslation">Please configure</string>
+    <string name="select_a_device" tools:ignore="MissingTranslation">Select a Device</string>
 
 </resources>

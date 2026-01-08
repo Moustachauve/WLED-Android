@@ -16,16 +16,22 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.lifecycle.lifecycleScope
+import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.ui.components.deviceName
+import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -61,13 +67,14 @@ class WledWidgetConfigureActivity : ComponentActivity() {
 
         setContent {
             val devices by deviceRepository.allDevices.collectAsState(initial = emptyList())
-
-            ConfigurationScreen(
-                devices = devices,
-                onDeviceSelected = { device ->
-                    confirmConfiguration(device)
-                },
-            )
+            WLEDNativeTheme {
+                ConfigurationScreen(
+                    devices = devices,
+                    onDeviceSelected = { device ->
+                        confirmConfiguration(device)
+                    },
+                )
+            }
         }
     }
 
@@ -103,14 +110,16 @@ class WledWidgetConfigureActivity : ComponentActivity() {
     }
 }
 
+// TODO: Style the widget selection screen better so it looks more like the rest of the WLED app.
+
 @Composable
 fun ConfigurationScreen(devices: List<Device>, onDeviceSelected: (Device) -> Unit) {
     Scaffold(
         topBar = {
-            Text(
-                text = "Select Device",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(16.dp),
+            TopAppBar(
+                title = {
+                    Text(stringResource(R.string.select_a_device))
+                },
             )
         },
     ) { padding ->
@@ -136,13 +145,16 @@ fun DeviceItem(device: Device, onClick: () -> Unit) {
             .padding(16.dp),
     ) {
         Text(
-            text = if (device.customName.isNotBlank()) device.customName else device.originalName,
-            style = MaterialTheme.typography.bodyLarge,
+            text = deviceName(device),
+            style = MaterialTheme.typography.titleLarge,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = device.address,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
