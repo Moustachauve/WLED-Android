@@ -34,6 +34,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import java.io.IOException
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -93,7 +94,7 @@ class WledWidgetConfigureActivity : ComponentActivity() {
                         isOn = body.isOn ?: false
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: IOException) {
                 Log.e(TAG, "Failed to get device state", e)
             }
 

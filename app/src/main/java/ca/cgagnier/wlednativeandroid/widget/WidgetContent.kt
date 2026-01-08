@@ -29,6 +29,7 @@ import androidx.glance.unit.ColorProvider
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import dagger.hilt.android.EntryPointAccessors
+import java.io.IOException
 
 val DEVICE_ADDRESS_KEY = stringPreferencesKey("device_address")
 val DEVICE_NAME_KEY = stringPreferencesKey("device_name")
@@ -116,7 +117,7 @@ class TogglePowerAction : ActionCallback {
                     WledWidget().update(context, glanceId)
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             Log.e(TAG, "Failed to toggle power", e)
         }
     }

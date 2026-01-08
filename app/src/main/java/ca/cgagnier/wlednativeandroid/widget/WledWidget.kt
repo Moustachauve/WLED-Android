@@ -17,6 +17,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import java.io.IOException
 
 class WledWidget : GlanceAppWidget() {
 
@@ -89,11 +90,13 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
                                         WledWidget().update(context, glanceId)
                                     }
                                 }
-                            } catch (e: Exception) {
+                            } catch (e: IOException) {
                                 Log.e(TAG, "Failed to update widget state for $it", e)
                             }
                         }
-                    } catch (e: Exception) {
+                    } catch (e: IllegalArgumentException) {
+                        Log.e(TAG, "Failed to update widget $appWidgetId", e)
+                    } catch (e: IOException) {
                         Log.e(TAG, "Failed to update widget $appWidgetId", e)
                     }
                 }
