@@ -6,7 +6,7 @@
     android:minHeight="40dp"
     android:resizeMode="horizontal|vertical"
     android:previewImage="@mipmap/ic_launcher_rgb"
-    android:updatePeriodMillis="0"
+    android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen"
     android:configure="ca.cgagnier.wlednativeandroid.widget.WledWidgetConfigureActivity">
 </appwidget-provider>
