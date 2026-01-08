@@ -3,7 +3,6 @@ package ca.cgagnier.wlednativeandroid.widget
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
@@ -26,15 +25,11 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.lifecycle.lifecycleScope
 import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
-import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import okhttp3.OkHttpClient
-import java.io.IOException
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -44,13 +39,10 @@ class WledWidgetConfigureActivity : ComponentActivity() {
     lateinit var deviceRepository: DeviceRepository
 
     @Inject
-    lateinit var okHttpClient: OkHttpClient
+    lateinit var widgetManager: WledWidgetManager
 
+    // TODO: Is this really the appWidgetId I want?
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
-
-    companion object {
-        private const val TAG = "WledWidgetConfigureActivity"
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,41 +66,34 @@ class WledWidgetConfigureActivity : ComponentActivity() {
             ConfigurationScreen(
                 devices = devices,
                 onDeviceSelected = { device ->
-                    saveWidgetState(device)
+                    confirmConfiguration(device)
                 },
             )
         }
     }
 
-    private fun saveWidgetState(device: Device) {
+    private fun confirmConfiguration(device: Device) {
         lifecycleScope.launch(Dispatchers.IO) {
-            val glanceId = GlanceAppWidgetManager(this@WledWidgetConfigureActivity).getGlanceIdBy(appWidgetId)
+            val glanceId = GlanceAppWidgetManager(this@WledWidgetConfigureActivity)
+                .getGlanceIdBy(appWidgetId)
 
-            var isOn = false
-            try {
-                val deviceApiFactory = DeviceApiFactory(okHttpClient)
-                val api = deviceApiFactory.create(device.address)
-                val response = api.postJson(JsonPost(verbose = true))
-                if (response.isSuccessful) {
-                    response.body()?.let { body ->
-                        isOn = body.isOn ?: false
-                    }
-                }
-            } catch (e: IOException) {
-                Log.e(TAG, "Failed to get device state", e)
-            }
-
+            // Create initial state (Assume OFF or Unknown, do not block UI for network)
             val widgetData = WidgetStateData(
                 address = device.address,
-                name = if (device.customName.isNotBlank()) device.customName else device.originalName,
-                isOn = isOn,
-                lastUpdated = System.currentTimeMillis(),
+                name = device.customName.ifBlank { device.originalName },
+                isOn = false,
+                lastUpdated = System.currentTimeMillis()
             )
 
             updateAppWidgetState(this@WledWidgetConfigureActivity, glanceId) { prefs ->
                 prefs[WIDGET_DATA_KEY] = Json.encodeToString(widgetData)
             }
             WledWidget().update(this@WledWidgetConfigureActivity, glanceId)
+
+            // Trigger a background refresh immediately to get real data
+            launch {
+                widgetManager.refreshWidget(this@WledWidgetConfigureActivity, glanceId)
+            }
 
             val resultValue = Intent()
             resultValue.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
