@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -29,19 +28,27 @@ import androidx.glance.unit.ColorProvider
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.serialization.json.Json
 import java.io.IOException
 
-val DEVICE_ADDRESS_KEY = stringPreferencesKey("device_address")
-val DEVICE_NAME_KEY = stringPreferencesKey("device_name")
-val DEVICE_IS_ON_KEY = booleanPreferencesKey("device_is_on")
+val WIDGET_DATA_KEY = stringPreferencesKey("widget_data")
 
 @Composable
 fun WidgetContent(context: Context) {
     val prefs = currentState<Preferences>()
-    val deviceAddress = prefs[DEVICE_ADDRESS_KEY]
-    val deviceName =
-        prefs[DEVICE_NAME_KEY] ?: context.getString(ca.cgagnier.wlednativeandroid.R.string.widget_select_device)
-    val isOn = prefs[DEVICE_IS_ON_KEY] ?: false
+    val jsonString = prefs[WIDGET_DATA_KEY]
+    val data = try {
+        if (jsonString != null) Json.decodeFromString<WidgetStateData>(jsonString) else null
+    } catch (_: Exception) {
+        null
+    }
+    if (data == null) {
+        Text(
+            text = context.getString(ca.cgagnier.wlednativeandroid.R.string.widget_please_configure),
+            style = TextStyle(color = ColorProvider(Color.Red)),
+        )
+        return
+    }
 
     Row(
         modifier = GlanceModifier
@@ -54,33 +61,24 @@ fun WidgetContent(context: Context) {
             modifier = GlanceModifier.defaultWeight(),
         ) {
             Text(
-                text = deviceName,
+                text = data.name,
                 style = TextStyle(color = ColorProvider(Color.Black)),
             )
-            if (deviceAddress != null) {
-                Text(
-                    text = deviceAddress,
-                    style = TextStyle(color = ColorProvider(Color.DarkGray)),
-                )
-            } else {
-                Text(
-                    text = context.getString(ca.cgagnier.wlednativeandroid.R.string.widget_please_configure),
-                    style = TextStyle(color = ColorProvider(Color.Red)),
-                )
-            }
-        }
-
-        deviceAddress?.let { address ->
-            Switch(
-                checked = isOn,
-                onCheckedChange = actionRunCallback<TogglePowerAction>(
-                    actionParametersOf(
-                        TogglePowerAction.keyAddress to address,
-                        TogglePowerAction.keyIsOn to isOn,
-                    ),
-                ),
+            Text(
+                text = data.address,
+                style = TextStyle(color = ColorProvider(Color.DarkGray)),
             )
+            Text(data.lastUpdatedFormatted)
         }
+        Switch(
+            checked = data.isOn,
+            onCheckedChange = actionRunCallback<TogglePowerAction>(
+                actionParametersOf(
+                    TogglePowerAction.keyAddress to data.address,
+                    TogglePowerAction.keyIsOn to data.isOn,
+                ),
+            ),
+        )
     }
 }
 
@@ -111,8 +109,28 @@ class TogglePowerAction : ActionCallback {
             if (response.isSuccessful) {
                 response.body()?.let { body ->
                     val updatedIsOn = body.isOn ?: newIsOn
+
                     updateAppWidgetState(context, glanceId) { prefs ->
-                        prefs[DEVICE_IS_ON_KEY] = updatedIsOn
+                        val jsonString = prefs[WIDGET_DATA_KEY]
+                        val currentData = if (jsonString != null) {
+                            try {
+                                Json.decodeFromString<WidgetStateData>(jsonString)
+                            } catch (_: Exception) {
+                                null
+                            }
+                        } else null
+
+                        // Only proceed if we successfully recovered the existing data object
+                        if (currentData != null) {
+                            // Update the specific fields from the API response
+                            val newData = currentData.copy(
+                                isOn = updatedIsOn,
+                                // Since we have the API response, we can also freely update
+                                // other fields here if needed
+                                lastUpdated = System.currentTimeMillis(),
+                            )
+                            prefs[WIDGET_DATA_KEY] = Json.encodeToString(newData)
+                        }
                     }
                     WledWidget().update(context, glanceId)
                 }

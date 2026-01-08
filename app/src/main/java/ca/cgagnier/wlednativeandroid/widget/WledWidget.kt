@@ -15,6 +15,8 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.io.IOException
@@ -53,8 +55,9 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
     ) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
         val pendingResult = goAsync()
+
         // Refresh state for all widgets
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 appWidgetIds.forEach { appWidgetId ->
                     try {
@@ -66,32 +69,43 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
                             androidx.glance.state.PreferencesGlanceStateDefinition,
                             glanceId,
                         )
-                        val address = prefs[DEVICE_ADDRESS_KEY]
+                        val jsonString = prefs[WIDGET_DATA_KEY]
+                        val widgetData = if (jsonString != null) {
+                            try {
+                                kotlinx.serialization.json.Json.decodeFromString<WidgetStateData>(jsonString)
+                            } catch (e: Exception) {
+                                null
+                            }
+                        } else null
 
-                        address?.let {
+                        widgetData?.let { currentData ->
                             val entryPoint = EntryPointAccessors.fromApplication(
                                 context,
                                 WledWidget.WidgetEntryPoint::class.java,
                             )
                             val client = entryPoint.okHttpClient()
                             val deviceApiFactory = DeviceApiFactory(client)
-                            val api = deviceApiFactory.create(it)
+                            val api = deviceApiFactory.create(currentData.address)
                             try {
                                 val response = api.postJson(JsonPost(verbose = true))
                                 if (response.isSuccessful) {
                                     response.body()?.let { body ->
-                                        val isOn = body.isOn ?: false
+                                        val newData = currentData.copy(
+                                            isOn = body.isOn ?: currentData.isOn,
+                                            // Update other fields if your API response contains them
+                                            lastUpdated = System.currentTimeMillis()
+                                        )
                                         androidx.glance.appwidget.state.updateAppWidgetState(
                                             context,
                                             glanceId,
                                         ) { prefs ->
-                                            prefs[DEVICE_IS_ON_KEY] = isOn
+                                            prefs[WIDGET_DATA_KEY] = kotlinx.serialization.json.Json.encodeToString(newData)
                                         }
                                         WledWidget().update(context, glanceId)
                                     }
                                 }
                             } catch (e: IOException) {
-                                Log.e(TAG, "Failed to update widget state for $it", e)
+                                Log.e(TAG, "Failed to update widget state for ${currentData.address}", e)
                             }
                         }
                     } catch (e: IllegalArgumentException) {

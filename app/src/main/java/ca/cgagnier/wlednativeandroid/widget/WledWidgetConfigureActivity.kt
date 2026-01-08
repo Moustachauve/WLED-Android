@@ -1,6 +1,5 @@
 package ca.cgagnier.wlednativeandroid.widget
 
-import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
@@ -33,6 +32,7 @@ import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import java.io.IOException
 import javax.inject.Inject
@@ -98,16 +98,21 @@ class WledWidgetConfigureActivity : ComponentActivity() {
                 Log.e(TAG, "Failed to get device state", e)
             }
 
+            val widgetData = WidgetStateData(
+                address = device.address,
+                name = if (device.customName.isNotBlank()) device.customName else device.originalName,
+                isOn = isOn,
+                lastUpdated = System.currentTimeMillis(),
+            )
+
             updateAppWidgetState(this@WledWidgetConfigureActivity, glanceId) { prefs ->
-                prefs[DEVICE_ADDRESS_KEY] = device.address
-                prefs[DEVICE_NAME_KEY] = if (device.customName.isNotBlank()) device.customName else device.originalName
-                prefs[DEVICE_IS_ON_KEY] = isOn
+                prefs[WIDGET_DATA_KEY] = Json.encodeToString(widgetData)
             }
             WledWidget().update(this@WledWidgetConfigureActivity, glanceId)
 
             val resultValue = Intent()
             resultValue.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            setResult(Activity.RESULT_OK, resultValue)
+            setResult(RESULT_OK, resultValue)
             finish()
         }
     }
