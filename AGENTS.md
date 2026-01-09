@@ -12,16 +12,21 @@ WLED-Android is a native Android application for controlling WLED devices (WiFi-
 *   **Dependency Injection:** Hilt
 *   **Asynchronous:** Coroutines & Flow
 *   **Network:** Retrofit, OkHttp, Moshi (JSON), Protobuf
-*   **Database:** Room
+*   **Database:** Room (Exports schemas to `app/schemas`)
+    *   *Instruction:* If modifying a generic `@Entity`, consider database migrations and schema versioning.
+*   **DataStore:** Protobuf (Managed via `app/src/main/proto/user_prefs.proto`)
+    *   *Instruction:* Modify the `.proto` definition for user preferences. Do not use standard SharedPreferences.
 *   **Build System:** Gradle (Kotlin DSL), Version Catalogs
 *   **Min SDK:** 24
 *   **Target SDK:** 36
 
 ## 3. Code Style & Quality (CRITICAL)
-This project enforces strict code style and static analysis.
+This project enforces strict code style, static analysis, and localization rules.
 
 *   **Spotless:** Used for code formatting (configured with ktlint).
 *   **Detekt:** Used for static code analysis.
+*   **Localization:** The app is localized (English `en`, French `fr`, Chinese `zh`).
+    *   **Instruction:** **NEVER** hardcode UI strings. Always extract them to `app/src/main/res/values/strings.xml`.
 
 **INSTRUCTIONS FOR AGENTS:**
 *   **ALWAYS** run the following command before submitting any code changes to fix formatting issues:
@@ -37,6 +42,10 @@ This project enforces strict code style and static analysis.
 ## 4. Git & Contribution Rules
 *   **Default Branch:** `main` (Stable release). **NEVER** push or open PRs directly to `main`.
 *   **Development Branch:** `dev`. All feature branches and PRs must be based on and target `dev`.
+*   **Hotfix Strategy:**
+    1.  Branch off `main`.
+    2.  Submit PR to `main`.
+    3.  **IMPORTANT:** Merge changes back into `dev` to prevent regressions.
 *   **PR Labels:** You must apply labels to Pull Requests to ensure correct release note generation:
     *   **Categorization:** `feature`, `enhancement`, `bug`, `fix`, `documentation`, `chore`, `refactor`
     *   **Versioning:** `major` (breaking), `minor` (feature), `patch` (fix)
