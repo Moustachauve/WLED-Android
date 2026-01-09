@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.LocalContext
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
@@ -29,6 +30,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import ca.cgagnier.wlednativeandroid.R
+import ca.cgagnier.wlednativeandroid.ui.MainActivity
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.serialization.json.Json
 
@@ -77,11 +79,22 @@ private fun ErrorState(context: Context, appWidgetId: Int) {
 
 @Composable
 private fun DeviceWidgetContent(data: WidgetStateData) {
+    val intent = Intent(
+        Intent.ACTION_VIEW,
+        null,
+        LocalContext.current,
+        MainActivity::class.java
+    ).apply {
+        putExtra(MainActivity.EXTRA_DEVICE_ADDRESS, data.macAddress)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    }
+
     Row(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(GlanceTheme.colors.widgetBackground)
-            .padding(16.dp),
+            .padding(16.dp)
+            .clickable(actionStartActivity(intent)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
