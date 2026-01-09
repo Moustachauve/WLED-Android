@@ -80,8 +80,6 @@ private fun ErrorState(context: Context, appWidgetId: Int) {
 @Composable
 private fun DeviceWidgetContent(data: WidgetStateData) {
     val intent = Intent(
-        Intent.ACTION_VIEW,
-        null,
         LocalContext.current,
         MainActivity::class.java,
     ).apply {

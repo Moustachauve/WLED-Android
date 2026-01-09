@@ -43,10 +43,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        val extraAddress = intent.getStringExtra(EXTRA_DEVICE_ADDRESS)
-        if (extraAddress != null) {
-            deviceAddress = NavigationEvent(extraAddress)
-        }
+        handleIntent(intent)
 
         setContent {
             WLEDNativeTheme {
@@ -59,6 +56,10 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
         val extraAddress = intent.getStringExtra(EXTRA_DEVICE_ADDRESS)
         if (extraAddress != null) {
             deviceAddress = NavigationEvent(extraAddress)
