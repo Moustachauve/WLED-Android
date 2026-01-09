@@ -93,6 +93,8 @@ truth = { module = "com.google.truth:truth", version.ref = "truth" }
 protoc = { module = "com.google.protobuf:protoc", version.ref = "protobufJavalite" }
 androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geometry" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
+androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version = "1.1.0" }
+androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version = "1.1.0" }
 
 # TODO: Manually import the icons instead of importing this.
 compose-material-icons = { group = "androidx.compose.material", name = "material-icons-core" }

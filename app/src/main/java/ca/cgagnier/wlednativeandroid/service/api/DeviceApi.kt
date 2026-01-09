@@ -2,12 +2,15 @@ package ca.cgagnier.wlednativeandroid.service.api
 
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
+import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
+import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -17,6 +20,9 @@ import java.util.concurrent.TimeUnit
 interface DeviceApi {
     @GET("json/info")
     suspend fun getInfo(): Response<Info>
+
+    @POST("json/state")
+    suspend fun postJson(@Body state: JsonPost): Response<State>
 
     @Multipart
     @POST("update")
