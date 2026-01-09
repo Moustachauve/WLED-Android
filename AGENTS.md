@@ -16,7 +16,7 @@ WLED-Android is a native Android application for controlling WLED devices (WiFi-
     *   *Instruction:* If modifying a generic `@Entity`, consider database migrations and schema versioning.
 *   **DataStore:** Protobuf (Managed via `app/src/main/proto/user_prefs.proto`)
     *   *Instruction:* Modify the `.proto` definition for user preferences. Do not use standard SharedPreferences.
-*   **Build System:** Gradle (Kotlin DSL), Version Catalogs
+*   **Build System:** Gradle (Kotlin DSL), Version Catalogs (`gradle/libs.versions.toml`)
 *   **Min SDK:** 24
 *   **Target SDK:** 36
 
@@ -36,6 +36,11 @@ This project enforces strict code style, static analysis, and localization rules
 *   **CHECK** for static analysis issues by running:
     ```bash
     ./gradlew detekt
+    ```
+*   **RUN** tests to verify changes:
+    ```bash
+    ./gradlew test                    # Unit tests
+    ./gradlew connectedAndroidTest    # Instrumented tests (requires emulator/device)
     ```
 *   **Note:** Git pre-commit hooks are installed that will **BLOCK** commits if `spotlessCheck` or `detekt` fail. You must ensure these pass before attempting to commit.
 
@@ -57,7 +62,16 @@ The code is located in `app/src/main/java/ca/cgagnier/wlednativeandroid/`.
 *   `domain/` - Domain logic and use cases.
 *   `model/` - Data models (Entities, DTOs).
 *   `repository/` - Data access layer (Repositories).
-*   `service/` - Background services.
+*   `service/` - Background services (including mDNS device discovery).
 *   `ui/` - User Interface (Jetpack Compose screens and components).
+    *   Uses Navigation Compose for routing (`MainNavHost.kt`).
+    *   ViewModels follow Hilt injection patterns.
 *   `util/` - Utility classes.
 *   `widget/` - Jetpack Glance app widgets.
+    *   Uses deep linking to navigate directly to specific devices.
+    *   `MainActivity` uses `singleTop` launch mode; handle intents via `onNewIntent()`.
+
+**Key Configuration Files:**
+*   `gradle/libs.versions.toml` - Version catalog for all dependencies.
+*   `config/detekt/detekt.yml` - Detekt rules configuration.
+*   `app/src/main/proto/user_prefs.proto` - Protobuf schema for DataStore preferences.
