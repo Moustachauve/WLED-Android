@@ -69,6 +69,7 @@ import kotlinx.coroutines.launch
 
 private const val TAG = "screen_DeviceListDetail"
 
+@Suppress("LongMethod") // TODO: Simplify this function in the future
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun DeviceListDetail(

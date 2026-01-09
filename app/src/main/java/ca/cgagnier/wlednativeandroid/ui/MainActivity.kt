@@ -70,7 +70,4 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-data class NavigationEvent(
-    val address: String,
-    val id: String = java.util.UUID.randomUUID().toString()
-)
+data class NavigationEvent(val address: String, val id: String = java.util.UUID.randomUUID().toString())

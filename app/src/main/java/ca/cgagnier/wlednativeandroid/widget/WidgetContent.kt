@@ -83,7 +83,7 @@ private fun DeviceWidgetContent(data: WidgetStateData) {
         Intent.ACTION_VIEW,
         null,
         LocalContext.current,
-        MainActivity::class.java
+        MainActivity::class.java,
     ).apply {
         putExtra(MainActivity.EXTRA_DEVICE_ADDRESS, data.macAddress)
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
