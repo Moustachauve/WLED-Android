@@ -88,7 +88,7 @@ tasks.register("installGitHooks") {
                         #!/bin/bash
             echo "Running Spotless check..."
             ./gradlew spotlessCheck
-            if [ ${'$'}{'$'}? -ne 0 ]; then
+            if [ $? -ne 0 ]; then
                 echo "Spotless check failed. Automatically formatting..."
                 ./gradlew spotlessApply
                 echo "Code has been reformatted. Please review, stage, and commit again."
@@ -97,7 +97,7 @@ tasks.register("installGitHooks") {
 
             echo "Running Detekt check..."
             ./gradlew detekt
-            if [ ${'$'}{'$'}? -ne 0 ]; then
+            if [ $? -ne 0 ]; then
                 echo "Detekt found issues. Please fix them manually and commit again."
                 exit 1
             fi

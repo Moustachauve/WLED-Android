@@ -10,13 +10,17 @@ import ca.cgagnier.wlednativeandroid.ui.settingsScreen.Settings
 import kotlinx.serialization.Serializable
 
 @Composable
-fun MainNavHost(navController: NavHostController = rememberNavController()) {
+fun MainNavHost(
+    navController: NavHostController = rememberNavController(),
+    startDeviceAddress: NavigationEvent? = null,
+) {
     NavHost(
         navController = navController,
         startDestination = DeviceListDetailScreen,
     ) {
         composable<DeviceListDetailScreen> {
             DeviceListDetail(
+                initialDeviceAddress = startDeviceAddress,
                 openSettings = {
                     navController.navigate(SettingsScreen)
                 },

@@ -41,6 +41,7 @@ import androidx.compose.material3.adaptive.navigation.NavigableListDetailPaneSca
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,6 +59,7 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.getApModeDeviceWithState
+import ca.cgagnier.wlednativeandroid.ui.NavigationEvent
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.detail.DeviceDetail
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.deviceAdd.DeviceAdd
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.deviceEdit.DeviceEdit
@@ -67,10 +69,12 @@ import kotlinx.coroutines.launch
 
 private const val TAG = "screen_DeviceListDetail"
 
+@Suppress("LongMethod") // TODO: Simplify this function in the future
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun DeviceListDetail(
     modifier: Modifier = Modifier,
+    initialDeviceAddress: NavigationEvent? = null,
     openSettings: () -> Unit,
     viewModel: DeviceListDetailViewModel = hiltViewModel(),
     deviceWebsocketListViewModel: DeviceWebsocketListViewModel = hiltViewModel(),
@@ -82,6 +86,15 @@ fun DeviceListDetail(
     )
     val navigator =
         rememberListDetailPaneScaffoldNavigator<Any>(scaffoldDirective = customScaffoldDirective)
+
+    LaunchedEffect(initialDeviceAddress) {
+        if (initialDeviceAddress != null) {
+            navigator.navigateTo(
+                pane = ListDetailPaneScaffoldRole.Detail,
+                contentKey = initialDeviceAddress.address,
+            )
+        }
+    }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     val devices by deviceWebsocketListViewModel.allDevicesWithState.collectAsStateWithLifecycle()
