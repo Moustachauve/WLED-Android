@@ -190,6 +190,7 @@ fun DeviceWebView(
         Log.i(TAG, "Navigating to ${device.getDeviceUrl()}")
         state.loadingState = Loading(0.0f)
         state.isError = false
+        state.lastLoadedUrl = null
         navigator.loadUrl(device.getDeviceUrl())
     }
 
