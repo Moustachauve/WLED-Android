@@ -118,4 +118,10 @@
     <string name="widget_please_configure" tools:ignore="MissingTranslation">Please configure</string>
     <string name="select_a_device" tools:ignore="MissingTranslation">Select a Device</string>
 
+    <!-- Deep linking -->
+    <string name="deep_link_loading">Connecting to device…</string>
+    <string name="deep_link_error_title">Device Not Found</string>
+    <string name="deep_link_error_mac_not_found">Device with MAC address %1$s not found in your device list</string>
+    <string name="deep_link_error_unreachable">Could not reach device at %1$s. Make sure it is powered on and connected to the network.</string>
+
 </resources>

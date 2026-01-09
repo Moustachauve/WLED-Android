@@ -74,7 +74,7 @@ private const val TAG = "screen_DeviceListDetail"
 @Composable
 fun DeviceListDetail(
     modifier: Modifier = Modifier,
-    initialDeviceAddress: NavigationEvent? = null,
+    initialDeviceMacAddress: NavigationEvent? = null,
     openSettings: () -> Unit,
     viewModel: DeviceListDetailViewModel = hiltViewModel(),
     deviceWebsocketListViewModel: DeviceWebsocketListViewModel = hiltViewModel(),
@@ -87,11 +87,11 @@ fun DeviceListDetail(
     val navigator =
         rememberListDetailPaneScaffoldNavigator<Any>(scaffoldDirective = customScaffoldDirective)
 
-    LaunchedEffect(initialDeviceAddress) {
-        if (initialDeviceAddress != null) {
+    LaunchedEffect(initialDeviceMacAddress) {
+        if (initialDeviceMacAddress != null) {
             navigator.navigateTo(
                 pane = ListDetailPaneScaffoldRole.Detail,
-                contentKey = initialDeviceAddress.address,
+                contentKey = initialDeviceMacAddress.macAddress,
             )
         }
     }
