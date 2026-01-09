@@ -20,7 +20,7 @@ fun MainNavHost(
     ) {
         composable<DeviceListDetailScreen> {
             DeviceListDetail(
-                initialDeviceAddress = startDeviceAddress,
+                initialDeviceMacAddress = startDeviceAddress,
                 openSettings = {
                     navController.navigate(SettingsScreen)
                 },

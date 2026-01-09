@@ -132,6 +132,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     ksp(libs.moshi.kotlin.codegen)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
 }
 
 protobuf {

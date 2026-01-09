@@ -15,6 +15,9 @@ class DeviceRepository @Inject constructor(private val deviceDao: DeviceDao) {
     suspend fun findDeviceByMacAddress(address: String): Device? = deviceDao.findDeviceByMacAddress(address)
 
     @WorkerThread
+    suspend fun findDeviceByAddress(address: String): Device? = deviceDao.findDeviceByAddress(address)
+
+    @WorkerThread
     suspend fun insert(device: Device) {
         deviceDao.insert(device)
     }

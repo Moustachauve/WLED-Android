@@ -109,4 +109,10 @@
     <string name="open">打开</string>
     <string name="dismiss">关闭</string>
     <string name="some_devices_hidden">你有已隐藏的设备</string>
+
+    <!-- Deep linking -->
+    <string name="deep_link_loading">正在连接设备…</string>
+    <string name="deep_link_error_title">未找到设备</string>
+    <string name="deep_link_error_mac_not_found">未在列表中找到 MAC 地址为 %1$s 的设备</string>
+    <string name="deep_link_error_unreachable">无法连接到 %1$s。请确保设备已开机并连接到网络。</string>
 </resources>
