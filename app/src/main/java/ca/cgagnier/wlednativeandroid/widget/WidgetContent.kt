@@ -146,8 +146,8 @@ private fun DeviceWidgetContent(data: WidgetStateData) {
             colors = SwitchDefaults.colors(
                 checkedThumbColor = GlanceTheme.colors.primary,
                 checkedTrackColor = GlanceTheme.colors.primary,
-                uncheckedThumbColor = GlanceTheme.colors.primary,
-                uncheckedTrackColor = GlanceTheme.colors.primary,
+                uncheckedThumbColor = GlanceTheme.colors.outline,
+                uncheckedTrackColor = GlanceTheme.colors.outline,
             ),
         )
     }
@@ -203,7 +203,7 @@ private fun DeviceWidgetContentPreviewOff() {
             data = WidgetStateData(
                 macAddress = "AA:BB:CC:DD:EE:FF",
                 address = "192.168.1.101",
-                name = "WLED Status",
+                name = "Offline device",
                 isOn = false,
                 color = 0xFFFF8000.toInt(),
             ),
