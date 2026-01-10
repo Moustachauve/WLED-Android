@@ -39,8 +39,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -51,14 +49,8 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Run Spotless
-        run: ./gradlew spotlessCheck
-
-      - name: Run Detekt
-        run: ./gradlew detekt
-
-      - name: Run lint
-        run: ./gradlew lintDebug
+      - name: Run Analysis
+        run: ./gradlew spotlessCheck detekt lintDebug
 
       - name: Upload Lint Results
         if: always()
