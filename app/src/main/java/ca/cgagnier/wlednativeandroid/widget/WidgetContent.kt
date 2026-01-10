@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
@@ -16,6 +17,7 @@ import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.Switch
+import androidx.glance.appwidget.SwitchDefaults
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
@@ -26,6 +28,8 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
+import androidx.glance.preview.ExperimentalGlancePreviewApi
+import androidx.glance.preview.Preview
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -51,7 +55,20 @@ fun WidgetContent(context: Context, appWidgetId: Int) {
         return
     }
 
-    DeviceWidgetContent(data)
+    // Create device-colored theme from the LED color
+    val seedColor = if (data.color != -1) {
+        Color(data.color)
+    } else {
+        Color.White
+    }
+    val deviceColorProviders = createDeviceColorProviders(
+        seedColor = seedColor,
+        isOnline = data.isOn, // Use isOn as a proxy for online status
+    )
+
+    GlanceTheme(colors = deviceColorProviders) {
+        DeviceWidgetContent(data)
+    }
 }
 
 @Composable
@@ -126,6 +143,12 @@ private fun DeviceWidgetContent(data: WidgetStateData) {
                     TogglePowerAction.keyIsOn to data.isOn,
                 ),
             ),
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = GlanceTheme.colors.primary,
+                checkedTrackColor = GlanceTheme.colors.primary,
+                uncheckedThumbColor = GlanceTheme.colors.primary,
+                uncheckedTrackColor = GlanceTheme.colors.primary,
+            ),
         )
     }
 }
@@ -145,5 +168,45 @@ class TogglePowerAction : ActionCallback {
         )
 
         entryPoint.widgetManager().toggleState(context, glanceId, newIsOn)
+    }
+}
+
+@Suppress("MagicNumber")
+@OptIn(ExperimentalGlancePreviewApi::class)
+@Preview(widthDp = 200, heightDp = 100)
+@Composable
+private fun DeviceWidgetContentPreviewOn() {
+    val seedColor = Color(0xFF0000FF) // Blue
+    val colorProviders = createDeviceColorProviders(seedColor = seedColor, isOnline = true)
+    GlanceTheme(colors = colorProviders) {
+        DeviceWidgetContent(
+            data = WidgetStateData(
+                macAddress = "AA:BB:CC:DD:EE:FF",
+                address = "192.168.1.100",
+                name = "WLED Device",
+                isOn = true,
+                color = 0xFF0000FF.toInt(),
+            ),
+        )
+    }
+}
+
+@Suppress("MagicNumber")
+@OptIn(ExperimentalGlancePreviewApi::class)
+@Preview(widthDp = 200, heightDp = 100)
+@Composable
+private fun DeviceWidgetContentPreviewOff() {
+    val seedColor = Color(0xFFFF8000) // Orange
+    val colorProviders = createDeviceColorProviders(seedColor = seedColor, isOnline = false)
+    GlanceTheme(colors = colorProviders) {
+        DeviceWidgetContent(
+            data = WidgetStateData(
+                macAddress = "AA:BB:CC:DD:EE:FF",
+                address = "192.168.1.101",
+                name = "WLED Status",
+                isOn = false,
+                color = 0xFFFF8000.toInt(),
+            ),
+        )
     }
 }

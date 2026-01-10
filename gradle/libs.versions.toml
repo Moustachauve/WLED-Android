@@ -7,6 +7,7 @@ coreKtx = "1.17.0"
 coreSplashscreen = "1.2.0"
 datastorePreferences = "1.2.0"
 espressoCore = "3.7.0"
+glance = "1.1.1"
 # Version 2.53.1 causes issue with compiling
 # https://github.com/google/dagger/issues/4533
 hiltAndroid = "2.57.2"
@@ -95,8 +96,10 @@ robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectr
 protoc = { module = "com.google.protobuf:protoc", version.ref = "protobufJavalite" }
 androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geometry" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
-androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version = "1.1.0" }
-androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version = "1.1.0" }
+androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
+androidx-glance-appwidget-preview = { group = "androidx.glance", name = "glance-appwidget-preview", version.ref = "glance" }
+androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
+androidx-glance-preview = { group = "androidx.glance", name = "glance-preview", version.ref = "glance" }
 
 # TODO: Manually import the icons instead of importing this.
 compose-material-icons = { group = "androidx.compose.material", name = "material-icons-core" }
