@@ -12,7 +12,10 @@ plugins {
 }
 
 spotless {
-    ratchetFrom("origin/dev")
+    // Only use ratchet locally. On CI, check all files (faster than fetching git history)
+    if (System.getenv("CI").isNullOrEmpty()) {
+        ratchetFrom("origin/dev")
+    }
 
     kotlinGradle {
         target("*.kts") // Targets root build.gradle.kts and settings.gradle.kts
@@ -27,7 +30,9 @@ subprojects {
     apply(plugin = "io.gitlab.arturbosch.detekt")
 
     configure<com.diffplug.gradle.spotless.SpotlessExtension> {
-        ratchetFrom("origin/dev")
+        if (System.getenv("CI").isNullOrEmpty()) {
+            ratchetFrom("origin/dev")
+        }
 
         kotlin {
             target("**/*.kt")
