@@ -8,9 +8,9 @@ import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
-import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
+import ca.cgagnier.wlednativeandroid.ui.theme.getColorFromDeviceState
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -23,7 +23,6 @@ class WledWidgetManager @Inject constructor(
 ) {
     companion object {
         private const val TAG = "WledWidgetManager"
-        private const val MIN_RGB_COMPONENTS = 3
     }
 
     suspend fun updateAllWidgets(context: Context) {
@@ -76,30 +75,12 @@ class WledWidgetManager @Inject constructor(
                 val newData = widgetData.copy(
                     address = targetAddress,
                     isOn = body.isOn ?: jsonPost.isOn ?: widgetData.isOn,
-                    color = getColorFromState(body),
+                    color = getColorFromDeviceState(body),
                     lastUpdated = System.currentTimeMillis(),
                 )
                 saveStateAndPush(context, glanceId, newData)
             }
         }
-    }
-
-    private fun getColorFromState(state: State): Int {
-        val segments = state.segment
-        if (!segments.isNullOrEmpty()) {
-            val colors = segments[0].colors
-            if (!colors.isNullOrEmpty()) {
-                val colorInfo = colors[0]
-                if (colorInfo.size >= MIN_RGB_COMPONENTS) {
-                    return android.graphics.Color.rgb(
-                        colorInfo[0],
-                        colorInfo[1],
-                        colorInfo[2],
-                    )
-                }
-            }
-        }
-        return android.graphics.Color.WHITE
     }
 
     private suspend fun getWidgetState(context: Context, glanceId: GlanceId): WidgetStateData? {
