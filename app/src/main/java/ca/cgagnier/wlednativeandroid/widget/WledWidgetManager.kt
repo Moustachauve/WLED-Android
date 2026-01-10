@@ -10,6 +10,7 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
+import ca.cgagnier.wlednativeandroid.ui.theme.getColorFromDeviceState
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -74,6 +75,7 @@ class WledWidgetManager @Inject constructor(
                 val newData = widgetData.copy(
                     address = targetAddress,
                     isOn = body.isOn ?: jsonPost.isOn ?: widgetData.isOn,
+                    color = getColorFromDeviceState(body),
                     lastUpdated = System.currentTimeMillis(),
                 )
                 saveStateAndPush(context, glanceId, newData)
