@@ -352,12 +352,11 @@ private fun RefreshButton(modifier: GlanceModifier = GlanceModifier) {
 
 @Composable
 private fun ElapsedTimeChronometerContainer(lastUpdated: Long) {
-    // Small bottom adding to be near the bottom edge, bigger end padding to be safe from the corner radius
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
-            .padding(4.dp)
-            .padding(end = 14.dp),
+            // Small bottom adding to be near the bottom edge, bigger end padding to be safe from the corner radius
+            .padding(bottom = 4.dp, end = 14.dp),
         contentAlignment = Alignment.BottomEnd,
     ) {
         ElapsedTimeChronometer(lastUpdated)
