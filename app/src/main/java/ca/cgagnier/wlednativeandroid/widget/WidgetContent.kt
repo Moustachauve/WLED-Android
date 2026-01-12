@@ -31,6 +31,7 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
@@ -127,17 +128,30 @@ private fun DeviceWidgetContent(data: WidgetStateData) {
 @Composable
 private fun DeviceWidgetContentWide(data: WidgetStateData) {
     DeviceWidgetContainer(data) {
-        Row(
+        Column(
             modifier = GlanceModifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DeviceDetailsColumn(
-                data = data,
-                modifier = GlanceModifier.defaultWeight(),
-                showAddress = true,
-            )
-            // Switch stays next to content in Wide mode
-            PowerButton(data)
+            Row(modifier = GlanceModifier.fillMaxWidth()) {
+                DeviceDetailsColumn(
+                    data = data,
+                    modifier = GlanceModifier.defaultWeight(),
+                    showAddress = true,
+                )
+                // Switch stays next to content in Wide mode
+                PowerButton(data)
+            }
+            // TODO: Add a way for users to configure quick actions
+            if (data.quickActionsEnabled) {
+                QuickActionButtons(
+                    items = listOf(
+                        QuickActionItem(label = "a1", onClick = actionRunCallback<RefreshAction>()),
+                        QuickActionItem(label = "b2", onClick = actionRunCallback<RefreshAction>()),
+                        QuickActionItem(label = "c3", onClick = actionRunCallback<RefreshAction>()),
+                        QuickActionItem(label = "d4", onClick = actionRunCallback<RefreshAction>()),
+                    ),
+                )
+            }
         }
     }
 }
@@ -169,15 +183,20 @@ private fun DeviceWidgetContainer(data: WidgetStateData, content: @Composable ()
         modifier = GlanceModifier.fillMaxSize(),
         contentAlignment = Alignment.TopEnd,
     ) {
-        Box(
+        Column(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(GlanceTheme.colors.widgetBackground)
                 .padding(WIDGET_SAFE_PADDING)
                 .clickable(actionStartActivity(intent)),
-            contentAlignment = Alignment.Center,
         ) {
-            content()
+            // Main content takes available space
+            Box(
+                modifier = GlanceModifier.defaultWeight().fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                content()
+            }
         }
 
         RefreshButton()
@@ -356,8 +375,7 @@ private fun ElapsedTimeChronometerContainer(lastUpdated: Long) {
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
-            .padding(4.dp)
-            .padding(end = 14.dp),
+            .padding(bottom = 2.dp, end = 18.dp),
         contentAlignment = Alignment.BottomEnd,
     ) {
         ElapsedTimeChronometer(lastUpdated)
@@ -422,6 +440,28 @@ private fun DeviceWidgetContentPreviewOff() {
                 isOn = false,
                 isOnline = false,
                 color = 0xFFFF8000.toInt(),
+            ),
+        )
+    }
+}
+
+@Suppress("MagicNumber")
+@OptIn(ExperimentalGlancePreviewApi::class)
+@Preview(widthDp = 200, heightDp = 100)
+@Composable
+private fun DeviceWidgetContentPreviewQuickActions() {
+    val seedColor = Color(0xFFDFFF00) // Chartreuse
+    val colorProviders = createDeviceColorProviders(seedColor = seedColor, isOnline = true)
+    GlanceTheme(colors = colorProviders) {
+        DeviceWidgetContent(
+            data = WidgetStateData(
+                macAddress = "AA:BB:CC:DD:EE:FF",
+                address = "192.168.1.100",
+                name = "WLED Device",
+                isOn = true,
+                isOnline = true,
+                color = 0xFF0000FF.toInt(),
+                quickActionsEnabled = true,
             ),
         )
     }
