@@ -117,6 +117,7 @@
     <string name="widget_description" tools:ignore="MissingTranslation">WLED Widget</string>
     <string name="widget_please_configure" tools:ignore="MissingTranslation">Please configure</string>
     <string name="select_a_device" tools:ignore="MissingTranslation">Select a Device</string>
+    <string name="last_updated" tools:ignore="MissingTranslation">Last Updated</string>
 
     <!-- Deep linking -->
     <string name="deep_link_loading">Connecting to device…</string>

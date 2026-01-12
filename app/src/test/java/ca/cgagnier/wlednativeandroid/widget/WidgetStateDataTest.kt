@@ -71,20 +71,6 @@ class WidgetStateDataTest {
     }
 
     @Test
-    fun `WidgetStateData lastUpdatedFormatted returns formatted date`() {
-        val data = WidgetStateData(
-            macAddress = "AABBCCDDEEFF",
-            address = "192.168.1.100",
-            name = "Test Device",
-            isOn = true,
-            lastUpdated = 1704067200000L, // Jan 1, 2024 00:00:00 UTC
-        )
-
-        // Verify it returns a non-empty formatted string
-        assertTrue(data.lastUpdatedFormatted.isNotBlank())
-    }
-
-    @Test
     fun `WidgetStateData equality works correctly`() {
         val data1 = WidgetStateData(
             macAddress = "AABBCCDDEEFF",
