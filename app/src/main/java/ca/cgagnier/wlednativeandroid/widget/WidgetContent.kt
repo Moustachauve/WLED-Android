@@ -269,6 +269,7 @@ private fun PowerButton(data: WidgetStateData) {
             ),
         contentAlignment = Alignment.Center,
     ) {
+        // TODO: The colors should be defined directly in the appropriate states, not decided by parent?
         if (data.isOn) {
             PowerButtonOnState(glowColorProvider, buttonColor, outlineColorProvider, onButtonColor)
         } else {
