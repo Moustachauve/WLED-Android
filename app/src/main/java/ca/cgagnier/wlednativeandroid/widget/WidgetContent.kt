@@ -147,7 +147,7 @@ private fun DeviceWidgetContentWide(data: WidgetStateData) {
             PowerButton(data)
         }
 
-        RefreshButton(data)
+        RefreshButton()
     }
 }
 
@@ -177,7 +177,7 @@ private fun DeviceWidgetContentNarrow(data: WidgetStateData) {
             )
         }
 
-        RefreshButton(data)
+        RefreshButton()
     }
 }
 
@@ -336,7 +336,7 @@ private fun PowerButtonOffState(buttonColor: ColorProvider, iconColor: ColorProv
 }
 
 @Composable
-private fun RefreshButton(data: WidgetStateData, modifier: GlanceModifier = GlanceModifier) {
+private fun RefreshButton(modifier: GlanceModifier = GlanceModifier) {
     Box(modifier = modifier.padding(8.dp)) {
         Image(
             provider = ImageProvider(R.drawable.outline_refresh_24),
@@ -345,11 +345,7 @@ private fun RefreshButton(data: WidgetStateData, modifier: GlanceModifier = Glan
                 .size(20.dp)
                 .padding(4.dp)
                 .clickable(
-                    actionRunCallback<RefreshAction>(
-                        actionParametersOf(
-                            RefreshAction.keyMacAddress to data.macAddress,
-                        ),
-                    ),
+                    actionRunCallback<RefreshAction>(),
                 ),
             colorFilter = ColorFilter.tint(GlanceTheme.colors.outline),
         )
