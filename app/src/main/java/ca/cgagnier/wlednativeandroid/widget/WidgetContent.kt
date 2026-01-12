@@ -45,6 +45,7 @@ import kotlinx.serialization.json.Json
 
 val WIDGET_DATA_KEY = stringPreferencesKey("widget_data")
 private val NARROW_WIDGET_WIDTH_THRESHOLD = 150.dp
+private val WIDGET_SAFE_PADDING = 12.dp
 
 @Composable
 fun WidgetContent(context: Context, appWidgetId: Int) {
@@ -125,18 +126,9 @@ private fun DeviceWidgetContent(data: WidgetStateData) {
 
 @Composable
 private fun DeviceWidgetContentWide(data: WidgetStateData) {
-    val intent = data.toOpenWidgetInAppIntent(LocalContext.current)
-
-    Box(
-        modifier = GlanceModifier.fillMaxSize(),
-        contentAlignment = Alignment.TopEnd,
-    ) {
+    DeviceWidgetContainer(data) {
         Row(
-            modifier = GlanceModifier
-                .fillMaxSize()
-                .background(GlanceTheme.colors.widgetBackground)
-                .padding(16.dp)
-                .clickable(actionStartActivity(intent)),
+            modifier = GlanceModifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             DeviceDetailsColumn(
@@ -147,25 +139,14 @@ private fun DeviceWidgetContentWide(data: WidgetStateData) {
             // Switch stays next to content in Wide mode
             PowerButton(data)
         }
-
-        RefreshButton()
     }
 }
 
 @Composable
 private fun DeviceWidgetContentNarrow(data: WidgetStateData) {
-    val intent = data.toOpenWidgetInAppIntent(LocalContext.current)
-
-    Box(
-        modifier = GlanceModifier.fillMaxSize(),
-        contentAlignment = Alignment.TopEnd,
-    ) {
+    DeviceWidgetContainer(data) {
         Column(
-            modifier = GlanceModifier
-                .fillMaxSize()
-                .background(GlanceTheme.colors.widgetBackground)
-                .padding(8.dp)
-                .clickable(actionStartActivity(intent)),
+            modifier = GlanceModifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -177,8 +158,30 @@ private fun DeviceWidgetContentNarrow(data: WidgetStateData) {
                 showAddress = false,
             )
         }
+    }
+}
+
+@Composable
+private fun DeviceWidgetContainer(data: WidgetStateData, content: @Composable () -> Unit) {
+    val intent = data.toOpenWidgetInAppIntent(LocalContext.current)
+
+    Box(
+        modifier = GlanceModifier.fillMaxSize(),
+        contentAlignment = Alignment.TopEnd,
+    ) {
+        Box(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .background(GlanceTheme.colors.widgetBackground)
+                .padding(WIDGET_SAFE_PADDING)
+                .clickable(actionStartActivity(intent)),
+            contentAlignment = Alignment.Center,
+        ) {
+            content()
+        }
 
         RefreshButton()
+        ElapsedTimeChronometerContainer(data.lastUpdated)
     }
 }
 
@@ -230,13 +233,6 @@ private fun DeviceDetailsColumn(
                 )
             }
         }
-        Text(
-            text = data.lastUpdatedFormatted,
-            style = TextStyle(
-                color = GlanceTheme.colors.outline,
-                fontSize = 10.sp,
-            ),
-        )
     }
 }
 
@@ -350,6 +346,20 @@ private fun RefreshButton(modifier: GlanceModifier = GlanceModifier) {
                 ),
             colorFilter = ColorFilter.tint(GlanceTheme.colors.outline),
         )
+    }
+}
+
+@Composable
+private fun ElapsedTimeChronometerContainer(lastUpdated: Long) {
+    // Small bottom adding to be near the bottom edge, bigger end padding to be safe from the corner radius
+    Box(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .padding(4.dp)
+            .padding(end = 14.dp),
+        contentAlignment = Alignment.BottomEnd,
+    ) {
+        ElapsedTimeChronometer(lastUpdated)
     }
 }
 
