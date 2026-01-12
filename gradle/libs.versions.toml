@@ -39,6 +39,7 @@ truth = "1.4.5"
 robolectric = "4.16"
 detekt = "1.23.8"
 spotless = "8.1.0"
+mockk = "1.14.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose" }
@@ -93,6 +94,7 @@ retrofit2-kotlin-coroutines-adapter = { module = "com.jakewharton.retrofit:retro
 semver4j = { module = "com.vdurmont:semver4j", version.ref = "semver4j" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 protoc = { module = "com.google.protobuf:protoc", version.ref = "protobufJavalite" }
 androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geometry" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
