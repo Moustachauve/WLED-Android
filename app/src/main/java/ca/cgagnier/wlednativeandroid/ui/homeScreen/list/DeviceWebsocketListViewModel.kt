@@ -1,6 +1,5 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen.list
 
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -11,11 +10,9 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
-import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
-import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
-import com.squareup.moshi.Moshi
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientFactory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,21 +23,15 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 private const val TAG = "DeviceWebsocketListViewModel"
 
-@Suppress("LongParameterList")
 @HiltViewModel
 class DeviceWebsocketListViewModel @Inject constructor(
-    @param:dagger.hilt.android.qualifiers.ApplicationContext private val applicationContext: Context,
     userPreferencesRepository: UserPreferencesRepository,
     private val deviceRepository: DeviceRepository,
-    private val deviceUpdateManager: DeviceUpdateManager,
-    private val widgetManager: WledWidgetManager,
-    private val okHttpClient: OkHttpClient,
-    private val moshi: Moshi,
+    private val websocketClientFactory: WebsocketClientFactory,
 ) : ViewModel(),
     DefaultLifecycleObserver {
     private val activeClients = MutableStateFlow<Map<String, WebsocketClient>>(emptyMap())
@@ -85,15 +76,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
                     if (existingClient == null) {
                         // Device added: create and connect a new client.
                         Log.d(TAG, "[Scan] Device added: $macAddress. Creating client.")
-                        val newClient = WebsocketClient(
-                            device,
-                            applicationContext,
-                            deviceRepository,
-                            widgetManager,
-                            deviceUpdateManager,
-                            okHttpClient,
-                            moshi,
-                        )
+                        val newClient = websocketClientFactory.create(device)
                         if (!isPaused.value) {
                             newClient.connect()
                         }
@@ -105,15 +88,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
                             "[Scan] Device address changed for $macAddress. Reconnecting client.",
                         )
                         existingClient.destroy()
-                        val newClient = WebsocketClient(
-                            device,
-                            applicationContext,
-                            deviceRepository,
-                            widgetManager,
-                            deviceUpdateManager,
-                            okHttpClient,
-                            moshi,
-                        )
+                        val newClient = websocketClientFactory.create(device)
                         if (!isPaused.value) {
                             newClient.connect()
                         }
