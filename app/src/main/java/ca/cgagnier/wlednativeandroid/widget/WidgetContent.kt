@@ -79,7 +79,7 @@ private fun getWidgetTheme(widgetState: WidgetStateData): ColorProviders {
     }
     val deviceColorProviders = createDeviceColorProviders(
         seedColor = seedColor,
-        isOnline = widgetState.isOn, // Use isOn as a proxy for online status
+        isOnline = widgetState.isOnline,
     )
     return deviceColorProviders
 }
