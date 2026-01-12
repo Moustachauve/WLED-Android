@@ -198,7 +198,6 @@ private fun DeviceWidgetContainer(data: WidgetStateData, content: @Composable ()
                 content()
             }
         }
-
         RefreshButton()
         ElapsedTimeChronometerContainer(data.lastUpdated)
     }
