@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen.list
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -13,6 +14,7 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
+import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import com.squareup.moshi.Moshi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -29,11 +31,14 @@ import javax.inject.Inject
 
 private const val TAG = "DeviceWebsocketListViewModel"
 
+@Suppress("LongParameterList")
 @HiltViewModel
 class DeviceWebsocketListViewModel @Inject constructor(
+    @param:dagger.hilt.android.qualifiers.ApplicationContext private val applicationContext: Context,
     userPreferencesRepository: UserPreferencesRepository,
     private val deviceRepository: DeviceRepository,
     private val deviceUpdateManager: DeviceUpdateManager,
+    private val widgetManager: WledWidgetManager,
     private val okHttpClient: OkHttpClient,
     private val moshi: Moshi,
 ) : ViewModel(),
@@ -82,7 +87,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
                         Log.d(TAG, "[Scan] Device added: $macAddress. Creating client.")
                         val newClient = WebsocketClient(
                             device,
+                            applicationContext,
                             deviceRepository,
+                            widgetManager,
                             deviceUpdateManager,
                             okHttpClient,
                             moshi,
@@ -100,7 +107,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
                         existingClient.destroy()
                         val newClient = WebsocketClient(
                             device,
+                            applicationContext,
                             deviceRepository,
+                            widgetManager,
                             deviceUpdateManager,
                             okHttpClient,
                             moshi,

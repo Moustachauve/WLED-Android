@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.service.websocket
 
+import android.content.Context
 import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
@@ -7,6 +8,7 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
+import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.CoroutineScope
@@ -25,9 +27,12 @@ import kotlin.math.pow
 
 private const val LAST_SEEN_UPDATE_THRESHOLD = 5000L // 5 seconds
 
+@Suppress("LongParameterList")
 class WebsocketClient(
     device: Device,
+    private val applicationContext: Context,
     private val deviceRepository: DeviceRepository,
+    private val widgetManager: WledWidgetManager,
     deviceUpdateManager: DeviceUpdateManager,
     private val okHttpClient: OkHttpClient,
     moshi: Moshi,
@@ -75,6 +80,7 @@ class WebsocketClient(
                     // Ideally, this should probably not be done in the client directly
                     coroutineScope.launch {
                         saveDeviceIfChanged(deviceStateInfo)
+                        updateWidgets(deviceStateInfo)
                     }
                 } else {
                     Log.w(TAG, "Received a null message after parsing.")
@@ -133,6 +139,18 @@ class WebsocketClient(
             deviceRepository.update(newDevice)
             Log.d(TAG, "Device persisted to DB: ${newDevice.address}")
         }
+    }
+
+    /**
+     * Updates any active widgets for this device with the latest state.
+     */
+    private suspend fun updateWidgets(deviceStateInfo: DeviceStateInfo) {
+        widgetManager.updateWidgetsFromDeviceState(
+            applicationContext,
+            deviceState.device.macAddress,
+            deviceState.device.address,
+            deviceStateInfo,
+        )
     }
 
     /**

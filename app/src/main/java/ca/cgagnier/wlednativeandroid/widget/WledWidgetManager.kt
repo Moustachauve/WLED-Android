@@ -7,6 +7,7 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
+import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
@@ -25,6 +26,40 @@ class WledWidgetManager @Inject constructor(
         private const val TAG = "WledWidgetManager"
     }
 
+    /**
+     * Updates all widgets for a device based on state received from an external source
+     * (e.g., WebSocket). This is the main entry point for real-time widget updates.
+     *
+     * @param context Application context
+     * @param macAddress The MAC address of the device
+     * @param address The current network address of the device
+     * @param stateInfo The device state info received from WebSocket
+     */
+    suspend fun updateWidgetsFromDeviceState(
+        context: Context,
+        macAddress: String,
+        address: String,
+        stateInfo: DeviceStateInfo,
+    ) {
+        val manager = GlanceAppWidgetManager(context)
+        val glanceIds = manager.getGlanceIds(WledWidget::class.java)
+
+        glanceIds.forEach { glanceId ->
+            val widgetState = getWidgetState(context, glanceId) ?: return@forEach
+            if (widgetState.macAddress == macAddress) {
+                val newData = widgetState.copy(
+                    address = address,
+                    isOn = stateInfo.state.isOn ?: widgetState.isOn,
+                    color = getColorFromDeviceState(stateInfo.state),
+                    isOnline = true,
+                    lastUpdated = System.currentTimeMillis(),
+                )
+                Log.d(TAG, "Updating widget from websocket for MAC $macAddress")
+                saveStateAndPush(context, glanceId, newData)
+            }
+        }
+    }
+
     suspend fun updateAllWidgets(context: Context) {
         val manager = GlanceAppWidgetManager(context)
         val glanceIds = manager.getGlanceIds(WledWidget::class.java)
@@ -37,11 +72,11 @@ class WledWidgetManager @Inject constructor(
         val stateData = getWidgetState(context, glanceId) ?: return
 
         try {
-            sendRequestAndUpdateData(stateData, context, glanceId)
+            sendRequestAndUpdateData(stateData, context)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Log.e(TAG, "Exception updating widget ${stateData.address}", e)
             val newData = stateData.copy(isOnline = false, lastUpdated = System.currentTimeMillis())
-            saveStateAndPush(context, glanceId, newData)
+            updateWidgetsForMacAddress(context, stateData.macAddress, newData)
         }
     }
 
@@ -52,20 +87,18 @@ class WledWidgetManager @Inject constructor(
             sendRequestAndUpdateData(
                 stateData,
                 context,
-                glanceId,
                 JsonPost(isOn = targetState, verbose = true),
             )
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Log.e(TAG, "Exception toggling widget ${stateData.macAddress}", e)
             val newData = stateData.copy(isOnline = false, lastUpdated = System.currentTimeMillis())
-            saveStateAndPush(context, glanceId, newData)
+            updateWidgetsForMacAddress(context, stateData.macAddress, newData)
         }
     }
 
     private suspend fun sendRequestAndUpdateData(
         widgetData: WidgetStateData,
         context: Context,
-        glanceId: GlanceId,
         jsonPost: JsonPost = JsonPost(verbose = true),
     ) {
         val device = deviceRepository.findDeviceByMacAddress(widgetData.macAddress)
@@ -83,6 +116,24 @@ class WledWidgetManager @Inject constructor(
                     isOnline = true,
                     lastUpdated = System.currentTimeMillis(),
                 )
+                updateWidgetsForMacAddress(context, widgetData.macAddress, newData)
+            }
+        }
+    }
+
+    /**
+     * Updates all widgets that share the given MAC address with the new state data.
+     * This ensures that when a device's state changes, all widgets controlling that
+     * device are updated simultaneously.
+     */
+    private suspend fun updateWidgetsForMacAddress(context: Context, macAddress: String, newData: WidgetStateData) {
+        val manager = GlanceAppWidgetManager(context)
+        val glanceIds = manager.getGlanceIds(WledWidget::class.java)
+
+        glanceIds.forEach { glanceId ->
+            val widgetState = getWidgetState(context, glanceId) ?: return@forEach
+            if (widgetState.macAddress == macAddress) {
+                Log.d(TAG, "Updating widget for MAC $macAddress")
                 saveStateAndPush(context, glanceId, newData)
             }
         }
