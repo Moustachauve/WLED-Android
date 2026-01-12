@@ -27,9 +27,6 @@ class TogglePowerAction : ActionCallback {
 }
 
 class RefreshAction : ActionCallback {
-    companion object {
-        val keyMacAddress = ActionParameters.Key<String>("macAddress")
-    }
 
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val entryPoint = EntryPointAccessors.fromApplication(
