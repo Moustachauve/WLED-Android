@@ -355,7 +355,7 @@ private fun ElapsedTimeChronometerContainer(lastUpdated: Long) {
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
-            // Small bottom adding to be near the bottom edge, bigger end padding to be safe from the corner radius
+            // Small bottom padding to be near the bottom edge, bigger end padding to be safe from the corner radius
             .padding(bottom = 4.dp, end = 14.dp),
         contentAlignment = Alignment.BottomEnd,
     ) {
