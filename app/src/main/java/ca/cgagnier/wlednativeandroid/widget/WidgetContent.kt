@@ -44,6 +44,7 @@ import ca.cgagnier.wlednativeandroid.R
 import kotlinx.serialization.json.Json
 
 val WIDGET_DATA_KEY = stringPreferencesKey("widget_data")
+private val NARROW_WIDGET_WIDTH_THRESHOLD = 150.dp
 
 @Composable
 fun WidgetContent(context: Context, appWidgetId: Int) {
@@ -113,7 +114,7 @@ private fun DeviceWidgetContent(data: WidgetStateData) {
     // Threshold for switching between narrow and wide layouts.
     // Standard cell width ~57dp-73dp. 110dp min width in xml implies ~2 cells.
     // Let's assume < 150dp is narrow (compact), >= 150dp is wide (row).
-    val isNarrow = size.width < 150.dp
+    val isNarrow = size.width < NARROW_WIDGET_WIDTH_THRESHOLD
 
     if (isNarrow) {
         DeviceWidgetContentNarrow(data)
@@ -214,7 +215,7 @@ private fun DeviceDetailsColumn(
                 }
                 Image(
                     provider = ImageProvider(R.drawable.twotone_signal_wifi_connected_no_internet_0_24),
-                    contentDescription = null,
+                    contentDescription = LocalContext.current.getString(R.string.is_offline),
                     modifier = GlanceModifier.size(12.dp),
                     colorFilter = ColorFilter.tint(GlanceTheme.colors.error),
                 )
