@@ -28,7 +28,7 @@ class WledWidgetManager @Inject constructor(
 
     /**
      * Updates all widgets for a device based on state received from an external source
-     * (e.g., WebSocket). This is the main entry point for real-time widget updates.
+     * (e.g., WebSocket).
      *
      * @param context Application context
      * @param macAddress The MAC address of the device
@@ -41,23 +41,20 @@ class WledWidgetManager @Inject constructor(
         address: String,
         stateInfo: DeviceStateInfo,
     ) {
-        val manager = GlanceAppWidgetManager(context)
-        val glanceIds = manager.getGlanceIds(WledWidget::class.java)
+        // Create a complete, authoritative state from scratch
+        // This ensures all widgets for the device get the exact same state
+        val newData = WidgetStateData(
+            macAddress = macAddress,
+            address = address,
+            name = stateInfo.info.name,
+            isOn = stateInfo.state.isOn ?: false,
+            isOnline = true,
+            color = getColorFromDeviceState(stateInfo.state),
+            lastUpdated = System.currentTimeMillis(),
+        )
 
-        glanceIds.forEach { glanceId ->
-            val widgetState = getWidgetState(context, glanceId) ?: return@forEach
-            if (widgetState.macAddress == macAddress) {
-                val newData = widgetState.copy(
-                    address = address,
-                    isOn = stateInfo.state.isOn ?: widgetState.isOn,
-                    color = getColorFromDeviceState(stateInfo.state),
-                    isOnline = true,
-                    lastUpdated = System.currentTimeMillis(),
-                )
-                Log.d(TAG, "Updating widget from websocket for MAC $macAddress")
-                saveStateAndPush(context, glanceId, newData)
-            }
-        }
+        Log.d(TAG, "Updating widgets from websocket for MAC $macAddress")
+        updateWidgetsForMacAddress(context, macAddress, newData)
     }
 
     suspend fun updateAllWidgets(context: Context) {
