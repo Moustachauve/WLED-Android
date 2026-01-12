@@ -35,11 +35,8 @@ fun ElapsedTimeChronometer(lastUpdated: Long) {
 
     AndroidRemoteViews(
         remoteViews = RemoteViews(context.packageName, R.layout.widget_last_updated).apply {
-            // Set the base time for the chronometer to count up from
             setChronometer(R.id.chronometer, chronometerBase, null, true)
-            // Apply text color to match the theme
             setTextColor(R.id.chronometer, outlineColor)
-            // Apply tint to the history icon
             setInt(R.id.history_icon, "setColorFilter", outlineColor)
         },
     )
