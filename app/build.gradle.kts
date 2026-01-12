@@ -135,6 +135,7 @@ dependencies {
     ksp(libs.moshi.kotlin.codegen)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
+    testImplementation(libs.mockk)
 }
 
 protobuf {
