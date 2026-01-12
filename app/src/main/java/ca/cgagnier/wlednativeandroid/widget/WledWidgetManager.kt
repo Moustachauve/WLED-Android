@@ -40,6 +40,8 @@ class WledWidgetManager @Inject constructor(
             sendRequestAndUpdateData(stateData, context, glanceId)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Log.e(TAG, "Exception updating widget ${stateData.address}", e)
+            val newData = stateData.copy(isOnline = false, lastUpdated = System.currentTimeMillis())
+            saveStateAndPush(context, glanceId, newData)
         }
     }
 
@@ -55,6 +57,8 @@ class WledWidgetManager @Inject constructor(
             )
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Log.e(TAG, "Exception toggling widget ${stateData.macAddress}", e)
+            val newData = stateData.copy(isOnline = false, lastUpdated = System.currentTimeMillis())
+            saveStateAndPush(context, glanceId, newData)
         }
     }
 
@@ -76,6 +80,7 @@ class WledWidgetManager @Inject constructor(
                     address = targetAddress,
                     isOn = body.isOn ?: jsonPost.isOn ?: widgetData.isOn,
                     color = getColorFromDeviceState(body),
+                    isOnline = true,
                     lastUpdated = System.currentTimeMillis(),
                 )
                 saveStateAndPush(context, glanceId, newData)

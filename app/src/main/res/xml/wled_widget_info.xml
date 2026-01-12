@@ -4,7 +4,7 @@
     android:initialLayout="@layout/glance_default_loading_layout"
     android:minWidth="110dp"
     android:minHeight="40dp"
-    android:resizeMode="horizontal|vertical"
+    android:resizeMode="horizontal"
     android:previewImage="@mipmap/ic_launcher_rgb"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen"
