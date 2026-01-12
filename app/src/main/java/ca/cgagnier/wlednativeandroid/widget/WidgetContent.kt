@@ -5,37 +5,42 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.glance.GlanceId
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
-import androidx.glance.action.ActionParameters
+import androidx.glance.LocalSize
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
-import androidx.glance.appwidget.Switch
-import androidx.glance.appwidget.SwitchDefaults
-import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
+import androidx.glance.color.ColorProviders
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
+import androidx.glance.layout.width
 import androidx.glance.preview.ExperimentalGlancePreviewApi
 import androidx.glance.preview.Preview
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import ca.cgagnier.wlednativeandroid.R
-import ca.cgagnier.wlednativeandroid.ui.MainActivity
-import dagger.hilt.android.EntryPointAccessors
 import kotlinx.serialization.json.Json
 
 val WIDGET_DATA_KEY = stringPreferencesKey("widget_data")
@@ -50,25 +55,33 @@ fun WidgetContent(context: Context, appWidgetId: Int) {
     } catch (_: Exception) {
         null
     }
-    if (data == null) {
-        ErrorState(context, appWidgetId)
-        return
-    }
 
-    // Create device-colored theme from the LED color
-    val seedColor = if (data.color != -1) {
-        Color(data.color)
+    when (data) {
+        is WidgetStateData -> {
+            GlanceTheme(colors = getWidgetTheme(data)) {
+                DeviceWidgetContent(data)
+            }
+        }
+
+        else -> ErrorState(context, appWidgetId)
+    }
+}
+
+/**
+ * Create device-colored theme from the LED color
+ */
+@Composable
+private fun getWidgetTheme(widgetState: WidgetStateData): ColorProviders {
+    val seedColor = if (widgetState.color != -1) {
+        Color(widgetState.color)
     } else {
         Color.White
     }
     val deviceColorProviders = createDeviceColorProviders(
         seedColor = seedColor,
-        isOnline = data.isOn, // Use isOn as a proxy for online status
+        isOnline = widgetState.isOn, // Use isOn as a proxy for online status
     )
-
-    GlanceTheme(colors = deviceColorProviders) {
-        DeviceWidgetContent(data)
-    }
+    return deviceColorProviders
 }
 
 @Composable
@@ -96,78 +109,250 @@ private fun ErrorState(context: Context, appWidgetId: Int) {
 
 @Composable
 private fun DeviceWidgetContent(data: WidgetStateData) {
-    val intent = Intent(
-        LocalContext.current,
-        MainActivity::class.java,
-    ).apply {
-        putExtra(MainActivity.EXTRA_DEVICE_MAC_ADDRESS, data.macAddress)
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-    }
+    val size = LocalSize.current
+    // Threshold for switching between narrow and wide layouts.
+    // Standard cell width ~57dp-73dp. 110dp min width in xml implies ~2 cells.
+    // Let's assume < 150dp is narrow (compact), >= 150dp is wide (row).
+    val isNarrow = size.width < 150.dp
 
-    Row(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .background(GlanceTheme.colors.widgetBackground)
-            .padding(16.dp)
-            .clickable(actionStartActivity(intent)),
-        verticalAlignment = Alignment.CenterVertically,
+    if (isNarrow) {
+        DeviceWidgetContentNarrow(data)
+    } else {
+        DeviceWidgetContentWide(data)
+    }
+}
+
+@Composable
+private fun DeviceWidgetContentWide(data: WidgetStateData) {
+    val intent = data.toOpenWidgetInAppIntent(LocalContext.current)
+
+    Box(
+        modifier = GlanceModifier.fillMaxSize(),
+        contentAlignment = Alignment.TopEnd,
+    ) {
+        Row(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .background(GlanceTheme.colors.widgetBackground)
+                .padding(16.dp)
+                .clickable(actionStartActivity(intent)),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DeviceDetailsColumn(
+                data = data,
+                modifier = GlanceModifier.defaultWeight(),
+                showAddress = true,
+            )
+            // Switch stays next to content in Wide mode
+            PowerButton(data)
+        }
+
+        RefreshButton(data)
+    }
+}
+
+@Composable
+private fun DeviceWidgetContentNarrow(data: WidgetStateData) {
+    val intent = data.toOpenWidgetInAppIntent(LocalContext.current)
+
+    Box(
+        modifier = GlanceModifier.fillMaxSize(),
+        contentAlignment = Alignment.TopEnd,
     ) {
         Column(
-            modifier = GlanceModifier.defaultWeight(),
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .background(GlanceTheme.colors.widgetBackground)
+                .padding(8.dp)
+                .clickable(actionStartActivity(intent)),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = data.name,
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurface,
-                    fontWeight = FontWeight.Bold,
-                ),
-                maxLines = 1,
-            )
-            Text(
-                text = data.address,
-                style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
-                maxLines = 1,
-            )
-            Text(
-                text = data.lastUpdatedFormatted,
-                style = TextStyle(
-                    color = GlanceTheme.colors.outline,
-                    fontSize = 10.sp,
-                ),
+            PowerButton(data)
+            DeviceDetailsColumn(
+                data = data,
+                modifier = GlanceModifier.defaultWeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                showAddress = false,
             )
         }
-        Switch(
-            checked = data.isOn,
-            onCheckedChange = actionRunCallback<TogglePowerAction>(
-                actionParametersOf(
-                    TogglePowerAction.keyIsOn to data.isOn,
-                ),
+
+        RefreshButton(data)
+    }
+}
+
+@Composable
+private fun DeviceDetailsColumn(
+    data: WidgetStateData,
+    modifier: GlanceModifier = GlanceModifier,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+    showAddress: Boolean = true,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = horizontalAlignment,
+    ) {
+        Text(
+            text = data.name,
+            style = TextStyle(
+                color = GlanceTheme.colors.onSurface,
+                fontWeight = FontWeight.Bold,
             ),
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = GlanceTheme.colors.primary,
-                checkedTrackColor = GlanceTheme.colors.primary,
-                uncheckedThumbColor = GlanceTheme.colors.outline,
-                uncheckedTrackColor = GlanceTheme.colors.outline,
+            maxLines = 1,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (showAddress) {
+                Text(
+                    text = data.address,
+                    style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
+                    maxLines = 1,
+                )
+            }
+            if (!data.isOnline) {
+                if (showAddress) {
+                    Spacer(modifier = GlanceModifier.width(8.dp))
+                }
+                Image(
+                    provider = ImageProvider(R.drawable.twotone_signal_wifi_connected_no_internet_0_24),
+                    contentDescription = null,
+                    modifier = GlanceModifier.size(12.dp),
+                    colorFilter = ColorFilter.tint(GlanceTheme.colors.error),
+                )
+                Spacer(modifier = GlanceModifier.width(4.dp))
+                Text(
+                    text = LocalContext.current.getString(R.string.is_offline),
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurfaceVariant,
+                        fontSize = 12.sp,
+                    ),
+                    maxLines = 1,
+                )
+            }
+        }
+        Text(
+            text = data.lastUpdatedFormatted,
+            style = TextStyle(
+                color = GlanceTheme.colors.outline,
+                fontSize = 10.sp,
             ),
         )
     }
 }
 
-class TogglePowerAction : ActionCallback {
-    companion object {
-        val keyIsOn = ActionParameters.Key<Boolean>("isOn")
+private const val GLOW_BRIGHTNESS_FACTOR = 0.2f
+private const val OUTLINE_BRIGHTNESS_FACTOR = 0.5f
+
+@Composable
+private fun PowerButton(data: WidgetStateData) {
+    val buttonColor = GlanceTheme.colors.primary
+    val onButtonColor = GlanceTheme.colors.onPrimary
+    val buttonOffColor = GlanceTheme.colors.surfaceVariant
+    val onButtonOffColor = GlanceTheme.colors.onSurfaceVariant
+
+    val context = LocalContext.current
+    val primaryColorArgb = buttonColor.getColor(context).toArgb()
+
+    val glowColorProvider = ColorProvider(
+        Color(brightenColor(primaryColorArgb, GLOW_BRIGHTNESS_FACTOR)),
+    )
+    val outlineColorProvider = ColorProvider(
+        Color(brightenColor(primaryColorArgb, OUTLINE_BRIGHTNESS_FACTOR)),
+    )
+
+    Box(
+        modifier = GlanceModifier
+            .size(48.dp) // Total size including glow
+            .cornerRadius(24.dp)
+            .clickable(
+                actionRunCallback<TogglePowerAction>(
+                    actionParametersOf(
+                        TogglePowerAction.keyIsOn to data.isOn,
+                    ),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (data.isOn) {
+            PowerButtonOnState(glowColorProvider, buttonColor, outlineColorProvider, onButtonColor)
+        } else {
+            PowerButtonOffState(buttonOffColor, onButtonOffColor)
+        }
     }
+}
 
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        val currentIsOn = parameters[keyIsOn] ?: false
-        val newIsOn = !currentIsOn
+@Composable
+private fun PowerButtonOnState(
+    glowColor: ColorProvider,
+    buttonColor: ColorProvider,
+    outlineColor: ColorProvider,
+    iconColor: ColorProvider,
+) {
+    // Glow Layer (Outer, brighter neon)
+    Image(
+        provider = ImageProvider(R.drawable.widget_power_glow),
+        contentDescription = null,
+        modifier = GlanceModifier.fillMaxSize(),
+        colorFilter = ColorFilter.tint(glowColor),
+    )
+    // Background Layer (Solid Primary)
+    Image(
+        provider = ImageProvider(R.drawable.widget_circle_fill),
+        contentDescription = null,
+        modifier = GlanceModifier.size(32.dp),
+        colorFilter = ColorFilter.tint(buttonColor),
+    )
+    // Border Layer (Brighter Neon Outline)
+    Image(
+        provider = ImageProvider(R.drawable.widget_circle_outline),
+        contentDescription = null,
+        modifier = GlanceModifier.size(36.dp),
+        colorFilter = ColorFilter.tint(outlineColor),
+    )
 
-        val entryPoint = EntryPointAccessors.fromApplication(
-            context,
-            WledWidget.WidgetEntryPoint::class.java,
+    // Icon Layer (OnPrimary)
+    Image(
+        provider = ImageProvider(R.drawable.outline_power_settings_new_24),
+        contentDescription = "Toggle Power",
+        modifier = GlanceModifier.size(20.dp),
+        colorFilter = ColorFilter.tint(iconColor),
+    )
+}
+
+@Composable
+private fun PowerButtonOffState(buttonColor: ColorProvider, iconColor: ColorProvider) {
+    // OFF State: Simple solid surfaceVariant, no outline, no glow
+    Image(
+        provider = ImageProvider(R.drawable.widget_circle_fill),
+        contentDescription = null,
+        modifier = GlanceModifier.size(32.dp),
+        colorFilter = ColorFilter.tint(buttonColor),
+    )
+    Image(
+        provider = ImageProvider(R.drawable.outline_power_settings_new_24),
+        contentDescription = "Toggle Power",
+        modifier = GlanceModifier.size(20.dp),
+        colorFilter = ColorFilter.tint(iconColor),
+    )
+}
+
+@Composable
+private fun RefreshButton(data: WidgetStateData, modifier: GlanceModifier = GlanceModifier) {
+    Box(modifier = modifier.padding(8.dp)) {
+        Image(
+            provider = ImageProvider(R.drawable.outline_refresh_24),
+            contentDescription = "Refresh",
+            modifier = GlanceModifier
+                .size(20.dp)
+                .padding(4.dp)
+                .clickable(
+                    actionRunCallback<RefreshAction>(
+                        actionParametersOf(
+                            RefreshAction.keyMacAddress to data.macAddress,
+                        ),
+                    ),
+                ),
+            colorFilter = ColorFilter.tint(GlanceTheme.colors.outline),
         )
-
-        entryPoint.widgetManager().toggleState(context, glanceId, newIsOn)
     }
 }
 
@@ -185,6 +370,28 @@ private fun DeviceWidgetContentPreviewOn() {
                 address = "192.168.1.100",
                 name = "WLED Device",
                 isOn = true,
+                isOnline = true,
+                color = 0xFF0000FF.toInt(),
+            ),
+        )
+    }
+}
+
+@Suppress("MagicNumber")
+@OptIn(ExperimentalGlancePreviewApi::class)
+@Preview(widthDp = 100, heightDp = 100)
+@Composable
+private fun DeviceWidgetContentPreviewNarrow() {
+    val seedColor = Color(0xFF0000FF) // Blue
+    val colorProviders = createDeviceColorProviders(seedColor = seedColor, isOnline = true)
+    GlanceTheme(colors = colorProviders) {
+        DeviceWidgetContent(
+            data = WidgetStateData(
+                macAddress = "AA:BB:CC:DD:EE:FF",
+                address = "192.168.1.100",
+                name = "Small widget with a long name",
+                isOn = true,
+                isOnline = true,
                 color = 0xFF0000FF.toInt(),
             ),
         )
@@ -205,6 +412,7 @@ private fun DeviceWidgetContentPreviewOff() {
                 address = "192.168.1.101",
                 name = "Offline device",
                 isOn = false,
+                isOnline = false,
                 color = 0xFFFF8000.toInt(),
             ),
         )
