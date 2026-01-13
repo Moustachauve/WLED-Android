@@ -111,4 +111,17 @@
     <string name="non_base64_not_supported">Nicht-Base64 Data-URIs werden nicht unterstützt</string>
     <string name="open">Öffnen</string>
     <string name="dismiss">Schließen</string>
+    <string name="some_devices_hidden">Einige deiner Geräte sind verborgen</string>
+    <!-- TODO: Translate the widget texts -->
+    <string name="widget_description">WLED Widget</string>
+    <string name="widget_please_configure">Bitte konfigurieren</string>
+    <string name="select_a_device">Wähle ein Gerät</string>
+    <string name="last_updated">Zuletzt aktualisiert</string>
+
+    <!-- Deep linking -->
+    <string name="deep_link_loading">Verbinde mit Gerät…</string>
+    <string name="deep_link_error_title">Gerät nicht gefunden</string>
+    <string name="deep_link_error_mac_not_found">Gerät mit MAC-Adresse %1$s nicht in deiner Geräteliste gefunden</string>
+    <string name="deep_link_error_unreachable">Konnte Gerät unter %1$s nicht erreichen. Stelle sicher, dass es eingeschaltet und mit dem Netzwerk verbunden ist.</string>
+
 </resources>
