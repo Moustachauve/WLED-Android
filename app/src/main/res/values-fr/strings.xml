@@ -112,6 +112,11 @@
     <string name="dismiss">Fermer</string>
     <string name="some_devices_hidden">Vous avez des appareils cachés</string>
 
+    <string name="widget_description">Widget WLED</string>
+    <string name="widget_please_configure">Veuillez configurer</string>
+    <string name="select_a_device">Sélectionnez un appareil</string>
+    <string name="last_updated">Dernière mise à jour</string>
+
     <!-- Deep linking -->
     <string name="deep_link_loading">Connexion à l\'appareil…</string>
     <string name="deep_link_error_title">Appareil introuvable</string>

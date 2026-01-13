@@ -1,4 +1,4 @@
-<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2" xmlns:tools="http://schemas.android.com/tools">
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_name" translatable="false">WLED</string>
     <string name="app_logo">WLED Logo</string>
     <string name="add_a_device">Add a New Device</string>
@@ -114,10 +114,10 @@
     <string name="dismiss">Dismiss</string>
     <string name="some_devices_hidden">Some of your devices are hidden</string>
     <!-- TODO: Translate the widget texts -->
-    <string name="widget_description" tools:ignore="MissingTranslation">WLED Widget</string>
-    <string name="widget_please_configure" tools:ignore="MissingTranslation">Please configure</string>
-    <string name="select_a_device" tools:ignore="MissingTranslation">Select a Device</string>
-    <string name="last_updated" tools:ignore="MissingTranslation">Last Updated</string>
+    <string name="widget_description">WLED Widget</string>
+    <string name="widget_please_configure">Please configure</string>
+    <string name="select_a_device">Select a Device</string>
+    <string name="last_updated">Last Updated</string>
 
     <!-- Deep linking -->
     <string name="deep_link_loading">Connecting to device…</string>
