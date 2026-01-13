@@ -17,5 +17,5 @@ data class Asset(
     @field:Json(name = "download_count") var downloadCount: Int,
     @field:Json(name = "created_at") var createdAt: String,
     @field:Json(name = "updated_at") var updatedAt: String,
-    @field:Json(name = "browser_download_url") var browserDownloadUrl: String
+    @field:Json(name = "browser_download_url") var browserDownloadUrl: String,
 )

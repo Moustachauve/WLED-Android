@@ -7,6 +7,7 @@ coreKtx = "1.17.0"
 coreSplashscreen = "1.2.0"
 datastorePreferences = "1.2.0"
 espressoCore = "3.7.0"
+glance = "1.1.1"
 # Version 2.53.1 causes issue with compiling
 # https://github.com/google/dagger/issues/4533
 hiltAndroid = "2.57.2"
@@ -35,6 +36,10 @@ semver4j = "3.1.0"
 webkit = "1.15.0"
 graphicsShapes = "1.1.0"
 truth = "1.4.5"
+robolectric = "4.16"
+detekt = "1.23.8"
+spotless = "8.1.0"
+mockk = "1.14.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose" }
@@ -88,9 +93,15 @@ retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit
 retrofit2-kotlin-coroutines-adapter = { module = "com.jakewharton.retrofit:retrofit2-kotlin-coroutines-adapter", version.ref = "retrofit2KotlinCoroutinesAdapter" }
 semver4j = { module = "com.vdurmont:semver4j", version.ref = "semver4j" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 protoc = { module = "com.google.protobuf:protoc", version.ref = "protobufJavalite" }
 androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geometry" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
+androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
+androidx-glance-appwidget-preview = { group = "androidx.glance", name = "glance-appwidget-preview", version.ref = "glance" }
+androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
+androidx-glance-preview = { group = "androidx.glance", name = "glance-preview", version.ref = "glance" }
 
 # TODO: Manually import the icons instead of importing this.
 compose-material-icons = { group = "androidx.compose.material", name = "material-icons-core" }
@@ -105,3 +116,5 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "hiltAndroid" }
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

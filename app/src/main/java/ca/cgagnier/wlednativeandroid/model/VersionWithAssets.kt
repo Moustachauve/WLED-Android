@@ -8,7 +8,7 @@ data class VersionWithAssets(
     val version: Version,
     @Relation(
         parentColumn = "tagName",
-        entityColumn = "versionTagName"
+        entityColumn = "versionTagName",
     )
-    val assets: List<Asset>
+    val assets: List<Asset>,
 )

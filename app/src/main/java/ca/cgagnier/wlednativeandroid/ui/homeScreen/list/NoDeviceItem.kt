@@ -32,14 +32,14 @@ fun NoDevicesItem(
     modifier: Modifier = Modifier,
     shouldShowHiddenDevices: Boolean,
     onAddDevice: () -> Unit,
-    onShowHiddenDevices: () -> Unit
+    onShowHiddenDevices: () -> Unit,
 ) {
     Card(
         modifier = modifier
             .fillMaxSize(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
     ) {
         Column(
             modifier = Modifier
@@ -47,12 +47,12 @@ fun NoDevicesItem(
                 .fillMaxWidth()
                 .padding(16.dp)
                 .padding(top = 24.dp),
-            horizontalAlignment = CenterHorizontally
+            horizontalAlignment = CenterHorizontally,
         ) {
             Image(
                 modifier = Modifier.heightIn(0.dp, 80.dp),
                 painter = painterResource(id = R.drawable.akemi_018_teeth),
-                contentDescription = stringResource(R.string.awkward_akemi_character)
+                contentDescription = stringResource(R.string.awkward_akemi_character),
             )
             Text(stringResource(R.string.you_dont_have_any_visible_devices))
             Button(
@@ -63,7 +63,7 @@ fun NoDevicesItem(
                 Icon(
                     Icons.Filled.Add,
                     contentDescription = stringResource(R.string.add_a_device),
-                    modifier = Modifier.size(ButtonDefaults.IconSize)
+                    modifier = Modifier.size(ButtonDefaults.IconSize),
                 )
                 Spacer(Modifier.size(ButtonDefaults.IconSpacing))
                 Text(stringResource(R.string.add_a_device))
@@ -71,7 +71,7 @@ fun NoDevicesItem(
 
             if (shouldShowHiddenDevices) {
                 Text(
-                    "Some of your devices are hidden.",
+                    stringResource(R.string.some_devices_hidden),
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.padding(top = 32.dp),
                 )
@@ -82,7 +82,7 @@ fun NoDevicesItem(
                     Icon(
                         painter = painterResource(id = R.drawable.baseline_visibility_24),
                         contentDescription = stringResource(R.string.show_hidden_devices),
-                        modifier = Modifier.size(ButtonDefaults.IconSize)
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
                     )
                     Spacer(Modifier.size(ButtonDefaults.IconSpacing))
                     Text(stringResource(R.string.show_hidden_devices))

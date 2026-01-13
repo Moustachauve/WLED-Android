@@ -24,5 +24,5 @@ data class Release(
     @field:Json(name = "zipball_url") var zipballUrl: String,
     @field:Json(name = "body") var body: String,
     @field:Json(name = "reactions") var reactions: Reactions?,
-    @field:Json(name = "mentions_count") var mentionsCount: Int?
+    @field:Json(name = "mentions_count") var mentionsCount: Int?,
 )

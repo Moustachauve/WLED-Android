@@ -17,15 +17,12 @@
     <string name="is_offline">离线</string>
     <string name="offline_less_than_minute">离线，不到一分钟前</string>
     <plurals name="offline_minutes">
-        <item quantity="one">离线，%d 分钟前</item>
         <item quantity="other">离线，%d 分钟前</item>
     </plurals>
     <plurals name="offline_hours">
-        <item quantity="one">离线，%d 小时前</item>
         <item quantity="other">离线，%d 小时前</item>
     </plurals>
     <plurals name="offline_days">
-        <item quantity="one">离线，%d 天前</item>
         <item quantity="other">离线，%d 天前</item>
     </plurals>
     <string name="update_available">有可用的更新</string>
@@ -111,4 +108,11 @@
     <string name="non_base64_not_supported">暂不支持非 Base64 数据 URI</string>
     <string name="open">打开</string>
     <string name="dismiss">关闭</string>
+    <string name="some_devices_hidden">你有已隐藏的设备</string>
+
+    <!-- Deep linking -->
+    <string name="deep_link_loading">正在连接设备…</string>
+    <string name="deep_link_error_title">未找到设备</string>
+    <string name="deep_link_error_mac_not_found">未在列表中找到 MAC 地址为 %1$s 的设备</string>
+    <string name="deep_link_error_unreachable">无法连接到 %1$s。请确保设备已开机并连接到网络。</string>
 </resources>

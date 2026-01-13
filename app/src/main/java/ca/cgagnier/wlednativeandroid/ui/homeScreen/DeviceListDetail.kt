@@ -41,6 +41,7 @@ import androidx.compose.material3.adaptive.navigation.NavigableListDetailPaneSca
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,6 +59,7 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.getApModeDeviceWithState
+import ca.cgagnier.wlednativeandroid.ui.NavigationEvent
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.detail.DeviceDetail
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.deviceAdd.DeviceAdd
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.deviceEdit.DeviceEdit
@@ -67,10 +69,12 @@ import kotlinx.coroutines.launch
 
 private const val TAG = "screen_DeviceListDetail"
 
+@Suppress("LongMethod") // TODO: Simplify this function in the future
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun DeviceListDetail(
     modifier: Modifier = Modifier,
+    initialDeviceMacAddress: NavigationEvent? = null,
     openSettings: () -> Unit,
     viewModel: DeviceListDetailViewModel = hiltViewModel(),
     deviceWebsocketListViewModel: DeviceWebsocketListViewModel = hiltViewModel(),
@@ -82,6 +86,15 @@ fun DeviceListDetail(
     )
     val navigator =
         rememberListDetailPaneScaffoldNavigator<Any>(scaffoldDirective = customScaffoldDirective)
+
+    LaunchedEffect(initialDeviceMacAddress) {
+        if (initialDeviceMacAddress != null) {
+            navigator.navigateTo(
+                pane = ListDetailPaneScaffoldRole.Detail,
+                contentKey = initialDeviceMacAddress.macAddress,
+            )
+        }
+    }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     val devices by deviceWebsocketListViewModel.allDevicesWithState.collectAsStateWithLifecycle()
@@ -103,22 +116,25 @@ fun DeviceListDetail(
     val navigateToDeviceDetail: (DeviceWithState) -> Unit = { device: DeviceWithState ->
         coroutineScope.launch {
             navigator.navigateTo(
-                pane = ListDetailPaneScaffoldRole.Detail, contentKey = device.device.macAddress
+                pane = ListDetailPaneScaffoldRole.Detail,
+                contentKey = device.device.macAddress,
             )
         }
     }
 
-
     val navigateToDeviceEdit = { device: DeviceWithState ->
         coroutineScope.launch {
             navigator.navigateTo(
-                pane = ListDetailPaneScaffoldRole.Extra, contentKey = device.device.macAddress
+                pane = ListDetailPaneScaffoldRole.Extra,
+                contentKey = device.device.macAddress,
             )
         }
     }
 
     ModalNavigationDrawer(
-        drawerState = drawerState, gesturesEnabled = drawerState.isOpen, drawerContent = {
+        drawerState = drawerState,
+        gesturesEnabled = drawerState.isOpen,
+        drawerContent = {
             ModalDrawerSheet {
                 DrawerContent(showHiddenDevices = showHiddenDevices, addDevice = {
                     coroutineScope.launch {
@@ -137,7 +153,8 @@ fun DeviceListDetail(
                     }
                 })
             }
-        }) {
+        },
+    ) {
         Scaffold { innerPadding ->
             NavigableListDetailPaneScaffold(
                 modifier = modifier
@@ -167,7 +184,8 @@ fun DeviceListDetail(
                                 coroutineScope.launch {
                                     drawerState.open()
                                 }
-                            })
+                            },
+                        )
                     }
                 },
                 detailPane = {
@@ -194,10 +212,12 @@ fun DeviceListDetail(
                                     coroutineScope.launch {
                                         navigator.navigateBack()
                                     }
-                                })
+                                },
+                            )
                         }
                     }
-                })
+                },
+            )
         }
 
         /* Close drawer when back button is pressed. This is to fix a state that can happen when a
@@ -211,12 +231,12 @@ fun DeviceListDetail(
         }
     }
 
-
     if (isAddDeviceDialogVisible) {
         DeviceAdd(
             onDismissRequest = {
                 viewModel.hideAddDeviceDialog()
-            })
+            },
+        )
     }
 }
 
@@ -231,17 +251,17 @@ private fun DrawerContent(
     val scrollState = rememberScrollState()
 
     Column(
-        modifier = Modifier.verticalScroll(scrollState)
+        modifier = Modifier.verticalScroll(scrollState),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.Center,
         ) {
             Image(
                 painter = painterResource(id = R.drawable.wled_logo_akemi),
-                contentDescription = stringResource(R.string.app_logo)
+                contentDescription = stringResource(R.string.app_logo),
             )
         }
         NavigationDrawerItem(
@@ -249,12 +269,12 @@ private fun DrawerContent(
             icon = {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = stringResource(R.string.add_a_device)
+                    contentDescription = stringResource(R.string.add_a_device),
                 )
             },
             selected = false,
             onClick = addDevice,
-            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
         )
         ToggleHiddenDeviceButton(showHiddenDevices, toggleShowHiddenDevices)
         NavigationDrawerItem(
@@ -262,78 +282,91 @@ private fun DrawerContent(
             icon = {
                 Icon(
                     imageVector = Icons.Filled.Settings,
-                    contentDescription = stringResource(R.string.settings)
+                    contentDescription = stringResource(R.string.settings),
                 )
             },
             selected = false,
             onClick = openSettings,
-            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
         )
         HorizontalDivider(modifier = Modifier.padding(12.dp))
 
         NavigationDrawerItem(
-            label = { Text(text = stringResource(R.string.help)) }, icon = {
-            Icon(
-                painter = painterResource(id = R.drawable.baseline_help_24),
-                contentDescription = stringResource(R.string.help)
-            )
-        }, selected = false, onClick = {
-            uriHandler.openUriSafely("https://kno.wled.ge/")
-        }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+            label = { Text(text = stringResource(R.string.help)) },
+            icon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_help_24),
+                    contentDescription = stringResource(R.string.help),
+                )
+            },
+            selected = false,
+            onClick = {
+                uriHandler.openUriSafely("https://kno.wled.ge/")
+            },
+            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
         )
         NavigationDrawerItem(
-            label = { Text(text = stringResource(R.string.support_me)) }, icon = {
-            Icon(
-                painter = painterResource(id = R.drawable.baseline_coffee_24),
-                contentDescription = stringResource(R.string.support_me)
-            )
-        }, selected = false, onClick = {
-            uriHandler.openUriSafely("https://github.com/sponsors/Moustachauve")
-        }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+            label = { Text(text = stringResource(R.string.support_me)) },
+            icon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_coffee_24),
+                    contentDescription = stringResource(R.string.support_me),
+                )
+            },
+            selected = false,
+            onClick = {
+                uriHandler.openUriSafely("https://github.com/sponsors/Moustachauve")
+            },
+            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
         )
         Spacer(Modifier.height(24.dp))
         Column(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             val debugString =
                 if (BuildConfig.BUILD_TYPE != "release") " - ${BuildConfig.BUILD_TYPE}" else ""
             Text(
-                "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})${debugString}",
-                style = MaterialTheme.typography.bodyMedium
+                "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})$debugString",
+                style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                BuildConfig.APPLICATION_ID, style = MaterialTheme.typography.bodySmall
+                BuildConfig.APPLICATION_ID,
+                style = MaterialTheme.typography.bodySmall,
             )
         }
     }
 }
 
 @Composable
-private fun ToggleHiddenDeviceButton(
-    showHiddenDevices: Boolean, toggleShowHiddenDevices: () -> Unit
-) {
+private fun ToggleHiddenDeviceButton(showHiddenDevices: Boolean, toggleShowHiddenDevices: () -> Unit) {
     val hiddenDeviceText = stringResource(
-        if (showHiddenDevices) R.string.hide_hidden_devices
-        else R.string.show_hidden_devices
+        if (showHiddenDevices) {
+            R.string.hide_hidden_devices
+        } else {
+            R.string.show_hidden_devices
+        },
     )
     val hiddenDeviceIcon = painterResource(
-        if (showHiddenDevices) R.drawable.ic_baseline_visibility_off_24
-        else R.drawable.baseline_visibility_24
+        if (showHiddenDevices) {
+            R.drawable.ic_baseline_visibility_off_24
+        } else {
+            R.drawable.baseline_visibility_24
+        },
     )
     NavigationDrawerItem(
         label = { Text(text = hiddenDeviceText) },
         icon = {
             Icon(
                 painter = hiddenDeviceIcon,
-                contentDescription = stringResource(R.string.show_hidden_devices)
+                contentDescription = stringResource(R.string.show_hidden_devices),
             )
         },
         selected = false,
         onClick = toggleShowHiddenDevices,
-        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
     )
 }
 
@@ -342,8 +375,8 @@ fun SelectDeviceView() {
     Card(
         modifier = Modifier.padding(top = TopAppBarDefaults.MediumAppBarCollapsedHeight),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
     ) {
         Column(
             modifier = Modifier
@@ -353,7 +386,7 @@ fun SelectDeviceView() {
         ) {
             Image(
                 painter = painterResource(id = R.drawable.wled_logo_akemi),
-                contentDescription = stringResource(R.string.app_logo)
+                contentDescription = stringResource(R.string.app_logo),
             )
             Text(stringResource(R.string.select_a_device_from_the_list))
         }
@@ -361,6 +394,7 @@ fun SelectDeviceView() {
 }
 
 // TODO: Move this to a utility file or somewhere else, maybe.
+
 /**
  * Open Uri in external browser and do error handling.
  *

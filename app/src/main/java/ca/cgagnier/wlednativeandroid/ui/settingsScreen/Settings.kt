@@ -34,10 +34,7 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 
 @Composable
-fun Settings(
-    navigateUp: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel()
-) {
+fun Settings(navigateUp: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
@@ -46,12 +43,12 @@ fun Settings(
             )
         },
     ) { innerPadding ->
-        Column (
+        Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
                 .fillMaxWidth()
                 .padding(innerPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             OneOrTwoColumnLayout(
                 modifier = Modifier
@@ -70,7 +67,7 @@ fun Settings(
                         },
                         setShowOfflineDevicesLast = {
                             viewModel.setShowOfflineDevicesLast(it)
-                        }
+                        },
                     )
                 },
                 secondColumn = {
@@ -78,20 +75,17 @@ fun Settings(
                         currentTheme = settingsState.theme,
                         setTheme = {
                             viewModel.setTheme(it)
-                        }
+                        },
                     )
-                }
+                },
             )
-            //}
+            // }
         }
     }
 }
 
 @Composable
-fun DeviceSettingsAppBar(
-    modifier: Modifier = Modifier,
-    navigateUp: () -> Unit,
-) {
+fun DeviceSettingsAppBar(modifier: Modifier = Modifier, navigateUp: () -> Unit) {
     CenterAlignedTopAppBar(
         modifier = modifier,
         title = {
@@ -101,43 +95,35 @@ fun DeviceSettingsAppBar(
             IconButton(onClick = navigateUp) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.description_back_button)
+                    contentDescription = stringResource(R.string.description_back_button),
                 )
             }
-        }
+        },
     )
 }
 
 @Composable
-fun SwitchRow(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
+fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier.clickable { onCheckedChange(!checked) },
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             label,
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
         Switch(checked, onCheckedChange = onCheckedChange)
     }
 }
 
 @Composable
-fun RadioRow(
-    label: String,
-    checked: Boolean,
-    onSelected: () -> Unit
-) {
+fun RadioRow(label: String, checked: Boolean, onSelected: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onSelected() },
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(
             selected = checked,
@@ -161,32 +147,29 @@ fun ListingOptions(
             Text(
                 stringResource(R.string.listing_options),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
             SwitchRow(
                 label = stringResource(R.string.show_hidden_devices),
                 checked = showHiddenDevices,
-                onCheckedChange = setShowHiddenDevices
+                onCheckedChange = setShowHiddenDevices,
             )
             SwitchRow(
                 label = stringResource(R.string.automatically_discover_new_devices),
                 checked = isAutoDiscoveryEnabled,
-                onCheckedChange = setAutoDiscover
+                onCheckedChange = setAutoDiscover,
             )
             SwitchRow(
                 label = stringResource(R.string.show_offline_devices_last),
                 checked = showOfflineDevicesLast,
-                onCheckedChange = setShowOfflineDevicesLast
+                onCheckedChange = setShowOfflineDevicesLast,
             )
         }
     }
 }
 
 @Composable
-fun ThemeOptions(
-    currentTheme: ThemeSettings,
-    setTheme: (ThemeSettings) -> Unit = {},
-) {
+fun ThemeOptions(currentTheme: ThemeSettings, setTheme: (ThemeSettings) -> Unit = {}) {
     val themes = listOf(
         Pair(ThemeSettings.Dark, stringResource(R.string.dark)),
         Pair(ThemeSettings.Light, stringResource(R.string.light)),
@@ -197,7 +180,7 @@ fun ThemeOptions(
             Text(
                 stringResource(R.string.theme),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
             themes.forEach { theme ->
                 RadioRow(
@@ -205,7 +188,7 @@ fun ThemeOptions(
                     checked = currentTheme == theme.first,
                     onSelected = {
                         setTheme(theme.first)
-                    }
+                    },
                 )
             }
         }
@@ -216,7 +199,7 @@ fun ThemeOptions(
 fun OneOrTwoColumnLayout(
     modifier: Modifier = Modifier,
     firstColumn: @Composable () -> Unit,
-    secondColumn: @Composable () -> Unit
+    secondColumn: @Composable () -> Unit,
 ) {
     BoxWithConstraints(modifier = modifier) {
         if (maxWidth < 800.dp) {

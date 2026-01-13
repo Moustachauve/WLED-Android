@@ -2,12 +2,15 @@ package ca.cgagnier.wlednativeandroid.service.api
 
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
+import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
+import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -18,11 +21,12 @@ interface DeviceApi {
     @GET("json/info")
     suspend fun getInfo(): Response<Info>
 
+    @POST("json/state")
+    suspend fun postJson(@Body state: JsonPost): Response<State>
+
     @Multipart
     @POST("update")
-    suspend fun updateDevice(
-        @Part binaryFile: MultipartBody.Part
-    ): Response<ResponseBody>
+    suspend fun updateDevice(@Part binaryFile: MultipartBody.Part): Response<ResponseBody>
 }
 
 /**
@@ -55,9 +59,7 @@ class DeviceApiFactory(private val client: OkHttpClient) {
      *
      * @param device The device to create the API for.
      */
-    fun create(device: Device): DeviceApi {
-        return createForDeviceAndClient(device.getDeviceUrl(), client)
-    }
+    fun create(device: Device): DeviceApi = createForDeviceAndClient(device.getDeviceUrl(), client)
 
     /**
      * Create a new DeviceApi instance with a custom timeout.
@@ -72,9 +74,8 @@ class DeviceApiFactory(private val client: OkHttpClient) {
         return createForDeviceAndClient(device.getDeviceUrl(), customClient)
     }
 
-    private fun createForDeviceAndClient(address: String, client: OkHttpClient): DeviceApi {
-        return Retrofit.Builder().baseUrl(address).client(client)
+    private fun createForDeviceAndClient(address: String, client: OkHttpClient): DeviceApi =
+        Retrofit.Builder().baseUrl(address).client(client)
             .addConverterFactory(MoshiConverterFactory.create()).build()
             .create(DeviceApi::class.java)
-    }
 }

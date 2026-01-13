@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.service.websocket
 
+import android.content.Context
 import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
@@ -7,6 +8,7 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
+import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.CoroutineScope
@@ -25,12 +27,15 @@ import kotlin.math.pow
 
 private const val LAST_SEEN_UPDATE_THRESHOLD = 5000L // 5 seconds
 
+@Suppress("LongParameterList")
 class WebsocketClient(
     device: Device,
+    private val applicationContext: Context,
     private val deviceRepository: DeviceRepository,
+    private val widgetManager: WledWidgetManager,
     deviceUpdateManager: DeviceUpdateManager,
     private val okHttpClient: OkHttpClient,
-    moshi: Moshi
+    moshi: Moshi,
 ) {
 
     val deviceState: DeviceWithState = DeviceWithState(device, deviceUpdateManager)
@@ -40,7 +45,6 @@ class WebsocketClient(
     private var isManuallyDisconnected = false
     private var isConnecting = false
     private var retryCount = 0
-
 
     // Moshi setup
     private val deviceStateInfoJsonAdapter: JsonAdapter<DeviceStateInfo> =
@@ -76,6 +80,7 @@ class WebsocketClient(
                     // Ideally, this should probably not be done in the client directly
                     coroutineScope.launch {
                         saveDeviceIfChanged(deviceStateInfo)
+                        updateWidgets(deviceStateInfo)
                     }
                 } else {
                     Log.w(TAG, "Received a null message after parsing.")
@@ -88,7 +93,7 @@ class WebsocketClient(
         override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
             Log.d(
                 TAG,
-                "WebSocket closing for ${deviceState.device.address}. Code: $code, Reason: $reason"
+                "WebSocket closing for ${deviceState.device.address}. Code: $code, Reason: $reason",
             )
             deviceState.websocketStatus.value = WebsocketStatus.DISCONNECTED
         }
@@ -97,7 +102,7 @@ class WebsocketClient(
             Log.w(
                 TAG,
                 "WebSocket failure for ${deviceState.device.address}: ${t.message}; Response: $response",
-                t
+                t,
             )
             this@WebsocketClient.webSocket = null
             deviceState.websocketStatus.value = WebsocketStatus.DISCONNECTED
@@ -105,7 +110,6 @@ class WebsocketClient(
             reconnect()
         }
     }
-
 
     /**
      * Saves the device information to the database if it has changed.
@@ -138,6 +142,18 @@ class WebsocketClient(
     }
 
     /**
+     * Updates any active widgets for this device with the latest state.
+     */
+    private suspend fun updateWidgets(deviceStateInfo: DeviceStateInfo) {
+        widgetManager.updateWidgetsFromDeviceState(
+            applicationContext,
+            deviceState.device.macAddress,
+            deviceState.device.address,
+            deviceStateInfo,
+        )
+    }
+
+    /**
      * Updates the device state with a new device.
      * @param newDevice The new device to update with.
      */
@@ -149,7 +165,7 @@ class WebsocketClient(
         if (webSocket != null || isConnecting) {
             Log.w(
                 TAG,
-                "Already connected or connecting to ${deviceState.device.address}, isConnecting: $isConnecting"
+                "Already connected or connecting to ${deviceState.device.address}, isConnecting: $isConnecting",
             )
             return
         }
@@ -181,14 +197,13 @@ class WebsocketClient(
         isConnecting = false
     }
 
-
     private fun reconnect() {
         if (isManuallyDisconnected || isConnecting) return
 
         coroutineScope.launch {
             val delay = min(
                 RECONNECTION_DELAY * 2.0.pow(retryCount).toLong(),
-                MAX_RECONNECTION_DELAY
+                MAX_RECONNECTION_DELAY,
             )
             Log.d(TAG, "Reconnecting to ${deviceState.device.address} in ${delay / 1000}s")
             delay(delay)
@@ -201,15 +216,13 @@ class WebsocketClient(
      * Sends a message to the device.
      * @param message The message to send.
      */
-    private fun sendMessage(message: String): Boolean {
-        return try {
-            Log.d(TAG, "Sending message to ${deviceState.device.address}: $message")
-            webSocket?.send(message) ?: false
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send message to ${deviceState.device.address}", e)
-            reconnect()
-            false
-        }
+    private fun sendMessage(message: String): Boolean = try {
+        Log.d(TAG, "Sending message to ${deviceState.device.address}: $message")
+        webSocket?.send(message) ?: false
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to send message to ${deviceState.device.address}", e)
+        reconnect()
+        false
     }
 
     /**
@@ -227,7 +240,6 @@ class WebsocketClient(
         val json = stateJsonAdapter.toJson(state)
         sendMessage(json)
     }
-
 
     fun destroy() {
         Log.d(TAG, "Websocket client is destroyed for ${deviceState.device.address}")

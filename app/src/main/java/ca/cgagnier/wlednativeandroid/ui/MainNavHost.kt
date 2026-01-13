@@ -11,7 +11,8 @@ import kotlinx.serialization.Serializable
 
 @Composable
 fun MainNavHost(
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    startDeviceAddress: NavigationEvent? = null,
 ) {
     NavHost(
         navController = navController,
@@ -19,16 +20,17 @@ fun MainNavHost(
     ) {
         composable<DeviceListDetailScreen> {
             DeviceListDetail(
+                initialDeviceMacAddress = startDeviceAddress,
                 openSettings = {
                     navController.navigate(SettingsScreen)
-                }
+                },
             )
         }
         composable<SettingsScreen> {
             Settings(
                 navigateUp = {
                     navController.navigateUp()
-                }
+                },
             )
         }
     }

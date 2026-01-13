@@ -25,11 +25,7 @@ import androidx.compose.ui.unit.dp
 import ca.cgagnier.wlednativeandroid.R
 
 @Composable
-fun DeviceVisibleSwitch(
-    modifier: Modifier = Modifier,
-    isHidden: Boolean,
-    onCheckedChange: ((Boolean) -> Unit),
-) {
+fun DeviceVisibleSwitch(modifier: Modifier = Modifier, isHidden: Boolean, onCheckedChange: ((Boolean) -> Unit)) {
     val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
@@ -39,20 +35,28 @@ fun DeviceVisibleSwitch(
                 role = Role.Switch,
                 onClick = {
                     onCheckedChange(!isHidden)
-                }
+                },
             ),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        val isVisibleText = if (isHidden) stringResource(R.string.device_is_hidden) else stringResource(
-            R.string.device_is_visible)
-        val isVisibleIcon = painterResource(if (isHidden) R.drawable.ic_baseline_visibility_off_24 else R.drawable.baseline_visibility_24)
+        val isVisibleText = if (isHidden) {
+            stringResource(R.string.device_is_hidden)
+        } else {
+            stringResource(
+                R.string.device_is_visible,
+            )
+        }
+        val isVisibleIcon =
+            painterResource(
+                if (isHidden) R.drawable.ic_baseline_visibility_off_24 else R.drawable.baseline_visibility_24,
+            )
         AnimatedContent(
             targetState = isVisibleText,
             transitionSpec = {
                 fadeIn() togetherWith fadeOut()
             },
             label = "isVisibleTextAnimation",
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         ) {
             Text(
                 it,
@@ -75,7 +79,7 @@ fun DeviceVisibleSwitch(
                     contentDescription = null,
                     modifier = Modifier.size(SwitchDefaults.IconSize),
                 )
-            }
+            },
         )
     }
 }

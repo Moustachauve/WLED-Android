@@ -1,4 +1,4 @@
-<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2" xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">WLED</string>
     <string name="app_logo">WLED Logo</string>
     <string name="add_a_device">Add a New Device</string>
@@ -112,5 +112,17 @@
     <string name="non_base64_not_supported">Non-base64 data URIs are not currently supported</string>
     <string name="open">Open</string>
     <string name="dismiss">Dismiss</string>
+    <string name="some_devices_hidden">Some of your devices are hidden</string>
+    <!-- TODO: Translate the widget texts -->
+    <string name="widget_description" tools:ignore="MissingTranslation">WLED Widget</string>
+    <string name="widget_please_configure" tools:ignore="MissingTranslation">Please configure</string>
+    <string name="select_a_device" tools:ignore="MissingTranslation">Select a Device</string>
+    <string name="last_updated" tools:ignore="MissingTranslation">Last Updated</string>
+
+    <!-- Deep linking -->
+    <string name="deep_link_loading">Connecting to device…</string>
+    <string name="deep_link_error_title">Device Not Found</string>
+    <string name="deep_link_error_mac_not_found">Device with MAC address %1$s not found in your device list</string>
+    <string name="deep_link_error_unreachable">Could not reach device at %1$s. Make sure it is powered on and connected to the network.</string>
 
 </resources>
