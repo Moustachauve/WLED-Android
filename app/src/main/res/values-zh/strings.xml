@@ -110,6 +110,11 @@
     <string name="dismiss">关闭</string>
     <string name="some_devices_hidden">你有已隐藏的设备</string>
 
+    <string name="widget_description">WLED 小部件</string>
+    <string name="widget_please_configure">请配置</string>
+    <string name="select_a_device">选择设备</string>
+    <string name="last_updated">最后更新</string>
+
     <!-- Deep linking -->
     <string name="deep_link_loading">正在连接设备…</string>
     <string name="deep_link_error_title">未找到设备</string>
