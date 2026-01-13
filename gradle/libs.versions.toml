@@ -39,7 +39,7 @@ truth = "1.4.5"
 robolectric = "4.16"
 detekt = "1.23.8"
 spotless = "8.1.0"
-mockk = "1.14.0"
+mockk = "1.14.7"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose" }
