@@ -26,7 +26,7 @@ android {
     }
 
     androidResources {
-        localeFilters += listOf("en", "fr", "zh")
+        localeFilters += listOf("de", "en", "fr", "zh")
     }
 
     buildFeatures {

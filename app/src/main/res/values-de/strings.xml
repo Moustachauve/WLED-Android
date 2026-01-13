@@ -1,0 +1,127 @@
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_logo">WLED Logo</string>
+    <string name="add_a_device">Füge ein Gerät hinzu</string>
+    <string name="add">Hinzufügen</string>
+    <string name="add_adding_device"><xliff:g example="192.168.1.1" id="strength">%1$s</xliff:g> wird hinzugefügt</string>
+    <string name="add_device_added"><xliff:g example="Device123" id="strength">%1$s</xliff:g> wurde hinzugefügt</string>
+    <string name="add_device_error">Verbindung zum Gerät fehlgeschlagen. Überprüfen Sie die Adresse.</string>
+    <string name="deleting_device">Gerät löschen?</string>
+    <string name="delete">Löschen</string>
+    <string name="ip_address_or_url">IP-Adresse oder URL</string>
+    <string name="custom_name">Benutzerdefinierter Name</string>
+    <string name="leave_this_empty_to_use_the_device_name">Lasse dieses Feld leer, um den Gerätenamen zu verwenden</string>
+    <string name="please_enter_value">Bitte gib einen Wert ein</string>
+    <string name="please_enter_valid_value">Bitte gib einen gültigen Wert ein</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="default_device_name">(Neues Gerät)</string>
+    <string name="is_offline">Offline</string>
+    <string name="offline_less_than_minute">Offline, seit weniger als einer Minute</string>
+    <plurals name="offline_minutes">
+        <item quantity="one">Offline, seit %d Minute</item>
+        <item quantity="other">Offline, seit %d Minuten</item>
+    </plurals>
+    <plurals name="offline_hours">
+        <item quantity="one">Offline, seit %d Stunde</item>
+        <item quantity="other">Offline, seit %d Stunden</item>
+    </plurals>
+    <plurals name="offline_days">
+        <item quantity="one">Offline, seit %d Tag</item>
+        <item quantity="other">Offline, seit %d Tagen</item>
+    </plurals>
+    <string name="update_available">Update verfügbar</string>
+    <string name="network_status">Netzwerkstatus</string>
+    <string name="signal_strength">Signalstärke: <xliff:g example="-62" id="strength">%1$s</xliff:g></string>
+    <string name="battery_percentage">Batterie:</string>
+    <string name="refresh_page">Seite aktualisieren</string>
+    <string name="edit_device">Gerät bearbeiten</string>
+    <string name="edit_device_with_name">Gerät bearbeiten - <xliff:g example="WLED" id="device_name">%1$s</xliff:g></string>
+    <string name="device_is_visible">Gerät ist sichtbar</string>
+    <string name="device_is_hidden">Gerät ist verborgen</string>
+    <string name="hidden_status">(Verborgen)</string>
+    <string name="you_dont_have_any_visible_devices">Du hast keine sichtbaren Geräte</string>
+    <string name="awkward_akemi_character">Awkward Akemi Charakter</string>
+    <string name="settings">Einstellungen</string>
+    <string name="theme">Thema</string>
+    <string name="light">Hell</string>
+    <string name="dark">Dunkel</string>
+    <string name="system_default">Systemeinstellungen</string>
+    <string name="listing_options">Listenoptionen</string>
+    <string name="discovering_devices">Suche Geräte</string>
+    <string name="automatically_discover_new_devices">Neue Geräte automatisch erkennen</string>
+    <string name="show_hidden_devices">Verborgene Geräte anzeigen</string>
+    <string name="hide_hidden_devices">Verborgene Geräte ausblenden</string>
+    <string name="show_offline_devices_last">Zeige Geräte, die offline sind, als letztes an</string>
+    <string name="description_menu_button">Menü öffnen</string>
+    <string name="description_back_button">Zurück</string>
+    <string name="device_ap_mode_detected">WLED AP-Modus erkannt</string>
+    <string name="device_ap_mode_detected_click">Hier klicken, um das Gerät zu öffnen</string>
+    <string name="install">Installieren</string>
+    <string name="later">Später</string>
+    <string name="skip_this_version">Überspringen</string>
+    <string name="check_for_update">Nach Updates suchen</string>
+    <string name="from_version_to_version">
+        Von <xliff:g example="v0.13.0" id="old_version">%1$s</xliff:g> auf <xliff:g example="v0.14.0" id="new_version">%2$s</xliff:g>
+    </string>
+    <string name="see_update_details">Details anzeigen</string>
+    <string name="checking_progress_update">Überprüfe…</string>
+    <string name="updating">Aktualisiere %1$s</string>
+    <string name="please_do_not_close_the_app_or_turn_off_the_device">Bitte schließe die App nicht und schalte das Gerät nicht aus.</string>
+    <string name="starting_up">Startet</string>
+    <string name="downloading_version">Version wird heruntergeladen</string>
+    <string name="installing_update">Update wird installiert</string>
+    <string name="update_failed">Update fehlgeschlagen</string>
+    <string name="done">Fertig</string>
+    <string name="update_completed">Update abgeschlossen!</string>
+    <string name="are_you_sure">Bist du sicher?</string>
+    <string name="device_update_disclaimer_part1">Du bist dabei, eine neue Version von WLED zu installieren. Wenn du zuvor eine angepasste Version installiert hattest, könnten einige Funktionen verloren gehen (z. B. wenn du Usermods aktiviert hattest, funktionieren diese möglicherweise nicht mehr).</string>
+    <string name="device_update_disclaimer_part2">Wenn jemand dieses Gerät für dich installiert hat, solltest du diese Person fragen, ob ein Update des Geräts in Ordnung ist.</string>
+    <string name="device_update_disclaimer_part3">WLED ist nicht verantwortlich, wenn durch ein Update etwas schiefgeht.</string>
+    <string name="install_update">Update installieren</string>
+    <string name="ota_install_failed_device_locked">Dein Gerät könnte durch eine PIN geschützt oder gesperrt sein.</string>
+    <string name="no_compatible_version_found">Keine kompatible Version gefunden</string>
+    <string name="no_compatible_version_found_details">Es wurde keine Version gefunden, die mit deinem Gerät kompatibel ist. Du musst dein Gerät manuell aktualisieren.</string>
+    <string name="show_error">Fehler anzeigen</string>
+    <string name="hide_error">Fehler verbergen</string>
+    <string name="unknown_error">Unbekannter Fehler</string>
+    <string name="success">Erfolg!</string>
+    <string name="update_channel">Update-Kanal</string>
+    <string name="stable">Stable</string>
+    <string name="beta">Beta</string>
+    <string name="your_device_is_up_to_date">Dein Gerät ist auf dem neuesten Stand</string>
+    <string name="version_v_num">Version <xliff:g example="v0.14.0" id="version_name">%1$s</xliff:g></string>
+    <string name="select_a_device_from_the_list">Wähle ein Gerät aus der Liste</string>
+    <string name="downloading_file">Lade %1$s herunter…</string>
+    <string name="help">WLED Hilfe</string>
+    <string name="support_me">Unterstütze Moustachauve</string>
+    <string name="offline_devices">Offline Geräte</string>
+    <string name="websocket_connected">Verbunden</string>
+    <string name="websocket_connecting">Verbinde…</string>
+    <string name="websocket_disconnected">Getrennt</string>
+    <string name="mac_address_present">MAC-Adresse: %1$s</string>
+    <string name="device_error_title">Das ausgewählte Gerät konnte nicht erreicht werden</string>
+    <string name="device_error_message">Stellen Sie sicher, dass es angeschlossen und mit dem Netzwerk verbunden ist</string>
+    <string name="retry_connection">Verbindung erneut versuchen</string>
+    <string name="download_completed">Download abgeschlossen</string>
+    <string name="download_scheme_not_supported">Download für Schema nicht unterstützt: %1$s</string>
+    <string name="download_failed">Download fehlgeschlagen: %1$s</string>
+    <string name="download_not_supported_old_android">Diese Funktion erfordert Android 10 oder neuer</string>
+    <string name="file_creation_failed">Datei konnte nicht erstellt werden</string>
+    <string name="error_saving_file">Fehler beim Speichern der Datei</string>
+    <string name="invalid_data_uri">Ungültiges Data-URI-Format</string>
+    <string name="non_base64_not_supported">Nicht-Base64 Data-URIs werden nicht unterstützt</string>
+    <string name="open">Öffnen</string>
+    <string name="dismiss">Schließen</string>
+    <string name="some_devices_hidden">Einige deiner Geräte sind verborgen</string>
+    <!-- TODO: Translate the widget texts -->
+    <string name="widget_description">WLED Widget</string>
+    <string name="widget_please_configure">Bitte konfigurieren</string>
+    <string name="select_a_device">Wähle ein Gerät</string>
+    <string name="last_updated">Zuletzt aktualisiert</string>
+
+    <!-- Deep linking -->
+    <string name="deep_link_loading">Verbinde mit Gerät…</string>
+    <string name="deep_link_error_title">Gerät nicht gefunden</string>
+    <string name="deep_link_error_mac_not_found">Gerät mit MAC-Adresse %1$s nicht in deiner Geräteliste gefunden</string>
+    <string name="deep_link_error_unreachable">Konnte Gerät unter %1$s nicht erreichen. Stelle sicher, dass es eingeschaltet und mit dem Netzwerk verbunden ist.</string>
+
+</resources>
