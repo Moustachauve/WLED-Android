@@ -1,4 +1,4 @@
-package ca.cgagnier.wlednativeandroid.widget
+package ca.cgagnier.wlednativeandroid.widget.components
 
 import android.os.SystemClock
 import android.widget.RemoteViews
@@ -23,7 +23,8 @@ import ca.cgagnier.wlednativeandroid.R
 @Composable
 fun ElapsedTimeChronometer(lastUpdated: Long) {
     val context = LocalContext.current
-    val outlineColor = GlanceTheme.colors.outline.getColor(context).toArgb()
+    // TODO: This text is really hard to read on device with highly saturated colors and light theme
+    val textColor = GlanceTheme.colors.onSurfaceVariant.getColor(context).toArgb()
 
     // Calculate the Chronometer base:
     // Chronometer uses SystemClock.elapsedRealtime() as reference.
@@ -36,8 +37,8 @@ fun ElapsedTimeChronometer(lastUpdated: Long) {
     AndroidRemoteViews(
         remoteViews = RemoteViews(context.packageName, R.layout.widget_last_updated).apply {
             setChronometer(R.id.chronometer, chronometerBase, null, true)
-            setTextColor(R.id.chronometer, outlineColor)
-            setInt(R.id.history_icon, "setColorFilter", outlineColor)
+            setTextColor(R.id.chronometer, textColor)
+            setInt(R.id.history_icon, "setColorFilter", textColor)
         },
     )
 }

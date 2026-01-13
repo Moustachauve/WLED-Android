@@ -4,8 +4,6 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
@@ -17,13 +15,10 @@ import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
-import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
-import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
-import androidx.glance.color.ColorProviders
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -40,8 +35,12 @@ import androidx.glance.preview.Preview
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
 import ca.cgagnier.wlednativeandroid.R
+import ca.cgagnier.wlednativeandroid.widget.components.ElapsedTimeChronometer
+import ca.cgagnier.wlednativeandroid.widget.components.PowerButton
+import ca.cgagnier.wlednativeandroid.widget.components.QuickActionButtons
+import ca.cgagnier.wlednativeandroid.widget.components.QuickActionItem
+import ca.cgagnier.wlednativeandroid.widget.components.WLEDWidgetTheme
 import kotlinx.serialization.json.Json
 
 val WIDGET_DATA_KEY = stringPreferencesKey("widget_data")
@@ -61,30 +60,13 @@ fun WidgetContent(context: Context, appWidgetId: Int) {
 
     when (data) {
         is WidgetStateData -> {
-            GlanceTheme(colors = getWidgetTheme(data)) {
+            WLEDWidgetTheme(data) {
                 DeviceWidgetContent(data)
             }
         }
 
         else -> ErrorState(context, appWidgetId)
     }
-}
-
-/**
- * Create device-colored theme from the LED color
- */
-@Composable
-private fun getWidgetTheme(widgetState: WidgetStateData): ColorProviders {
-    val seedColor = if (widgetState.color != -1) {
-        Color(widgetState.color)
-    } else {
-        Color.White
-    }
-    val deviceColorProviders = createDeviceColorProviders(
-        seedColor = seedColor,
-        isOnline = widgetState.isOnline,
-    )
-    return deviceColorProviders
 }
 
 @Composable
@@ -254,103 +236,6 @@ private fun DeviceDetailsColumn(
     }
 }
 
-private const val GLOW_BRIGHTNESS_FACTOR = 0.2f
-private const val OUTLINE_BRIGHTNESS_FACTOR = 0.5f
-
-@Composable
-private fun PowerButton(data: WidgetStateData) {
-    val buttonColor = GlanceTheme.colors.primary
-    val onButtonColor = GlanceTheme.colors.onPrimary
-    val buttonOffColor = GlanceTheme.colors.surfaceVariant
-    val onButtonOffColor = GlanceTheme.colors.onSurfaceVariant
-
-    val context = LocalContext.current
-    val primaryColorArgb = buttonColor.getColor(context).toArgb()
-
-    val glowColorProvider = ColorProvider(
-        Color(brightenColor(primaryColorArgb, GLOW_BRIGHTNESS_FACTOR)),
-    )
-    val outlineColorProvider = ColorProvider(
-        Color(brightenColor(primaryColorArgb, OUTLINE_BRIGHTNESS_FACTOR)),
-    )
-
-    Box(
-        modifier = GlanceModifier
-            .size(48.dp) // Total size including glow
-            .cornerRadius(24.dp)
-            .clickable(
-                actionRunCallback<TogglePowerAction>(
-                    actionParametersOf(
-                        TogglePowerAction.keyIsOn to data.isOn,
-                    ),
-                ),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        // TODO: The colors should be defined directly in the appropriate states, not decided by parent?
-        if (data.isOn) {
-            PowerButtonOnState(glowColorProvider, buttonColor, outlineColorProvider, onButtonColor)
-        } else {
-            PowerButtonOffState(buttonOffColor, onButtonOffColor)
-        }
-    }
-}
-
-@Composable
-private fun PowerButtonOnState(
-    glowColor: ColorProvider,
-    buttonColor: ColorProvider,
-    outlineColor: ColorProvider,
-    iconColor: ColorProvider,
-) {
-    // Glow Layer (Outer, brighter neon)
-    Image(
-        provider = ImageProvider(R.drawable.widget_power_glow),
-        contentDescription = null,
-        modifier = GlanceModifier.fillMaxSize(),
-        colorFilter = ColorFilter.tint(glowColor),
-    )
-    // Background Layer (Solid Primary)
-    Image(
-        provider = ImageProvider(R.drawable.widget_circle_fill),
-        contentDescription = null,
-        modifier = GlanceModifier.size(32.dp),
-        colorFilter = ColorFilter.tint(buttonColor),
-    )
-    // Border Layer (Brighter Neon Outline)
-    Image(
-        provider = ImageProvider(R.drawable.widget_circle_outline),
-        contentDescription = null,
-        modifier = GlanceModifier.size(36.dp),
-        colorFilter = ColorFilter.tint(outlineColor),
-    )
-
-    // Icon Layer (OnPrimary)
-    Image(
-        provider = ImageProvider(R.drawable.outline_power_settings_new_24),
-        contentDescription = "Toggle Power",
-        modifier = GlanceModifier.size(20.dp),
-        colorFilter = ColorFilter.tint(iconColor),
-    )
-}
-
-@Composable
-private fun PowerButtonOffState(buttonColor: ColorProvider, iconColor: ColorProvider) {
-    // OFF State: Simple solid surfaceVariant, no outline, no glow
-    Image(
-        provider = ImageProvider(R.drawable.widget_circle_fill),
-        contentDescription = null,
-        modifier = GlanceModifier.size(32.dp),
-        colorFilter = ColorFilter.tint(buttonColor),
-    )
-    Image(
-        provider = ImageProvider(R.drawable.outline_power_settings_new_24),
-        contentDescription = "Toggle Power",
-        modifier = GlanceModifier.size(20.dp),
-        colorFilter = ColorFilter.tint(iconColor),
-    )
-}
-
 @Composable
 private fun RefreshButton(modifier: GlanceModifier = GlanceModifier) {
     Box(modifier = modifier.padding(8.dp)) {
@@ -374,7 +259,7 @@ private fun ElapsedTimeChronometerContainer(lastUpdated: Long) {
         modifier = GlanceModifier
             .fillMaxSize()
             // Small bottom padding to be near the bottom edge, bigger end padding to be safe from the corner radius
-            .padding(bottom = 2.dp, end = 18.dp),
+            .padding(bottom = 2.dp, end = 20.dp),
         contentAlignment = Alignment.BottomEnd,
     ) {
         ElapsedTimeChronometer(lastUpdated)
@@ -386,19 +271,16 @@ private fun ElapsedTimeChronometerContainer(lastUpdated: Long) {
 @Preview(widthDp = 200, heightDp = 100)
 @Composable
 private fun DeviceWidgetContentPreviewOn() {
-    val seedColor = Color(0xFF0000FF) // Blue
-    val colorProviders = createDeviceColorProviders(seedColor = seedColor, isOnline = true)
-    GlanceTheme(colors = colorProviders) {
-        DeviceWidgetContent(
-            data = WidgetStateData(
-                macAddress = "AA:BB:CC:DD:EE:FF",
-                address = "192.168.1.100",
-                name = "WLED Device",
-                isOn = true,
-                isOnline = true,
-                color = 0xFF0000FF.toInt(),
-            ),
-        )
+    val widgetData = WidgetStateData(
+        macAddress = "AA:BB:CC:DD:EE:FF",
+        address = "192.168.1.100",
+        name = "WLED Device",
+        isOn = true,
+        isOnline = true,
+        color = 0xFF0000FF.toInt(), // Blue
+    )
+    WLEDWidgetTheme(widgetData) {
+        DeviceWidgetContent(widgetData)
     }
 }
 
@@ -407,19 +289,16 @@ private fun DeviceWidgetContentPreviewOn() {
 @Preview(widthDp = 100, heightDp = 100)
 @Composable
 private fun DeviceWidgetContentPreviewNarrow() {
-    val seedColor = Color(0xFF0000FF) // Blue
-    val colorProviders = createDeviceColorProviders(seedColor = seedColor, isOnline = true)
-    GlanceTheme(colors = colorProviders) {
-        DeviceWidgetContent(
-            data = WidgetStateData(
-                macAddress = "AA:BB:CC:DD:EE:FF",
-                address = "192.168.1.100",
-                name = "Small widget with a long name",
-                isOn = true,
-                isOnline = true,
-                color = 0xFF0000FF.toInt(),
-            ),
-        )
+    val widgetData = WidgetStateData(
+        macAddress = "AA:BB:CC:DD:EE:FF",
+        address = "192.168.1.100",
+        name = "Small widget with a long name",
+        isOn = false,
+        isOnline = true,
+        color = 0xFF0000FF.toInt(), // Blue
+    )
+    WLEDWidgetTheme(widgetData) {
+        DeviceWidgetContent(widgetData)
     }
 }
 
@@ -428,19 +307,16 @@ private fun DeviceWidgetContentPreviewNarrow() {
 @Preview(widthDp = 200, heightDp = 100)
 @Composable
 private fun DeviceWidgetContentPreviewOff() {
-    val seedColor = Color(0xFFFF8000) // Orange
-    val colorProviders = createDeviceColorProviders(seedColor = seedColor, isOnline = false)
-    GlanceTheme(colors = colorProviders) {
-        DeviceWidgetContent(
-            data = WidgetStateData(
-                macAddress = "AA:BB:CC:DD:EE:FF",
-                address = "192.168.1.101",
-                name = "Offline device",
-                isOn = false,
-                isOnline = false,
-                color = 0xFFFF8000.toInt(),
-            ),
-        )
+    val widgetData = WidgetStateData(
+        macAddress = "AA:BB:CC:DD:EE:FF",
+        address = "192.168.1.101",
+        name = "Offline device",
+        isOn = false,
+        isOnline = false,
+        color = 0xFFFF8000.toInt(), // Orange
+    )
+    WLEDWidgetTheme(widgetData) {
+        DeviceWidgetContent(widgetData)
     }
 }
 
@@ -449,19 +325,16 @@ private fun DeviceWidgetContentPreviewOff() {
 @Preview(widthDp = 200, heightDp = 100)
 @Composable
 private fun DeviceWidgetContentPreviewQuickActions() {
-    val seedColor = Color(0xFFDFFF00) // Chartreuse
-    val colorProviders = createDeviceColorProviders(seedColor = seedColor, isOnline = true)
-    GlanceTheme(colors = colorProviders) {
-        DeviceWidgetContent(
-            data = WidgetStateData(
-                macAddress = "AA:BB:CC:DD:EE:FF",
-                address = "192.168.1.100",
-                name = "WLED Device",
-                isOn = true,
-                isOnline = true,
-                color = 0xFF0000FF.toInt(),
-                quickActionsEnabled = true,
-            ),
-        )
+    val widgetData = WidgetStateData(
+        macAddress = "AA:BB:CC:DD:EE:FF",
+        address = "192.168.1.100",
+        name = "WLED Device",
+        isOn = true,
+        isOnline = true,
+        color = 0xFFDFFF00.toInt(), // Chartreuse
+        quickActionsEnabled = true,
+    )
+    WLEDWidgetTheme(widgetData) {
+        DeviceWidgetContent(widgetData)
     }
 }
