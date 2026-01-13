@@ -1,4 +1,4 @@
-package ca.cgagnier.wlednativeandroid.widget
+package ca.cgagnier.wlednativeandroid.widget.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
