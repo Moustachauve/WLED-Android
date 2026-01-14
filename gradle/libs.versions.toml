@@ -1,4 +1,8 @@
 [versions]
+# App version - Update these when releasing
+app-versionCode = "49"
+app-versionName = "7.0.0-beta260113-01"
+
 agp = "8.13.2"
 composeBom = "2025.12.01"
 converterMoshi = "3.0.0"
