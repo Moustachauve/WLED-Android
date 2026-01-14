@@ -33,10 +33,13 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.jdk9.asPublisher
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Flow
 import java.util.function.Consumer
 
@@ -53,6 +56,7 @@ class WledControlsService : ControlsProviderService() {
         private const val TAG = "WledControlsService"
         private const val BRIGHTNESS_STEP = 1f
         private const val BRIGHTNESS_FORMAT = "%.0f%%"
+        private const val CLEANUP_DELAY_MS = 5000L
     }
 
     @EntryPoint
@@ -65,7 +69,7 @@ class WledControlsService : ControlsProviderService() {
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + job)
 
-    private val controlFlows = mutableMapOf<String, MutableSharedFlow<Control>>()
+    private val controlFlows = ConcurrentHashMap<String, MutableSharedFlow<Control>>()
 
     // Cache for device state (on/off and brightness)
     private val deviceStates = mutableMapOf<String, DeviceControlState>()
@@ -91,21 +95,52 @@ class WledControlsService : ControlsProviderService() {
     override fun createPublisherFor(controlIds: List<String>): Flow.Publisher<Control> {
         Log.d(TAG, "createPublisherFor: ${controlIds.size} controls")
 
-        val flow = MutableSharedFlow<Control>(replay = controlIds.size, extraBufferCapacity = controlIds.size)
-        controlIds.forEach { controlFlows[it] = flow }
+        val flows = controlIds.map { getOrCreateFlow(it) }
 
         scope.launch {
             controlIds.forEach { controlId ->
                 val device = deviceRepository.findDeviceByMacAddress(controlId)
                 if (device != null) {
-                    fetchAndEmitDeviceState(device, flow)
+                    val flow = controlFlows[controlId]
+                    if (flow != null) {
+                        fetchAndEmitDeviceState(device, flow)
+                    }
                 } else {
                     Log.w(TAG, "Device not found for control: $controlId")
                 }
             }
         }
 
-        return flow.asPublisher()
+        return flows.merge().asPublisher()
+    }
+
+    /**
+     * Gets an existing flow for a control or creates a new dedicated flow.
+     * Each control has its own flow to ensure updates reach all subscribers.
+     */
+    private fun getOrCreateFlow(controlId: String): MutableSharedFlow<Control> = controlFlows.getOrPut(controlId) {
+        MutableSharedFlow<Control>(replay = 1, extraBufferCapacity = 1).also { flow ->
+            observeSubscriptionCount(controlId, flow)
+        }
+    }
+
+    /**
+     * Observes subscription count and removes the flow from the map when
+     * there are no subscribers for a period of time to prevent memory leaks.
+     */
+    private fun observeSubscriptionCount(controlId: String, flow: MutableSharedFlow<Control>) {
+        scope.launch {
+            flow.subscriptionCount.collect { count ->
+                if (count == 0) {
+                    delay(CLEANUP_DELAY_MS)
+                    // Double-check subscription count after delay
+                    if (flow.subscriptionCount.value == 0) {
+                        controlFlows.remove(controlId, flow)
+                        Log.d(TAG, "Removed inactive flow for control: $controlId")
+                    }
+                }
+            }
+        }
     }
 
     override fun performControlAction(controlId: String, action: ControlAction, consumer: Consumer<Int>) {
