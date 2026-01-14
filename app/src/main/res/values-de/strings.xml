@@ -124,4 +124,8 @@
     <string name="deep_link_error_mac_not_found">Gerät mit MAC-Adresse %1$s nicht in deiner Geräteliste gefunden</string>
     <string name="deep_link_error_unreachable">Konnte Gerät unter %1$s nicht erreichen. Stelle sicher, dass es eingeschaltet und mit dem Netzwerk verbunden ist.</string>
 
+    <!-- Device Controls (Quick Settings) -->
+    <string name="control_on">An</string>
+    <string name="control_off">Aus</string>
+
 </resources>

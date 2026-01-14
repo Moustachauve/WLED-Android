@@ -120,4 +120,9 @@
     <string name="deep_link_error_title">未找到设备</string>
     <string name="deep_link_error_mac_not_found">未在列表中找到 MAC 地址为 %1$s 的设备</string>
     <string name="deep_link_error_unreachable">无法连接到 %1$s。请确保设备已开机并连接到网络。</string>
+
+    <!-- Device Controls (Quick Settings) -->
+    <string name="control_on">开</string>
+    <string name="control_off">关</string>
+
 </resources>

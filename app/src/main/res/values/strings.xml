@@ -125,4 +125,8 @@
     <string name="deep_link_error_mac_not_found">Device with MAC address %1$s not found in your device list</string>
     <string name="deep_link_error_unreachable">Could not reach device at %1$s. Make sure it is powered on and connected to the network.</string>
 
+    <!-- Device Controls (Quick Settings) -->
+    <string name="control_on">On</string>
+    <string name="control_off">Off</string>
+
 </resources>
