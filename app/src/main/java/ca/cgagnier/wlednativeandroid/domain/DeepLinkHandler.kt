@@ -1,8 +1,11 @@
 package ca.cgagnier.wlednativeandroid.domain
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import ca.cgagnier.wlednativeandroid.model.DEFAULT_WLED_AP_IP
+import ca.cgagnier.wlednativeandroid.ui.MainActivity
 import javax.inject.Inject
 
 /**
@@ -33,6 +36,19 @@ class DeepLinkHandler @Inject constructor() {
         private const val SCHEME_WLED = "wled"
         private const val SCHEME_HTTP = "http"
         private val MAC_ADDRESS_REGEX = Regex("^[0-9A-Fa-f]{12}$")
+
+        /**
+         * Creates an Intent to open the app with the specified device.
+         * This is shared between widgets, device controls, and other launch points.
+         *
+         * @param context The context to create the intent with
+         * @param macAddress The device's MAC address
+         * @return An Intent configured to open the device in the app
+         */
+        fun createDeviceIntent(context: Context, macAddress: String): Intent =
+            Intent(Intent.ACTION_VIEW, "$SCHEME_WLED://$macAddress".toUri())
+                .setClass(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 
     /**
