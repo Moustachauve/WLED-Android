@@ -1,7 +1,6 @@
 package ca.cgagnier.wlednativeandroid.service.controls
 
 import android.app.PendingIntent
-import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Build
@@ -15,13 +14,12 @@ import android.service.controls.templates.ControlButton
 import android.service.controls.templates.ToggleRangeTemplate
 import android.util.Log
 import androidx.annotation.RequiresApi
-import androidx.core.net.toUri
+import ca.cgagnier.wlednativeandroid.domain.DeepLinkHandler
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
-import ca.cgagnier.wlednativeandroid.ui.MainActivity
 import ca.cgagnier.wlednativeandroid.ui.theme.getColorFromDeviceState
 import ca.cgagnier.wlednativeandroid.util.MAX_BRIGHTNESS_PERCENT
 import ca.cgagnier.wlednativeandroid.util.brightnessToPercent
@@ -41,6 +39,7 @@ import kotlinx.coroutines.jdk9.asPublisher
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Flow
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Consumer
 
 /**
@@ -72,7 +71,11 @@ class WledControlsService : ControlsProviderService() {
     private val controlFlows = ConcurrentHashMap<String, MutableSharedFlow<Control>>()
 
     // Cache for device state (on/off and brightness)
-    private val deviceStates = mutableMapOf<String, DeviceControlState>()
+    private val deviceStates = ConcurrentHashMap<String, DeviceControlState>()
+
+    // Thread-safe unique request code generation for PendingIntents
+    private val requestCodeCounter = AtomicInteger(0)
+    private val requestCodes = ConcurrentHashMap<String, Int>()
 
     private val entryPoint: ControlsEntryPoint by lazy {
         EntryPointAccessors.fromApplication(applicationContext, ControlsEntryPoint::class.java)
@@ -318,18 +321,22 @@ class WledControlsService : ControlsProviderService() {
     }
 
     private fun createPendingIntent(device: Device): PendingIntent {
-        // Use wled:// deep link to open the device directly
-        val intent = Intent(Intent.ACTION_VIEW, "wled://${device.macAddress}".toUri())
-            .setClass(this, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        val intent = DeepLinkHandler.createDeviceIntent(this, device.macAddress)
 
         return PendingIntent.getActivity(
             this,
-            device.macAddress.hashCode(),
+            getOrCreateRequestCode(device.macAddress),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
+
+    /**
+     * Gets or creates a unique request code for a device's PendingIntent.
+     * This avoids hash code collisions that could occur with String.hashCode().
+     */
+    private fun getOrCreateRequestCode(macAddress: String): Int =
+        requestCodes.getOrPut(macAddress) { requestCodeCounter.incrementAndGet() }
 
     private data class DeviceControlState(val isOn: Boolean, val brightness: Int, val color: Int)
 }
