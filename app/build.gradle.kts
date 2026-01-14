@@ -123,6 +123,7 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.hilt.android)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.jdk9)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.logging.interceptor)
     implementation(libs.material.kolor)
