@@ -14,6 +14,7 @@ import android.service.controls.templates.ControlButton
 import android.service.controls.templates.ToggleRangeTemplate
 import android.util.Log
 import androidx.annotation.RequiresApi
+import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.domain.DeepLinkHandler
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
@@ -298,7 +299,10 @@ class WledControlsService : ControlsProviderService() {
 
         val template = ToggleRangeTemplate(
             device.macAddress,
-            ControlButton(state.isOn, if (state.isOn) "On" else "Off"),
+            ControlButton(
+                state.isOn,
+                getString(if (state.isOn) R.string.control_on else R.string.control_off),
+            ),
             /* range = */
             android.service.controls.templates.RangeTemplate(
                 "${device.macAddress}_range",
