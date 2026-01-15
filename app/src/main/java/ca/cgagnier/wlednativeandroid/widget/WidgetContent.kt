@@ -121,7 +121,7 @@ private fun DeviceWidgetContentWide(data: WidgetStateData) {
                     showAddress = true,
                 )
                 // Switch stays next to content in Wide mode
-                PowerButton(data)
+                PowerButton(isOn = data.isOn)
             }
             // TODO: Add a way for users to configure quick actions
             if (data.quickActionsEnabled) {
@@ -146,7 +146,7 @@ private fun DeviceWidgetContentNarrow(data: WidgetStateData) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PowerButton(data)
+            PowerButton(isOn = data.isOn)
             DeviceDetailsColumn(
                 data = data,
                 modifier = GlanceModifier.defaultWeight(),

@@ -16,19 +16,21 @@ import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
+import androidx.glance.layout.Row
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.size
+import androidx.glance.preview.ExperimentalGlancePreviewApi
+import androidx.glance.preview.Preview
 import androidx.glance.unit.ColorProvider
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.widget.TogglePowerAction
-import ca.cgagnier.wlednativeandroid.widget.WidgetStateData
 import ca.cgagnier.wlednativeandroid.widget.brightenColor
 
 private const val GLOW_BRIGHTNESS_FACTOR = 0.9f
 private const val OUTLINE_BRIGHTNESS_FACTOR = 0.9f
 
 @Composable
-fun PowerButton(data: WidgetStateData) {
+fun PowerButton(isOn: Boolean) {
     Box(
         modifier = GlanceModifier
             .size(48.dp) // Total size including glow
@@ -36,16 +38,15 @@ fun PowerButton(data: WidgetStateData) {
             .clickable(
                 actionRunCallback<TogglePowerAction>(
                     actionParametersOf(
-                        TogglePowerAction.keyIsOn to data.isOn,
+                        TogglePowerAction.keyIsOn to isOn,
                     ),
                 ),
             ),
         contentAlignment = Alignment.Center,
     ) {
-        if (data.isOn) {
-            PowerButtonOnState()
-        } else {
-            PowerButtonOffState()
+        when (isOn) {
+            true -> PowerButtonOnState()
+            false -> PowerButtonOffState()
         }
     }
 }
@@ -100,17 +101,24 @@ private fun PowerButtonOffState() {
     val buttonColor = GlanceTheme.colors.surfaceVariant
     val onButtonColor = GlanceTheme.colors.onSurfaceVariant
 
-    // OFF State: Simple solid surfaceVariant, no outline, no glow
-    Image(
-        provider = ImageProvider(R.drawable.widget_circle_fill),
-        contentDescription = null,
-        modifier = GlanceModifier.size(32.dp),
-        colorFilter = ColorFilter.tint(buttonColor),
-    )
+    // OFF State: Simple icon, no background, no outline, no glow
     Image(
         provider = ImageProvider(R.drawable.outline_power_settings_new_24),
         contentDescription = "Toggle Power",
         modifier = GlanceModifier.size(20.dp),
         colorFilter = ColorFilter.tint(onButtonColor),
     )
+}
+
+@Suppress("MagicNumber")
+@OptIn(ExperimentalGlancePreviewApi::class)
+@Preview(widthDp = 120, heightDp = 70)
+@Composable
+private fun WidgetPowerButtonPreview() {
+    GlanceTheme {
+        Row {
+            PowerButton(isOn = true)
+            PowerButton(isOn = false)
+        }
+    }
 }
