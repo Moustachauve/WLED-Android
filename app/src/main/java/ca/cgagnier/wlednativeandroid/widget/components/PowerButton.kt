@@ -98,7 +98,6 @@ private fun PowerButtonOnState() {
 
 @Composable
 private fun PowerButtonOffState() {
-    val buttonColor = GlanceTheme.colors.surfaceVariant
     val onButtonColor = GlanceTheme.colors.onSurfaceVariant
 
     // OFF State: Simple icon, no background, no outline, no glow
