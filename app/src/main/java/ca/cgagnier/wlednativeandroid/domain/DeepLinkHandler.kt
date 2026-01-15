@@ -48,6 +48,7 @@ class DeepLinkHandler @Inject constructor() {
         fun createDeviceIntent(context: Context, macAddress: String): Intent =
             Intent(Intent.ACTION_VIEW, "$SCHEME_WLED://$macAddress".toUri())
                 .setClass(context, MainActivity::class.java)
+                .setPackage(context.packageName)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 
