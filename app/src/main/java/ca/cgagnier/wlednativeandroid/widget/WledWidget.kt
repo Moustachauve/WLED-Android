@@ -30,6 +30,14 @@ class WledWidget : GlanceAppWidget() {
         }
     }
 
+    override suspend fun providePreview(context: Context, widgetCategory: Int) {
+        provideContent {
+            GlanceTheme {
+                WidgetPreviewContent()
+            }
+        }
+    }
+
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface WidgetEntryPoint {
