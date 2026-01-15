@@ -11,7 +11,7 @@ coreKtx = "1.17.0"
 coreSplashscreen = "1.2.0"
 datastorePreferences = "1.2.0"
 espressoCore = "3.7.0"
-glance = "1.1.1"
+glance = "1.2.0-rc01"
 # Version 2.53.1 causes issue with compiling
 # https://github.com/google/dagger/issues/4533
 hiltAndroid = "2.57.2"

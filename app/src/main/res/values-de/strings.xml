@@ -113,7 +113,8 @@
     <string name="dismiss">Schließen</string>
     <string name="some_devices_hidden">Einige deiner Geräte sind verborgen</string>
     <!-- TODO: Translate the widget texts -->
-    <string name="widget_description">WLED Widget</string>
+    <string name="widget_single_device_name">Einzelgerät</string>
+    <string name="widget_description">Ein einzelnes WLED-Gerät steuern</string>
     <string name="widget_please_configure">Bitte konfigurieren</string>
     <string name="select_a_device">Wähle ein Gerät</string>
     <string name="last_updated">Zuletzt aktualisiert</string>

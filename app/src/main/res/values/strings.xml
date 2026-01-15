@@ -114,7 +114,8 @@
     <string name="dismiss">Dismiss</string>
     <string name="some_devices_hidden">Some of your devices are hidden</string>
     <!-- TODO: Translate the widget texts -->
-    <string name="widget_description">WLED Widget</string>
+    <string name="widget_single_device_name">Single Device</string>
+    <string name="widget_description">Control a single WLED device</string>
     <string name="widget_please_configure">Please configure</string>
     <string name="select_a_device">Select a Device</string>
     <string name="last_updated">Last Updated</string>

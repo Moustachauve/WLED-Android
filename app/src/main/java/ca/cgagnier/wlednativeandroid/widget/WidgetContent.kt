@@ -44,7 +44,7 @@ import ca.cgagnier.wlednativeandroid.widget.components.WLEDWidgetTheme
 import kotlinx.serialization.json.Json
 
 val WIDGET_DATA_KEY = stringPreferencesKey("widget_data")
-private val NARROW_WIDGET_WIDTH_THRESHOLD = 150.dp
+private val NARROW_WIDGET_WIDTH_THRESHOLD = 160.dp
 private val WIDGET_SAFE_PADDING = 12.dp
 
 @Composable
@@ -66,6 +66,22 @@ fun WidgetContent(context: Context, appWidgetId: Int) {
         }
 
         else -> ErrorState(context, appWidgetId)
+    }
+}
+
+@Suppress("MagicNumber")
+@Composable
+fun WidgetPreviewContent() {
+    val previewData = WidgetStateData(
+        macAddress = "preview",
+        address = "192.168.1.x",
+        name = "WLED Device",
+        isOn = true,
+        isOnline = true,
+        color = 0xFF00BFFF.toInt(), // Deep sky blue
+    )
+    WLEDWidgetTheme(previewData) {
+        DeviceWidgetContentWide(previewData)
     }
 }
 
@@ -108,7 +124,7 @@ private fun DeviceWidgetContent(data: WidgetStateData) {
 }
 
 @Composable
-private fun DeviceWidgetContentWide(data: WidgetStateData) {
+internal fun DeviceWidgetContentWide(data: WidgetStateData) {
     DeviceWidgetContainer(data) {
         Column(
             modifier = GlanceModifier.fillMaxSize(),
@@ -271,22 +287,12 @@ private fun ElapsedTimeChronometerContainer(lastUpdated: Long) {
 @Preview(widthDp = 200, heightDp = 100)
 @Composable
 private fun DeviceWidgetContentPreviewOn() {
-    val widgetData = WidgetStateData(
-        macAddress = "AA:BB:CC:DD:EE:FF",
-        address = "192.168.1.100",
-        name = "WLED Device",
-        isOn = true,
-        isOnline = true,
-        color = 0xFF0000FF.toInt(), // Blue
-    )
-    WLEDWidgetTheme(widgetData) {
-        DeviceWidgetContent(widgetData)
-    }
+    WidgetPreviewContent()
 }
 
 @Suppress("MagicNumber")
 @OptIn(ExperimentalGlancePreviewApi::class)
-@Preview(widthDp = 100, heightDp = 100)
+@Preview(widthDp = 150, heightDp = 100)
 @Composable
 private fun DeviceWidgetContentPreviewNarrow() {
     val widgetData = WidgetStateData(
