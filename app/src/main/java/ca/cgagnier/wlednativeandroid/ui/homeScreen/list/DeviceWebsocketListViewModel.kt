@@ -200,7 +200,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
     }
 
     fun deleteDevice(device: Device) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             Log.d(TAG, "Deleting device ${device.originalName} - ${device.address}")
             widgetManager.deleteWidgetsForDevice(applicationContext, device.macAddress)
             deviceRepository.delete(device)
