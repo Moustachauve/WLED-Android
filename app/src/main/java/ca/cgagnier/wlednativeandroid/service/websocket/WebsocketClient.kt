@@ -80,7 +80,7 @@ class WebsocketClient(
                     // Ideally, this should probably not be done in the client directly
                     coroutineScope.launch {
                         saveDeviceIfChanged(deviceStateInfo)
-                        updateWidgets(deviceStateInfo)
+                        updateWidgets()
                     }
                 } else {
                     Log.w(TAG, "Received a null message after parsing.")
@@ -144,12 +144,10 @@ class WebsocketClient(
     /**
      * Updates any active widgets for this device with the latest state.
      */
-    private suspend fun updateWidgets(deviceStateInfo: DeviceStateInfo) {
-        widgetManager.updateWidgetsFromDeviceState(
+    private suspend fun updateWidgets() {
+        widgetManager.updateWidgetsFromDeviceWithState(
             applicationContext,
-            deviceState.device.macAddress,
-            deviceState.device.address,
-            deviceStateInfo,
+            deviceState,
         )
     }
 
