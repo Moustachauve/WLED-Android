@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen.deviceEdit
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +11,9 @@ import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
+import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +27,8 @@ class DeviceEditViewModel @Inject constructor(
     private val repository: DeviceRepository,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val githubApi: GithubApi,
+    private val widgetManager: WledWidgetManager,
+    @param:ApplicationContext private val applicationContext: Context,
 ) : ViewModel() {
 
     private var _updateDetailsVersion: MutableStateFlow<VersionWithAssets?> = MutableStateFlow(null)
@@ -40,14 +45,16 @@ class DeviceEditViewModel @Inject constructor(
     val isCheckingUpdates = _isCheckingUpdates.asStateFlow()
 
     fun updateCustomName(device: Device, name: String) = viewModelScope.launch(Dispatchers.IO) {
-        val isCustomName = name != ""
         val updatedDevice = device.copy(
             customName = name,
         )
 
-        Log.d(TAG, "updateCustomName: $name, isCustom: $isCustomName")
+        Log.d(TAG, "updateCustomName: $name")
 
         repository.update(updatedDevice)
+
+        // Update widgets to show the new name
+        widgetManager.updateWidgetNamesForDevice(applicationContext, updatedDevice)
     }
 
     fun updateDeviceHidden(device: Device, isHidden: Boolean) = viewModelScope.launch(Dispatchers.IO) {

@@ -32,6 +32,7 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.ui.components.deviceName
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
+import ca.cgagnier.wlednativeandroid.widget.components.getDeviceName
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -87,7 +88,7 @@ class WledWidgetConfigureActivity : ComponentActivity() {
             val widgetData = WidgetStateData(
                 macAddress = device.macAddress,
                 address = device.address,
-                name = device.customName.ifBlank { device.originalName },
+                name = getDeviceName(device, getString(R.string.default_device_name)),
                 isOn = false,
                 lastUpdated = System.currentTimeMillis(),
             )

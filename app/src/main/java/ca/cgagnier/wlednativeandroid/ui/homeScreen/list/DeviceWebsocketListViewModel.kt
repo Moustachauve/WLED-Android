@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen.list
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -13,7 +14,9 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientFactory
+import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +35,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
     userPreferencesRepository: UserPreferencesRepository,
     private val deviceRepository: DeviceRepository,
     private val websocketClientFactory: WebsocketClientFactory,
+    private val widgetManager: WledWidgetManager,
+    @ApplicationContext private val applicationContext: Context,
 ) : ViewModel(),
     DefaultLifecycleObserver {
     private val activeClients = MutableStateFlow<Map<String, WebsocketClient>>(emptyMap())
@@ -197,6 +202,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
     fun deleteDevice(device: Device) {
         viewModelScope.launch {
             Log.d(TAG, "Deleting device ${device.originalName} - ${device.address}")
+            widgetManager.deleteWidgetsForDevice(applicationContext, device.macAddress)
             deviceRepository.delete(device)
         }
     }

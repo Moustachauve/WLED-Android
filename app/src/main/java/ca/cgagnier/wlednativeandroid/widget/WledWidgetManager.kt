@@ -7,11 +7,14 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
-import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
+import ca.cgagnier.wlednativeandroid.R
+import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
+import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.ui.theme.getColorFromDeviceState
+import ca.cgagnier.wlednativeandroid.widget.components.getDeviceName
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -31,30 +34,25 @@ class WledWidgetManager @Inject constructor(
      * (e.g., WebSocket).
      *
      * @param context Application context
-     * @param macAddress The MAC address of the device
-     * @param address The current network address of the device
-     * @param stateInfo The device state info received from WebSocket
+     * @param deviceWithState The device with its current state
      */
-    suspend fun updateWidgetsFromDeviceState(
-        context: Context,
-        macAddress: String,
-        address: String,
-        stateInfo: DeviceStateInfo,
-    ) {
+    suspend fun updateWidgetsFromDeviceWithState(context: Context, deviceWithState: DeviceWithState) {
+        val stateInfo = deviceWithState.stateInfo.value ?: return
+
         // Create a complete, authoritative state from scratch
         // This ensures all widgets for the device get the exact same state
         val newData = WidgetStateData(
-            macAddress = macAddress,
-            address = address,
-            name = stateInfo.info.name,
+            macAddress = deviceWithState.device.macAddress,
+            address = deviceWithState.device.address,
+            name = getDeviceName(deviceWithState.device, context.getString(R.string.default_device_name)),
             isOn = stateInfo.state.isOn ?: false,
             isOnline = true,
             color = getColorFromDeviceState(stateInfo.state),
             lastUpdated = System.currentTimeMillis(),
         )
 
-        Log.d(TAG, "Updating widgets from websocket for MAC $macAddress")
-        updateWidgetsForMacAddress(context, macAddress, newData)
+        Log.d(TAG, "Updating widgets from websocket for MAC ${deviceWithState.device.macAddress}")
+        updateWidgetsForMacAddress(context, deviceWithState.device.macAddress, newData)
     }
 
     suspend fun updateAllWidgets(context: Context) {
@@ -108,6 +106,7 @@ class WledWidgetManager @Inject constructor(
             response.body()?.let { body ->
                 val newData = widgetData.copy(
                     address = targetAddress,
+                    name = getDeviceName(device, context.getString(R.string.default_device_name)),
                     isOn = body.isOn ?: jsonPost.isOn ?: widgetData.isOn,
                     color = getColorFromDeviceState(body),
                     isOnline = true,
@@ -132,6 +131,51 @@ class WledWidgetManager @Inject constructor(
             if (widgetState.macAddress == macAddress) {
                 Log.d(TAG, "Updating widget for MAC $macAddress")
                 saveStateAndPush(context, glanceId, newData)
+            }
+        }
+    }
+
+    /**
+     * Updates the name displayed on all widgets for a device.
+     * Call this when the device's customName or originalName changes.
+     */
+    suspend fun updateWidgetNamesForDevice(context: Context, device: Device) {
+        val manager = GlanceAppWidgetManager(context)
+        val glanceIds = manager.getGlanceIds(WledWidget::class.java)
+        val displayName = getDeviceName(device, context.getString(R.string.default_device_name))
+
+        glanceIds.forEach { glanceId ->
+            val widgetState = getWidgetState(context, glanceId) ?: return@forEach
+            if (widgetState.macAddress == device.macAddress) {
+                Log.d(TAG, "Updating widget name for MAC ${device.macAddress} to $displayName")
+                val newData = widgetState.copy(name = displayName)
+                saveStateAndPush(context, glanceId, newData)
+            }
+        }
+    }
+
+    /**
+     * Clears data for all widgets associated with a device.
+     * Call this when a device is deleted from the app.
+     * The widgets will show an error state prompting reconfiguration.
+     */
+    suspend fun deleteWidgetsForDevice(context: Context, macAddress: String) {
+        val manager = GlanceAppWidgetManager(context)
+        val glanceIds = manager.getGlanceIds(WledWidget::class.java)
+
+        glanceIds.forEach { glanceId ->
+            val widgetState = getWidgetState(context, glanceId) ?: return@forEach
+            if (widgetState.macAddress == macAddress) {
+                try {
+                    // Clear state - widget will show error state prompting reconfiguration
+                    updateAppWidgetState(context, glanceId) { prefs ->
+                        prefs.remove(WIDGET_DATA_KEY)
+                    }
+                    WledWidget().update(context, glanceId)
+                    Log.d(TAG, "Cleared widget data for deleted device: $macAddress")
+                } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                    Log.e(TAG, "Error clearing widget for device $macAddress", e)
+                }
             }
         }
     }
