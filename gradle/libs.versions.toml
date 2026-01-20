@@ -14,7 +14,7 @@ espressoCore = "3.7.0"
 glance = "1.2.0-rc01"
 # Version 2.53.1 causes issue with compiling
 # https://github.com/google/dagger/issues/4533
-hiltAndroid = "2.57.2"
+hiltAndroid = "2.58"
 hiltCompiler = "2.57.2"
 hiltNavigationCompose = "1.3.0"
 junit = "4.13.2"
