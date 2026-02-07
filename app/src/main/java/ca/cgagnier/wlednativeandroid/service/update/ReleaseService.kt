@@ -79,11 +79,12 @@ fun getRepositoryFromInfo(info: Info): String {
  */
 fun splitRepository(repository: String): Pair<String, String> {
     val parts = repository.split("/")
-    return if (parts.size == 2) {
-        Pair(parts[0], parts[1])
+    if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) {
+        return Pair(parts[0], parts[1])
     } else {
         Log.w(TAG, "Invalid repo format: $repository, using default")
-        Pair("wled", "WLED")
+        val defaultParts = DEFAULT_REPO.split("/")
+        return Pair(defaultParts[0], defaultParts[1])
     }
 }
 
