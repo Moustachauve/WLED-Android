@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
+import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
@@ -68,7 +69,7 @@ class DeviceEditViewModel @Inject constructor(
         repository.update(updatedDevice)
     }
 
-    fun showUpdateDetails(device: Device, deviceStateInfo: ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo?, version: String) = viewModelScope.launch(Dispatchers.IO) {
+    fun showUpdateDetails(device: Device, deviceStateInfo: DeviceStateInfo?, version: String) = viewModelScope.launch(Dispatchers.IO) {
         // Extract repository from device info, defaulting to "wled/WLED"
         val repository = deviceStateInfo?.info?.repo ?: "wled/WLED"
         _updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(repository, version)

@@ -13,6 +13,7 @@ import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import com.vdurmont.semver4j.Semver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 private const val TAG = "updateService"
 private const val DEFAULT_REPO = "wled/WLED"
@@ -39,7 +40,7 @@ fun splitRepository(repository: String): Pair<String, String> {
     }
 }
 
-class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsRepository) {
+class ReleaseService @Inject constructor(private val versionWithAssetsRepository: VersionWithAssetsRepository) {
 
     /**
      * If a new version is available, returns the version tag of it.

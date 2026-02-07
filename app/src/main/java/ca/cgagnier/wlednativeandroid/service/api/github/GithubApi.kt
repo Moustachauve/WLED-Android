@@ -33,8 +33,9 @@ class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints
     ): Flow<DownloadState> = flow {
         try {
             emit(DownloadState.Downloading(0))
+            val (repoOwner, repoName) = ca.cgagnier.wlednativeandroid.service.update.splitRepository(asset.repository)
             val responseBody =
-                apiEndpoints.downloadReleaseBinary(REPO_OWNER, REPO_NAME, asset.assetId)
+                apiEndpoints.downloadReleaseBinary(repoOwner, repoName, asset.assetId)
             emitAll(responseBody.saveFile(targetFile))
         } catch (e: Exception) {
             emit(DownloadState.Failed(e))
@@ -69,8 +70,5 @@ class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints
 
     companion object {
         private const val TAG = "github-release"
-        // Default repository for backward compatibility
-        const val DEFAULT_REPO_OWNER = "wled"
-        const val DEFAULT_REPO_NAME = "WLED"
     }
 }
