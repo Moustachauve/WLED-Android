@@ -28,7 +28,8 @@ class DeviceEditViewModel @Inject constructor(
     private val repository: DeviceRepository,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val githubApi: GithubApi,
-    private val websocketClients: Map<String, @JvmSuppressWildcards WebsocketClient>
+    private val websocketClients: Map<String, @JvmSuppressWildcards WebsocketClient>,
+    private val releaseService: ReleaseService
 ) : ViewModel() {
 
     private var _updateDetailsVersion: MutableStateFlow<VersionWithAssets?> = MutableStateFlow(null)
@@ -115,8 +116,6 @@ class DeviceEditViewModel @Inject constructor(
             val updatedDevice = device.copy(skipUpdateTag = "")
             repository.update(updatedDevice)
             try {
-                val releaseService = ReleaseService(versionWithAssetsRepository)
-                
                 // Get repository for this specific device
                 val repositories = mutableSetOf<String>()
                 repositories.add(DEFAULT_REPO) // Always include the default WLED repository
