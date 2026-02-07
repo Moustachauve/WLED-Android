@@ -10,6 +10,7 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
+import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
@@ -21,7 +22,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 const val TAG = "DeviceEditViewModel"
-private const val DEFAULT_REPO = "wled/WLED"
 
 @HiltViewModel
 class DeviceEditViewModel @Inject constructor(

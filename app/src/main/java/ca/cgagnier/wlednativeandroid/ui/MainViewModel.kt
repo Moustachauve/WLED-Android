@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
+import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
@@ -17,7 +18,6 @@ import java.util.concurrent.TimeUnit.DAYS
 import javax.inject.Inject
 
 private const val TAG = "MainViewModel"
-private const val DEFAULT_REPO = "wled/WLED"
 
 @HiltViewModel
 class MainViewModel @Inject constructor(

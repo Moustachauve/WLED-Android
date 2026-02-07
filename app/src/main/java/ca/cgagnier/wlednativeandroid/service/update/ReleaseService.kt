@@ -16,7 +16,7 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 private const val TAG = "updateService"
-private const val DEFAULT_REPO = "wled/WLED"
+const val DEFAULT_REPO = "wled/WLED"
 
 enum class UpdateSourceType {
     OFFICIAL_WLED, QUINLED, CUSTOM
