@@ -11,6 +11,8 @@ import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
+import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,12 +21,14 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 const val TAG = "DeviceEditViewModel"
+private const val DEFAULT_REPO = "wled/WLED"
 
 @HiltViewModel
 class DeviceEditViewModel @Inject constructor(
     private val repository: DeviceRepository,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
-    private val githubApi: GithubApi
+    private val githubApi: GithubApi,
+    private val websocketClients: Map<String, @JvmSuppressWildcards WebsocketClient>
 ) : ViewModel() {
 
     private var _updateDetailsVersion: MutableStateFlow<VersionWithAssets?> = MutableStateFlow(null)
@@ -112,8 +116,21 @@ class DeviceEditViewModel @Inject constructor(
             repository.update(updatedDevice)
             try {
                 val releaseService = ReleaseService(versionWithAssetsRepository)
-                // Always include the default repository
-                val repositories = setOf("wled/WLED")
+                
+                // Collect unique repositories from all connected devices
+                val repositories = mutableSetOf<String>()
+                repositories.add(DEFAULT_REPO) // Always include the default WLED repository
+                
+                websocketClients.values.forEach { client ->
+                    val info = client.deviceState.stateInfo.value?.info
+                    if (info != null) {
+                        val repo = getRepositoryFromInfo(info)
+                        repositories.add(repo)
+                        Log.d(TAG, "Found device using repository: $repo")
+                    }
+                }
+                
+                Log.i(TAG, "Refreshing versions from ${repositories.size} repositories: $repositories")
                 releaseService.refreshVersions(githubApi, repositories)
             } finally {
                 _isCheckingUpdates.value = false
