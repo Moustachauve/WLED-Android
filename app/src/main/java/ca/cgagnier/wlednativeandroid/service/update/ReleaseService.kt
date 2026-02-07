@@ -18,12 +18,59 @@ import javax.inject.Inject
 private const val TAG = "updateService"
 private const val DEFAULT_REPO = "wled/WLED"
 
+enum class UpdateSourceType {
+    OFFICIAL_WLED, QUINLED, CUSTOM
+}
+
+data class UpdateSourceDefinition(
+    val type: UpdateSourceType,
+    val brandPattern: String,
+    val githubOwner: String,
+    val githubRepo: String
+)
+
+object UpdateSourceRegistry {
+    val sources = listOf(
+        UpdateSourceDefinition(
+            type = UpdateSourceType.OFFICIAL_WLED,
+            brandPattern = "WLED",
+            githubOwner = "wled",
+            githubRepo = "WLED"
+        ), UpdateSourceDefinition(
+            type = UpdateSourceType.QUINLED,
+            brandPattern = "QuinLED",
+            githubOwner = "intermittech",
+            githubRepo = "QuinLED-Firmware"
+        )
+    )
+
+    fun getSource(info: Info): UpdateSourceDefinition? {
+        return sources.find {
+            info.brand == it.brandPattern
+        }
+    }
+}
+
 /**
- * Extracts repository from device info.
- * Uses the repo field if available (format: "owner/name"), otherwise defaults to "wled/WLED"
+ * Extracts repository from device info using a three-tier fallback strategy:
+ * 1. First: Use the repo field if available (format: "owner/name") - added in WLED 0.15.2
+ * 2. Second: Use UpdateSourceRegistry based on brand pattern matching
+ * 3. Third: Default to "wled/WLED"
  */
 fun getRepositoryFromInfo(info: Info): String {
-    return info.repo ?: DEFAULT_REPO
+    // First priority: Use the repo field if present (WLED 0.15.2+)
+    if (!info.repo.isNullOrBlank()) {
+        return info.repo
+    }
+    
+    // Second priority: Use brand-based registry lookup
+    val source = UpdateSourceRegistry.getSource(info)
+    if (source != null) {
+        return "${source.githubOwner}/${source.githubRepo}"
+    }
+    
+    // Final fallback: Default repository
+    return DEFAULT_REPO
 }
 
 /**
