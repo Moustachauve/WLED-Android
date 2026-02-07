@@ -3,10 +3,12 @@ package ca.cgagnier.wlednativeandroid.model
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity
+@Entity(
+    primaryKeys = ["tagName", "repository"]
+)
 data class Version(
-    @PrimaryKey
     val tagName: String,
+    val repository: String,
     val name: String,
     val description: String,
     val isPrerelease: Boolean,
@@ -18,6 +20,7 @@ data class Version(
         fun getPreviewVersion(): Version {
             return Version(
                 tagName = "v1.0.0",
+                repository = "wled/WLED",
                 name = "new version",
                 description = "this is a test version",
                 isPrerelease = false,

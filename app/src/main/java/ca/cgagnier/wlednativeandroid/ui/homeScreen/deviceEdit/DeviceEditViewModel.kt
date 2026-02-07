@@ -68,8 +68,10 @@ class DeviceEditViewModel @Inject constructor(
         repository.update(updatedDevice)
     }
 
-    fun showUpdateDetails(version: String) = viewModelScope.launch(Dispatchers.IO) {
-        _updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(version)
+    fun showUpdateDetails(device: Device, deviceStateInfo: ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo?, version: String) = viewModelScope.launch(Dispatchers.IO) {
+        // Extract repository from device info, defaulting to "wled/WLED"
+        val repository = deviceStateInfo?.info?.repo ?: "wled/WLED"
+        _updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(repository, version)
     }
 
     fun hideUpdateDetails() {
@@ -109,7 +111,9 @@ class DeviceEditViewModel @Inject constructor(
             repository.update(updatedDevice)
             try {
                 val releaseService = ReleaseService(versionWithAssetsRepository)
-                releaseService.refreshVersions(githubApi)
+                // Always include the default repository
+                val repositories = setOf("wled/WLED")
+                releaseService.refreshVersions(githubApi, repositories)
             } finally {
                 _isCheckingUpdates.value = false
             }

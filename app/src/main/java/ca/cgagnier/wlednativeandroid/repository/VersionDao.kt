@@ -36,16 +36,16 @@ interface VersionDao {
     suspend fun deleteAll()
 
     @Transaction
-    @Query("SELECT * FROM version WHERE isPrerelease = 0 AND tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1")
-    suspend fun getLatestStableVersionWithAssets(): VersionWithAssets?
+    @Query("SELECT * FROM version WHERE repository = :repository AND isPrerelease = 0 AND tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1")
+    suspend fun getLatestStableVersionWithAssets(repository: String): VersionWithAssets?
 
     @Transaction
-    @Query("SELECT * FROM version WHERE tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1")
-    suspend fun getLatestBetaVersionWithAssets(): VersionWithAssets?
+    @Query("SELECT * FROM version WHERE repository = :repository AND tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1")
+    suspend fun getLatestBetaVersionWithAssets(repository: String): VersionWithAssets?
 
     @Transaction
-    @Query("SELECT * FROM version WHERE tagName = :tagName LIMIT 1")
-    suspend fun getVersionByTagName(tagName: String): VersionWithAssets?
+    @Query("SELECT * FROM version WHERE repository = :repository AND tagName = :tagName LIMIT 1")
+    suspend fun getVersionByTagName(repository: String, tagName: String): VersionWithAssets?
 
     @Transaction
     @Query("SELECT * FROM version")

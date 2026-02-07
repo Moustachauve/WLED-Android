@@ -15,37 +15,27 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val TAG = "updateService"
+private const val DEFAULT_REPO = "wled/WLED"
 
-enum class UpdateSourceType {
-    OFFICIAL_WLED, QUINLED, CUSTOM
+/**
+ * Extracts repository from device info.
+ * Uses the repo field if available (format: "owner/name"), otherwise defaults to "wled/WLED"
+ */
+fun getRepositoryFromInfo(info: Info): String {
+    return info.repo ?: DEFAULT_REPO
 }
 
-data class UpdateSourceDefinition(
-    val type: UpdateSourceType,
-    val brandPattern: String,
-    val githubOwner: String,
-    val githubRepo: String
-)
-
-object UpdateSourceRegistry {
-    val sources = listOf(
-        UpdateSourceDefinition(
-            type = UpdateSourceType.OFFICIAL_WLED,
-            brandPattern = "WLED",
-            githubOwner = "Aircoookie",
-            githubRepo = "WLED"
-        ), UpdateSourceDefinition(
-            type = UpdateSourceType.QUINLED,
-            brandPattern = "QuinLED",
-            githubOwner = "intermittech",
-            githubRepo = "QuinLED-Firmware"
-        )
-    )
-
-    fun getSource(info: Info): UpdateSourceDefinition? {
-        return sources.find {
-            info.brand == it.brandPattern
-        }
+/**
+ * Splits a repository string (e.g., "owner/name") into owner and name parts for API calls.
+ * Returns a pair of (owner, name). Defaults to ("wled", "WLED") if format is invalid.
+ */
+fun splitRepository(repository: String): Pair<String, String> {
+    val parts = repository.split("/")
+    return if (parts.size == 2) {
+        Pair(parts[0], parts[1])
+    } else {
+        Log.w(TAG, "Invalid repo format: $repository, using default")
+        Pair("wled", "WLED")
     }
 }
 
@@ -65,20 +55,16 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
         deviceInfo: Info,
         branch: Branch,
         ignoreVersion: String,
-        updateSourceDefinition: UpdateSourceDefinition,
     ): String? {
         if (deviceInfo.version.isNullOrEmpty()) {
-            return null
-        }
-        if (deviceInfo.brand != updateSourceDefinition.brandPattern) {
             return null
         }
         if (!deviceInfo.isOtaEnabled) {
             return null
         }
 
-        // TODO: Modify this to use repositoryOwner and repositoryName
-        val latestVersion = getLatestVersionWithAssets(branch) ?: return null
+        val repository = getRepositoryFromInfo(deviceInfo)
+        val latestVersion = getLatestVersionWithAssets(repository, branch) ?: return null
         val latestTagName = latestVersion.version.tagName
 
         if (latestTagName == ignoreVersion) {
@@ -124,37 +110,53 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
         return null
     }
 
-    private suspend fun getLatestVersionWithAssets(branch: Branch): VersionWithAssets? {
+    private suspend fun getLatestVersionWithAssets(
+        repository: String,
+        branch: Branch
+    ): VersionWithAssets? {
         if (branch == Branch.BETA) {
-            return versionWithAssetsRepository.getLatestBetaVersionWithAssets()
+            return versionWithAssetsRepository.getLatestBetaVersionWithAssets(repository)
         }
 
-        return versionWithAssetsRepository.getLatestStableVersionWithAssets()
+        return versionWithAssetsRepository.getLatestStableVersionWithAssets(repository)
     }
 
-    suspend fun refreshVersions(githubApi: GithubApi) = withContext(Dispatchers.IO) {
-        githubApi.getAllReleases().onFailure { exception ->
-            Log.w(TAG, "Failed to refresh versions from Github", exception)
-            return@onFailure
-        }.onSuccess { allVersions ->
-            if (allVersions.isEmpty()) {
-                Log.w(TAG, "GitHub returned 0 releases. Skipping DB update to preserve cache.")
-                return@onSuccess
-            }
-            val (versions, assets) = withContext(Dispatchers.Default) {
-                val v = allVersions.map { createVersion(it) }
-                val a = allVersions.flatMap { createAssetsForVersion(it) }
-                Pair(v, a)
-            }
+    /**
+     * Refreshes versions from multiple repositories.
+     * Gets a list of unique repositories, then fetches releases for each.
+     */
+    suspend fun refreshVersions(githubApi: GithubApi, repositories: Set<String>) = withContext(Dispatchers.IO) {
+        val allVersions = mutableListOf<Version>()
+        val allAssets = mutableListOf<Asset>()
 
-            Log.i(TAG, "Replacing DB with ${versions.size} versions and ${assets.size} assets")
-            versionWithAssetsRepository.replaceAll(versions, assets)
+        for (repository in repositories) {
+            val (repoOwner, repoName) = splitRepository(repository)
+            Log.i(TAG, "Fetching releases from $repository")
+            githubApi.getAllReleases(repoOwner, repoName).onFailure { exception ->
+                Log.w(TAG, "Failed to refresh versions from $repository", exception)
+            }.onSuccess { releases ->
+                if (releases.isEmpty()) {
+                    Log.w(TAG, "GitHub returned 0 releases for $repository.")
+                } else {
+                    val versions = releases.map { createVersion(it, repository) }
+                    val assets = releases.flatMap { createAssetsForVersion(it, repository) }
+                    allVersions.addAll(versions)
+                    allAssets.addAll(assets)
+                    Log.i(TAG, "Added ${versions.size} versions and ${assets.size} assets from $repository")
+                }
+            }
+        }
+
+        if (allVersions.isNotEmpty()) {
+            Log.i(TAG, "Replacing DB with ${allVersions.size} versions and ${allAssets.size} assets total")
+            versionWithAssetsRepository.replaceAll(allVersions, allAssets)
         }
     }
 
-    private fun createVersion(version: Release): Version {
+    private fun createVersion(version: Release, repository: String): Version {
         return Version(
             sanitizeTagName(version.tagName),
+            repository,
             version.name,
             version.body,
             version.prerelease,
@@ -163,13 +165,14 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
         )
     }
 
-    private fun createAssetsForVersion(version: Release): List<Asset> {
+    private fun createAssetsForVersion(version: Release, repository: String): List<Asset> {
         val assetsModels = mutableListOf<Asset>()
         val sanitizedTagName = sanitizeTagName(version.tagName)
         for (asset in version.assets) {
             assetsModels.add(
                 Asset(
                     sanitizedTagName,
+                    repository,
                     asset.name,
                     asset.size,
                     asset.browserDownloadUrl,

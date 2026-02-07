@@ -11,6 +11,8 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration7To8
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
+import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration9To10
+import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration10To11
 
 @Database(
     entities = [
@@ -18,7 +20,7 @@ import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
         Version::class,
         Asset::class,
     ],
-    version = 9,
+    version = 11,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -29,6 +31,8 @@ import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
         AutoMigration(from = 6, to = 7),
         AutoMigration(from = 7, to = 8, spec = DbMigration7To8::class),
         AutoMigration(from = 8, to = 9, spec = DbMigration8To9::class),
+        AutoMigration(from = 9, to = 10, spec = DbMigration9To10::class),
+        AutoMigration(from = 10, to = 11, spec = DbMigration10To11::class),
     ]
 )
 @TypeConverters(Converters::class)
