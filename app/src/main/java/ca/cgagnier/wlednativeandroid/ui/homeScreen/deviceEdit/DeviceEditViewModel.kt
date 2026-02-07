@@ -117,17 +117,19 @@ class DeviceEditViewModel @Inject constructor(
             try {
                 val releaseService = ReleaseService(versionWithAssetsRepository)
                 
-                // Collect unique repositories from all connected devices
+                // Get repository for this specific device
                 val repositories = mutableSetOf<String>()
                 repositories.add(DEFAULT_REPO) // Always include the default WLED repository
                 
-                websocketClients.values.forEach { client ->
-                    val info = client.deviceState.stateInfo.value?.info
-                    if (info != null) {
-                        val repo = getRepositoryFromInfo(info)
-                        repositories.add(repo)
-                        Log.d(TAG, "Found device using repository: $repo")
-                    }
+                // Look up the specific device's websocket client to get its repository
+                val client = websocketClients[device.macAddress]
+                val info = client?.deviceState?.stateInfo?.value?.info
+                if (info != null) {
+                    val repo = getRepositoryFromInfo(info)
+                    repositories.add(repo)
+                    Log.d(TAG, "Refreshing versions for device repository: $repo")
+                } else {
+                    Log.d(TAG, "Device info not available, using default repository only")
                 }
                 
                 Log.i(TAG, "Refreshing versions from ${repositories.size} repositories: $repositories")
