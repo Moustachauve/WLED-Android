@@ -75,7 +75,7 @@ class DeviceEditViewModel @Inject constructor(
 
     fun showUpdateDetails(device: Device, deviceStateInfo: DeviceStateInfo?, version: String) = viewModelScope.launch(Dispatchers.IO) {
         // Extract repository from device info, defaulting to "wled/WLED"
-        val repository = deviceStateInfo?.info?.repo ?: "wled/WLED"
+        val repository = deviceStateInfo?.info?.let { getRepositoryFromInfo(it) } ?: DEFAULT_REPO
         _updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(repository, version)
     }
 
