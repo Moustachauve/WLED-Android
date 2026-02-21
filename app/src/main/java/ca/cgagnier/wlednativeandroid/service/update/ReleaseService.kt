@@ -31,13 +31,6 @@ data class UpdateSourceDefinition(
 object UpdateSourceRegistry {
     val sources = listOf(
         UpdateSourceDefinition(
-            type = UpdateSourceType.MOONMODULES, // Must be first in the list to take precedence over the official WLED source for MoonModules devices
-            brandPattern = "WLED",
-            product = "MoonModules",
-            githubOwner = "MoonModules",
-            githubRepo = "WLED-MM"
-        ),
-        UpdateSourceDefinition(
             type = UpdateSourceType.OFFICIAL_WLED,
             brandPattern = "WLED",
             githubOwner = "Aircoookie",
@@ -47,14 +40,20 @@ object UpdateSourceRegistry {
             brandPattern = "QuinLED",
             githubOwner = "intermittech",
             githubRepo = "QuinLED-Firmware"
-        )
+        ),
+        UpdateSourceDefinition(
+            type = UpdateSourceType.MOONMODULES,
+            brandPattern = "WLED",
+            product = "MoonModules",
+            githubOwner = "MoonModules",
+            githubRepo = "WLED-MM"
+        ),
     )
 
     fun getSource(info: Info): UpdateSourceDefinition? {
-        return sources.find {
-            (it.product == null || info.product == it.product) &&
-            info.brand == it.brandPattern
-        }
+        val brandMatches = sources.filter { it.brandPattern == info.brand }
+        return brandMatches.find { it.product == info.product }
+            ?: brandMatches.find { it.product == null }
     }
 }
 
