@@ -23,9 +23,9 @@ enum class UpdateSourceType {
 data class UpdateSourceDefinition(
     val type: UpdateSourceType,
     val brandPattern: String,
-    val product: String? = null,
     val githubOwner: String,
-    val githubRepo: String
+    val githubRepo: String,
+    val product: String? = null
 )
 
 object UpdateSourceRegistry {
