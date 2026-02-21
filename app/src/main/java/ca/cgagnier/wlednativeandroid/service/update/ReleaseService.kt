@@ -66,15 +66,17 @@ object UpdateSourceRegistry {
  * 3. Third: Default to "wled/WLED"
  */
 fun getRepositoryFromInfo(info: Info): String {
-    // First priority: Use the repo field if present (WLED 0.15.2+)
-    if (!info.repo.isNullOrBlank()) {
-        return info.repo
-    }
-    
+
+
     // Second priority: Use brand-based registry lookup
     val source = UpdateSourceRegistry.getSource(info)
     if (source != null) {
         return "${source.githubOwner}/${source.githubRepo}"
+    }
+
+    // TODO: Should be first, but possible bad MoonModules build with the wrong repo - TBC
+    if (!info.repo.isNullOrBlank()) {
+        return info.repo
     }
     
     // Final fallback: Default repository
