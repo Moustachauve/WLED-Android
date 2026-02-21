@@ -56,7 +56,7 @@ class DeviceUpdateService(
         val versionWithRelease =
             if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
         assetName = "WLED_${versionWithRelease}.bin"
-        return findAsset(assetName)
+        return findAsset(versionWithRelease)
     }
 
     /**
@@ -77,13 +77,14 @@ class DeviceUpdateService(
         val versionWithPlatform =
             if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
         assetName = "WLED_${versionWithPlatform}.bin"
-        return findAsset(assetName)
+        return findAsset(versionWithPlatform)
     }
 
     private fun findAsset(assetName: String): Boolean {
         for (asset in versionWithAssets.assets) {
-            if (asset.name == assetName) {
+            if (asset.name.endsWith("${assetName}.bin")) {
                 this.asset = asset
+                this.assetName = asset.name
                 couldDetermineAsset = true
                 return true
             }
