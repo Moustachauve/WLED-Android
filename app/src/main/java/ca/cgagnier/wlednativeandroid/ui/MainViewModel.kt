@@ -9,7 +9,7 @@ import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
-import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -25,7 +25,7 @@ class MainViewModel @Inject constructor(
     private val releaseService: ReleaseService,
     private val githubApi: GithubApi,
     private val deviceRepository: DeviceRepository,
-    private val websocketClients: Map<String, @JvmSuppressWildcards WebsocketClient>
+    private val websocketClientManager: WebsocketClientManager
 ) : ViewModel() {
 
     fun downloadUpdateMetadata() {
@@ -41,7 +41,7 @@ class MainViewModel @Inject constructor(
             val repositories = mutableSetOf<String>()
             repositories.add(DEFAULT_REPO) // Always include the default WLED repository
             
-            websocketClients.values.forEach { client ->
+            websocketClientManager.getClients().values.forEach { client ->
                 val info = client.deviceState.stateInfo.value?.info
                 if (info != null) {
                     val repo = getRepositoryFromInfo(info)

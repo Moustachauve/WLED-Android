@@ -13,7 +13,7 @@ import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
-import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +28,7 @@ class DeviceEditViewModel @Inject constructor(
     private val repository: DeviceRepository,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val githubApi: GithubApi,
-    private val websocketClients: Map<String, @JvmSuppressWildcards WebsocketClient>,
+    private val websocketClientManager: WebsocketClientManager,
     private val releaseService: ReleaseService
 ) : ViewModel() {
 
@@ -121,7 +121,7 @@ class DeviceEditViewModel @Inject constructor(
                 repositories.add(DEFAULT_REPO) // Always include the default WLED repository
                 
                 // Look up the specific device's websocket client to get its repository
-                val client = websocketClients[device.macAddress]
+                val client = websocketClientManager.getClients()[device.macAddress]
                 val info = client?.deviceState?.stateInfo?.value?.info
                 if (info != null) {
                     val repo = getRepositoryFromInfo(info)

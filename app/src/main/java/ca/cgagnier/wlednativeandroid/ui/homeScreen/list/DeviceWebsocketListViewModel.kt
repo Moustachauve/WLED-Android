@@ -13,6 +13,7 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientManager
 import com.squareup.moshi.Moshi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository,
     private val deviceUpdateManager: DeviceUpdateManager,
     private val okHttpClient: OkHttpClient,
-    private val moshi: Moshi
+    private val moshi: Moshi,
+    private val websocketClientManager: WebsocketClientManager
 ) : ViewModel(), DefaultLifecycleObserver {
     private val activeClients = MutableStateFlow<Map<String, WebsocketClient>>(emptyMap())
     private val devicesFromDb = deviceRepository.allDevices
@@ -106,6 +108,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
             }.flowOn(Dispatchers.IO).collect { updatedClients ->
                 // Emit the new map of clients to the StateFlow.
                 activeClients.value = updatedClients
+                // Update the manager so other components can access the clients
+                websocketClientManager.updateClients(updatedClients)
             }
 
         }
