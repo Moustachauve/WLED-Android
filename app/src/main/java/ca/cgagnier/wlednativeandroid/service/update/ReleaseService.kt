@@ -17,18 +17,26 @@ import kotlinx.coroutines.withContext
 private const val TAG = "updateService"
 
 enum class UpdateSourceType {
-    OFFICIAL_WLED, QUINLED, CUSTOM
+    OFFICIAL_WLED, QUINLED, CUSTOM, MOONMODULES
 }
 
 data class UpdateSourceDefinition(
     val type: UpdateSourceType,
     val brandPattern: String,
+    val product: String? = null,
     val githubOwner: String,
     val githubRepo: String
 )
 
 object UpdateSourceRegistry {
     val sources = listOf(
+        UpdateSourceDefinition(
+            type = UpdateSourceType.MOONMODULES, // Must be first in the list to take precedence over the official WLED source for MoonModules devices
+            brandPattern = "WLED",
+            product = "MoonModules",
+            githubOwner = "MoonModules",
+            githubRepo = "WLED-MM"
+        ),
         UpdateSourceDefinition(
             type = UpdateSourceType.OFFICIAL_WLED,
             brandPattern = "WLED",
@@ -44,6 +52,7 @@ object UpdateSourceRegistry {
 
     fun getSource(info: Info): UpdateSourceDefinition? {
         return sources.find {
+            (it.product == null || info.product == it.product) &&
             info.brand == it.brandPattern
         }
     }
