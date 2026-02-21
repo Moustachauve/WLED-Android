@@ -1,13 +1,14 @@
 package ca.cgagnier.wlednativeandroid.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.PrimaryKey
 
 @Entity(
     primaryKeys = ["tagName", "repository"]
 )
 data class Version(
     val tagName: String,
+    @ColumnInfo(defaultValue = "'wled/WLED'")
     val repository: String,
     val name: String,
     val description: String,

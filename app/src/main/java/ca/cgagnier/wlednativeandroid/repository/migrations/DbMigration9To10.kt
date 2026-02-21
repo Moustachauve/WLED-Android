@@ -1,8 +1,7 @@
 package ca.cgagnier.wlednativeandroid.repository.migrations
 
 import android.util.Log
-import androidx.room.RenameTable
-import androidx.room.migration.AutoMigrationSpec
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 private const val TAG = "DbMigration9To10"
@@ -14,13 +13,47 @@ private const val TAG = "DbMigration9To10"
  * We rename the old tables, create new ones with repository field,
  * copy existing data with default repository "wled/WLED", then drop the old tables.
  */
-@RenameTable(fromTableName = "Version", toTableName = "Version_old")
-@RenameTable(fromTableName = "Asset", toTableName = "Asset_old")
-class DbMigration9To10 : AutoMigrationSpec {
-    override fun onPostMigrate(db: SupportSQLiteDatabase) {
-        Log.i(TAG, "onPostMigrate starting - migrating Version and Asset data")
-        
-        // Migrate Version table
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        Log.i(TAG, "Starting migration from 9 to 10")
+
+        // Rename old tables
+        db.execSQL("ALTER TABLE Version RENAME TO Version_old")
+        db.execSQL("ALTER TABLE Asset RENAME TO Asset_old")
+
+        // Create new Version table with repository column
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS Version (
+                tagName TEXT NOT NULL,
+                repository TEXT NOT NULL DEFAULT 'wled/WLED',
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                isPrerelease INTEGER NOT NULL,
+                publishedDate TEXT NOT NULL,
+                htmlUrl TEXT NOT NULL,
+                PRIMARY KEY(tagName, repository)
+            )
+        """.trimIndent())
+
+        // Create new Asset table with repository column
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS Asset (
+                versionTagName TEXT NOT NULL,
+                repository TEXT NOT NULL DEFAULT 'wled/WLED',
+                name TEXT NOT NULL,
+                size INTEGER NOT NULL,
+                downloadUrl TEXT NOT NULL,
+                assetId INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(versionTagName, repository, name),
+                FOREIGN KEY(versionTagName, repository) REFERENCES Version(tagName, repository) ON DELETE CASCADE
+            )
+        """.trimIndent())
+
+        // Create indices for Asset table
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_Asset_versionTagName ON Asset (versionTagName)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_Asset_repository ON Asset (repository)")
+
+        // Migrate Version data
         val originalVersionCountCursor = db.query("SELECT COUNT(*) FROM Version_old")
         var originalVersionCount = 0
         if (originalVersionCountCursor.moveToFirst()) {
@@ -61,7 +94,7 @@ class DbMigration9To10 : AutoMigrationSpec {
         migratedVersionCountCursor.close()
         Log.i(TAG, "Versions migrated to new table: $migratedVersionCount")
         
-        // Migrate Asset table
+        // Migrate Asset data
         val originalAssetCountCursor = db.query("SELECT COUNT(*) FROM Asset_old")
         var originalAssetCount = 0
         if (originalAssetCountCursor.moveToFirst()) {
@@ -100,6 +133,10 @@ class DbMigration9To10 : AutoMigrationSpec {
         migratedAssetCountCursor.close()
         Log.i(TAG, "Assets migrated to new table: $migratedAssetCount")
         
-        Log.i(TAG, "onPostMigrate done! Migration is complete.")
+        // Drop old tables
+        db.execSQL("DROP TABLE IF EXISTS Version_old")
+        db.execSQL("DROP TABLE IF EXISTS Asset_old")
+
+        Log.i(TAG, "Migration from 9 to 10 complete!")
     }
 }
