@@ -36,9 +36,16 @@ class DeviceUpdateService(
     init {
         // Try to use the release variable, but fallback to the legacy platform method for
         // compatibility with WLED older than 0.15.0
-        if (!determineAssetByRelease()) {
+        if(hasReleaseName()) { // never swap to generic build if release name is known
+            determineAssetByRelease()
+        } else {
             determineAssetByPlatform()
         }
+    }
+
+    private fun hasReleaseName(): Boolean {
+        val release = device.stateInfo.value?.info?.release
+        return !release.isNullOrEmpty()
     }
 
     /**
@@ -48,9 +55,6 @@ class DeviceUpdateService(
      */
     private fun determineAssetByRelease(): Boolean {
         val release = device.stateInfo.value?.info?.release
-        if (release.isNullOrEmpty()) {
-            return false
-        }
 
         val combined = "${versionWithAssets.version.tagName}_${release}"
         val versionWithRelease =
