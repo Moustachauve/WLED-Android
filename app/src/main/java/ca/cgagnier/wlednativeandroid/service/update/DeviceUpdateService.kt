@@ -18,6 +18,19 @@ import java.io.File
 
 private const val TAG = "DeviceUpdateService"
 
+/**
+ * Maps deprecated or transitional release names to the release name that should be used
+ * for OTA updates. This handles cases where the binary name changes between WLED releases.
+ *
+ * For example, devices running the ESP32_V4 tech-preview (WLED 0.15.x) must be updated
+ * with the standard ESP32 binary going forward, as ESP32_V4 assets will no longer be published.
+ *
+ * See: https://github.com/Moustachauve/WLED-Android/issues/129
+ */
+private val RELEASE_NAME_OVERRIDES = mapOf(
+    "ESP32_V4" to "ESP32"
+)
+
 class DeviceUpdateService(
     val device: DeviceWithState,
     private val versionWithAssets: VersionWithAssets,
@@ -47,11 +60,12 @@ class DeviceUpdateService(
      * This is the preferred method. It is only available on WLED devices since 0.15.0.
      */
     private fun determineAssetByRelease(): Boolean {
-        val release = device.stateInfo.value?.info?.release
-        if (release.isNullOrEmpty()) {
+        val rawRelease = device.stateInfo.value?.info?.release
+        if (rawRelease.isNullOrEmpty()) {
             return false
         }
 
+        val release = RELEASE_NAME_OVERRIDES.getOrDefault(rawRelease, rawRelease)
         val combined = "${versionWithAssets.version.tagName}_${release}"
         val versionWithRelease =
             if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
