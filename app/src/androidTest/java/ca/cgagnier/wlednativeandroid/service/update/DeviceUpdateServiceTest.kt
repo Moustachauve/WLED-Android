@@ -20,24 +20,25 @@ import retrofit2.Retrofit
 
 class DeviceUpdateServiceTest {
 
-    private val version = Version(
-        tagName = "v0.15.0",
-        name = "WLED 0.15.0",
+    private fun makeVersion(tagName: String) = Version(
+        tagName = tagName,
+        name = "WLED $tagName",
         description = "",
         isPrerelease = false,
         publishedDate = "2024-01-01T00:00:00Z",
         htmlUrl = "https://github.com/"
     )
 
-    private fun makeAsset(name: String) = Asset(
-        versionTagName = version.tagName,
-        name = name,
+    private fun makeAsset(versionTagName: String, assetName: String) = Asset(
+        versionTagName = versionTagName,
+        name = assetName,
         size = 1024L,
-        downloadUrl = "https://example.com/$name",
+        downloadUrl = "https://example.com/$assetName",
         assetId = 0
     )
 
     private fun makeDeviceUpdateService(
+        targetVersionTag: String,
         release: String?,
         availableAssets: List<Asset>
     ): DeviceUpdateService {
@@ -54,7 +55,8 @@ class DeviceUpdateServiceTest {
                 )
             )
         }
-        val versionWithAssets = VersionWithAssets(version = version, assets = availableAssets)
+        val versionWithAssets =
+            VersionWithAssets(version = makeVersion(targetVersionTag), assets = availableAssets)
         val deviceApiFactory = DeviceApiFactory(OkHttpClient())
         val githubApiEndpoints = Retrofit.Builder()
             .baseUrl("https://api.github.com/")
@@ -71,53 +73,79 @@ class DeviceUpdateServiceTest {
         )
     }
 
+    // --- Override applied for target >= 0.16.0 ---
+
     @Test
-    fun determineAsset_esp32V4Release_usesEsp32Asset() {
-        val esp32Asset = makeAsset("WLED_0.15.0_ESP32.bin")
+    fun determineAsset_esp32V4Release_targetVersion0160_usesEsp32Asset() {
         val service = makeDeviceUpdateService(
+            targetVersionTag = "0.16.0",
             release = "ESP32_V4",
-            availableAssets = listOf(esp32Asset)
+            availableAssets = listOf(makeAsset("0.16.0", "WLED_0.16.0_ESP32.bin"))
         )
 
         assertThat(service.couldDetermineAsset()).isTrue()
-        assertThat(service.getAssetName()).isEqualTo("WLED_0.15.0_ESP32.bin")
+        assertThat(service.getAssetName()).isEqualTo("WLED_0.16.0_ESP32.bin")
     }
 
     @Test
-    fun determineAsset_esp32Release_usesEsp32Asset() {
-        val esp32Asset = makeAsset("WLED_0.15.0_ESP32.bin")
+    fun determineAsset_esp32V4Release_targetVersion0161_usesEsp32Asset() {
         val service = makeDeviceUpdateService(
+            targetVersionTag = "0.16.1",
+            release = "ESP32_V4",
+            availableAssets = listOf(makeAsset("0.16.1", "WLED_0.16.1_ESP32.bin"))
+        )
+
+        assertThat(service.couldDetermineAsset()).isTrue()
+        assertThat(service.getAssetName()).isEqualTo("WLED_0.16.1_ESP32.bin")
+    }
+
+    @Test
+    fun determineAsset_esp32Release_targetVersion0160_passesThrough() {
+        val service = makeDeviceUpdateService(
+            targetVersionTag = "0.16.0",
             release = "ESP32",
-            availableAssets = listOf(esp32Asset)
+            availableAssets = listOf(makeAsset("0.16.0", "WLED_0.16.0_ESP32.bin"))
         )
 
         assertThat(service.couldDetermineAsset()).isTrue()
-        assertThat(service.getAssetName()).isEqualTo("WLED_0.15.0_ESP32.bin")
+        assertThat(service.getAssetName()).isEqualTo("WLED_0.16.0_ESP32.bin")
     }
 
     @Test
-    fun determineAsset_unknownRelease_passesThrough() {
-        val unknownAsset = makeAsset("WLED_0.15.0_ESP32_S3.bin")
+    fun determineAsset_unknownRelease_targetVersion0160_passesThrough() {
         val service = makeDeviceUpdateService(
+            targetVersionTag = "0.16.0",
             release = "ESP32_S3",
-            availableAssets = listOf(unknownAsset)
+            availableAssets = listOf(makeAsset("0.16.0", "WLED_0.16.0_ESP32_S3.bin"))
         )
 
         assertThat(service.couldDetermineAsset()).isTrue()
-        assertThat(service.getAssetName()).isEqualTo("WLED_0.15.0_ESP32_S3.bin")
+        assertThat(service.getAssetName()).isEqualTo("WLED_0.16.0_ESP32_S3.bin")
+    }
+
+    // --- No override within 0.15.x ---
+
+    @Test
+    fun determineAsset_esp32V4Release_targetVersion0150_usesEsp32V4Asset() {
+        val service = makeDeviceUpdateService(
+            targetVersionTag = "0.15.0",
+            release = "ESP32_V4",
+            availableAssets = listOf(makeAsset("0.15.0", "WLED_0.15.0_ESP32_V4.bin"))
+        )
+
+        assertThat(service.couldDetermineAsset()).isTrue()
+        assertThat(service.getAssetName()).isEqualTo("WLED_0.15.0_ESP32_V4.bin")
     }
 
     @Test
-    fun determineAsset_esp32V4Release_withNoMatchingEsp32Asset_couldNotDetermineAsset() {
-        // When the asset list only has the old ESP32_V4 binary and not the ESP32 binary,
-        // determination should fail because ESP32_V4 is remapped to ESP32.
-        val oldAsset = makeAsset("WLED_0.15.0_ESP32_V4.bin")
+    fun determineAsset_esp32V4Release_targetVersion0151_usesEsp32V4Asset() {
         val service = makeDeviceUpdateService(
+            targetVersionTag = "0.15.1",
             release = "ESP32_V4",
-            availableAssets = listOf(oldAsset)
+            availableAssets = listOf(makeAsset("0.15.1", "WLED_0.15.1_ESP32_V4.bin"))
         )
 
-        assertThat(service.couldDetermineAsset()).isFalse()
-        assertThat(service.getAssetName()).isEqualTo("WLED_0.15.0_ESP32.bin")
+        assertThat(service.couldDetermineAsset()).isTrue()
+        assertThat(service.getAssetName()).isEqualTo("WLED_0.15.1_ESP32_V4.bin")
     }
 }
