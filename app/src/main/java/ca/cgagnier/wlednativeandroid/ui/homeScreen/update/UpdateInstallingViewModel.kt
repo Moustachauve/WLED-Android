@@ -30,7 +30,7 @@ private const val TAG = "UpdateInstallingViewModel"
 class UpdateInstallingViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository,
     private val deviceApiFactory: DeviceApiFactory,
-    private val githubApi: GithubApi
+    private val githubApi: GithubApi,
 ) : ViewModel() {
     private var updateStarted = false
 
@@ -51,8 +51,9 @@ class UpdateInstallingViewModel @Inject constructor(
             val step = previousState.step as UpdateInstallingStep.Error
             previousState.copy(
                 step = UpdateInstallingStep.Error(
-                    step.error, !step.showError
-                )
+                    step.error,
+                    !step.showError,
+                ),
             )
         }
     }
@@ -62,15 +63,11 @@ class UpdateInstallingViewModel @Inject constructor(
         updateStarted = false
     }
 
-    fun startUpdate(
-        device: DeviceWithState,
-        version: VersionWithAssets,
-        cacheDir: File,
-    ) {
+    fun startUpdate(device: DeviceWithState, version: VersionWithAssets, cacheDir: File) {
         if (updateStarted) {
             Log.w(
                 TAG,
-                "Update already started, ignoring startUpdate for ${device.device.originalName}"
+                "Update already started, ignoring startUpdate for ${device.device.originalName}",
             )
             return
         }
@@ -80,7 +77,8 @@ class UpdateInstallingViewModel @Inject constructor(
         _version.update { version }
         _state.update { previousState ->
             previousState.copy(
-                canDismiss = true, step = UpdateInstallingStep.Starting
+                canDismiss = true,
+                step = UpdateInstallingStep.Starting,
             )
         }
 
@@ -91,7 +89,7 @@ class UpdateInstallingViewModel @Inject constructor(
                 previousState.copy(
                     canDismiss = true,
                     step = UpdateInstallingStep.NoCompatibleVersion,
-                    assetName = updateService.getAssetName()
+                    assetName = updateService.getAssetName(),
                 )
             }
             return
@@ -100,9 +98,7 @@ class UpdateInstallingViewModel @Inject constructor(
         downloadAsset(updateService)
     }
 
-    private fun downloadAsset(
-        updateService: DeviceUpdateService
-    ) = viewModelScope.launch(Dispatchers.IO) {
+    private fun downloadAsset(updateService: DeviceUpdateService) = viewModelScope.launch(Dispatchers.IO) {
         if (updateService.isAssetFileCached()) {
             Log.d(TAG, "asset '${updateService.getAssetName()}' is already downloaded, reusing")
             installUpdate(updateService)
@@ -118,7 +114,7 @@ class UpdateInstallingViewModel @Inject constructor(
                         previousState.copy(
                             canDismiss = true,
                             step = UpdateInstallingStep.Downloading(downloadState.progress),
-                            assetName = updateService.getAssetName()
+                            assetName = updateService.getAssetName(),
                         )
                     }
                 }
@@ -127,9 +123,11 @@ class UpdateInstallingViewModel @Inject constructor(
                     Log.e(TAG, "File download Fail: ${downloadState.error}")
                     _state.update { previousState ->
                         previousState.copy(
-                            canDismiss = true, step = UpdateInstallingStep.Error(
-                                downloadState.error.toString()
-                            ), assetName = updateService.getAssetName()
+                            canDismiss = true,
+                            step = UpdateInstallingStep.Error(
+                                downloadState.error.toString(),
+                            ),
+                            assetName = updateService.getAssetName(),
                         )
                     }
                     this.coroutineContext.job.cancel()
@@ -150,7 +148,7 @@ class UpdateInstallingViewModel @Inject constructor(
             previousState.copy(
                 canDismiss = false,
                 step = UpdateInstallingStep.Installing,
-                assetName = updateService.getAssetName()
+                assetName = updateService.getAssetName(),
             )
         }
         updateService.sendSoftwareUpdateRequest(
@@ -165,7 +163,8 @@ class UpdateInstallingViewModel @Inject constructor(
         if (response.code() in 200..299) {
             _state.update { previousState ->
                 previousState.copy(
-                    canDismiss = true, step = UpdateInstallingStep.Done
+                    canDismiss = true,
+                    step = UpdateInstallingStep.Done,
                 )
             }
         } else {
@@ -174,7 +173,8 @@ class UpdateInstallingViewModel @Inject constructor(
             Log.d(TAG, "OTA Failed onResponse, error $errorString")
             _state.update { previousState ->
                 previousState.copy(
-                    canDismiss = true, step = UpdateInstallingStep.Error(errorString)
+                    canDismiss = true,
+                    step = UpdateInstallingStep.Error(errorString),
                 )
             }
         }
@@ -188,7 +188,8 @@ class UpdateInstallingViewModel @Inject constructor(
         Log.d(TAG, "OTA Failed onFailure, error $errorString")
         _state.update { previousState ->
             previousState.copy(
-                canDismiss = true, step = UpdateInstallingStep.Error(errorString)
+                canDismiss = true,
+                step = UpdateInstallingStep.Error(errorString),
             )
         }
     }
@@ -200,7 +201,7 @@ class UpdateInstallingViewModel @Inject constructor(
         val device = device.value ?: return@launch
         Log.d(TAG, "Resetting skipUpdateTag")
         val updatedDevice = device.device.copy(
-            skipUpdateTag = ""
+            skipUpdateTag = "",
         )
         deviceRepository.update(updatedDevice)
     }
@@ -224,7 +225,7 @@ class UpdateInstallingViewModel @Inject constructor(
             Pattern.compile("<body[^>]*>(.*?)</body>", Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
         private val JUNK_TAG_PATTERN = Pattern.compile(
             "<(button|script|style)[^>]*>.*?</\\1>",
-            Pattern.CASE_INSENSITIVE or Pattern.DOTALL
+            Pattern.CASE_INSENSITIVE or Pattern.DOTALL,
         )
     }
 }

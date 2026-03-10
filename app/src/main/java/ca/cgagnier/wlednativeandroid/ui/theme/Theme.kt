@@ -18,7 +18,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
+import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import com.materialkolor.DynamicMaterialTheme
@@ -253,15 +253,13 @@ private val highContrastDarkColorScheme = darkColorScheme(
 )
 
 @Immutable
-data class ColorFamily(
-    val color: Color,
-    val onColor: Color,
-    val colorContainer: Color,
-    val onColorContainer: Color
-)
+data class ColorFamily(val color: Color, val onColor: Color, val colorContainer: Color, val onColorContainer: Color)
 
 val unspecified_scheme = ColorFamily(
-    Color.Unspecified, Color.Unspecified, Color.Unspecified, Color.Unspecified
+    Color.Unspecified,
+    Color.Unspecified,
+    Color.Unspecified,
+    Color.Unspecified,
 )
 
 @Composable
@@ -269,7 +267,7 @@ fun WLEDNativeTheme(
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     themeViewModel: ThemeViewModel = hiltViewModel(),
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val theme by themeViewModel.theme.collectAsStateWithLifecycle()
     val darkTheme = when (theme) {
@@ -280,7 +278,7 @@ fun WLEDNativeTheme(
     WLEDNativeTheme(
         darkTheme = darkTheme,
         dynamicColor = dynamicColor,
-        content = content
+        content = content,
     )
 }
 
@@ -289,7 +287,7 @@ fun WLEDNativeTheme(
     darkTheme: Boolean,
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val view = LocalView.current
     val colorScheme = when {
@@ -304,8 +302,8 @@ fun WLEDNativeTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = AppTypography,
-        content = content
+        typography = appTypography,
+        content = content,
     )
 
     if (!view.isInEditMode) {
@@ -317,25 +315,17 @@ fun WLEDNativeTheme(
     }
 }
 
-private fun getColorFromDeviceState(stateInfo: DeviceStateInfo?): Int {
-    var color = android.graphics.Color.WHITE
-    if (!stateInfo?.state?.segment.isNullOrEmpty()) {
-        val colors = stateInfo.state.segment[0].colors
-        if (!colors.isNullOrEmpty()) {
-            val colorInfo = colors[0]
-            color = if (colorInfo.size in 3..4) android.graphics.Color.rgb(
-                colorInfo[0], colorInfo[1], colorInfo[2]
-            ) else android.graphics.Color.WHITE
-        }
-    }
-    return color
-}
+fun getColorFromDeviceState(state: State?): Int = state?.segment?.firstOrNull()?.colors?.firstOrNull()
+    ?.takeIf { it.size in 3..4 }
+    ?.let { (r, g, b) ->
+        android.graphics.Color.rgb(r, g, b)
+    } ?: android.graphics.Color.WHITE
 
 @Composable
 fun DeviceTheme(
     device: DeviceWithState,
     themeViewModel: ThemeViewModel = hiltViewModel(),
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val stateInfo by device.stateInfo
 
@@ -347,10 +337,10 @@ fun DeviceTheme(
     }
 
     DynamicMaterialTheme(
-        seedColor = Color(getColorFromDeviceState(stateInfo)),
+        seedColor = Color(getColorFromDeviceState(stateInfo?.state)),
         isDark = darkTheme,
         style = if (device.isOnline) PaletteStyle.Vibrant else PaletteStyle.Neutral,
-        animate = true
+        animate = true,
     ) {
         content()
     }

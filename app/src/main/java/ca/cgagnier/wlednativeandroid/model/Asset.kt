@@ -6,12 +6,14 @@ import androidx.room.ForeignKey
 
 @Entity(
     primaryKeys = ["versionTagName", "name"],
-    foreignKeys = [ForeignKey(
-        entity = Version::class,
-        parentColumns = arrayOf("tagName"),
-        childColumns = arrayOf("versionTagName"),
-        onDelete = ForeignKey.CASCADE
-    )]
+    foreignKeys = [
+        ForeignKey(
+            entity = Version::class,
+            parentColumns = arrayOf("tagName"),
+            childColumns = arrayOf("versionTagName"),
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
 )
 data class Asset(
 

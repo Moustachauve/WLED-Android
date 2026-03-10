@@ -49,7 +49,8 @@ fun SliderWithLabel(
         interactionSource = interactionSource,
         thumb = {
             val labelValue = value.roundToInt().coerceIn(
-                valueRange.start.roundToInt(), valueRange.endInclusive.roundToInt()
+                valueRange.start.roundToInt(),
+                valueRange.endInclusive.roundToInt(),
             )
             Label(
                 label = {
@@ -58,7 +59,7 @@ fun SliderWithLabel(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                                .padding(8.dp)
+                                .padding(8.dp),
                         ) {
                             Text(
                                 labelValue.toString(),
@@ -71,8 +72,9 @@ fun SliderWithLabel(
                 interactionSource = interactionSource,
             ) {
                 SliderDefaults.Thumb(
-                    interactionSource = interactionSource
+                    interactionSource = interactionSource,
                 )
             }
-        })
+        },
+    )
 }

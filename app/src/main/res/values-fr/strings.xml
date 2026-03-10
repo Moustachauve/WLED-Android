@@ -111,4 +111,21 @@
     <string name="open">Ouvrir</string>
     <string name="dismiss">Fermer</string>
     <string name="some_devices_hidden">Vous avez des appareils cachés</string>
+
+    <string name="widget_single_device_name">Appareil unique</string>
+    <string name="widget_description">Permet de voir et contrôler un seul appareil WLED</string>
+    <string name="widget_please_configure">Veuillez configurer</string>
+    <string name="select_a_device">Sélectionnez un appareil</string>
+    <string name="last_updated">Dernière mise à jour</string>
+
+    <!-- Deep linking -->
+    <string name="deep_link_loading">Connexion à l\'appareil…</string>
+    <string name="deep_link_error_title">Appareil introuvable</string>
+    <string name="deep_link_error_mac_not_found">L\'appareil avec l\'adresse MAC %1$s n\'a pas été trouvé dans votre liste</string>
+    <string name="deep_link_error_unreachable">Impossible de joindre l\'appareil à %1$s. Assurez-vous qu\'il est allumé et connecté au réseau.</string>
+
+    <!-- Device Controls (Quick Settings) -->
+    <string name="control_on">Allumé</string>
+    <string name="control_off">Éteint</string>
+
 </resources>

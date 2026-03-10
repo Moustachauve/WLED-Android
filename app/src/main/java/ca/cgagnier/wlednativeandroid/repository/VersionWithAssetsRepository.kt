@@ -10,7 +10,7 @@ import javax.inject.Inject
 class VersionWithAssetsRepository @Inject constructor(
     private val database: DevicesDatabase,
     private val versionDao: VersionDao,
-    private val assetDao: AssetDao
+    private val assetDao: AssetDao,
 ) {
 
     @WorkerThread
@@ -22,15 +22,9 @@ class VersionWithAssetsRepository @Inject constructor(
         }
     }
 
-    suspend fun getLatestStableVersionWithAssets(): VersionWithAssets? {
-        return versionDao.getLatestStableVersionWithAssets()
-    }
+    suspend fun getLatestStableVersionWithAssets(): VersionWithAssets? = versionDao.getLatestStableVersionWithAssets()
 
-    suspend fun getLatestBetaVersionWithAssets(): VersionWithAssets? {
-        return versionDao.getLatestBetaVersionWithAssets()
-    }
+    suspend fun getLatestBetaVersionWithAssets(): VersionWithAssets? = versionDao.getLatestBetaVersionWithAssets()
 
-    suspend fun getVersionByTag(tagName: String): VersionWithAssets? {
-        return versionDao.getVersionByTagName(tagName)
-    }
+    suspend fun getVersionByTag(tagName: String): VersionWithAssets? = versionDao.getVersionByTagName(tagName)
 }

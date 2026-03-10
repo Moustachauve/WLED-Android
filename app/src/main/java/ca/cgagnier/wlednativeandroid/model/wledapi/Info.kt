@@ -41,7 +41,10 @@ data class Info(
     @param:Json(name = "clock") val clockFrequency: Int? = null,
     // Added in 0.15
     @param:Json(name = "flash") val flashChipSize: Int? = null,
-    @Deprecated("lwip is deprecated and is supposed to be removed in 0.14.0") @param:Json(name = "lwip") val lwip: Int? = null,
+    @Deprecated(
+        "lwip is deprecated and is supposed to be removed in 0.14.0",
+    ) @param:Json(name = "lwip") val lwip: Int? =
+        null,
     @param:Json(name = "freeheap") val freeHeap: Int? = null,
     @param:Json(name = "uptime") val uptime: Int? = null,
     @param:Json(name = "time") val time: String? = null,
@@ -51,7 +54,7 @@ data class Info(
     @param:Json(name = "product") val product: String? = null,
     @param:Json(name = "mac") val macAddress: String? = null,
     @param:Json(name = "ip") val ipAddress: String? = null,
-    @param:Json(name = "u") val userMods: UserMods? = null
+    @param:Json(name = "u") val userMods: UserMods? = null,
 )
 
 /**

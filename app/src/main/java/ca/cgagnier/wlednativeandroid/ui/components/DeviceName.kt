@@ -8,8 +8,6 @@ import ca.cgagnier.wlednativeandroid.model.Device
 
 @Composable
 @ReadOnlyComposable
-fun deviceName(device: Device?): String {
-    return device?.customName?.trim().takeIf { !it.isNullOrBlank() }
-        ?: device?.originalName?.trim().takeIf { !it.isNullOrBlank() }
-        ?: stringResource(R.string.default_device_name)
-}
+fun deviceName(device: Device?): String = device?.customName?.trim().takeIf { !it.isNullOrBlank() }
+    ?: device?.originalName?.trim().takeIf { !it.isNullOrBlank() }
+    ?: stringResource(R.string.default_device_name)

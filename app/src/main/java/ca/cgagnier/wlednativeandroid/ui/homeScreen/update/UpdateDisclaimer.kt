@@ -21,10 +21,7 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
 
 @Composable
-fun UpdateDisclaimerDialog(
-    onDismiss: () -> Unit = {},
-    onAccept: () -> Unit = {},
-) {
+fun UpdateDisclaimerDialog(onDismiss: () -> Unit = {}, onAccept: () -> Unit = {}) {
     AlertDialog(
         title = {
             Text(stringResource(R.string.are_you_sure))
@@ -50,7 +47,7 @@ fun UpdateDisclaimerDialog(
         icon = {
             Icon(
                 imageVector = Icons.Filled.Warning,
-                contentDescription = stringResource(R.string.are_you_sure)
+                contentDescription = stringResource(R.string.are_you_sure),
             )
         },
     )
@@ -59,19 +56,19 @@ fun UpdateDisclaimerDialog(
 @Composable
 private fun UpdateDisclaimerDialogContent() {
     Column(
-        modifier = Modifier.verticalScroll(rememberScrollState())
+        modifier = Modifier.verticalScroll(rememberScrollState()),
     ) {
         Text(
-            stringResource(R.string.device_update_disclaimer_part1)
+            stringResource(R.string.device_update_disclaimer_part1),
         )
         Text(
             stringResource(R.string.device_update_disclaimer_part2),
-            modifier = Modifier.padding(top = 5.dp)
+            modifier = Modifier.padding(top = 5.dp),
         )
         Text(
             stringResource(R.string.device_update_disclaimer_part3),
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 5.dp)
+            modifier = Modifier.padding(top = 5.dp),
         )
     }
 }
