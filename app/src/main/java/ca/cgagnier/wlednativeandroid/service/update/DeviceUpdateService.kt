@@ -40,7 +40,7 @@ private val RELEASE_OVERRIDES_MIN_VERSION = Semver("0.16.0", Semver.SemverType.L
  * See: https://github.com/Moustachauve/WLED-Android/issues/129
  */
 private val RELEASE_NAME_OVERRIDES = mapOf(
-    "ESP32_V4" to "ESP32"
+    "ESP32_V4" to "ESP32",
 )
 
 class DeviceUpdateService(
@@ -80,22 +80,28 @@ class DeviceUpdateService(
             return false
         }
 
-        val release = try {
-            val targetVersion = Semver(versionWithAssets.version.tagName, Semver.SemverType.LOOSE)
-            if (!targetVersion.isLowerThan(RELEASE_OVERRIDES_MIN_VERSION)) {
-                RELEASE_NAME_OVERRIDES.getOrDefault(rawRelease, rawRelease)
-            } else {
-                rawRelease
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not parse target version '${versionWithAssets.version.tagName}', skipping release name overrides", e)
-            rawRelease
-        }
+        val release = getReleaseOverride(rawRelease)
         val combined = "${versionWithAssets.version.tagName}_$release"
         val versionWithRelease =
             if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
         assetName = "WLED_$versionWithRelease.bin"
         return findAsset(assetName)
+    }
+
+    private fun getReleaseOverride(rawRelease: String): String = try {
+        val targetVersion = Semver(versionWithAssets.version.tagName, Semver.SemverType.LOOSE)
+        if (!targetVersion.isLowerThan(RELEASE_OVERRIDES_MIN_VERSION)) {
+            RELEASE_NAME_OVERRIDES.getOrDefault(rawRelease, rawRelease)
+        } else {
+            rawRelease
+        }
+    } catch (e: Exception) {
+        Log.w(
+            TAG,
+            "Could not parse target version '${versionWithAssets.version.tagName}', skipping release name overrides",
+            e,
+        )
+        rawRelease
     }
 
     /**
