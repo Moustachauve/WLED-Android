@@ -41,7 +41,7 @@ abstract class DevicesDatabase : RoomDatabase() {
 
     companion object {
         @Volatile
-        private var instance: DevicesDatabase? = null
+        private var INSTANCE: DevicesDatabase? = null
 
         fun getDatabase(context: Context): DevicesDatabase {
             return INSTANCE ?: synchronized(this) {

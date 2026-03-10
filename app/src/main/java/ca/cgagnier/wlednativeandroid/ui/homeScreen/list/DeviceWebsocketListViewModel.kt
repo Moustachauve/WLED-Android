@@ -13,9 +13,8 @@ import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
-import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientManager
-import com.squareup.moshi.Moshi
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientFactory
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientManager
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -36,10 +35,8 @@ private const val TAG = "DeviceWebsocketListViewModel"
 class DeviceWebsocketListViewModel @Inject constructor(
     userPreferencesRepository: UserPreferencesRepository,
     private val deviceRepository: DeviceRepository,
-    private val deviceUpdateManager: DeviceUpdateManager,
-    private val okHttpClient: OkHttpClient,
-    private val moshi: Moshi,
-    private val websocketClientManager: WebsocketClientManager
+    private val websocketClientManager: WebsocketClientManager,
+    private val websocketClientFactory: WebsocketClientFactory,
     private val widgetManager: WledWidgetManager,
     @ApplicationContext private val applicationContext: Context,
 ) : ViewModel(),
