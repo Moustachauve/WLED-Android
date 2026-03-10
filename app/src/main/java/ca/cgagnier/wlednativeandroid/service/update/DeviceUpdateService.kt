@@ -82,7 +82,10 @@ class DeviceUpdateService(
      * This is the preferred method. It is only available on WLED devices since 0.15.0.
      */
     private fun determineAssetByRelease(): Boolean {
-        val rawRelease = device.stateInfo.value?.info?.release
+        if (!hasReleaseName()) {
+            return false
+        }
+        val rawRelease = device.stateInfo.value?.info!!.release!!
 
         val release = getReleaseOverride(rawRelease)
         val combined = "${versionWithAssets.version.tagName}_$release"
