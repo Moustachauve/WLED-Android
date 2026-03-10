@@ -44,7 +44,7 @@ class MainViewModel @Inject constructor(
     private val releaseService: ReleaseService,
     private val githubApi: GithubApi,
     private val deviceRepository: DeviceRepository,
-    private val websocketClientManager: WebsocketClientManager
+    private val websocketClientManager: WebsocketClientManager,
     private val deviceFirstContactService: DeviceFirstContactService,
     private val deepLinkHandler: DeepLinkHandler,
 ) : ViewModel() {

@@ -32,7 +32,7 @@ class DeviceEditViewModel @Inject constructor(
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val githubApi: GithubApi,
     private val websocketClientManager: WebsocketClientManager,
-    private val releaseService: ReleaseService
+    private val releaseService: ReleaseService,
     private val widgetManager: WledWidgetManager,
     @param:ApplicationContext private val applicationContext: Context,
 ) : ViewModel() {
@@ -115,7 +115,7 @@ class DeviceEditViewModel @Inject constructor(
         _updateInstallVersion.value = null
     }
 
-    fun checkForUpdates(device: Device) =
+    fun checkForUpdates(device: Device)  {
         viewModelScope.launch(Dispatchers.IO) {
             _isCheckingUpdates.value = true
             val updatedDevice = device.copy(skipUpdateTag = "")
