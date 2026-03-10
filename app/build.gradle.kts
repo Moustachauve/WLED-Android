@@ -19,14 +19,19 @@ android {
         applicationId = "ca.cgagnier.wlednativeandroid"
         minSdk = 24
         targetSdk = 36
-        versionCode  = 48
-        versionName = "6.1.0"
+        versionCode =
+            libs.versions.app.versionCode
+                .get()
+                .toInt()
+        versionName =
+            libs.versions.app.versionName
+                .get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     androidResources {
-        localeFilters += listOf("en", "fr", "zh")
+        localeFilters += listOf("de", "en", "fr", "zh")
     }
 
     buildFeatures {
@@ -45,7 +50,7 @@ android {
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
             ndk {
                 debugSymbolLevel = "FULL"
@@ -94,6 +99,10 @@ dependencies {
     implementation(libs.androidx.compose.navigation)
     implementation(libs.androidx.compose.navigation.ui)
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+    implementation(libs.androidx.glance.preview)
+    implementation(libs.androidx.glance.appwidget.preview)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -114,6 +123,7 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.hilt.android)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.jdk9)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.logging.interceptor)
     implementation(libs.material.kolor)
@@ -130,6 +140,8 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     ksp(libs.moshi.kotlin.codegen)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.mockk)
 }
 
 protobuf {
@@ -150,5 +162,13 @@ protobuf {
                 }
             }
         }
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
+    // Optional: Improve console output for parallel tests
+    testLogging {
+        events("passed", "skipped", "failed")
     }
 }

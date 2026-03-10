@@ -44,7 +44,7 @@ fun UpdateInstallingDialog(
     device: DeviceWithState,
     version: VersionWithAssets,
     onDismiss: () -> Unit,
-    viewModel: UpdateInstallingViewModel = hiltViewModel()
+    viewModel: UpdateInstallingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -78,8 +78,8 @@ fun UpdateInstallingDialog(
             Text(
                 stringResource(
                     R.string.updating,
-                    deviceName(device.device)
-                )
+                    deviceName(device.device),
+                ),
             )
         },
         text = {
@@ -95,7 +95,7 @@ fun UpdateInstallingDialog(
                 onClick = {
                     onDismiss()
                 },
-                enabled = state.canDismiss
+                enabled = state.canDismiss,
             ) {
                 if (state.step is UpdateInstallingStep.Done || state.step is UpdateInstallingStep.Error) {
                     Text(stringResource(R.string.done))
@@ -126,26 +126,26 @@ fun UpdateDialogContent(state: UpdateInstallingState) {
         modifier = Modifier
             .fillMaxWidth()
             .width(IntrinsicSize.Min),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         UpdateInstallingStatus(
             modifier = Modifier
                 .height(48.dp)
                 .width(48.dp),
-            step = state.step
+            step = state.step,
         )
         Text(
             updateInstallingStatusMessage(step = state.step),
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 12.dp)
+            modifier = Modifier.padding(top = 12.dp),
         )
         Text(state.assetName)
-        AnimatedVisibility (!state.canDismiss) {
+        AnimatedVisibility(!state.canDismiss) {
             Text(
                 stringResource(R.string.please_do_not_close_the_app_or_turn_off_the_device),
                 style = MaterialTheme.typography.titleSmall,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 12.dp)
+                modifier = Modifier.padding(top = 12.dp),
             )
         }
         AnimatedVisibility(state.step is UpdateInstallingStep.NoCompatibleVersion) {
@@ -159,44 +159,37 @@ fun UpdateDialogContent(state: UpdateInstallingState) {
 }
 
 @Composable
-private fun UpdateInstallingStatus(
-    modifier: Modifier = Modifier,
-    step: UpdateInstallingStep
-) {
+private fun UpdateInstallingStatus(modifier: Modifier = Modifier, step: UpdateInstallingStep) {
     when (step) {
         is UpdateInstallingStep.Starting -> CircularProgressIndicator(modifier)
         is UpdateInstallingStep.Downloading -> CircularProgressIndicator(
             modifier = modifier,
-            progress = { step.progress / 100f }
+            progress = { step.progress / 100f },
         )
         is UpdateInstallingStep.Installing -> CircularProgressIndicator(modifier)
         is UpdateInstallingStep.Error, is UpdateInstallingStep.NoCompatibleVersion -> Icon(
             modifier = modifier,
             painter = painterResource(R.drawable.baseline_error_outline_24),
             contentDescription = stringResource(R.string.update_failed),
-            tint = MaterialTheme.colorScheme.error
+            tint = MaterialTheme.colorScheme.error,
         )
         is UpdateInstallingStep.Done -> Icon(
             modifier = modifier,
             painter = painterResource(R.drawable.ic_twotone_check_circle_outline_24),
             contentDescription = stringResource(R.string.update_completed),
-            tint = Color(0xFF00b300) // Green
+            tint = Color(0xFF00b300), // Green
         )
     }
 }
 
 @Composable
-private fun updateInstallingStatusMessage(
-    step: UpdateInstallingStep
-): String {
-    return when (step) {
-        is UpdateInstallingStep.Starting -> stringResource(R.string.starting_up)
-        is UpdateInstallingStep.Downloading -> stringResource(R.string.downloading_version)
-        is UpdateInstallingStep.Installing -> stringResource(R.string.installing_update)
-        is UpdateInstallingStep.NoCompatibleVersion -> stringResource(R.string.no_compatible_version_found)
-        is UpdateInstallingStep.Error -> stringResource(R.string.update_failed)
-        is UpdateInstallingStep.Done -> stringResource(R.string.update_completed)
-    }
+private fun updateInstallingStatusMessage(step: UpdateInstallingStep): String = when (step) {
+    is UpdateInstallingStep.Starting -> stringResource(R.string.starting_up)
+    is UpdateInstallingStep.Downloading -> stringResource(R.string.downloading_version)
+    is UpdateInstallingStep.Installing -> stringResource(R.string.installing_update)
+    is UpdateInstallingStep.NoCompatibleVersion -> stringResource(R.string.no_compatible_version_found)
+    is UpdateInstallingStep.Error -> stringResource(R.string.update_failed)
+    is UpdateInstallingStep.Done -> stringResource(R.string.update_completed)
 }
 
 @Composable
@@ -206,7 +199,7 @@ private fun ErrorMessageCard(errorMessage: String) {
             .padding(top = 12.dp)
             .fillMaxWidth()
             .width(IntrinsicSize.Min),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
     ) {
         Text(
             errorMessage,
@@ -223,37 +216,37 @@ class SampleStateStepProvider : PreviewParameterProvider<UpdateInstallingState> 
     override val values = sequenceOf(
         UpdateInstallingState(
             step = UpdateInstallingStep.Starting,
-            canDismiss = true
+            canDismiss = true,
         ),
         UpdateInstallingState(
             step = UpdateInstallingStep.Downloading(progress = 50),
             canDismiss = true,
-            assetName = "WLED-1.2.3-WOW.bin"
+            assetName = "WLED-1.2.3-WOW.bin",
         ),
         UpdateInstallingState(
             step = UpdateInstallingStep.Installing,
             canDismiss = false,
-            assetName = "WLED-1.2.3-WOW.bin"
+            assetName = "WLED-1.2.3-WOW.bin",
         ),
         UpdateInstallingState(
             step = UpdateInstallingStep.NoCompatibleVersion,
             canDismiss = true,
-            assetName = "WLED-1.2.3-WOW.bin"
+            assetName = "WLED-1.2.3-WOW.bin",
         ),
         UpdateInstallingState(
             step = UpdateInstallingStep.Error("Something went wrong", showError = false),
             canDismiss = true,
-            assetName = "WLED-1.2.3-WOW.bin"
+            assetName = "WLED-1.2.3-WOW.bin",
         ),
         UpdateInstallingState(
             step = UpdateInstallingStep.Error("Something went wrong", showError = true),
             canDismiss = true,
-            assetName = "WLED-1.2.3-WOW.bin"
+            assetName = "WLED-1.2.3-WOW.bin",
         ),
         UpdateInstallingState(
             step = UpdateInstallingStep.Done,
             canDismiss = true,
-            assetName = "WLED-1.2.3-WOW.bin"
+            assetName = "WLED-1.2.3-WOW.bin",
         ),
     )
 }
@@ -261,14 +254,14 @@ class SampleStateStepProvider : PreviewParameterProvider<UpdateInstallingState> 
 @Preview(showBackground = true)
 @Composable
 fun UpdateInstallingDialogStepStartingPreview(
-    @PreviewParameter(SampleStateStepProvider::class) state: UpdateInstallingState
+    @PreviewParameter(SampleStateStepProvider::class) state: UpdateInstallingState,
 ) {
     WLEDNativeTheme(darkTheme = isSystemInDarkTheme()) {
         UpdateInstallingDialog(
             state = state,
             device = getPreviewDevice(),
             onDismiss = {},
-            onToggleErrorMessage = {}
+            onToggleErrorMessage = {},
         )
     }
 }

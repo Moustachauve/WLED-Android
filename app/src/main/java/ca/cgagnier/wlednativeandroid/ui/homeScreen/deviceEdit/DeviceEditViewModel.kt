@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen.deviceEdit
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,7 +15,9 @@ import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientManager
+import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +33,8 @@ class DeviceEditViewModel @Inject constructor(
     private val githubApi: GithubApi,
     private val websocketClientManager: WebsocketClientManager,
     private val releaseService: ReleaseService
+    private val widgetManager: WledWidgetManager,
+    @param:ApplicationContext private val applicationContext: Context,
 ) : ViewModel() {
 
     private var _updateDetailsVersion: MutableStateFlow<VersionWithAssets?> = MutableStateFlow(null)
@@ -46,30 +51,31 @@ class DeviceEditViewModel @Inject constructor(
     val isCheckingUpdates = _isCheckingUpdates.asStateFlow()
 
     fun updateCustomName(device: Device, name: String) = viewModelScope.launch(Dispatchers.IO) {
-        val isCustomName = name != ""
         val updatedDevice = device.copy(
             customName = name,
         )
 
-        Log.d(TAG, "updateCustomName: $name, isCustom: $isCustomName")
+        Log.d(TAG, "updateCustomName: $name")
 
         repository.update(updatedDevice)
+
+        // Update widgets to show the new name
+        widgetManager.updateWidgetNamesForDevice(applicationContext, updatedDevice)
     }
 
-    fun updateDeviceHidden(device: Device, isHidden: Boolean) =
-        viewModelScope.launch(Dispatchers.IO) {
-            Log.d(TAG, "updateDeviceHidden: ${device.originalName}, isHidden: $isHidden")
-            repository.update(
-                device.copy(
-                    isHidden = isHidden
-                )
-            )
-        }
+    fun updateDeviceHidden(device: Device, isHidden: Boolean) = viewModelScope.launch(Dispatchers.IO) {
+        Log.d(TAG, "updateDeviceHidden: ${device.originalName}, isHidden: $isHidden")
+        repository.update(
+            device.copy(
+                isHidden = isHidden,
+            ),
+        )
+    }
 
     fun updateDeviceBranch(device: Device, branch: Branch) = viewModelScope.launch(Dispatchers.IO) {
         Log.d(TAG, "updateDeviceBranch: ${device.originalName}, updateChannel: $branch")
         val updatedDevice = device.copy(
-            branch = branch
+            branch = branch,
         )
         repository.update(updatedDevice)
     }
@@ -84,15 +90,14 @@ class DeviceEditViewModel @Inject constructor(
         _updateDetailsVersion.value = null
     }
 
-    fun skipUpdate(device: Device, version: VersionWithAssets) =
-        viewModelScope.launch(Dispatchers.IO) {
-            Log.d(TAG, "Saving skipUpdateTag")
-            val updatedDevice = device.copy(
-                skipUpdateTag = version.version.tagName
-            )
-            repository.update(updatedDevice)
-            _updateDetailsVersion.value = null
-        }
+    fun skipUpdate(device: Device, version: VersionWithAssets) = viewModelScope.launch(Dispatchers.IO) {
+        Log.d(TAG, "Saving skipUpdateTag")
+        val updatedDevice = device.copy(
+            skipUpdateTag = version.version.tagName,
+        )
+        repository.update(updatedDevice)
+        _updateDetailsVersion.value = null
+    }
 
     fun showUpdateDisclaimer(version: VersionWithAssets) {
         _updateDisclaimerVersion.value = version
@@ -137,4 +142,5 @@ class DeviceEditViewModel @Inject constructor(
                 _isCheckingUpdates.value = false
             }
         }
+    }
 }

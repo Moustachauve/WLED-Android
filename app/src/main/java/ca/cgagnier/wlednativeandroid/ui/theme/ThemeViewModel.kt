@@ -12,13 +12,12 @@ import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @HiltViewModel
-class ThemeViewModel @Inject constructor(private val preferencesRepository: UserPreferencesRepository) :
-    ViewModel() {
+class ThemeViewModel @Inject constructor(private val preferencesRepository: UserPreferencesRepository) : ViewModel() {
 
     val theme = preferencesRepository.themeMode.map { it }
         .stateIn(
             scope = viewModelScope,
             started = WhileSubscribed(5000),
-            initialValue = runBlocking{preferencesRepository.themeMode.first()}
+            initialValue = runBlocking { preferencesRepository.themeMode.first() },
         )
 }

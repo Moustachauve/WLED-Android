@@ -19,7 +19,10 @@ private const val TAG = "updateService"
 const val DEFAULT_REPO = "wled/WLED"
 
 enum class UpdateSourceType {
-    OFFICIAL_WLED, QUINLED, CUSTOM, MOONMODULES
+    OFFICIAL_WLED,
+    QUINLED,
+    CUSTOM,
+    MOONMODULES,
 }
 
 data class UpdateSourceDefinition(
@@ -136,17 +139,20 @@ class ReleaseService @Inject constructor(private val versionWithAssetsRepository
 
         val betaSuffixes = listOf("-a", "-b", "-rc")
         Log.w(
-            TAG, "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $latestTagName"
+            TAG,
+            "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $latestTagName",
         )
         if (branch == Branch.STABLE && betaSuffixes.any {
                 deviceInfo.version.contains(it, ignoreCase = true)
-            }) {
+            }
+        ) {
             // If we're on a beta branch but looking for a stable branch, always offer to "update" to
             // the stable branch.
             return latestTagName
         } else if (branch == Branch.BETA && betaSuffixes.none {
                 deviceInfo.version.contains(it, ignoreCase = true)
-            }) {
+            }
+        ) {
             // Same if we are on a stable branch but looking for a beta branch, we should offer to
             // "update" to the latest beta branch, even if its older.
             return latestTagName
@@ -235,7 +241,7 @@ class ReleaseService @Inject constructor(private val versionWithAssetsRepository
                     asset.size,
                     asset.browserDownloadUrl,
                     asset.id,
-                )
+                ),
             )
         }
         return assetsModels
