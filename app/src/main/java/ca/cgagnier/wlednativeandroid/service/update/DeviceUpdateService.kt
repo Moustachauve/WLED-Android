@@ -8,6 +8,7 @@ import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
+import com.vdurmont.semver4j.Semver
 import kotlinx.coroutines.flow.Flow
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -17,6 +18,30 @@ import retrofit2.Response
 import java.io.File
 
 private const val TAG = "DeviceUpdateService"
+
+/**
+ * The minimum target version from which [RELEASE_NAME_OVERRIDES] are applied.
+ * Overrides only take effect when upgrading to this version or later.
+ */
+private val RELEASE_OVERRIDES_MIN_VERSION = Semver("0.16.0", Semver.SemverType.LOOSE)
+
+/**
+ * Maps deprecated or transitional release names to the release name that should be used
+ * for OTA updates. This handles cases where the binary name changes between WLED releases.
+ *
+ * For example, devices running the ESP32_V4 tech-preview (WLED 0.15.x) must be updated
+ * with the standard ESP32 binary when upgrading to 0.16.0 or later, as ESP32_V4 assets will
+ * no longer be published in those releases. Within 0.15.x, ESP32_V4 assets still exist
+ * and no remapping is needed.
+ *
+ * These overrides are only applied when the target version is [RELEASE_OVERRIDES_MIN_VERSION]
+ * or greater.
+ *
+ * See: https://github.com/Moustachauve/WLED-Android/issues/129
+ */
+private val RELEASE_NAME_OVERRIDES = mapOf(
+    "ESP32_V4" to "ESP32",
+)
 
 class DeviceUpdateService(
     val device: DeviceWithState,
@@ -50,16 +75,33 @@ class DeviceUpdateService(
      * This is the preferred method. It is only available on WLED devices since 0.15.0.
      */
     private fun determineAssetByRelease(): Boolean {
-        val release = device.stateInfo.value?.info?.release
-        if (release.isNullOrEmpty()) {
+        val rawRelease = device.stateInfo.value?.info?.release
+        if (rawRelease.isNullOrEmpty()) {
             return false
         }
 
+        val release = getReleaseOverride(rawRelease)
         val combined = "${versionWithAssets.version.tagName}_$release"
         val versionWithRelease =
             if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
         assetName = "WLED_$versionWithRelease.bin"
         return findAsset(assetName)
+    }
+
+    private fun getReleaseOverride(rawRelease: String): String = try {
+        val targetVersion = Semver(versionWithAssets.version.tagName, Semver.SemverType.LOOSE)
+        if (!targetVersion.isLowerThan(RELEASE_OVERRIDES_MIN_VERSION)) {
+            RELEASE_NAME_OVERRIDES.getOrDefault(rawRelease, rawRelease)
+        } else {
+            rawRelease
+        }
+    } catch (e: Exception) {
+        Log.w(
+            TAG,
+            "Could not parse target version '${versionWithAssets.version.tagName}', skipping release name overrides",
+            e,
+        )
+        rawRelease
     }
 
     /**
