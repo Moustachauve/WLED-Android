@@ -49,9 +49,6 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
             )
         """.trimIndent())
 
-        // Create indices for Asset table
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_versionTagName` ON `Asset` (`versionTagName`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_repository` ON `Asset` (`repository`)")
 
         // Migrate Version data
         val originalVersionCountCursor = db.query("SELECT COUNT(*) FROM Version_old")
@@ -136,6 +133,10 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         // Drop old tables
         db.execSQL("DROP TABLE IF EXISTS `Version_old`")
         db.execSQL("DROP TABLE IF EXISTS `Asset_old`")
+
+        // Create indices for Asset table (after data migration)
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_versionTagName` ON `Asset` (`versionTagName`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_repository` ON `Asset` (`repository`)")
 
         Log.i(TAG, "Migration from 9 to 10 complete!")
     }

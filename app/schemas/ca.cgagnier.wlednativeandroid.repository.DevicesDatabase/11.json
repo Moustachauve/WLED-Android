@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 11,
-    "identityHash": "2760473c3744dbf6f299b09b0c84a05d",
+    "identityHash": "b72dfc634eb74cfe7855b210a693d3d2",
     "entities": [
       {
         "tableName": "Device2",
@@ -127,7 +127,7 @@
       },
       {
         "tableName": "Asset",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`versionTagName` TEXT NOT NULL, `repository` TEXT NOT NULL, `name` TEXT NOT NULL, `size` INTEGER NOT NULL, `downloadUrl` TEXT NOT NULL, `assetId` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`versionTagName`, `repository`, `name`), FOREIGN KEY(`versionTagName`, `repository`) REFERENCES `Version`(`tagName`, `repository`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`versionTagName` TEXT NOT NULL, `repository` TEXT NOT NULL DEFAULT 'wled/WLED', `name` TEXT NOT NULL, `size` INTEGER NOT NULL, `downloadUrl` TEXT NOT NULL, `assetId` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`versionTagName`, `repository`, `name`), FOREIGN KEY(`versionTagName`, `repository`) REFERENCES `Version`(`tagName`, `repository`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "versionTagName",
@@ -139,7 +139,8 @@
             "fieldPath": "repository",
             "columnName": "repository",
             "affinity": "TEXT",
-            "notNull": true
+            "notNull": true,
+            "defaultValue": "'wled/WLED'"
           },
           {
             "fieldPath": "name",
@@ -214,7 +215,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2760473c3744dbf6f299b09b0c84a05d')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b72dfc634eb74cfe7855b210a693d3d2')"
     ]
   }
 }
