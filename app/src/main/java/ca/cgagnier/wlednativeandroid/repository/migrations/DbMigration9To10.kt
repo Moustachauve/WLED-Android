@@ -18,40 +18,40 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         Log.i(TAG, "Starting migration from 9 to 10")
 
         // Rename old tables
-        db.execSQL("ALTER TABLE Version RENAME TO Version_old")
-        db.execSQL("ALTER TABLE Asset RENAME TO Asset_old")
+        db.execSQL("ALTER TABLE `Version` RENAME TO `Version_old`")
+        db.execSQL("ALTER TABLE `Asset` RENAME TO `Asset_old`")
 
         // Create new Version table with repository column
         db.execSQL("""
-            CREATE TABLE IF NOT EXISTS Version (
-                tagName TEXT NOT NULL,
-                repository TEXT NOT NULL DEFAULT 'wled/WLED',
-                name TEXT NOT NULL,
-                description TEXT NOT NULL,
-                isPrerelease INTEGER NOT NULL,
-                publishedDate TEXT NOT NULL,
-                htmlUrl TEXT NOT NULL,
-                PRIMARY KEY(tagName, repository)
+            CREATE TABLE IF NOT EXISTS `Version` (
+                `tagName` TEXT NOT NULL,
+                `repository` TEXT NOT NULL DEFAULT 'wled/WLED',
+                `name` TEXT NOT NULL,
+                `description` TEXT NOT NULL,
+                `isPrerelease` INTEGER NOT NULL,
+                `publishedDate` TEXT NOT NULL,
+                `htmlUrl` TEXT NOT NULL,
+                PRIMARY KEY(`tagName`, `repository`)
             )
         """.trimIndent())
 
         // Create new Asset table with repository column
         db.execSQL("""
-            CREATE TABLE IF NOT EXISTS Asset (
-                versionTagName TEXT NOT NULL,
-                repository TEXT NOT NULL DEFAULT 'wled/WLED',
-                name TEXT NOT NULL,
-                size INTEGER NOT NULL,
-                downloadUrl TEXT NOT NULL,
-                assetId INTEGER NOT NULL DEFAULT 0,
-                PRIMARY KEY(versionTagName, repository, name),
-                FOREIGN KEY(versionTagName, repository) REFERENCES Version(tagName, repository) ON DELETE CASCADE
+            CREATE TABLE IF NOT EXISTS `Asset` (
+                `versionTagName` TEXT NOT NULL,
+                `repository` TEXT NOT NULL DEFAULT 'wled/WLED',
+                `name` TEXT NOT NULL,
+                `size` INTEGER NOT NULL,
+                `downloadUrl` TEXT NOT NULL,
+                `assetId` INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(`versionTagName`, `repository`, `name`),
+                FOREIGN KEY(`versionTagName`, `repository`) REFERENCES `Version`(`tagName`, `repository`) ON UPDATE NO ACTION ON DELETE CASCADE
             )
         """.trimIndent())
 
         // Create indices for Asset table
-        db.execSQL("CREATE INDEX IF NOT EXISTS index_Asset_versionTagName ON Asset (versionTagName)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS index_Asset_repository ON Asset (repository)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_versionTagName` ON `Asset` (`versionTagName`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_repository` ON `Asset` (`repository`)")
 
         // Migrate Version data
         val originalVersionCountCursor = db.query("SELECT COUNT(*) FROM Version_old")
@@ -134,8 +134,8 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         Log.i(TAG, "Assets migrated to new table: $migratedAssetCount")
         
         // Drop old tables
-        db.execSQL("DROP TABLE IF EXISTS Version_old")
-        db.execSQL("DROP TABLE IF EXISTS Asset_old")
+        db.execSQL("DROP TABLE IF EXISTS `Version_old`")
+        db.execSQL("DROP TABLE IF EXISTS `Asset_old`")
 
         Log.i(TAG, "Migration from 9 to 10 complete!")
     }
