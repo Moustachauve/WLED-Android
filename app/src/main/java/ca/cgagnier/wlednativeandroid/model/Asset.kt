@@ -17,7 +17,7 @@ data class Asset(
 
     @ColumnInfo(index = true)
     val versionTagName: String,
-    @ColumnInfo(index = true)
+    @ColumnInfo(index = true, defaultValue = "'wled/WLED'")
     val repository: String,
     val name: String,
     val size: Long,
