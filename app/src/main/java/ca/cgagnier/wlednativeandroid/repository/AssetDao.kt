@@ -1,4 +1,4 @@
-package ca.cgagnier.wlednativeandroid.repository
+ package ca.cgagnier.wlednativeandroid.repository
 
 import androidx.room.Dao
 import androidx.room.Delete
@@ -24,4 +24,7 @@ interface AssetDao {
 
     @Query("DELETE FROM asset")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM asset WHERE repository = :repository")
+    suspend fun getAssetsByRepository(repository: String): List<Asset>
 }

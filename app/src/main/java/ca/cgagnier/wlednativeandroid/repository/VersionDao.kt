@@ -35,6 +35,9 @@ interface VersionDao {
     @Query("DELETE FROM version")
     suspend fun deleteAll()
 
+    @Query("SELECT * FROM version WHERE repository = :repository")
+    suspend fun getVersionsByRepository(repository: String): List<Version>
+
     @Transaction
     @Query("SELECT * FROM version WHERE repository = :repository AND isPrerelease = 0 AND tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1")
     suspend fun getLatestStableVersionWithAssets(repository: String): VersionWithAssets?

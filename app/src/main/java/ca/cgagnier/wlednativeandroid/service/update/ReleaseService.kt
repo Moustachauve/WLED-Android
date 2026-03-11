@@ -87,7 +87,7 @@ fun getRepositoryFromInfo(info: Info): String {
 
 /**
  * Splits a repository string (e.g., "owner/name") into owner and name parts for API calls.
- * Returns a pair of (owner, name). Defaults to ("wled", "WLED") if format is invalid.
+ * Returns a pair of (owner, name). Defaults to ("wled", "WLED") if format is invalid.t
  */
 fun splitRepository(repository: String): Pair<String, String> {
     val parts = repository.split("/")
@@ -190,9 +190,6 @@ class ReleaseService @Inject constructor(private val versionWithAssetsRepository
      * Gets a list of unique repositories, then fetches releases for each.
      */
     suspend fun refreshVersions(githubApi: GithubApi, repositories: Set<String>) = withContext(Dispatchers.IO) {
-        val allVersions = mutableListOf<Version>()
-        val allAssets = mutableListOf<Asset>()
-
         for (repository in repositories) {
             val (repoOwner, repoName) = splitRepository(repository)
             Log.i(TAG, "Fetching releases from $repository")
@@ -204,16 +201,10 @@ class ReleaseService @Inject constructor(private val versionWithAssetsRepository
                 } else {
                     val versions = releases.map { createVersion(it, repository) }
                     val assets = releases.flatMap { createAssetsForVersion(it, repository) }
-                    allVersions.addAll(versions)
-                    allAssets.addAll(assets)
-                    Log.i(TAG, "Added ${versions.size} versions and ${assets.size} assets from $repository")
+                    Log.i(TAG, "Updating ${versions.size} versions and ${assets.size} assets for $repository")
+                    versionWithAssetsRepository.updateRepository(repository, versions, assets)
                 }
             }
-        }
-
-        if (allVersions.isNotEmpty()) {
-            Log.i(TAG, "Replacing DB with ${allVersions.size} versions and ${allAssets.size} assets total")
-            versionWithAssetsRepository.replaceAll(allVersions, allAssets)
         }
     }
 
