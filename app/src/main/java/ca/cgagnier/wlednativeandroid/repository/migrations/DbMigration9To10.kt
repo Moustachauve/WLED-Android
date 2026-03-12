@@ -22,7 +22,8 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         db.execSQL("ALTER TABLE `Asset` RENAME TO `Asset_old`")
 
         // Create new Version table with repository column
-        db.execSQL("""
+        db.execSQL(
+            """
             CREATE TABLE IF NOT EXISTS `Version` (
                 `tagName` TEXT NOT NULL,
                 `repository` TEXT NOT NULL DEFAULT 'wled/WLED',
@@ -33,10 +34,12 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
                 `htmlUrl` TEXT NOT NULL,
                 PRIMARY KEY(`tagName`, `repository`)
             )
-        """.trimIndent())
+            """.trimIndent(),
+        )
 
         // Create new Asset table with repository column
-        db.execSQL("""
+        db.execSQL(
+            """
             CREATE TABLE IF NOT EXISTS `Asset` (
                 `versionTagName` TEXT NOT NULL,
                 `repository` TEXT NOT NULL DEFAULT 'wled/WLED',
@@ -49,8 +52,8 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
                     REFERENCES `Version`(`tagName`, `repository`)
                     ON UPDATE NO ACTION ON DELETE CASCADE
             )
-        """.trimIndent())
-
+            """.trimIndent(),
+        )
 
         // Migrate Version data
         val originalVersionCountCursor = db.query("SELECT COUNT(*) FROM Version_old")
@@ -82,7 +85,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
                 publishedDate,
                 htmlUrl
             FROM Version_old
-            """.trimIndent()
+            """.trimIndent(),
         )
 
         val migratedVersionCountCursor = db.query("SELECT COUNT(*) FROM Version")
@@ -121,7 +124,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
                 downloadUrl,
                 assetId
             FROM Asset_old
-            """.trimIndent()
+            """.trimIndent(),
         )
 
         val migratedAssetCountCursor = db.query("SELECT COUNT(*) FROM Asset")

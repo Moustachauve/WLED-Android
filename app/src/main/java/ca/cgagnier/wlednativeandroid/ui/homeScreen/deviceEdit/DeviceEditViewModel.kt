@@ -80,11 +80,12 @@ class DeviceEditViewModel @Inject constructor(
         repository.update(updatedDevice)
     }
 
-    fun showUpdateDetails(device: Device, deviceStateInfo: DeviceStateInfo?, version: String) = viewModelScope.launch(Dispatchers.IO) {
-        // Extract repository from device info, defaulting to "wled/WLED"
-        val repository = deviceStateInfo?.info?.let { getRepositoryFromInfo(it) } ?: DEFAULT_REPO
-        _updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(repository, version)
-    }
+    fun showUpdateDetails(device: Device, deviceStateInfo: DeviceStateInfo?, version: String) =
+        viewModelScope.launch(Dispatchers.IO) {
+            // Extract repository from device info, defaulting to "wled/WLED"
+            val repository = deviceStateInfo?.info?.let { getRepositoryFromInfo(it) } ?: DEFAULT_REPO
+            _updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(repository, version)
+        }
 
     fun hideUpdateDetails() {
         _updateDetailsVersion.value = null
@@ -115,7 +116,7 @@ class DeviceEditViewModel @Inject constructor(
         _updateInstallVersion.value = null
     }
 
-    fun checkForUpdates(device: Device)  {
+    fun checkForUpdates(device: Device) {
         viewModelScope.launch(Dispatchers.IO) {
             _isCheckingUpdates.value = true
             val updatedDevice = device.copy(skipUpdateTag = "")
@@ -124,7 +125,7 @@ class DeviceEditViewModel @Inject constructor(
                 // Get repository for this specific device
                 val repositories = mutableSetOf<String>()
                 repositories.add(DEFAULT_REPO) // Always include the default WLED repository
-                
+
                 // Look up the specific device's websocket client to get its repository
                 val client = websocketClientManager.getClients()[device.macAddress]
                 val info = client?.deviceState?.stateInfo?.value?.info
@@ -135,7 +136,7 @@ class DeviceEditViewModel @Inject constructor(
                 } else {
                     Log.d(TAG, "Device info not available, using default repository only")
                 }
-                
+
                 Log.i(TAG, "Refreshing versions from ${repositories.size} repositories: $repositories")
                 releaseService.refreshVersions(githubApi, repositories)
             } finally {

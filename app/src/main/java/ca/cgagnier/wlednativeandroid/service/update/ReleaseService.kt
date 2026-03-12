@@ -30,7 +30,7 @@ data class UpdateSourceDefinition(
     val brandPattern: String,
     val githubOwner: String,
     val githubRepo: String,
-    val product: String? = null
+    val product: String? = null,
 )
 
 object UpdateSourceRegistry {
@@ -39,20 +39,20 @@ object UpdateSourceRegistry {
             type = UpdateSourceType.OFFICIAL_WLED,
             brandPattern = "WLED",
             githubOwner = "wled",
-            githubRepo = "WLED"
+            githubRepo = "WLED",
         ),
         UpdateSourceDefinition(
             type = UpdateSourceType.QUINLED,
             brandPattern = "QuinLED",
             githubOwner = "intermittech",
-            githubRepo = "QuinLED-Firmware"
+            githubRepo = "QuinLED-Firmware",
         ),
         UpdateSourceDefinition(
             type = UpdateSourceType.MOONMODULES,
             brandPattern = "WLED",
             product = "MoonModules",
             githubOwner = "MoonModules",
-            githubRepo = "WLED-MM"
+            githubRepo = "WLED-MM",
         ),
     )
 
@@ -70,7 +70,6 @@ object UpdateSourceRegistry {
  * 3. Third: Default to "wled/WLED"
  */
 fun getRepositoryFromInfo(info: Info): String {
-
     // First priority: Use original repo, if supplied
     if (!info.repo.isNullOrBlank()) {
         return info.repo
@@ -88,7 +87,7 @@ fun getRepositoryFromInfo(info: Info): String {
 
 /**
  * Splits a repository string (e.g., "owner/name") into owner and name parts for API calls.
- * Returns a pair of (owner, name). Defaults to ("wled", "WLED") if format is invalid.
+ * Returns a pair of (owner, name). Defaults to ("wled", "WLED") if format is invalid.t
  */
 fun splitRepository(repository: String): Pair<String, String> {
     val parts = repository.split("/")
@@ -113,11 +112,7 @@ class ReleaseService @Inject constructor(private val versionWithAssetsRepository
      * @return The newest version if it is newer than versionName and different than ignoreVersion,
      *      otherwise an empty string.
      */
-    suspend fun getNewerReleaseTag(
-        deviceInfo: Info,
-        branch: Branch,
-        ignoreVersion: String,
-    ): String? {
+    suspend fun getNewerReleaseTag(deviceInfo: Info, branch: Branch, ignoreVersion: String): String? {
         if (deviceInfo.version.isNullOrEmpty()) {
             return null
         }
@@ -175,10 +170,7 @@ class ReleaseService @Inject constructor(private val versionWithAssetsRepository
         return null
     }
 
-    private suspend fun getLatestVersionWithAssets(
-        repository: String,
-        branch: Branch
-    ): VersionWithAssets? {
+    private suspend fun getLatestVersionWithAssets(repository: String, branch: Branch): VersionWithAssets? {
         if (branch == Branch.BETA) {
             return versionWithAssetsRepository.getLatestBetaVersionWithAssets(repository)
         }
@@ -209,17 +201,15 @@ class ReleaseService @Inject constructor(private val versionWithAssetsRepository
         }
     }
 
-    private fun createVersion(version: Release, repository: String): Version {
-        return Version(
-            sanitizeTagName(version.tagName),
-            repository,
-            version.name,
-            version.body,
-            version.prerelease,
-            version.publishedAt,
-            version.htmlUrl
-        )
-    }
+    private fun createVersion(version: Release, repository: String): Version = Version(
+        sanitizeTagName(version.tagName),
+        repository,
+        version.name,
+        version.body,
+        version.prerelease,
+        version.publishedAt,
+        version.htmlUrl,
+    )
 
     private fun createAssetsForVersion(version: Release, repository: String): List<Asset> {
         val assetsModels = mutableListOf<Asset>()

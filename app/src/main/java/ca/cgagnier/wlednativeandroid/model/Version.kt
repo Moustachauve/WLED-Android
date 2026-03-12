@@ -4,7 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 
 @Entity(
-    primaryKeys = ["tagName", "repository"]
+    primaryKeys = ["tagName", "repository"],
 )
 data class Version(
     val tagName: String,
@@ -18,16 +18,14 @@ data class Version(
 ) {
 
     companion object {
-        fun getPreviewVersion(): Version {
-            return Version(
-                tagName = "v1.0.0",
-                repository = "wled/WLED",
-                name = "new version",
-                description = "this is a test version",
-                isPrerelease = false,
-                publishedDate = "2024-10-13T15:54:31Z",
-                htmlUrl = "https://github.com/"
-            )
-        }
+        fun getPreviewVersion(): Version = Version(
+            tagName = "v1.0.0",
+            repository = "wled/WLED",
+            name = "new version",
+            description = "this is a test version",
+            isPrerelease = false,
+            publishedDate = "2024-10-13T15:54:31Z",
+            htmlUrl = "https://github.com/",
+        )
     }
 }

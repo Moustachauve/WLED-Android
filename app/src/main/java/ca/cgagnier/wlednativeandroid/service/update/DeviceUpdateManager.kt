@@ -31,7 +31,7 @@ class DeviceUpdateManager @Inject constructor(private val releaseService: Releas
                 val repository = getRepositoryFromInfo(info)
                 Log.d(
                     TAG,
-                    "Checking for software update for ${deviceWithState.device.macAddress} on $repository"
+                    "Checking for software update for ${deviceWithState.device.macAddress} on $repository",
                 )
                 releaseService.getNewerReleaseTag(
                     deviceInfo = info,

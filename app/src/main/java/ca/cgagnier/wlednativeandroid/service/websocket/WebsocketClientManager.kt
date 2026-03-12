@@ -19,8 +19,5 @@ class WebsocketClientManager @Inject constructor() {
         _clients.value = newClients
     }
 
-    fun getClients(): Map<String, WebsocketClient> {
-        return _clients.value
-    }
+    fun getClients(): Map<String, WebsocketClient> = _clients.value
 }
-

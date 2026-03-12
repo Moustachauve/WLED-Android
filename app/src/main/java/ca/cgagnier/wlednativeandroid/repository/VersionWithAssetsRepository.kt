@@ -40,15 +40,12 @@ class VersionWithAssetsRepository @Inject constructor(
         }
     }
 
-    suspend fun getLatestStableVersionWithAssets(repository: String): VersionWithAssets? {
-        return versionDao.getLatestStableVersionWithAssets(repository)
-    }
+    suspend fun getLatestStableVersionWithAssets(repository: String): VersionWithAssets? =
+        versionDao.getLatestStableVersionWithAssets(repository)
 
-    suspend fun getLatestBetaVersionWithAssets(repository: String): VersionWithAssets? {
-        return versionDao.getLatestBetaVersionWithAssets(repository)
-    }
+    suspend fun getLatestBetaVersionWithAssets(repository: String): VersionWithAssets? =
+        versionDao.getLatestBetaVersionWithAssets(repository)
 
-    suspend fun getVersionByTag(repository: String, tagName: String): VersionWithAssets? {
-        return versionDao.getVersionByTagName(repository, tagName)
-    }
+    suspend fun getVersionByTag(repository: String, tagName: String): VersionWithAssets? =
+        versionDao.getVersionByTagName(repository, tagName)
 }

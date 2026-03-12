@@ -169,7 +169,7 @@ fun DeviceEdit(
                                 currentUpdateTag,
                                 seeUpdateDetails = {
                                     viewModel.showUpdateDetails(device.device, device.stateInfo.value, currentUpdateTag)
-                                }
+                                },
                             )
                         } else {
                             NoUpdateAvailable(

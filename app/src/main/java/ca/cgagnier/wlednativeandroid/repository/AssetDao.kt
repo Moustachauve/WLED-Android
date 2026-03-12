@@ -1,4 +1,4 @@
- package ca.cgagnier.wlednativeandroid.repository
+package ca.cgagnier.wlednativeandroid.repository
 
 import androidx.room.Dao
 import androidx.room.Delete

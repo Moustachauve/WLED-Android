@@ -62,11 +62,11 @@ class MainViewModel @Inject constructor(
                 Log.i(TAG, "Not updating version list since it was done recently.")
                 return@launch
             }
-            
+
             // Collect unique repositories from all connected devices
             val repositories = mutableSetOf<String>()
             repositories.add(DEFAULT_REPO) // Always include the default WLED repository
-            
+
             websocketClientManager.getClients().values.forEach { client ->
                 val info = client.deviceState.stateInfo.value?.info
                 if (info != null) {
@@ -75,7 +75,7 @@ class MainViewModel @Inject constructor(
                     Log.d(TAG, "Found device using repository: $repo")
                 }
             }
-            
+
             Log.i(TAG, "Refreshing versions from ${repositories.size} repositories: $repositories")
             releaseService.refreshVersions(githubApi, repositories)
             // Set the next date to check in minimum 24 hours from now.
