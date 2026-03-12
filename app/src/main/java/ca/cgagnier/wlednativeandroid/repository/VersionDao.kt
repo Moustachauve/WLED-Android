@@ -40,13 +40,26 @@ interface VersionDao {
 
     @Transaction
     @Query(
-        "SELECT * FROM version WHERE repository = :repository AND isPrerelease = 0 AND tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1",
+        """
+        SELECT * FROM version
+        WHERE repository = :repository
+        AND isPrerelease = 0
+        AND tagName != '$IGNORED_TAG'
+        ORDER BY publishedDate DESC
+        LIMIT 1
+        """,
     )
     suspend fun getLatestStableVersionWithAssets(repository: String): VersionWithAssets?
 
     @Transaction
     @Query(
-        "SELECT * FROM version WHERE repository = :repository AND tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1",
+        """
+        SELECT * FROM version
+        WHERE repository = :repository
+        AND tagName != '$IGNORED_TAG'
+        ORDER BY publishedDate DESC
+        LIMIT 1
+        """,
     )
     suspend fun getLatestBetaVersionWithAssets(repository: String): VersionWithAssets?
 

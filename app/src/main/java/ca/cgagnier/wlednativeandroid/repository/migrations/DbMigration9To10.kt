@@ -5,6 +5,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 private const val TAG = "DbMigration9To10"
+private const val FROM_VERSION = 9
+private const val TO_VERSION = 10
 
 /**
  * Migration from 9->10 adds repository information to Version and Asset tables
@@ -13,14 +15,26 @@ private const val TAG = "DbMigration9To10"
  * We rename the old tables, create new ones with repository field,
  * copy existing data with default repository "wled/WLED", then drop the old tables.
  */
-val MIGRATION_9_10 = object : Migration(9, 10) {
+val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
     override fun migrate(db: SupportSQLiteDatabase) {
         Log.i(TAG, "Starting migration from 9 to 10")
 
-        // Rename old tables
+        renameOldTables(db)
+        createNewTables(db)
+        migrateVersionData(db)
+        migrateAssetData(db)
+        dropOldTables(db)
+        createIndices(db)
+
+        Log.i(TAG, "Migration from 9 to 10 complete!")
+    }
+
+    private fun renameOldTables(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `Version` RENAME TO `Version_old`")
         db.execSQL("ALTER TABLE `Asset` RENAME TO `Asset_old`")
+    }
 
+    private fun createNewTables(db: SupportSQLiteDatabase) {
         // Create new Version table with repository column
         db.execSQL(
             """
@@ -54,15 +68,11 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
             )
             """.trimIndent(),
         )
+    }
 
-        // Migrate Version data
-        val originalVersionCountCursor = db.query("SELECT COUNT(*) FROM Version_old")
-        var originalVersionCount = 0
-        if (originalVersionCountCursor.moveToFirst()) {
-            originalVersionCount = originalVersionCountCursor.getInt(0)
-        }
-        originalVersionCountCursor.close()
-        Log.i(TAG, "Total versions in old 'Version' table: $originalVersionCount")
+    private fun migrateVersionData(db: SupportSQLiteDatabase) {
+        val originalCount = getRowCount(db, "Version_old")
+        Log.i(TAG, "Total versions in old 'Version' table: $originalCount")
 
         // Copy data from Version_old to Version with default repository
         db.execSQL(
@@ -88,22 +98,13 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
             """.trimIndent(),
         )
 
-        val migratedVersionCountCursor = db.query("SELECT COUNT(*) FROM Version")
-        var migratedVersionCount = 0
-        if (migratedVersionCountCursor.moveToFirst()) {
-            migratedVersionCount = migratedVersionCountCursor.getInt(0)
-        }
-        migratedVersionCountCursor.close()
-        Log.i(TAG, "Versions migrated to new table: $migratedVersionCount")
+        val migratedCount = getRowCount(db, "Version")
+        Log.i(TAG, "Versions migrated to new table: $migratedCount")
+    }
 
-        // Migrate Asset data
-        val originalAssetCountCursor = db.query("SELECT COUNT(*) FROM Asset_old")
-        var originalAssetCount = 0
-        if (originalAssetCountCursor.moveToFirst()) {
-            originalAssetCount = originalAssetCountCursor.getInt(0)
-        }
-        originalAssetCountCursor.close()
-        Log.i(TAG, "Total assets in old 'Asset' table: $originalAssetCount")
+    private fun migrateAssetData(db: SupportSQLiteDatabase) {
+        val originalCount = getRowCount(db, "Asset_old")
+        Log.i(TAG, "Total assets in old 'Asset' table: $originalCount")
 
         // Copy data from Asset_old to Asset with default repository
         db.execSQL(
@@ -127,22 +128,27 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
             """.trimIndent(),
         )
 
-        val migratedAssetCountCursor = db.query("SELECT COUNT(*) FROM Asset")
-        var migratedAssetCount = 0
-        if (migratedAssetCountCursor.moveToFirst()) {
-            migratedAssetCount = migratedAssetCountCursor.getInt(0)
-        }
-        migratedAssetCountCursor.close()
-        Log.i(TAG, "Assets migrated to new table: $migratedAssetCount")
+        val migratedCount = getRowCount(db, "Asset")
+        Log.i(TAG, "Assets migrated to new table: $migratedCount")
+    }
 
-        // Drop old tables
+    private fun dropOldTables(db: SupportSQLiteDatabase) {
         db.execSQL("DROP TABLE IF EXISTS `Version_old`")
         db.execSQL("DROP TABLE IF EXISTS `Asset_old`")
+    }
 
-        // Create indices for Asset table (after data migration)
+    private fun createIndices(db: SupportSQLiteDatabase) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_versionTagName` ON `Asset` (`versionTagName`)")
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_repository` ON `Asset` (`repository`)")
+    }
 
-        Log.i(TAG, "Migration from 9 to 10 complete!")
+    private fun getRowCount(db: SupportSQLiteDatabase, tableName: String): Int {
+        val cursor = db.query("SELECT COUNT(*) FROM $tableName")
+        var count = 0
+        if (cursor.moveToFirst()) {
+            count = cursor.getInt(0)
+        }
+        cursor.close()
+        return count
     }
 }

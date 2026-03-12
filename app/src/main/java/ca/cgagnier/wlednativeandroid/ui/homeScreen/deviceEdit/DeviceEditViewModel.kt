@@ -27,6 +27,7 @@ import javax.inject.Inject
 const val TAG = "DeviceEditViewModel"
 
 @HiltViewModel
+@Suppress("LongParameterList") // DI constructor requires multiple dependencies
 class DeviceEditViewModel @Inject constructor(
     private val repository: DeviceRepository,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
@@ -80,7 +81,7 @@ class DeviceEditViewModel @Inject constructor(
         repository.update(updatedDevice)
     }
 
-    fun showUpdateDetails(device: Device, deviceStateInfo: DeviceStateInfo?, version: String) =
+    fun showUpdateDetails(deviceStateInfo: DeviceStateInfo?, version: String) =
         viewModelScope.launch(Dispatchers.IO) {
             // Extract repository from device info, defaulting to "wled/WLED"
             val repository = deviceStateInfo?.info?.let { getRepositoryFromInfo(it) } ?: DEFAULT_REPO

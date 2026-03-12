@@ -39,6 +39,7 @@ sealed class DeepLinkState {
 }
 
 @HiltViewModel
+@Suppress("LongParameterList") // DI constructor requires multiple dependencies
 class MainViewModel @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val releaseService: ReleaseService,

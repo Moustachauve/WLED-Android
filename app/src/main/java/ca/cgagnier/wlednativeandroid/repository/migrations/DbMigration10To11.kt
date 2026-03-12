@@ -5,12 +5,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 private const val TAG = "DbMigration10To11"
+private const val FROM_VERSION = 10
+private const val TO_VERSION = 11
 
 /**
  * Migration from 10->11 removes the old Version and Asset tables after data has been migrated
  * to the new schema with repository tracking support.
  */
-val MIGRATION_10_11 = object : Migration(10, 11) {
+val MIGRATION_10_11 = object : Migration(FROM_VERSION, TO_VERSION) {
     override fun migrate(db: SupportSQLiteDatabase) {
         Log.i(TAG, "Starting migration from 10 to 11")
 
