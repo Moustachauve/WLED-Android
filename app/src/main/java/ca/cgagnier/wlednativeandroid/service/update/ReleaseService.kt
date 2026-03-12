@@ -40,7 +40,8 @@ object UpdateSourceRegistry {
             brandPattern = "WLED",
             githubOwner = "wled",
             githubRepo = "WLED"
-        ), UpdateSourceDefinition(
+        ),
+        UpdateSourceDefinition(
             type = UpdateSourceType.QUINLED,
             brandPattern = "QuinLED",
             githubOwner = "intermittech",
@@ -87,7 +88,7 @@ fun getRepositoryFromInfo(info: Info): String {
 
 /**
  * Splits a repository string (e.g., "owner/name") into owner and name parts for API calls.
- * Returns a pair of (owner, name). Defaults to ("wled", "WLED") if format is invalid.t
+ * Returns a pair of (owner, name). Defaults to ("wled", "WLED") if format is invalid.
  */
 fun splitRepository(repository: String): Pair<String, String> {
     val parts = repository.split("/")
