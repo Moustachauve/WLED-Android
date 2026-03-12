@@ -81,7 +81,7 @@ fun getRepositoryFromInfo(info: Info): String {
     if (source != null) {
         return "${source.githubOwner}/${source.githubRepo}"
     }
-    
+
     // Final fallback: Default repository
     return DEFAULT_REPO
 }

@@ -9,7 +9,7 @@ private const val TAG = "DbMigration9To10"
 /**
  * Migration from 9->10 adds repository information to Version and Asset tables
  * to support tracking releases from multiple WLED repositories/forks.
- * 
+ *
  * We rename the old tables, create new ones with repository field,
  * copy existing data with default repository "wled/WLED", then drop the old tables.
  */
@@ -45,7 +45,9 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
                 `downloadUrl` TEXT NOT NULL,
                 `assetId` INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY(`versionTagName`, `repository`, `name`),
-                FOREIGN KEY(`versionTagName`, `repository`) REFERENCES `Version`(`tagName`, `repository`) ON UPDATE NO ACTION ON DELETE CASCADE
+                FOREIGN KEY(`versionTagName`, `repository`)
+                    REFERENCES `Version`(`tagName`, `repository`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE
             )
         """.trimIndent())
 
@@ -58,7 +60,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         }
         originalVersionCountCursor.close()
         Log.i(TAG, "Total versions in old 'Version' table: $originalVersionCount")
-        
+
         // Copy data from Version_old to Version with default repository
         db.execSQL(
             """
@@ -71,7 +73,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
                 publishedDate,
                 htmlUrl
             )
-            SELECT 
+            SELECT
                 tagName,
                 'wled/WLED' AS repository,
                 name,
@@ -82,7 +84,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
             FROM Version_old
             """.trimIndent()
         )
-        
+
         val migratedVersionCountCursor = db.query("SELECT COUNT(*) FROM Version")
         var migratedVersionCount = 0
         if (migratedVersionCountCursor.moveToFirst()) {
@@ -90,7 +92,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         }
         migratedVersionCountCursor.close()
         Log.i(TAG, "Versions migrated to new table: $migratedVersionCount")
-        
+
         // Migrate Asset data
         val originalAssetCountCursor = db.query("SELECT COUNT(*) FROM Asset_old")
         var originalAssetCount = 0
@@ -99,7 +101,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         }
         originalAssetCountCursor.close()
         Log.i(TAG, "Total assets in old 'Asset' table: $originalAssetCount")
-        
+
         // Copy data from Asset_old to Asset with default repository
         db.execSQL(
             """
@@ -111,7 +113,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
                 downloadUrl,
                 assetId
             )
-            SELECT 
+            SELECT
                 versionTagName,
                 'wled/WLED' AS repository,
                 name,
@@ -121,7 +123,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
             FROM Asset_old
             """.trimIndent()
         )
-        
+
         val migratedAssetCountCursor = db.query("SELECT COUNT(*) FROM Asset")
         var migratedAssetCount = 0
         if (migratedAssetCountCursor.moveToFirst()) {
@@ -129,7 +131,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         }
         migratedAssetCountCursor.close()
         Log.i(TAG, "Assets migrated to new table: $migratedAssetCount")
-        
+
         // Drop old tables
         db.execSQL("DROP TABLE IF EXISTS `Version_old`")
         db.execSQL("DROP TABLE IF EXISTS `Asset_old`")
