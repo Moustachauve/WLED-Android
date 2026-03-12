@@ -77,12 +77,7 @@ fun getRepositoryFromInfo(info: Info): String {
 
     // Second priority: Use brand-based registry lookup
     val source = UpdateSourceRegistry.getSource(info)
-    if (source != null) {
-        return "${source.githubOwner}/${source.githubRepo}"
-    }
-
-    // Final fallback: Default repository
-    return DEFAULT_REPO
+    return source?.let { "${it.githubOwner}/${it.githubRepo}" } ?: DEFAULT_REPO
 }
 
 /**
@@ -113,61 +108,62 @@ class ReleaseService @Inject constructor(private val versionWithAssetsRepository
      *      otherwise an empty string.
      */
     suspend fun getNewerReleaseTag(deviceInfo: Info, branch: Branch, ignoreVersion: String): String? {
-        if (deviceInfo.version.isNullOrEmpty()) {
-            return null
-        }
-        if (!deviceInfo.isOtaEnabled) {
+        if (!isDeviceEligibleForUpdate(deviceInfo)) {
             return null
         }
 
         val repository = getRepositoryFromInfo(deviceInfo)
-        val latestVersion = getLatestVersionWithAssets(repository, branch) ?: return null
-        val latestTagName = latestVersion.version.tagName
+        val latestVersion = getLatestVersionWithAssets(repository, branch)
 
-        if (latestTagName == ignoreVersion) {
-            return null
+        return latestVersion?.version?.tagName?.takeIf {
+            shouldOfferUpdate(deviceInfo, it, ignoreVersion, branch)
         }
+    }
 
-        // Don't offer to update to the already installed version
-        if (latestTagName == deviceInfo.version) {
-            return null
+    private fun isDeviceEligibleForUpdate(deviceInfo: Info): Boolean =
+        !deviceInfo.version.isNullOrEmpty() && deviceInfo.isOtaEnabled
+
+    private fun shouldOfferUpdate(
+        deviceInfo: Info,
+        latestTagName: String,
+        ignoreVersion: String,
+        branch: Branch,
+    ): Boolean {
+        // Don't offer ignored versions or already-installed versions
+        if (latestTagName == ignoreVersion || latestTagName == deviceInfo.version) {
+            return false
         }
 
         val betaSuffixes = listOf("-a", "-b", "-rc")
+        val isDeviceOnBeta = betaSuffixes.any {
+            deviceInfo.version!!.contains(it, ignoreCase = true)
+        }
+
         Log.w(
             TAG,
             "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $latestTagName",
         )
-        if (branch == Branch.STABLE && betaSuffixes.any {
-                deviceInfo.version.contains(it, ignoreCase = true)
-            }
-        ) {
-            // If we're on a beta branch but looking for a stable branch, always offer to "update" to
-            // the stable branch.
-            return latestTagName
-        } else if (branch == Branch.BETA && betaSuffixes.none {
-                deviceInfo.version.contains(it, ignoreCase = true)
-            }
-        ) {
-            // Same if we are on a stable branch but looking for a beta branch, we should offer to
-            // "update" to the latest beta branch, even if its older.
-            return latestTagName
-        }
 
-        try {
-            // Attempt strict SemVer comparison
-            val versionSemver = Semver(latestTagName, Semver.SemverType.LOOSE)
+        // Check branch transition first, then SemVer comparison
+        // If we're on a beta branch but looking for a stable branch, always offer to "update" to
+        // the stable branch.
+        return isBranchTransition(branch, isDeviceOnBeta) ||
+            isNewerVersion(deviceInfo.version!!, latestTagName)
+    }
 
-            // If the version is mathematically greater, return it
-            if (versionSemver.isGreaterThan(deviceInfo.version)) {
-                return latestTagName
-            }
-        } catch (e: Exception) {
-            Log.i(TAG, "Non-SemVer version detected ($latestTagName), offering update as it differs from current.")
-            return latestTagName
-        }
+    // Same if we are on a stable branch but looking for a beta branch, we should offer to
+    // "update" to the latest beta branch, even if its older.
+    private fun isBranchTransition(branch: Branch, isDeviceOnBeta: Boolean): Boolean =
+        (branch == Branch.STABLE && isDeviceOnBeta) || (branch == Branch.BETA && !isDeviceOnBeta)
 
-        return null
+    private fun isNewerVersion(currentVersion: String, latestTagName: String): Boolean = try {
+        // Attempt strict SemVer comparison
+        val versionSemver = Semver(latestTagName, Semver.SemverType.LOOSE)
+        // If the version is mathematically greater, return it
+        versionSemver.isGreaterThan(currentVersion)
+    } catch (e: Exception) {
+        Log.i(TAG, "Non-SemVer version detected ($latestTagName), offering update as it differs from current.")
+        true
     }
 
     private suspend fun getLatestVersionWithAssets(repository: String, branch: Branch): VersionWithAssets? {

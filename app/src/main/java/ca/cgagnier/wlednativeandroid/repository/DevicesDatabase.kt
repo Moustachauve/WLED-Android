@@ -11,8 +11,8 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration7To8
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
-import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_9_10
 import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_10_11
+import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_9_10
 
 @Database(
     entities = [
@@ -41,20 +41,18 @@ abstract class DevicesDatabase : RoomDatabase() {
 
     companion object {
         @Volatile
-        private var INSTANCE: DevicesDatabase? = null
+        private var instance: DevicesDatabase? = null
 
-        fun getDatabase(context: Context): DevicesDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    DevicesDatabase::class.java,
-                    "devices_database"
-                )
+        fun getDatabase(context: Context): DevicesDatabase = instance ?: synchronized(this) {
+            val instance = Room.databaseBuilder(
+                context.applicationContext,
+                DevicesDatabase::class.java,
+                "devices_database",
+            )
                 .addMigrations(MIGRATION_9_10, MIGRATION_10_11)
                 .build()
-                INSTANCE = instance
-                instance
-            }
+            this.instance = instance
+            instance
         }
     }
 }
