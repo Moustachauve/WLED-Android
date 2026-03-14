@@ -61,12 +61,10 @@ class DeviceFirstContactService @Inject constructor(
                 originalName = info.name,
                 repository = deviceRepository,
             )
-        }
-        else {
+        } else {
             updatedDevice = device.copy(
                 address = deviceAddress,
             )
-
         }
         repository.update(updatedDevice)
         return updatedDevice
