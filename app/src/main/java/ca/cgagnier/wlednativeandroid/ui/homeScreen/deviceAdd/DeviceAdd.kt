@@ -90,6 +90,7 @@ fun DeviceAdd(
                     )
 
                     is DeviceAddStep.Adding -> step2Loading(state)
+
                     is DeviceAddStep.Success -> step3Complete(
                         step = state.step,
                         onDismissRequest = dismissRequest,

@@ -101,6 +101,7 @@ private fun DeepLinkStateHandler(viewModel: MainViewModel, onNavigate: (Navigati
                 onNavigate(state.event)
                 viewModel.clearDeepLinkState()
             }
+
             else -> { /* Handled by dialogs below */ }
         }
     }
@@ -112,12 +113,14 @@ private fun DeepLinkStateHandler(viewModel: MainViewModel, onNavigate: (Navigati
                 onDismiss = { viewModel.cancelDeepLink() },
             )
         }
+
         is DeepLinkState.Error -> {
             DeepLinkErrorDialog(
                 message = stringResource(state.messageResId, state.address),
                 onDismiss = { viewModel.clearDeepLinkState() },
             )
         }
+
         else -> { /* Idle or NavigateToDevice - no dialog needed */ }
     }
 }
