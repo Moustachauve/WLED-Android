@@ -162,17 +162,21 @@ fun UpdateDialogContent(state: UpdateInstallingState) {
 private fun UpdateInstallingStatus(modifier: Modifier = Modifier, step: UpdateInstallingStep) {
     when (step) {
         is UpdateInstallingStep.Starting -> CircularProgressIndicator(modifier)
+
         is UpdateInstallingStep.Downloading -> CircularProgressIndicator(
             modifier = modifier,
             progress = { step.progress / 100f },
         )
+
         is UpdateInstallingStep.Installing -> CircularProgressIndicator(modifier)
+
         is UpdateInstallingStep.Error, is UpdateInstallingStep.NoCompatibleVersion -> Icon(
             modifier = modifier,
             painter = painterResource(R.drawable.baseline_error_outline_24),
             contentDescription = stringResource(R.string.update_failed),
             tint = MaterialTheme.colorScheme.error,
         )
+
         is UpdateInstallingStep.Done -> Icon(
             modifier = modifier,
             painter = painterResource(R.drawable.ic_twotone_check_circle_outline_24),

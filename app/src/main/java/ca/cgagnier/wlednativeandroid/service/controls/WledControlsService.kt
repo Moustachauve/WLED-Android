@@ -168,7 +168,9 @@ class WledControlsService : ControlsProviderService() {
             try {
                 when (action) {
                     is BooleanAction -> handleToggleAction(device, action.newState, flow, consumer)
+
                     is FloatAction -> handleBrightnessAction(device, action.newValue, flow, consumer)
+
                     else -> {
                         Log.w(TAG, "Unknown action type: ${action::class.simpleName}")
                         consumer.accept(ControlAction.RESPONSE_FAIL)

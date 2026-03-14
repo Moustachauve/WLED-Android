@@ -193,12 +193,14 @@ fun WebsocketStatusShape(websocketState: WebsocketStatus) {
     fun getWebsocketShape(status: WebsocketStatus): RoundedPolygon = when (status) {
         // Circle = Stable, Connected
         WebsocketStatus.CONNECTED -> RoundedPolygon.circle()
+
         // Scalloped/Star shape = Active, Gear-like
         WebsocketStatus.CONNECTING -> RoundedPolygon.star(
             8,
             innerRadius = 0.7f,
             rounding = CornerRounding(0.1f),
         )
+
         // Square/Diamond = Stopped, Error
         WebsocketStatus.DISCONNECTED -> RoundedPolygon(4, rounding = CornerRounding(0.25f))
     }

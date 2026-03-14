@@ -297,6 +297,7 @@ fun WLEDNativeTheme(
         }
 
         darkTheme -> darkScheme
+
         else -> lightScheme
     }
 
