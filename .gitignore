@@ -61,6 +61,12 @@ captures/
 .externalNativeBuild
 .cxx/
 
+# Mkdocs temporary serving folder
+docs-gen
+site
+*.bak
+.idea/appInsightsSettings.xml
+
 # Freeline
 freeline.py
 freeline/
