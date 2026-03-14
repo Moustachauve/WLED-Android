@@ -765,6 +765,7 @@ private fun createWledFilename(device: Device, url: String?, contentDisposition:
             .substringAfterLast('.', "json")
 
         mimetype.contains("json") -> "json"
+
         else -> "txt"
     }
 
@@ -858,9 +859,13 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
         navigationEvents.collect { event ->
             when (event) {
                 is NavigationEvent.Back -> goBackLogic()
+
                 is NavigationEvent.Forward -> goForward()
+
                 is NavigationEvent.Reload -> reload()
+
                 is NavigationEvent.StopLoading -> stopLoading()
+
                 is NavigationEvent.LoadHtml -> loadDataWithBaseURL(
                     event.baseUrl,
                     event.html,
