@@ -47,18 +47,27 @@ class DeviceFirstContactService @Inject constructor(
      * @param info - The device info containing name and repository information.
      * @return The updated device object.
      */
-    private suspend fun updateDeviceAddress(device: Device, newAddress: String, info: Info): Device {
+    private suspend fun updateDeviceAddress(device: Device, newAddress: String, info: Info?): Device {
         Log.d(TAG, "Updating address for device MAC: ${device.macAddress} to: $newAddress")
         // Keep user-defined hostnames (e.g. "wled.local") and only update if the existing address
         // is an IP. This is to avoid overriding a device being added by an url which could be on a
         // different network (and couldn't be reached by IP address directly).
         val deviceAddress = if (device.address.isIpAddress()) newAddress else device.address
-        val deviceRepository = getRepositoryFromInfo(info)
-        val updatedDevice = device.copy(
-            address = deviceAddress,
-            originalName = info.name,
-            repository = deviceRepository,
-        )
+        val updatedDevice: Device
+        if (info != null) {
+            val deviceRepository = getRepositoryFromInfo(info)
+            updatedDevice = device.copy(
+                address = deviceAddress,
+                originalName = info.name,
+                repository = deviceRepository,
+            )
+        }
+        else {
+            updatedDevice = device.copy(
+                address = deviceAddress,
+            )
+
+        }
         repository.update(updatedDevice)
         return updatedDevice
     }
@@ -123,7 +132,7 @@ class DeviceFirstContactService @Inject constructor(
         // Device is already up to date
         if (existingDevice.address != address) {
             Log.i(TAG, "Fast update: IP changed for ${existingDevice.originalName} ($macAddress)")
-            updateDeviceAddress(existingDevice, address, existingDevice.originalName)
+            updateDeviceAddress(existingDevice, address, null)
         } else {
             Log.d(TAG, "Fast update: Device IP unchanged for $macAddress")
         }

@@ -65,7 +65,7 @@ class MainViewModel @Inject constructor(
             val repositories = mutableSetOf<String>()
             repositories.add(DEFAULT_REPO) // Always include the default WLED repository
 
-            deviceRepository.getAllDevices().first().forEach { device ->
+            deviceRepository.getAllDevices().forEach { device ->
                 repositories.add(device.repository)
                 Log.d(TAG, "Found device ${device.originalName} using repository: ${device.repository}")
             }

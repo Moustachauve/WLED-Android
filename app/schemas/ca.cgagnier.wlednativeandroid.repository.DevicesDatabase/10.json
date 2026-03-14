@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 10,
-    "identityHash": "b72dfc634eb74cfe7855b210a693d3d2",
+    "identityHash": "afe44fe308d1a4e01e11eb17839728ef",
     "entities": [
       {
         "tableName": "Device2",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`macAddress` TEXT NOT NULL, `address` TEXT NOT NULL, `isHidden` INTEGER NOT NULL, `originalName` TEXT NOT NULL DEFAULT '', `customName` TEXT NOT NULL DEFAULT '', `skipUpdateTag` TEXT NOT NULL DEFAULT '', `branch` TEXT NOT NULL DEFAULT 'UNKNOWN', `lastSeen` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`macAddress`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`macAddress` TEXT NOT NULL, `address` TEXT NOT NULL, `isHidden` INTEGER NOT NULL, `originalName` TEXT NOT NULL DEFAULT '', `customName` TEXT NOT NULL DEFAULT '', `skipUpdateTag` TEXT NOT NULL DEFAULT '', `branch` TEXT NOT NULL DEFAULT 'UNKNOWN', `lastSeen` INTEGER NOT NULL DEFAULT 0, `repository` TEXT NOT NULL DEFAULT 'wled/WLED', PRIMARY KEY(`macAddress`))",
         "fields": [
           {
             "fieldPath": "macAddress",
@@ -60,6 +60,13 @@
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "0"
+          },
+          {
+            "fieldPath": "repository",
+            "columnName": "repository",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'wled/WLED'"
           }
         ],
         "primaryKey": {
@@ -215,7 +222,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b72dfc634eb74cfe7855b210a693d3d2')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'afe44fe308d1a4e01e11eb17839728ef')"
     ]
   }
 }
