@@ -132,7 +132,9 @@ class WebsocketClient(
         val timeSinceLastUpdate = System.currentTimeMillis() - deviceState.device.lastSeen
 
         // Only update if data changed OR it's been more than some time since last "seen" update
-        if (nameChanged || branchChanged || repositoryChanged || timeSinceLastUpdate > LAST_SEEN_UPDATE_THRESHOLD) {
+        val shouldUpdateDevice = nameChanged || branchChanged || repositoryChanged ||
+            timeSinceLastUpdate > LAST_SEEN_UPDATE_THRESHOLD
+        if (shouldUpdateDevice) {
             val newDevice = deviceState.device.copy(
                 originalName = deviceStateInfo.info.name,
                 address = deviceState.device.address,
