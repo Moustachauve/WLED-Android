@@ -11,7 +11,6 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration7To8
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
-import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_10_11
 import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_9_10
 
 @Database(
@@ -20,7 +19,7 @@ import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_9_10
         Version::class,
         Asset::class,
     ],
-    version = 11,
+    version = 10,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -49,7 +48,7 @@ abstract class DevicesDatabase : RoomDatabase() {
                 DevicesDatabase::class.java,
                 "devices_database",
             )
-                .addMigrations(MIGRATION_9_10, MIGRATION_10_11)
+                .addMigrations(MIGRATION_9_10)
                 .build()
             this.instance = instance
             instance

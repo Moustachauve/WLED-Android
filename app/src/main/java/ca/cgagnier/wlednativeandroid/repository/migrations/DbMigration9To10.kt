@@ -9,16 +9,18 @@ private const val FROM_VERSION = 9
 private const val TO_VERSION = 10
 
 /**
- * Migration from 9->10 adds repository information to Version and Asset tables
+ * Migration from 9->10 adds repository information to Device, Version, and Asset tables
  * to support tracking releases from multiple WLED repositories/forks.
  *
- * We rename the old tables, create new ones with repository field,
- * copy existing data with default repository "wled/WLED", then drop the old tables.
+ * For Device2: adds repository column with default value.
+ * For Version/Asset: renames old tables, creates new ones with repository field,
+ * copies existing data with default repository "wled/WLED", then drops old tables.
  */
 val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
     override fun migrate(db: SupportSQLiteDatabase) {
         Log.i(TAG, "Starting migration from 9 to 10")
 
+        addRepositoryToDevice(db)
         renameOldTables(db)
         createNewTables(db)
         migrateVersionData(db)
@@ -27,6 +29,12 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
         createIndices(db)
 
         Log.i(TAG, "Migration from 9 to 10 complete!")
+    }
+
+    private fun addRepositoryToDevice(db: SupportSQLiteDatabase) {
+        // Add repository column to Device2 table with default value
+        db.execSQL("ALTER TABLE `Device2` ADD COLUMN `repository` TEXT NOT NULL DEFAULT 'wled/WLED'")
+        Log.i(TAG, "Added repository column to Device2 table")
     }
 
     private fun renameOldTables(db: SupportSQLiteDatabase) {

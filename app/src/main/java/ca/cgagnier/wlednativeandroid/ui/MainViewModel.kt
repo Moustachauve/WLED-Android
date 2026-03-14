@@ -14,8 +14,6 @@ import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
-import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
-import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,7 +43,6 @@ class MainViewModel @Inject constructor(
     private val releaseService: ReleaseService,
     private val githubApi: GithubApi,
     private val deviceRepository: DeviceRepository,
-    private val websocketClientManager: WebsocketClientManager,
     private val deviceFirstContactService: DeviceFirstContactService,
     private val deepLinkHandler: DeepLinkHandler,
 ) : ViewModel() {
@@ -64,17 +61,13 @@ class MainViewModel @Inject constructor(
                 return@launch
             }
 
-            // Collect unique repositories from all connected devices
+            // Collect unique repositories from all devices in the database
             val repositories = mutableSetOf<String>()
             repositories.add(DEFAULT_REPO) // Always include the default WLED repository
 
-            websocketClientManager.getClients().values.forEach { client ->
-                val info = client.deviceState.stateInfo.value?.info
-                if (info != null) {
-                    val repo = getRepositoryFromInfo(info)
-                    repositories.add(repo)
-                    Log.d(TAG, "Found device using repository: $repo")
-                }
+            deviceRepository.getAllDevices().first().forEach { device ->
+                repositories.add(device.repository)
+                Log.d(TAG, "Found device ${device.originalName} using repository: ${device.repository}")
             }
 
             Log.i(TAG, "Refreshing versions from ${repositories.size} repositories: $repositories")
