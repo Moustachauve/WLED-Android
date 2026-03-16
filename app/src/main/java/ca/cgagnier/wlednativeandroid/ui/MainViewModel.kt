@@ -8,7 +8,9 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.domain.DeepLink
 import ca.cgagnier.wlednativeandroid.domain.DeepLinkHandler
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
+import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
@@ -43,6 +45,7 @@ class MainViewModel @Inject constructor(
     private val releaseService: ReleaseService,
     private val githubApi: GithubApi,
     private val deviceRepository: DeviceRepository,
+    private val repositoryDao: RepositoryDao,
     private val deviceFirstContactService: DeviceFirstContactService,
     private val deepLinkHandler: DeepLinkHandler,
 ) : ViewModel() {
@@ -51,6 +54,34 @@ class MainViewModel @Inject constructor(
     val deepLinkState: StateFlow<DeepLinkState> = _deepLinkState.asStateFlow()
 
     private var deepLinkJob: kotlinx.coroutines.Job? = null
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            syncBuiltInRepositories()
+        }
+    }
+
+    private suspend fun syncBuiltInRepositories() {
+        Repository.BUILT_IN_REPOSITORIES.forEach { builtin ->
+            val existing = repositoryDao.getRepositoryByOwnerAndRepo(builtin.ownerAndRepo)
+            if (existing == null) {
+                repositoryDao.insert(builtin)
+                Log.d(TAG, "Inserted built-in repository: ${builtin.ownerAndRepo}")
+            } else {
+                // Update names and descriptions if they changed, but preserve user booleans
+                val updated = existing.copy(
+                    name = builtin.name,
+                    description = builtin.description,
+                    htmlUrl = builtin.htmlUrl,
+                    isDefault = builtin.isDefault,
+                )
+                if (existing != updated) {
+                    repositoryDao.update(updated)
+                    Log.d(TAG, "Updated built-in repository: ${builtin.ownerAndRepo}")
+                }
+            }
+        }
+    }
 
     fun downloadUpdateMetadata() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -61,13 +92,19 @@ class MainViewModel @Inject constructor(
                 return@launch
             }
 
-            // Collect unique repositories from all devices in the database
-            val repositories = mutableSetOf<String>()
-            repositories.add(DEFAULT_REPO) // Always include the default WLED repository
+            val usedRepoIds = deviceRepository.getUsedRepositoryIds().toSet()
 
-            deviceRepository.getAllDevices().forEach { device ->
-                repositories.add(device.repository)
-                Log.d(TAG, "Found device ${device.originalName} using repository: ${device.repository}")
+            // Collect unique ENABLED repositories from the database that are used by at least one device
+            val repositoriesFlow = repositoryDao.getAllRepositories()
+            val allRepos = repositoriesFlow.first()
+            val repositories = allRepos
+                .filter { it.isEnabled && it.isUpdateEnabled && usedRepoIds.contains(it.id) }
+                .map { it.ownerAndRepo }
+                .toMutableSet()
+
+            // Failsafe fallback if no devices exist or all are explicitly disabled
+            if (repositories.isEmpty() && allRepos.isEmpty()) {
+                repositories.add(DEFAULT_REPO) // Failsafe fallback
             }
 
             Log.i(TAG, "Refreshing versions from ${repositories.size} repositories: $repositories")

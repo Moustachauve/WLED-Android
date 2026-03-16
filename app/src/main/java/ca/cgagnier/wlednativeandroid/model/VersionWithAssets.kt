@@ -7,8 +7,8 @@ data class VersionWithAssets(
     @Embedded
     val version: Version,
     @Relation(
-        parentColumn = "tagName",
-        entityColumn = "versionTagName",
+        parentColumn = "id",
+        entityColumn = "versionId",
     )
     val assets: List<Asset>,
 )

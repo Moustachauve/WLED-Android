@@ -8,8 +8,10 @@ import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
+import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +28,7 @@ const val TAG = "DeviceEditViewModel"
 @Suppress("LongParameterList") // DI constructor requires multiple dependencies
 class DeviceEditViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository,
+    private val repositoryDao: RepositoryDao,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val githubApi: GithubApi,
     private val releaseService: ReleaseService,
@@ -76,8 +79,8 @@ class DeviceEditViewModel @Inject constructor(
         deviceRepository.update(updatedDevice)
     }
 
-    fun showUpdateDetails(repository: String, version: String) = viewModelScope.launch(Dispatchers.IO) {
-        _updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(repository, version)
+    fun showUpdateDetails(repositoryId: Long, version: String) = viewModelScope.launch(Dispatchers.IO) {
+        _updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(repositoryId, version)
     }
 
     fun hideUpdateDetails() {
@@ -115,7 +118,9 @@ class DeviceEditViewModel @Inject constructor(
             val updatedDevice = device.copy(skipUpdateTag = "")
             deviceRepository.update(updatedDevice)
             try {
-                releaseService.refreshVersions(githubApi, setOf(device.repository))
+                val repo = repositoryDao.getRepositoryById(device.repositoryId)
+                val repoStr = repo?.ownerAndRepo ?: DEFAULT_REPO
+                releaseService.refreshVersions(githubApi, setOf(repoStr))
             } finally {
                 _isCheckingUpdates.value = false
             }
