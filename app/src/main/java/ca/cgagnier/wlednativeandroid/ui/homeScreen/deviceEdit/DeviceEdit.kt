@@ -168,7 +168,9 @@ fun DeviceEdit(
                                 device,
                                 currentUpdateTag,
                                 seeUpdateDetails = {
-                                    viewModel.showUpdateDetails(device.device.repository, currentUpdateTag)
+                                    if (currentUpdateTag != "") {
+                                        viewModel.showUpdateDetails(device.device.repositoryId, currentUpdateTag)
+                                    }
                                 },
                             )
                         } else {

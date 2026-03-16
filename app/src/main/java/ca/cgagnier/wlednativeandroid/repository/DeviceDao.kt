@@ -43,6 +43,9 @@ interface DeviceDao {
     @Query("SELECT * FROM Device2")
     fun getAllDevices(): List<Device>
 
+    @Query("SELECT DISTINCT repositoryId FROM Device2")
+    fun getUsedRepositoryIds(): List<Long>
+
     @Query("SELECT * FROM Device2 ORDER BY LOWER(COALESCE(customName, originalName)) ASC, LOWER(address) ASC")
     fun getAlphabetizedDevices(): Flow<List<Device>>
 

@@ -9,6 +9,7 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.model.wledapi.Leds
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.model.wledapi.Wifi
+import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApiEndpoints
@@ -27,10 +28,11 @@ class DeviceUpdateServiceTest {
         isPrerelease = false,
         publishedDate = "2024-01-01T00:00:00Z",
         htmlUrl = "https://github.com/",
+        repositoryId = 1L,
     )
 
-    private fun makeAsset(versionTagName: String, assetName: String) = Asset(
-        versionTagName = versionTagName,
+    private fun makeAsset(versionId: Long, assetName: String) = Asset(
+        versionId = versionId,
         name = assetName,
         size = 1024L,
         downloadUrl = "https://example.com/$assetName",
@@ -80,7 +82,7 @@ class DeviceUpdateServiceTest {
         val service = makeDeviceUpdateService(
             targetVersionTag = "0.16.0",
             release = "ESP32_V4",
-            availableAssets = listOf(makeAsset("0.16.0", "WLED_0.16.0_ESP32.bin")),
+            availableAssets = listOf(makeAsset(1L, "WLED_0.16.0_ESP32.bin")),
         )
 
         assertThat(service.couldDetermineAsset()).isTrue()
@@ -92,7 +94,7 @@ class DeviceUpdateServiceTest {
         val service = makeDeviceUpdateService(
             targetVersionTag = "0.16.1",
             release = "ESP32_V4",
-            availableAssets = listOf(makeAsset("0.16.1", "WLED_0.16.1_ESP32.bin")),
+            availableAssets = listOf(makeAsset(1L, "WLED_0.16.1_ESP32.bin")),
         )
 
         assertThat(service.couldDetermineAsset()).isTrue()
@@ -104,7 +106,7 @@ class DeviceUpdateServiceTest {
         val service = makeDeviceUpdateService(
             targetVersionTag = "0.16.0",
             release = "ESP32",
-            availableAssets = listOf(makeAsset("0.16.0", "WLED_0.16.0_ESP32.bin")),
+            availableAssets = listOf(makeAsset(1L, "WLED_0.16.0_ESP32.bin")),
         )
 
         assertThat(service.couldDetermineAsset()).isTrue()
@@ -116,7 +118,7 @@ class DeviceUpdateServiceTest {
         val service = makeDeviceUpdateService(
             targetVersionTag = "0.16.0",
             release = "ESP32_S3",
-            availableAssets = listOf(makeAsset("0.16.0", "WLED_0.16.0_ESP32_S3.bin")),
+            availableAssets = listOf(makeAsset(1L, "WLED_0.16.0_ESP32_S3.bin")),
         )
 
         assertThat(service.couldDetermineAsset()).isTrue()
@@ -130,7 +132,7 @@ class DeviceUpdateServiceTest {
         val service = makeDeviceUpdateService(
             targetVersionTag = "0.15.0",
             release = "ESP32_V4",
-            availableAssets = listOf(makeAsset("0.15.0", "WLED_0.15.0_ESP32_V4.bin")),
+            availableAssets = listOf(makeAsset(1L, "WLED_0.15.0_ESP32_V4.bin")),
         )
 
         assertThat(service.couldDetermineAsset()).isTrue()
@@ -142,7 +144,7 @@ class DeviceUpdateServiceTest {
         val service = makeDeviceUpdateService(
             targetVersionTag = "0.15.1",
             release = "ESP32_V4",
-            availableAssets = listOf(makeAsset("0.15.1", "WLED_0.15.1_ESP32_V4.bin")),
+            availableAssets = listOf(makeAsset(1L, "WLED_0.15.1_ESP32_V4.bin")),
         )
 
         assertThat(service.couldDetermineAsset()).isTrue()

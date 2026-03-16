@@ -28,10 +28,14 @@ class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints
         }
     }
 
-    fun downloadReleaseBinary(asset: Asset, targetFile: File): Flow<DownloadState> = flow {
+    fun downloadReleaseBinary(
+        asset: Asset,
+        repoOwner: String,
+        repoName: String,
+        targetFile: File,
+    ): Flow<DownloadState> = flow {
         try {
             emit(DownloadState.Downloading(0))
-            val (repoOwner, repoName) = ca.cgagnier.wlednativeandroid.service.update.splitRepository(asset.repository)
             val responseBody =
                 apiEndpoints.downloadReleaseBinary(repoOwner, repoName, asset.assetId)
             emitAll(responseBody.saveFile(targetFile))

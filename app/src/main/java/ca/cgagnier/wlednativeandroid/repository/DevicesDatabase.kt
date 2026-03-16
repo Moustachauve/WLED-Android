@@ -6,8 +6,10 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.sqlite.db.SupportSQLiteDatabase
 import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration7To8
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
@@ -16,6 +18,7 @@ import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_9_10
 @Database(
     entities = [
         Device::class,
+        Repository::class,
         Version::class,
         Asset::class,
     ],
@@ -35,6 +38,7 @@ import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_9_10
 @TypeConverters(Converters::class)
 abstract class DevicesDatabase : RoomDatabase() {
     abstract fun deviceDao(): DeviceDao
+    abstract fun repositoryDao(): RepositoryDao
     abstract fun versionDao(): VersionDao
     abstract fun assetDao(): AssetDao
 
@@ -49,6 +53,17 @@ abstract class DevicesDatabase : RoomDatabase() {
                 "devices_database",
             )
                 .addMigrations(MIGRATION_9_10)
+                .addCallback(object : RoomDatabase.Callback() {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        super.onCreate(db)
+                        db.execSQL(
+                            """
+                            INSERT INTO Repository (id, name, ownerAndRepo, description, htmlUrl, isDefault, isEnabled, isUpdateEnabled)
+                            VALUES (1, 'WLED', 'wled/WLED', 'Official WLED Repository', 'https://github.com/wled/WLED', 1, 1, 1)
+                            """.trimIndent(),
+                        )
+                    }
+                })
                 .build()
             this.instance = instance
             instance

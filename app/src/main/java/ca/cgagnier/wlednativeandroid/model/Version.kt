@@ -2,14 +2,26 @@ package ca.cgagnier.wlednativeandroid.model
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
 
 @Entity(
-    primaryKeys = ["tagName", "repository"],
+    indices = [Index(value = ["repositoryId", "tagName"], unique = true)],
+    foreignKeys = [
+        ForeignKey(
+            entity = Repository::class,
+            parentColumns = arrayOf("id"),
+            childColumns = arrayOf("repositoryId"),
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
 )
 data class Version(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val repositoryId: Long,
     val tagName: String,
-    @ColumnInfo(defaultValue = "'wled/WLED'")
-    val repository: String,
     val name: String,
     val description: String,
     val isPrerelease: Boolean,
@@ -19,8 +31,8 @@ data class Version(
 
     companion object {
         fun getPreviewVersion(): Version = Version(
+            repositoryId = 1,
             tagName = "v1.0.0",
-            repository = "wled/WLED",
             name = "new version",
             description = "this is a test version",
             isPrerelease = false,

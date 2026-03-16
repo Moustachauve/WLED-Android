@@ -3,24 +3,25 @@ package ca.cgagnier.wlednativeandroid.model
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
 
 @Entity(
-    primaryKeys = ["versionTagName", "repository", "name"],
+    indices = [Index(value = ["versionId", "name"], unique = true)],
     foreignKeys = [
         ForeignKey(
             entity = Version::class,
-            parentColumns = arrayOf("tagName", "repository"),
-            childColumns = arrayOf("versionTagName", "repository"),
+            parentColumns = arrayOf("id"),
+            childColumns = arrayOf("versionId"),
             onDelete = ForeignKey.CASCADE,
         ),
     ],
 )
 data class Asset(
-
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
     @ColumnInfo(index = true)
-    val versionTagName: String,
-    @ColumnInfo(index = true, defaultValue = "'wled/WLED'")
-    val repository: String,
+    val versionId: Long,
     val name: String,
     val size: Long,
     val downloadUrl: String,

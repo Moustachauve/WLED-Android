@@ -4,9 +4,11 @@ import android.content.Context
 import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
@@ -30,13 +32,14 @@ private const val LAST_SEEN_UPDATE_THRESHOLD = 5000L // 5 seconds
 
 @Suppress("LongParameterList")
 class WebsocketClient(
-    device: Device,
+    val device: Device,
     private val applicationContext: Context,
     private val deviceRepository: DeviceRepository,
     private val widgetManager: WledWidgetManager,
     deviceUpdateManager: DeviceUpdateManager,
     private val okHttpClient: OkHttpClient,
     moshi: Moshi,
+    private val repositoryDao: RepositoryDao,
 ) {
 
     val deviceState: DeviceWithState = DeviceWithState(device, deviceUpdateManager)
@@ -125,10 +128,31 @@ class WebsocketClient(
             }
         }
 
-        val repository = getRepositoryFromInfo(deviceStateInfo.info)
         val nameChanged = deviceState.device.originalName != deviceStateInfo.info.name
         val branchChanged = deviceState.device.branch != branch
-        val repositoryChanged = deviceState.device.repository != repository
+
+        val repositoryStr = getRepositoryFromInfo(deviceStateInfo.info)
+        var repoIdToSave = deviceState.device.repositoryId
+
+        val repo = repositoryDao.getRepositoryByOwnerAndRepo(repositoryStr)
+        if (repo == null) {
+            val autoDiscoveredRepo = Repository(
+                name = repositoryStr,
+                ownerAndRepo = repositoryStr,
+                description = "",
+                htmlUrl = "https://github.com/$repositoryStr",
+                isDefault = false,
+                isEnabled = false,
+                isUpdateEnabled = false,
+            )
+            repoIdToSave = repositoryDao.insert(autoDiscoveredRepo)
+            Log.d(TAG, "Auto-discovered and inserted new repository: $repositoryStr")
+        } else if (repoIdToSave != repo.id) {
+            repoIdToSave = repo.id
+        }
+
+        val repositoryChanged = deviceState.device.repositoryId != repoIdToSave
+
         val timeSinceLastUpdate = System.currentTimeMillis() - deviceState.device.lastSeen
 
         // Only update if data changed OR it's been more than some time since last "seen" update
@@ -140,7 +164,7 @@ class WebsocketClient(
                 address = deviceState.device.address,
                 lastSeen = System.currentTimeMillis(),
                 branch = branch,
-                repository = repository,
+                repositoryId = repoIdToSave,
             )
             deviceRepository.update(newDevice)
             Log.d(TAG, "Device persisted to DB: ${newDevice.address}")
