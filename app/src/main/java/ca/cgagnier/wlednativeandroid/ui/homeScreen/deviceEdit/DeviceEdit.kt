@@ -168,7 +168,7 @@ fun DeviceEdit(
                                 device,
                                 currentUpdateTag,
                                 seeUpdateDetails = {
-                                    viewModel.showUpdateDetails(device.stateInfo.value, currentUpdateTag)
+                                    viewModel.showUpdateDetails(device.device.repository, currentUpdateTag)
                                 },
                             )
                         } else {

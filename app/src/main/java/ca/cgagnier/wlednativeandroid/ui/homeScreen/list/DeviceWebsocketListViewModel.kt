@@ -14,7 +14,6 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientFactory
-import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientManager
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -35,7 +34,6 @@ private const val TAG = "DeviceWebsocketListViewModel"
 class DeviceWebsocketListViewModel @Inject constructor(
     userPreferencesRepository: UserPreferencesRepository,
     private val deviceRepository: DeviceRepository,
-    private val websocketClientManager: WebsocketClientManager,
     private val websocketClientFactory: WebsocketClientFactory,
     private val widgetManager: WledWidgetManager,
     @ApplicationContext private val applicationContext: Context,
@@ -110,8 +108,6 @@ class DeviceWebsocketListViewModel @Inject constructor(
             }.flowOn(Dispatchers.IO).collect { updatedClients ->
                 // Emit the new map of clients to the StateFlow.
                 activeClients.value = updatedClients
-                // Update the manager so other components can access the clients
-                websocketClientManager.updateClients(updatedClients)
             }
         }
     }

@@ -20,7 +20,7 @@ data class Info(
     // Added in 0.15
     @param:Json(name = "release") val release: String? = null,
     // Added in 0.15.2
-    @param:Json(name = "repo") val repo: String? = null,
+    @param:Json(name = "repo") val repository: String? = null,
     @param:Json(name = "name") val name: String,
     @param:Json(name = "str") val syncToggleReceive: Boolean? = null,
     @param:Json(name = "udpport") val udpPort: Int? = null,
