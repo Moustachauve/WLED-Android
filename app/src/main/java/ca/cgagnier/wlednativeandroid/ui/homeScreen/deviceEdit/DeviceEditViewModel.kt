@@ -7,14 +7,10 @@ import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
-import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
-import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
-import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
-import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientManager
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -29,10 +25,9 @@ const val TAG = "DeviceEditViewModel"
 @HiltViewModel
 @Suppress("LongParameterList") // DI constructor requires multiple dependencies
 class DeviceEditViewModel @Inject constructor(
-    private val repository: DeviceRepository,
+    private val deviceRepository: DeviceRepository,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val githubApi: GithubApi,
-    private val websocketClientManager: WebsocketClientManager,
     private val releaseService: ReleaseService,
     private val widgetManager: WledWidgetManager,
     @param:ApplicationContext private val applicationContext: Context,
@@ -58,7 +53,7 @@ class DeviceEditViewModel @Inject constructor(
 
         Log.d(TAG, "updateCustomName: $name")
 
-        repository.update(updatedDevice)
+        deviceRepository.update(updatedDevice)
 
         // Update widgets to show the new name
         widgetManager.updateWidgetNamesForDevice(applicationContext, updatedDevice)
@@ -66,7 +61,7 @@ class DeviceEditViewModel @Inject constructor(
 
     fun updateDeviceHidden(device: Device, isHidden: Boolean) = viewModelScope.launch(Dispatchers.IO) {
         Log.d(TAG, "updateDeviceHidden: ${device.originalName}, isHidden: $isHidden")
-        repository.update(
+        deviceRepository.update(
             device.copy(
                 isHidden = isHidden,
             ),
@@ -78,12 +73,10 @@ class DeviceEditViewModel @Inject constructor(
         val updatedDevice = device.copy(
             branch = branch,
         )
-        repository.update(updatedDevice)
+        deviceRepository.update(updatedDevice)
     }
 
-    fun showUpdateDetails(deviceStateInfo: DeviceStateInfo?, version: String) = viewModelScope.launch(Dispatchers.IO) {
-        // Extract repository from device info, defaulting to "wled/WLED"
-        val repository = deviceStateInfo?.info?.let { getRepositoryFromInfo(it) } ?: DEFAULT_REPO
+    fun showUpdateDetails(repository: String, version: String) = viewModelScope.launch(Dispatchers.IO) {
         _updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(repository, version)
     }
 
@@ -96,7 +89,7 @@ class DeviceEditViewModel @Inject constructor(
         val updatedDevice = device.copy(
             skipUpdateTag = version.version.tagName,
         )
-        repository.update(updatedDevice)
+        deviceRepository.update(updatedDevice)
         _updateDetailsVersion.value = null
     }
 
@@ -120,25 +113,9 @@ class DeviceEditViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             _isCheckingUpdates.value = true
             val updatedDevice = device.copy(skipUpdateTag = "")
-            repository.update(updatedDevice)
+            deviceRepository.update(updatedDevice)
             try {
-                // Get repository for this specific device
-                val repositories = mutableSetOf<String>()
-                repositories.add(DEFAULT_REPO) // Always include the default WLED repository
-
-                // Look up the specific device's websocket client to get its repository
-                val client = websocketClientManager.getClients()[device.macAddress]
-                val info = client?.deviceState?.stateInfo?.value?.info
-                if (info != null) {
-                    val repo = getRepositoryFromInfo(info)
-                    repositories.add(repo)
-                    Log.d(TAG, "Refreshing versions for device repository: $repo")
-                } else {
-                    Log.d(TAG, "Device info not available, using default repository only")
-                }
-
-                Log.i(TAG, "Refreshing versions from ${repositories.size} repositories: $repositories")
-                releaseService.refreshVersions(githubApi, repositories)
+                releaseService.refreshVersions(githubApi, setOf(device.repository))
             } finally {
                 _isCheckingUpdates.value = false
             }

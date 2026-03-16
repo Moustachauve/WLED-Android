@@ -71,8 +71,8 @@ object UpdateSourceRegistry {
  */
 fun getRepositoryFromInfo(info: Info): String {
     // First priority: Use original repo, if supplied
-    if (!info.repo.isNullOrBlank()) {
-        return info.repo
+    if (!info.repository.isNullOrBlank()) {
+        return info.repository
     }
 
     // Second priority: Use brand-based registry lookup
