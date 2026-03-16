@@ -55,5 +55,5 @@ data class SettingsState(
     val isAutoDiscoveryEnabled: Boolean = true,
     val showOfflineLast: Boolean = true,
     val showHiddenDevices: Boolean = false,
-    val theme: ThemeSettings = ThemeSettings.UNRECOGNIZED,
+    val theme: ThemeSettings = ThemeSettings.Auto,
 )
