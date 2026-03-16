@@ -72,8 +72,8 @@ object UpdateSourceRegistry {
  * 3. Third: Default to "wled/WLED"
  */
 fun getRepositoryFromInfo(info: Info): String {
-    // First priority: Use original repo, if supplied
-    if (!info.repository.isNullOrBlank()) {
+    // First priority: Use original repo, if supplied and not 'unknown'
+    if (!info.repository.isNullOrBlank() && !info.repository.equals("unknown", ignoreCase = true)) {
         return info.repository
     }
 
