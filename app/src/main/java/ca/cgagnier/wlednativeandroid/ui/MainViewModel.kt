@@ -12,6 +12,7 @@ import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
+import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,7 @@ sealed class DeepLinkState {
 }
 
 @HiltViewModel
+@Suppress("LongParameterList") // DI constructor requires multiple dependencies
 class MainViewModel @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val releaseService: ReleaseService,
@@ -58,7 +60,18 @@ class MainViewModel @Inject constructor(
                 Log.i(TAG, "Not updating version list since it was done recently.")
                 return@launch
             }
-            releaseService.refreshVersions(githubApi)
+
+            // Collect unique repositories from all devices in the database
+            val repositories = mutableSetOf<String>()
+            repositories.add(DEFAULT_REPO) // Always include the default WLED repository
+
+            deviceRepository.getAllDevices().forEach { device ->
+                repositories.add(device.repository)
+                Log.d(TAG, "Found device ${device.originalName} using repository: ${device.repository}")
+            }
+
+            Log.i(TAG, "Refreshing versions from ${repositories.size} repositories: $repositories")
+            releaseService.refreshVersions(githubApi, repositories)
             // Set the next date to check in minimum 24 hours from now.
             userPreferencesRepository.updateLastUpdateCheckDate(now + DAYS.toMillis(1))
         }

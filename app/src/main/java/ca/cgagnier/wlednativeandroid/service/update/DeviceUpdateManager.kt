@@ -28,16 +28,15 @@ class DeviceUpdateManager @Inject constructor(private val releaseService: Releas
             .map { (info, branch, skipUpdateTag) ->
                 if (info == null) return@map null
 
-                val source = UpdateSourceRegistry.getSource(info) ?: return@map null
+                val repository = getRepositoryFromInfo(info)
                 Log.d(
                     TAG,
-                    "Checking for software update for ${deviceWithState.device.macAddress} on ${source.githubOwner}:${source.githubRepo}",
+                    "Checking for software update for ${deviceWithState.device.macAddress} on $repository",
                 )
                 releaseService.getNewerReleaseTag(
                     deviceInfo = info,
                     branch = branch,
                     ignoreVersion = skipUpdateTag,
-                    updateSourceDefinition = source,
                 )
             }
     }

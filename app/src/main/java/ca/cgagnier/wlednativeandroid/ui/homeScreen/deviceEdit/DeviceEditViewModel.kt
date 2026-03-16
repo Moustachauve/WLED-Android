@@ -7,10 +7,14 @@ import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
+import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
+import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
+import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientManager
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -23,10 +27,13 @@ import javax.inject.Inject
 const val TAG = "DeviceEditViewModel"
 
 @HiltViewModel
+@Suppress("LongParameterList") // DI constructor requires multiple dependencies
 class DeviceEditViewModel @Inject constructor(
     private val repository: DeviceRepository,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val githubApi: GithubApi,
+    private val websocketClientManager: WebsocketClientManager,
+    private val releaseService: ReleaseService,
     private val widgetManager: WledWidgetManager,
     @param:ApplicationContext private val applicationContext: Context,
 ) : ViewModel() {
@@ -74,8 +81,10 @@ class DeviceEditViewModel @Inject constructor(
         repository.update(updatedDevice)
     }
 
-    fun showUpdateDetails(version: String) = viewModelScope.launch(Dispatchers.IO) {
-        _updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(version)
+    fun showUpdateDetails(deviceStateInfo: DeviceStateInfo?, version: String) = viewModelScope.launch(Dispatchers.IO) {
+        // Extract repository from device info, defaulting to "wled/WLED"
+        val repository = deviceStateInfo?.info?.let { getRepositoryFromInfo(it) } ?: DEFAULT_REPO
+        _updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(repository, version)
     }
 
     fun hideUpdateDetails() {
@@ -107,15 +116,32 @@ class DeviceEditViewModel @Inject constructor(
         _updateInstallVersion.value = null
     }
 
-    fun checkForUpdates(device: Device) = viewModelScope.launch(Dispatchers.IO) {
-        _isCheckingUpdates.value = true
-        val updatedDevice = device.copy(skipUpdateTag = "")
-        repository.update(updatedDevice)
-        try {
-            val releaseService = ReleaseService(versionWithAssetsRepository)
-            releaseService.refreshVersions(githubApi)
-        } finally {
-            _isCheckingUpdates.value = false
+    fun checkForUpdates(device: Device) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isCheckingUpdates.value = true
+            val updatedDevice = device.copy(skipUpdateTag = "")
+            repository.update(updatedDevice)
+            try {
+                // Get repository for this specific device
+                val repositories = mutableSetOf<String>()
+                repositories.add(DEFAULT_REPO) // Always include the default WLED repository
+
+                // Look up the specific device's websocket client to get its repository
+                val client = websocketClientManager.getClients()[device.macAddress]
+                val info = client?.deviceState?.stateInfo?.value?.info
+                if (info != null) {
+                    val repo = getRepositoryFromInfo(info)
+                    repositories.add(repo)
+                    Log.d(TAG, "Refreshing versions for device repository: $repo")
+                } else {
+                    Log.d(TAG, "Device info not available, using default repository only")
+                }
+
+                Log.i(TAG, "Refreshing versions from ${repositories.size} repositories: $repositories")
+                releaseService.refreshVersions(githubApi, repositories)
+            } finally {
+                _isCheckingUpdates.value = false
+            }
         }
     }
 }

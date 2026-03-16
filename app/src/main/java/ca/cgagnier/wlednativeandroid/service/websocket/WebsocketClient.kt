@@ -8,6 +8,7 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
+import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
@@ -124,17 +125,22 @@ class WebsocketClient(
             }
         }
 
+        val repository = getRepositoryFromInfo(deviceStateInfo.info)
         val nameChanged = deviceState.device.originalName != deviceStateInfo.info.name
         val branchChanged = deviceState.device.branch != branch
+        val repositoryChanged = deviceState.device.repository != repository
         val timeSinceLastUpdate = System.currentTimeMillis() - deviceState.device.lastSeen
 
         // Only update if data changed OR it's been more than some time since last "seen" update
-        if (nameChanged || branchChanged || timeSinceLastUpdate > LAST_SEEN_UPDATE_THRESHOLD) {
+        val shouldUpdateDevice = nameChanged || branchChanged || repositoryChanged ||
+            timeSinceLastUpdate > LAST_SEEN_UPDATE_THRESHOLD
+        if (shouldUpdateDevice) {
             val newDevice = deviceState.device.copy(
                 originalName = deviceStateInfo.info.name,
                 address = deviceState.device.address,
                 lastSeen = System.currentTimeMillis(),
                 branch = branch,
+                repository = repository,
             )
             deviceRepository.update(newDevice)
             Log.d(TAG, "Device persisted to DB: ${newDevice.address}")

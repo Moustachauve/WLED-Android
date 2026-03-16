@@ -13,13 +13,16 @@ import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import com.vdurmont.semver4j.Semver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 private const val TAG = "updateService"
+const val DEFAULT_REPO = "wled/WLED"
 
 enum class UpdateSourceType {
     OFFICIAL_WLED,
     QUINLED,
     CUSTOM,
+    MOONMODULES,
 }
 
 data class UpdateSourceDefinition(
@@ -27,6 +30,7 @@ data class UpdateSourceDefinition(
     val brandPattern: String,
     val githubOwner: String,
     val githubRepo: String,
+    val product: String? = null,
 )
 
 object UpdateSourceRegistry {
@@ -34,7 +38,7 @@ object UpdateSourceRegistry {
         UpdateSourceDefinition(
             type = UpdateSourceType.OFFICIAL_WLED,
             brandPattern = "WLED",
-            githubOwner = "Aircoookie",
+            githubOwner = "wled",
             githubRepo = "WLED",
         ),
         UpdateSourceDefinition(
@@ -43,14 +47,55 @@ object UpdateSourceRegistry {
             githubOwner = "intermittech",
             githubRepo = "QuinLED-Firmware",
         ),
+        UpdateSourceDefinition(
+            type = UpdateSourceType.MOONMODULES,
+            brandPattern = "WLED",
+            product = "MoonModules",
+            githubOwner = "MoonModules",
+            githubRepo = "WLED-MM",
+        ),
     )
 
-    fun getSource(info: Info): UpdateSourceDefinition? = sources.find {
-        info.brand == it.brandPattern
+    fun getSource(info: Info): UpdateSourceDefinition? {
+        val brandMatches = sources.filter { it.brandPattern == info.brand }
+        return brandMatches.find { it.product == info.product }
+            ?: brandMatches.find { it.product == null }
     }
 }
 
-class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsRepository) {
+/**
+ * Extracts repository from device info using a three-tier fallback strategy:
+ * 1. First: Use the repo field if available (format: "owner/name") - added in WLED 0.15.2
+ * 2. Second: Use UpdateSourceRegistry based on brand pattern matching
+ * 3. Third: Default to "wled/WLED"
+ */
+fun getRepositoryFromInfo(info: Info): String {
+    // First priority: Use original repo, if supplied
+    if (!info.repo.isNullOrBlank()) {
+        return info.repo
+    }
+
+    // Second priority: Use brand-based registry lookup
+    val source = UpdateSourceRegistry.getSource(info)
+    return source?.let { "${it.githubOwner}/${it.githubRepo}" } ?: DEFAULT_REPO
+}
+
+/**
+ * Splits a repository string (e.g., "owner/name") into owner and name parts for API calls.
+ * Returns a pair of (owner, name). Defaults to ("wled", "WLED") if format is invalid.t
+ */
+fun splitRepository(repository: String): Pair<String, String> {
+    val parts = repository.split("/")
+    if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) {
+        return Pair(parts[0], parts[1])
+    } else {
+        Log.w(TAG, "Invalid repo format: $repository, using default")
+        val defaultParts = DEFAULT_REPO.split("/")
+        return Pair(defaultParts[0], defaultParts[1])
+    }
+}
+
+class ReleaseService @Inject constructor(private val versionWithAssetsRepository: VersionWithAssetsRepository) {
 
     /**
      * If a new version is available, returns the version tag of it.
@@ -62,102 +107,99 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
      * @return The newest version if it is newer than versionName and different than ignoreVersion,
      *      otherwise an empty string.
      */
-    suspend fun getNewerReleaseTag(
+    suspend fun getNewerReleaseTag(deviceInfo: Info, branch: Branch, ignoreVersion: String): String? {
+        if (!isDeviceEligibleForUpdate(deviceInfo)) {
+            return null
+        }
+
+        val repository = getRepositoryFromInfo(deviceInfo)
+        val latestVersion = getLatestVersionWithAssets(repository, branch)
+
+        return latestVersion?.version?.tagName?.takeIf {
+            shouldOfferUpdate(deviceInfo, it, ignoreVersion, branch)
+        }
+    }
+
+    private fun isDeviceEligibleForUpdate(deviceInfo: Info): Boolean =
+        !deviceInfo.version.isNullOrEmpty() && deviceInfo.isOtaEnabled
+
+    private fun shouldOfferUpdate(
         deviceInfo: Info,
-        branch: Branch,
+        latestTagName: String,
         ignoreVersion: String,
-        updateSourceDefinition: UpdateSourceDefinition,
-    ): String? {
-        if (deviceInfo.version.isNullOrEmpty()) {
-            return null
-        }
-        if (deviceInfo.brand != updateSourceDefinition.brandPattern) {
-            return null
-        }
-        if (!deviceInfo.isOtaEnabled) {
-            return null
-        }
-
-        // TODO: Modify this to use repositoryOwner and repositoryName
-        val latestVersion = getLatestVersionWithAssets(branch) ?: return null
-        val latestTagName = latestVersion.version.tagName
-
-        if (latestTagName == ignoreVersion) {
-            return null
-        }
-
-        // Don't offer to update to the already installed version
-        if (latestTagName == deviceInfo.version) {
-            return null
+        branch: Branch,
+    ): Boolean {
+        // Don't offer ignored versions or already-installed versions
+        if (latestTagName == ignoreVersion || latestTagName == deviceInfo.version) {
+            return false
         }
 
         val betaSuffixes = listOf("-a", "-b", "-rc")
+        val isDeviceOnBeta = betaSuffixes.any {
+            deviceInfo.version!!.contains(it, ignoreCase = true)
+        }
+
         Log.w(
             TAG,
             "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $latestTagName",
         )
-        if (branch == Branch.STABLE && betaSuffixes.any {
-                deviceInfo.version.contains(it, ignoreCase = true)
-            }
-        ) {
-            // If we're on a beta branch but looking for a stable branch, always offer to "update" to
-            // the stable branch.
-            return latestTagName
-        } else if (branch == Branch.BETA && betaSuffixes.none {
-                deviceInfo.version.contains(it, ignoreCase = true)
-            }
-        ) {
-            // Same if we are on a stable branch but looking for a beta branch, we should offer to
-            // "update" to the latest beta branch, even if its older.
-            return latestTagName
-        }
 
-        try {
-            // Attempt strict SemVer comparison
-            val versionSemver = Semver(latestTagName, Semver.SemverType.LOOSE)
-
-            // If the version is mathematically greater, return it
-            if (versionSemver.isGreaterThan(deviceInfo.version)) {
-                return latestTagName
-            }
-        } catch (e: Exception) {
-            Log.i(TAG, "Non-SemVer version detected ($latestTagName), offering update as it differs from current.")
-            return latestTagName
-        }
-
-        return null
+        // Check branch transition first, then SemVer comparison
+        // If we're on a beta branch but looking for a stable branch, always offer to "update" to
+        // the stable branch.
+        return isBranchTransition(branch, isDeviceOnBeta) ||
+            isNewerVersion(deviceInfo.version!!, latestTagName)
     }
 
-    private suspend fun getLatestVersionWithAssets(branch: Branch): VersionWithAssets? {
+    // Same if we are on a stable branch but looking for a beta branch, we should offer to
+    // "update" to the latest beta branch, even if its older.
+    private fun isBranchTransition(branch: Branch, isDeviceOnBeta: Boolean): Boolean =
+        (branch == Branch.STABLE && isDeviceOnBeta) || (branch == Branch.BETA && !isDeviceOnBeta)
+
+    private fun isNewerVersion(currentVersion: String, latestTagName: String): Boolean = try {
+        // Attempt strict SemVer comparison
+        val versionSemver = Semver(latestTagName, Semver.SemverType.LOOSE)
+        // If the version is mathematically greater, return it
+        versionSemver.isGreaterThan(currentVersion)
+    } catch (e: Exception) {
+        Log.i(TAG, "Non-SemVer version detected ($latestTagName), offering update as it differs from current.")
+        true
+    }
+
+    private suspend fun getLatestVersionWithAssets(repository: String, branch: Branch): VersionWithAssets? {
         if (branch == Branch.BETA) {
-            return versionWithAssetsRepository.getLatestBetaVersionWithAssets()
+            return versionWithAssetsRepository.getLatestBetaVersionWithAssets(repository)
         }
 
-        return versionWithAssetsRepository.getLatestStableVersionWithAssets()
+        return versionWithAssetsRepository.getLatestStableVersionWithAssets(repository)
     }
 
-    suspend fun refreshVersions(githubApi: GithubApi) = withContext(Dispatchers.IO) {
-        githubApi.getAllReleases().onFailure { exception ->
-            Log.w(TAG, "Failed to refresh versions from Github", exception)
-            return@onFailure
-        }.onSuccess { allVersions ->
-            if (allVersions.isEmpty()) {
-                Log.w(TAG, "GitHub returned 0 releases. Skipping DB update to preserve cache.")
-                return@onSuccess
+    /**
+     * Refreshes versions from multiple repositories.
+     * Gets a list of unique repositories, then fetches releases for each.
+     */
+    suspend fun refreshVersions(githubApi: GithubApi, repositories: Set<String>) = withContext(Dispatchers.IO) {
+        for (repository in repositories) {
+            val (repoOwner, repoName) = splitRepository(repository)
+            Log.i(TAG, "Fetching releases from $repository")
+            githubApi.getAllReleases(repoOwner, repoName).onFailure { exception ->
+                Log.w(TAG, "Failed to refresh versions from $repository", exception)
+            }.onSuccess { releases ->
+                if (releases.isEmpty()) {
+                    Log.w(TAG, "GitHub returned 0 releases for $repository.")
+                } else {
+                    val versions = releases.map { createVersion(it, repository) }
+                    val assets = releases.flatMap { createAssetsForVersion(it, repository) }
+                    Log.i(TAG, "Updating ${versions.size} versions and ${assets.size} assets for $repository")
+                    versionWithAssetsRepository.updateRepository(repository, versions, assets)
+                }
             }
-            val (versions, assets) = withContext(Dispatchers.Default) {
-                val v = allVersions.map { createVersion(it) }
-                val a = allVersions.flatMap { createAssetsForVersion(it) }
-                Pair(v, a)
-            }
-
-            Log.i(TAG, "Replacing DB with ${versions.size} versions and ${assets.size} assets")
-            versionWithAssetsRepository.replaceAll(versions, assets)
         }
     }
 
-    private fun createVersion(version: Release): Version = Version(
+    private fun createVersion(version: Release, repository: String): Version = Version(
         sanitizeTagName(version.tagName),
+        repository,
         version.name,
         version.body,
         version.prerelease,
@@ -165,13 +207,14 @@ class ReleaseService(private val versionWithAssetsRepository: VersionWithAssetsR
         version.htmlUrl,
     )
 
-    private fun createAssetsForVersion(version: Release): List<Asset> {
+    private fun createAssetsForVersion(version: Release, repository: String): List<Asset> {
         val assetsModels = mutableListOf<Asset>()
         val sanitizedTagName = sanitizeTagName(version.tagName)
         for (asset in version.assets) {
             assetsModels.add(
                 Asset(
                     sanitizedTagName,
+                    repository,
                     asset.name,
                     asset.size,
                     asset.browserDownloadUrl,

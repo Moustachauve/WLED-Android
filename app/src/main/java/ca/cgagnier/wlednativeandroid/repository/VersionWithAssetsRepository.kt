@@ -14,17 +14,38 @@ class VersionWithAssetsRepository @Inject constructor(
 ) {
 
     @WorkerThread
-    suspend fun replaceAll(versions: List<Version>, assets: List<Asset>) {
+    suspend fun updateRepository(repository: String, versions: List<Version>, assets: List<Asset>) {
         database.withTransaction {
-            versionDao.deleteAll()
+            // Get existing data for this repository
+            val existingVersions = versionDao.getVersionsByRepository(repository)
+            val existingAssets = assetDao.getAssetsByRepository(repository)
+
+            // Find versions that were removed from GitHub (in DB but not in new data)
+            val newVersionTags = versions.map { it.tagName }.toSet()
+            val versionsToDelete = existingVersions.filter { it.tagName !in newVersionTags }
+
+            // Find assets that were removed from GitHub
+            val newAssetKeys = assets.map { Triple(it.versionTagName, it.repository, it.name) }.toSet()
+            val assetsToDelete = existingAssets.filter {
+                Triple(it.versionTagName, it.repository, it.name) !in newAssetKeys
+            }
+
+            // Delete only what's been removed
+            versionsToDelete.forEach { versionDao.delete(it) }
+            assetsToDelete.forEach { assetDao.delete(it) }
+
+            // Insert/update current data (REPLACE strategy handles updates automatically)
             versionDao.insertMany(versions)
             assetDao.insertMany(assets)
         }
     }
 
-    suspend fun getLatestStableVersionWithAssets(): VersionWithAssets? = versionDao.getLatestStableVersionWithAssets()
+    suspend fun getLatestStableVersionWithAssets(repository: String): VersionWithAssets? =
+        versionDao.getLatestStableVersionWithAssets(repository)
 
-    suspend fun getLatestBetaVersionWithAssets(): VersionWithAssets? = versionDao.getLatestBetaVersionWithAssets()
+    suspend fun getLatestBetaVersionWithAssets(repository: String): VersionWithAssets? =
+        versionDao.getLatestBetaVersionWithAssets(repository)
 
-    suspend fun getVersionByTag(tagName: String): VersionWithAssets? = versionDao.getVersionByTagName(tagName)
+    suspend fun getVersionByTag(repository: String, tagName: String): VersionWithAssets? =
+        versionDao.getVersionByTagName(repository, tagName)
 }

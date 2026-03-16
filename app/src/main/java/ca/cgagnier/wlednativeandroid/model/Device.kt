@@ -36,6 +36,9 @@ data class Device(
 
     @ColumnInfo(defaultValue = "0")
     val lastSeen: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(defaultValue = "'wled/WLED'")
+    val repository: String = "wled/WLED",
 ) : Parcelable {
 
     fun getDeviceUrl(): String = "http://$address"

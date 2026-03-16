@@ -11,6 +11,7 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration7To8
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
+import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_9_10
 
 @Database(
     entities = [
@@ -18,7 +19,7 @@ import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
         Version::class,
         Asset::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -42,13 +43,15 @@ abstract class DevicesDatabase : RoomDatabase() {
         private var instance: DevicesDatabase? = null
 
         fun getDatabase(context: Context): DevicesDatabase = instance ?: synchronized(this) {
-            val newInstance = Room.databaseBuilder(
+            val instance = Room.databaseBuilder(
                 context.applicationContext,
                 DevicesDatabase::class.java,
                 "devices_database",
-            ).build()
-            instance = newInstance
-            newInstance
+            )
+                .addMigrations(MIGRATION_9_10)
+                .build()
+            this.instance = instance
+            instance
         }
     }
 }

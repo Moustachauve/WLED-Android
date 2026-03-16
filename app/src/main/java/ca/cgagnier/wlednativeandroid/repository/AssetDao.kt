@@ -24,4 +24,7 @@ interface AssetDao {
 
     @Query("DELETE FROM asset")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM asset WHERE repository = :repository")
+    suspend fun getAssetsByRepository(repository: String): List<Asset>
 }

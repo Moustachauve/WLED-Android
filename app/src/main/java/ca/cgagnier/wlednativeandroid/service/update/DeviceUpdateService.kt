@@ -64,9 +64,16 @@ class DeviceUpdateService(
     init {
         // Try to use the release variable, but fallback to the legacy platform method for
         // compatibility with WLED older than 0.15.0
-        if (!determineAssetByRelease()) {
+        if (hasReleaseName()) { // never swap to generic build if release name is known
+            determineAssetByRelease()
+        } else {
             determineAssetByPlatform()
         }
+    }
+
+    private fun hasReleaseName(): Boolean {
+        val release = device.stateInfo.value?.info?.release
+        return !release.isNullOrEmpty()
     }
 
     /**
@@ -85,7 +92,7 @@ class DeviceUpdateService(
         val versionWithRelease =
             if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
         assetName = "WLED_$versionWithRelease.bin"
-        return findAsset(assetName)
+        return findAsset(versionWithRelease)
     }
 
     private fun getReleaseOverride(rawRelease: String): String = try {
@@ -122,13 +129,14 @@ class DeviceUpdateService(
         val versionWithPlatform =
             if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
         assetName = "WLED_$versionWithPlatform.bin"
-        return findAsset(assetName)
+        return findAsset(versionWithPlatform)
     }
 
     private fun findAsset(assetName: String): Boolean {
         for (asset in versionWithAssets.assets) {
-            if (asset.name == assetName) {
+            if (asset.name.endsWith("$assetName.bin")) {
                 this.asset = asset
+                this.assetName = asset.name
                 couldDetermineAsset = true
                 return true
             }

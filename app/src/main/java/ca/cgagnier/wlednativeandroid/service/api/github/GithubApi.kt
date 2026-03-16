@@ -18,12 +18,12 @@ import javax.inject.Singleton
 @Singleton
 class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints) {
 
-    suspend fun getAllReleases(): Result<List<Release>> {
-        Log.d(TAG, "retrieving latest release")
+    suspend fun getAllReleases(repoOwner: String, repoName: String): Result<List<Release>> {
+        Log.d(TAG, "retrieving latest releases from $repoOwner/$repoName")
         return try {
-            Result.success(apiEndpoints.getAllReleases(REPO_OWNER, REPO_NAME))
+            Result.success(apiEndpoints.getAllReleases(repoOwner, repoName))
         } catch (e: Exception) {
-            Log.w(TAG, "Error retrieving releases: ${e.message}")
+            Log.w(TAG, "Error retrieving releases from $repoOwner/$repoName: ${e.message}")
             Result.failure(e)
         }
     }
@@ -31,8 +31,9 @@ class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints
     fun downloadReleaseBinary(asset: Asset, targetFile: File): Flow<DownloadState> = flow {
         try {
             emit(DownloadState.Downloading(0))
+            val (repoOwner, repoName) = ca.cgagnier.wlednativeandroid.service.update.splitRepository(asset.repository)
             val responseBody =
-                apiEndpoints.downloadReleaseBinary(REPO_OWNER, REPO_NAME, asset.assetId)
+                apiEndpoints.downloadReleaseBinary(repoOwner, repoName, asset.assetId)
             emitAll(responseBody.saveFile(targetFile))
         } catch (e: Exception) {
             emit(DownloadState.Failed(e))
@@ -65,7 +66,5 @@ class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints
 
     companion object {
         private const val TAG = "github-release"
-        const val REPO_OWNER = "Aircoookie"
-        const val REPO_NAME = "WLED"
     }
 }
