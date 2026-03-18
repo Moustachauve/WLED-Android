@@ -20,11 +20,17 @@ class VersionWithAssetsRepository @Inject constructor(
         database.withTransaction {
             // Ensure repository exists and get its ID
             val existingRepo = repositoryDao.getRepositoryByOwnerAndRepo(repository.ownerAndRepo)
+            val repoToInsert = if (repository.ownerAndRepo.equals(Repository.DEFAULT_OWNER_REPO, ignoreCase = true)) {
+                repository.copy(id = Repository.DEFAULT_ID)
+            } else {
+                repository
+            }
+
             val repoId = if (existingRepo != null) {
-                repositoryDao.update(repository.copy(id = existingRepo.id))
+                repositoryDao.update(repoToInsert.copy(id = existingRepo.id))
                 existingRepo.id
             } else {
-                repositoryDao.insert(repository)
+                repositoryDao.insert(repoToInsert)
             }
 
             // Get existing data for this repository

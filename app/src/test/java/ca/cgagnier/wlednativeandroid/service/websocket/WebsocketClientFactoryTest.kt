@@ -29,6 +29,7 @@ class WebsocketClientFactoryTest {
     private val deviceRepository: DeviceRepository = mockk(relaxed = true)
     private val widgetManager: WledWidgetManager = mockk(relaxed = true)
     private val deviceUpdateManager: DeviceUpdateManager = mockk(relaxed = true)
+    private val repositoryDao: ca.cgagnier.wlednativeandroid.repository.RepositoryDao = mockk(relaxed = true)
 
     @Before
     fun setUp() {
@@ -43,6 +44,7 @@ class WebsocketClientFactoryTest {
             deviceUpdateManager = deviceUpdateManager,
             okHttpClient = okHttpClient,
             moshi = moshi,
+            repositoryDao = repositoryDao,
         )
     }
 

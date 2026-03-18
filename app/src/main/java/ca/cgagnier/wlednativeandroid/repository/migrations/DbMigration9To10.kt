@@ -40,7 +40,7 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
             CREATE TABLE IF NOT EXISTS `Repository` (
                 `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 `name` TEXT NOT NULL,
-                `ownerAndRepo` TEXT NOT NULL,
+                `ownerAndRepo` TEXT NOT NULL COLLATE NOCASE,
                 `description` TEXT NOT NULL,
                 `htmlUrl` TEXT NOT NULL,
                 `isDefault` INTEGER NOT NULL DEFAULT 0,

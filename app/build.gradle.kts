@@ -34,6 +34,10 @@ android {
         localeFilters += listOf("de", "en", "fr", "zh")
     }
 
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+
     buildFeatures {
         buildConfig = true
         compose = true
