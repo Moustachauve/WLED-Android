@@ -6,10 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
+import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateService
+import ca.cgagnier.wlednativeandroid.service.update.splitRepository
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +32,7 @@ private const val TAG = "UpdateInstallingViewModel"
 @HiltViewModel
 class UpdateInstallingViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository,
+    private val repositoryDao: RepositoryDao,
     private val deviceApiFactory: DeviceApiFactory,
     private val githubApi: GithubApi,
 ) : ViewModel() {
@@ -106,7 +110,11 @@ class UpdateInstallingViewModel @Inject constructor(
         }
 
         Log.d(TAG, "Downloading asset '${updateService.getAssetName()}'")
-        updateService.downloadBinary().collect { downloadState ->
+        val repo = repositoryDao.getRepositoryById(updateService.device.device.repositoryId)
+        val repoStr = repo?.ownerAndRepo ?: DEFAULT_REPO
+        val (repoOwner, repoName) = splitRepository(repoStr)
+
+        updateService.downloadBinary(repoOwner, repoName).collect { downloadState ->
             when (downloadState) {
                 is DownloadState.Downloading -> {
                     Log.d(TAG, "File download Progress=${downloadState.progress}")

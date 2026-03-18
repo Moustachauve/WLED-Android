@@ -153,11 +153,11 @@ class DeviceUpdateService(
 
     fun isAssetFileCached(): Boolean = getPathForAsset().exists()
 
-    suspend fun downloadBinary(): Flow<DownloadState> {
+    suspend fun downloadBinary(repoOwner: String, repoName: String): Flow<DownloadState> {
         if (!::asset.isInitialized) {
             throw Exception("Asset could not be determined for ${device.device.macAddress}.")
         }
-        return githubApi.downloadReleaseBinary(asset, getPathForAsset())
+        return githubApi.downloadReleaseBinary(asset, repoOwner, repoName, getPathForAsset())
     }
 
     fun getPathForAsset(): File {

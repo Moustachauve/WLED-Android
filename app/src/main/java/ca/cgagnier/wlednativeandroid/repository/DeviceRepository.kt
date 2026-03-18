@@ -12,6 +12,9 @@ class DeviceRepository @Inject constructor(private val deviceDao: DeviceDao) {
     fun getAllDevices(): List<Device> = deviceDao.getAllDevices()
 
     @WorkerThread
+    fun getUsedRepositoryIds(): List<Long> = deviceDao.getUsedRepositoryIds()
+
+    @WorkerThread
     suspend fun findDeviceByMacAddress(address: String): Device? = deviceDao.findDeviceByMacAddress(address)
 
     @WorkerThread

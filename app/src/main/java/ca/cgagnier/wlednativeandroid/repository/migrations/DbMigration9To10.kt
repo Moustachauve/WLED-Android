@@ -9,17 +9,20 @@ private const val FROM_VERSION = 9
 private const val TO_VERSION = 10
 
 /**
- * Migration from 9->10 adds repository information to Device, Version, and Asset tables
- * to support tracking releases from multiple WLED repositories/forks.
+ * Migration from 9->10 adds the Repository table and updates Device, Version, and Asset tables
+ * to support tracking releases from multiple WLED repositories/forks using Long surrogate keys.
  *
- * For Device2: adds repository column with default value.
- * For Version/Asset: renames old tables, creates new ones with repository field,
- * copies existing data with default repository "wled/WLED", then drops old tables.
+ * It creates the Repository table and inserts the default 'wled/WLED' repository (ID 1).
+ * For Device2: adds repositoryId column with default value 1.
+ * For Version/Asset: renames old tables, creates new ones with foreign keys,
+ * copies existing data linking back to Repository ID 1, then drops old tables.
  */
 val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
     override fun migrate(db: SupportSQLiteDatabase) {
         Log.i(TAG, "Starting migration from 9 to 10")
 
+        createRepositoryTable(db)
+        insertDefaultRepositories(db)
         addRepositoryToDevice(db)
         renameOldTables(db)
         createNewTables(db)
@@ -31,10 +34,38 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
         Log.i(TAG, "Migration from 9 to 10 complete!")
     }
 
+    private fun createRepositoryTable(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `Repository` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `ownerAndRepo` TEXT NOT NULL COLLATE NOCASE,
+                `description` TEXT NOT NULL,
+                `htmlUrl` TEXT NOT NULL,
+                `isDefault` INTEGER NOT NULL DEFAULT 0,
+                `isEnabled` INTEGER NOT NULL DEFAULT 1,
+                `isUpdateEnabled` INTEGER NOT NULL DEFAULT 1
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_Repository_ownerAndRepo` ON `Repository` (`ownerAndRepo`)")
+    }
+
+    private fun insertDefaultRepositories(db: SupportSQLiteDatabase) {
+        // Insert wled/WLED as ID 1 to match default values
+        db.execSQL(
+            """
+            INSERT OR IGNORE INTO Repository (id, name, ownerAndRepo, description, htmlUrl, isDefault, isEnabled, isUpdateEnabled)
+            VALUES (1, 'WLED', 'wled/WLED', 'WLED Firmware', 'https://github.com/wled/WLED', 1, 1, 1)
+            """.trimIndent(),
+        )
+    }
+
     private fun addRepositoryToDevice(db: SupportSQLiteDatabase) {
-        // Add repository column to Device2 table with default value
-        db.execSQL("ALTER TABLE `Device2` ADD COLUMN `repository` TEXT NOT NULL DEFAULT 'wled/WLED'")
-        Log.i(TAG, "Added repository column to Device2 table")
+        // Add repositoryId column to Device2 table with default value 1
+        db.execSQL("ALTER TABLE `Device2` ADD COLUMN `repositoryId` INTEGER NOT NULL DEFAULT 1")
+        Log.i(TAG, "Added repositoryId column to Device2 table")
     }
 
     private fun renameOldTables(db: SupportSQLiteDatabase) {
@@ -43,36 +74,34 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
     }
 
     private fun createNewTables(db: SupportSQLiteDatabase) {
-        // Create new Version table with repository column
+        // Create new Version table with repositoryId foreign key
         db.execSQL(
             """
             CREATE TABLE IF NOT EXISTS `Version` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `repositoryId` INTEGER NOT NULL,
                 `tagName` TEXT NOT NULL,
-                `repository` TEXT NOT NULL DEFAULT 'wled/WLED',
                 `name` TEXT NOT NULL,
                 `description` TEXT NOT NULL,
                 `isPrerelease` INTEGER NOT NULL,
                 `publishedDate` TEXT NOT NULL,
                 `htmlUrl` TEXT NOT NULL,
-                PRIMARY KEY(`tagName`, `repository`)
+                FOREIGN KEY(`repositoryId`) REFERENCES `Repository`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
             )
             """.trimIndent(),
         )
 
-        // Create new Asset table with repository column
+        // Create new Asset table with versionId foreign key
         db.execSQL(
             """
             CREATE TABLE IF NOT EXISTS `Asset` (
-                `versionTagName` TEXT NOT NULL,
-                `repository` TEXT NOT NULL DEFAULT 'wled/WLED',
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `versionId` INTEGER NOT NULL,
                 `name` TEXT NOT NULL,
                 `size` INTEGER NOT NULL,
                 `downloadUrl` TEXT NOT NULL,
                 `assetId` INTEGER NOT NULL DEFAULT 0,
-                PRIMARY KEY(`versionTagName`, `repository`, `name`),
-                FOREIGN KEY(`versionTagName`, `repository`)
-                    REFERENCES `Version`(`tagName`, `repository`)
-                    ON UPDATE NO ACTION ON DELETE CASCADE
+                FOREIGN KEY(`versionId`) REFERENCES `Version`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
             )
             """.trimIndent(),
         )
@@ -82,12 +111,12 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
         val originalCount = getRowCount(db, "Version_old")
         Log.i(TAG, "Total versions in old 'Version' table: $originalCount")
 
-        // Copy data from Version_old to Version with default repository
+        // Copy data from Version_old to Version with default repositoryId 1
         db.execSQL(
             """
-            INSERT OR IGNORE INTO Version (
+            INSERT INTO Version (
+                repositoryId,
                 tagName,
-                repository,
                 name,
                 description,
                 isPrerelease,
@@ -95,8 +124,8 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
                 htmlUrl
             )
             SELECT
+                1 AS repositoryId,
                 tagName,
-                'wled/WLED' AS repository,
                 name,
                 description,
                 isPrerelease,
@@ -114,25 +143,24 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
         val originalCount = getRowCount(db, "Asset_old")
         Log.i(TAG, "Total assets in old 'Asset' table: $originalCount")
 
-        // Copy data from Asset_old to Asset with default repository
+        // Copy data from Asset_old to Asset joining on Version to get the new versionId
         db.execSQL(
             """
-            INSERT OR IGNORE INTO Asset (
-                versionTagName,
-                repository,
+            INSERT INTO Asset (
+                versionId,
                 name,
                 size,
                 downloadUrl,
                 assetId
             )
             SELECT
-                versionTagName,
-                'wled/WLED' AS repository,
-                name,
-                size,
-                downloadUrl,
-                assetId
-            FROM Asset_old
+                v.id AS versionId,
+                a.name,
+                a.size,
+                a.downloadUrl,
+                a.assetId
+            FROM Asset_old a
+            INNER JOIN Version v ON v.tagName = a.versionTagName AND v.repositoryId = 1
             """.trimIndent(),
         )
 
@@ -146,8 +174,15 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
     }
 
     private fun createIndices(db: SupportSQLiteDatabase) {
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_versionTagName` ON `Asset` (`versionTagName`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_repository` ON `Asset` (`repository`)")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                "`index_Version_repositoryId_tagName` ON `Version` (`repositoryId`, `tagName`)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                "`index_Asset_versionId_name` ON `Asset` (`versionId`, `name`)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_versionId` ON `Asset` (`versionId`)")
     }
 
     private fun getRowCount(db: SupportSQLiteDatabase, tableName: String): Int {

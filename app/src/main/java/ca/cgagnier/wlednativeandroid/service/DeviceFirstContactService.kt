@@ -4,6 +4,8 @@ import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
+import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.util.isIpAddress
@@ -16,6 +18,7 @@ private const val TAG = "DeviceFirstContactService"
  * Service class responsible for handling the first contact with a device.
  */
 class DeviceFirstContactService @Inject constructor(
+    private val repositoryDao: RepositoryDao,
     private val repository: DeviceRepository,
     private val deviceApiFactory: DeviceApiFactory,
 ) {
@@ -29,12 +32,14 @@ class DeviceFirstContactService @Inject constructor(
      */
     private suspend fun createDevice(macAddress: String, address: String, info: Info): Device {
         Log.d(TAG, "Creating new device entry for MAC: $macAddress at address: $address")
-        val deviceRepository = getRepositoryFromInfo(info)
+        val deviceRepositoryStr = getRepositoryFromInfo(info)
+        val repoId = repositoryDao.getOrCreateRepositoryId(deviceRepositoryStr)
+
         val device = Device(
             macAddress = macAddress,
             address = address,
             originalName = info.name,
-            repository = deviceRepository,
+            repositoryId = repoId,
         )
         repository.insert(device)
         return device
@@ -55,11 +60,13 @@ class DeviceFirstContactService @Inject constructor(
         val deviceAddress = if (device.address.isIpAddress()) newAddress else device.address
         val updatedDevice: Device
         if (info != null) {
-            val deviceRepository = getRepositoryFromInfo(info)
+            val deviceRepositoryStr = getRepositoryFromInfo(info)
+            val repoId = repositoryDao.getOrCreateRepositoryId(deviceRepositoryStr)
+
             updatedDevice = device.copy(
                 address = deviceAddress,
                 originalName = info.name,
-                repository = deviceRepository,
+                repositoryId = repoId,
             )
         } else {
             updatedDevice = device.copy(

@@ -6,6 +6,7 @@ import androidx.datastore.dataStore
 import ca.cgagnier.wlednativeandroid.repository.AssetDao
 import ca.cgagnier.wlednativeandroid.repository.DeviceDao
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
+import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesSerializer
@@ -52,20 +53,27 @@ object AppContainer {
 
     @Provides
     @Singleton
+    fun provideRepositoryDao(appDatabase: DevicesDatabase): RepositoryDao = appDatabase.repositoryDao()
+
+    @Provides
+    @Singleton
     fun provideAssetDao(appDatabase: DevicesDatabase): AssetDao = appDatabase.assetDao()
 
     @Provides
     @Singleton
     fun provideVersionWithAssetsRepository(
         appDatabase: DevicesDatabase,
+        repositoryDao: RepositoryDao,
         versionDao: VersionDao,
         assetDao: AssetDao,
-    ): VersionWithAssetsRepository = VersionWithAssetsRepository(appDatabase, versionDao, assetDao)
+    ): VersionWithAssetsRepository = VersionWithAssetsRepository(appDatabase, repositoryDao, versionDao, assetDao)
 
     @Provides
     @Singleton
-    fun providesReleaseService(versionWithAssetsRepository: VersionWithAssetsRepository): ReleaseService =
-        ReleaseService(versionWithAssetsRepository)
+    fun providesReleaseService(
+        versionWithAssetsRepository: VersionWithAssetsRepository,
+        repositoryDao: RepositoryDao,
+    ): ReleaseService = ReleaseService(versionWithAssetsRepository, repositoryDao)
 
     @Provides
     @Singleton

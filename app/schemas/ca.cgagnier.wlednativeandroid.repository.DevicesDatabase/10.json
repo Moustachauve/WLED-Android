@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 10,
-    "identityHash": "afe44fe308d1a4e01e11eb17839728ef",
+    "identityHash": "13710fd8b1a759005021321784b7f197",
     "entities": [
       {
         "tableName": "Device2",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`macAddress` TEXT NOT NULL, `address` TEXT NOT NULL, `isHidden` INTEGER NOT NULL, `originalName` TEXT NOT NULL DEFAULT '', `customName` TEXT NOT NULL DEFAULT '', `skipUpdateTag` TEXT NOT NULL DEFAULT '', `branch` TEXT NOT NULL DEFAULT 'UNKNOWN', `lastSeen` INTEGER NOT NULL DEFAULT 0, `repository` TEXT NOT NULL DEFAULT 'wled/WLED', PRIMARY KEY(`macAddress`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`macAddress` TEXT NOT NULL, `address` TEXT NOT NULL, `isHidden` INTEGER NOT NULL, `originalName` TEXT NOT NULL DEFAULT '', `customName` TEXT NOT NULL DEFAULT '', `skipUpdateTag` TEXT NOT NULL DEFAULT '', `branch` TEXT NOT NULL DEFAULT 'UNKNOWN', `lastSeen` INTEGER NOT NULL DEFAULT 0, `repositoryId` INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(`macAddress`))",
         "fields": [
           {
             "fieldPath": "macAddress",
@@ -62,11 +62,11 @@
             "defaultValue": "0"
           },
           {
-            "fieldPath": "repository",
-            "columnName": "repository",
-            "affinity": "TEXT",
+            "fieldPath": "repositoryId",
+            "columnName": "repositoryId",
+            "affinity": "INTEGER",
             "notNull": true,
-            "defaultValue": "'wled/WLED'"
+            "defaultValue": "1"
           }
         ],
         "primaryKey": {
@@ -77,21 +77,100 @@
         }
       },
       {
-        "tableName": "Version",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tagName` TEXT NOT NULL, `repository` TEXT NOT NULL DEFAULT 'wled/WLED', `name` TEXT NOT NULL, `description` TEXT NOT NULL, `isPrerelease` INTEGER NOT NULL, `publishedDate` TEXT NOT NULL, `htmlUrl` TEXT NOT NULL, PRIMARY KEY(`tagName`, `repository`))",
+        "tableName": "Repository",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `ownerAndRepo` TEXT NOT NULL, `description` TEXT NOT NULL, `htmlUrl` TEXT NOT NULL, `isDefault` INTEGER NOT NULL DEFAULT 0, `isEnabled` INTEGER NOT NULL DEFAULT 1, `isUpdateEnabled` INTEGER NOT NULL DEFAULT 1)",
         "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerAndRepo",
+            "columnName": "ownerAndRepo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "htmlUrl",
+            "columnName": "htmlUrl",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isDefault",
+            "columnName": "isDefault",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "isEnabled",
+            "columnName": "isEnabled",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "isUpdateEnabled",
+            "columnName": "isUpdateEnabled",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_Repository_ownerAndRepo",
+            "unique": true,
+            "columnNames": [
+              "ownerAndRepo"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_Repository_ownerAndRepo` ON `${TABLE_NAME}` (`ownerAndRepo`)"
+          }
+        ]
+      },
+      {
+        "tableName": "Version",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `repositoryId` INTEGER NOT NULL, `tagName` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `isPrerelease` INTEGER NOT NULL, `publishedDate` TEXT NOT NULL, `htmlUrl` TEXT NOT NULL, FOREIGN KEY(`repositoryId`) REFERENCES `Repository`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "repositoryId",
+            "columnName": "repositoryId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
           {
             "fieldPath": "tagName",
             "columnName": "tagName",
             "affinity": "TEXT",
             "notNull": true
-          },
-          {
-            "fieldPath": "repository",
-            "columnName": "repository",
-            "affinity": "TEXT",
-            "notNull": true,
-            "defaultValue": "'wled/WLED'"
           },
           {
             "fieldPath": "name",
@@ -125,29 +204,52 @@
           }
         ],
         "primaryKey": {
-          "autoGenerate": false,
+          "autoGenerate": true,
           "columnNames": [
-            "tagName",
-            "repository"
+            "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_Version_repositoryId_tagName",
+            "unique": true,
+            "columnNames": [
+              "repositoryId",
+              "tagName"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_Version_repositoryId_tagName` ON `${TABLE_NAME}` (`repositoryId`, `tagName`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "Repository",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "repositoryId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       },
       {
         "tableName": "Asset",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`versionTagName` TEXT NOT NULL, `repository` TEXT NOT NULL DEFAULT 'wled/WLED', `name` TEXT NOT NULL, `size` INTEGER NOT NULL, `downloadUrl` TEXT NOT NULL, `assetId` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`versionTagName`, `repository`, `name`), FOREIGN KEY(`versionTagName`, `repository`) REFERENCES `Version`(`tagName`, `repository`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `versionId` INTEGER NOT NULL, `name` TEXT NOT NULL, `size` INTEGER NOT NULL, `downloadUrl` TEXT NOT NULL, `assetId` INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(`versionId`) REFERENCES `Version`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
-            "fieldPath": "versionTagName",
-            "columnName": "versionTagName",
-            "affinity": "TEXT",
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "repository",
-            "columnName": "repository",
-            "affinity": "TEXT",
-            "notNull": true,
-            "defaultValue": "'wled/WLED'"
+            "fieldPath": "versionId",
+            "columnName": "versionId",
+            "affinity": "INTEGER",
+            "notNull": true
           },
           {
             "fieldPath": "name",
@@ -176,31 +278,30 @@
           }
         ],
         "primaryKey": {
-          "autoGenerate": false,
+          "autoGenerate": true,
           "columnNames": [
-            "versionTagName",
-            "repository",
-            "name"
+            "id"
           ]
         },
         "indices": [
           {
-            "name": "index_Asset_versionTagName",
-            "unique": false,
+            "name": "index_Asset_versionId_name",
+            "unique": true,
             "columnNames": [
-              "versionTagName"
+              "versionId",
+              "name"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_Asset_versionTagName` ON `${TABLE_NAME}` (`versionTagName`)"
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_Asset_versionId_name` ON `${TABLE_NAME}` (`versionId`, `name`)"
           },
           {
-            "name": "index_Asset_repository",
+            "name": "index_Asset_versionId",
             "unique": false,
             "columnNames": [
-              "repository"
+              "versionId"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_Asset_repository` ON `${TABLE_NAME}` (`repository`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_Asset_versionId` ON `${TABLE_NAME}` (`versionId`)"
           }
         ],
         "foreignKeys": [
@@ -209,12 +310,10 @@
             "onDelete": "CASCADE",
             "onUpdate": "NO ACTION",
             "columns": [
-              "versionTagName",
-              "repository"
+              "versionId"
             ],
             "referencedColumns": [
-              "tagName",
-              "repository"
+              "id"
             ]
           }
         ]
@@ -222,7 +321,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'afe44fe308d1a4e01e11eb17839728ef')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '13710fd8b1a759005021321784b7f197')"
     ]
   }
 }

@@ -128,5 +128,6 @@
     <!-- Device Controls (Quick Settings) -->
     <string name="control_on">An</string>
     <string name="control_off">Aus</string>
+    <string name="no_release_notes_provided">Keine Versionshinweise vorhanden</string>
 
 </resources>

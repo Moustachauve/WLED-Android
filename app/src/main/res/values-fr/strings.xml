@@ -127,5 +127,6 @@
     <!-- Device Controls (Quick Settings) -->
     <string name="control_on">Allumé</string>
     <string name="control_off">Éteint</string>
+    <string name="no_release_notes_provided">Aucune note de version fournie</string>
 
 </resources>
