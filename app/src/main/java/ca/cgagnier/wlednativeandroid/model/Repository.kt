@@ -10,6 +10,7 @@ data class Repository(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
+    @ColumnInfo(collate = ColumnInfo.NOCASE)
     val ownerAndRepo: String,
     val description: String,
     val htmlUrl: String,
