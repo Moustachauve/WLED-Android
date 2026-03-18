@@ -14,7 +14,6 @@ import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
-import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +61,8 @@ class MainViewModel @Inject constructor(
     }
 
     private suspend fun syncBuiltInRepositories() {
+        val builtInOwnerAndRepos = Repository.BUILT_IN_REPOSITORIES.map { it.ownerAndRepo }
+
         Repository.BUILT_IN_REPOSITORIES.forEach { builtin ->
             val existing = repositoryDao.getRepositoryByOwnerAndRepo(builtin.ownerAndRepo)
             if (existing == null) {
@@ -73,11 +74,24 @@ class MainViewModel @Inject constructor(
                     name = builtin.name,
                     description = builtin.description,
                     htmlUrl = builtin.htmlUrl,
-                    isDefault = builtin.isDefault,
+                    isDefault = true,
                 )
                 if (existing != updated) {
                     repositoryDao.update(updated)
                     Log.d(TAG, "Updated built-in repository: ${builtin.ownerAndRepo}")
+                }
+            }
+        }
+
+        // Force all non-default repository to be false, in case they used to be default
+        val allRepos = repositoryDao.getAllRepositories().first()
+        allRepos.forEach { repo ->
+            if (repo.isDefault) {
+                val isBuiltIn = builtInOwnerAndRepos.any { it.equals(repo.ownerAndRepo, ignoreCase = true) }
+                if (!isBuiltIn) {
+                    val updated = repo.copy(isDefault = false)
+                    repositoryDao.update(updated)
+                    Log.d(TAG, "Removed default status from repository: ${repo.ownerAndRepo}")
                 }
             }
         }
