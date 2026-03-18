@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 10,
-    "identityHash": "86b7885079906fb91181223247338b08",
+    "identityHash": "13710fd8b1a759005021321784b7f197",
     "entities": [
       {
         "tableName": "Device2",
@@ -78,7 +78,7 @@
       },
       {
         "tableName": "Repository",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `ownerAndRepo` TEXT NOT NULL, `description` TEXT NOT NULL, `htmlUrl` TEXT NOT NULL, `isDefault` INTEGER NOT NULL DEFAULT 1, `isEnabled` INTEGER NOT NULL DEFAULT 1, `isUpdateEnabled` INTEGER NOT NULL DEFAULT 1)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `ownerAndRepo` TEXT NOT NULL, `description` TEXT NOT NULL, `htmlUrl` TEXT NOT NULL, `isDefault` INTEGER NOT NULL DEFAULT 0, `isEnabled` INTEGER NOT NULL DEFAULT 1, `isUpdateEnabled` INTEGER NOT NULL DEFAULT 1)",
         "fields": [
           {
             "fieldPath": "id",
@@ -115,7 +115,7 @@
             "columnName": "isDefault",
             "affinity": "INTEGER",
             "notNull": true,
-            "defaultValue": "1"
+            "defaultValue": "0"
           },
           {
             "fieldPath": "isEnabled",
@@ -321,7 +321,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '86b7885079906fb91181223247338b08')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '13710fd8b1a759005021321784b7f197')"
     ]
   }
 }

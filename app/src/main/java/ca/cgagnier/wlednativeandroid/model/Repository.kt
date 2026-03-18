@@ -13,7 +13,7 @@ data class Repository(
     val ownerAndRepo: String,
     val description: String,
     val htmlUrl: String,
-    @ColumnInfo(defaultValue = "1")
+    @ColumnInfo(defaultValue = "0")
     val isDefault: Boolean = false,
     @ColumnInfo(defaultValue = "1")
     val isEnabled: Boolean = true,
