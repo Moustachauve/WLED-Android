@@ -96,14 +96,23 @@ private fun ReleaseNotes(modifier: Modifier = Modifier, version: VersionWithAsse
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
         ) {
-            Markdown(
-                version.version.description.trimIndent(),
-                typography = markdownTypography(
-                    h1 = MaterialTheme.typography.headlineLarge,
-                    h2 = MaterialTheme.typography.headlineMedium,
-                    h3 = MaterialTheme.typography.headlineSmall,
-                ),
-            )
+            if (version.version.description.trimIndent().isEmpty()) {
+                Text(
+                    stringResource(R.string.no_release_notes_provided),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    ),
+                )
+            } else {
+                Markdown(
+                    version.version.description.trimIndent(),
+                    typography = markdownTypography(
+                        h1 = MaterialTheme.typography.headlineLarge,
+                        h2 = MaterialTheme.typography.headlineMedium,
+                        h3 = MaterialTheme.typography.headlineSmall,
+                    ),
+                )
+            }
         }
     } else {
         CircularProgressIndicator()
