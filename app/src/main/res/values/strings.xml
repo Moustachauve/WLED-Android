@@ -129,5 +129,6 @@
     <!-- Device Controls (Quick Settings) -->
     <string name="control_on">On</string>
     <string name="control_off">Off</string>
+    <string name="no_release_notes_provided">No release notes provided</string>
 
 </resources>
