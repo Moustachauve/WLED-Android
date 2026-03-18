@@ -99,7 +99,7 @@ fun splitRepository(repository: String): Pair<String, String> {
 
 class ReleaseService @Inject constructor(
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
-    val repositoryDao: RepositoryDao,
+    private val repositoryDao: RepositoryDao,
 ) {
 
     /**

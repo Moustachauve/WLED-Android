@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.repository
 
+import android.util.Log
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
@@ -34,4 +35,28 @@ interface RepositoryDao {
 
     @Query("SELECT * FROM repository ORDER BY isDefault DESC, name ASC")
     fun getAllRepositories(): Flow<List<Repository>>
+}
+
+/**
+ * Returns the database ID for a repository, creating a new entry if it doesn't exist.
+ * Newly created repositories have updates disabled by default to prevent unwanted API
+ * calls for unvetted forks.
+ */
+suspend fun RepositoryDao.getOrCreateRepositoryId(ownerAndRepo: String): Long {
+    val repo = getRepositoryByOwnerAndRepo(ownerAndRepo)
+    if (repo != null) {
+        return repo.id
+    }
+    val autoDiscoveredRepo = Repository(
+        name = ownerAndRepo,
+        ownerAndRepo = ownerAndRepo,
+        description = "",
+        htmlUrl = "https://github.com/$ownerAndRepo",
+        isDefault = false,
+        isEnabled = false,
+        isUpdateEnabled = false,
+    )
+    val newId = insert(autoDiscoveredRepo)
+    Log.d("RepositoryDao", "Auto-discovered and inserted new repository: $ownerAndRepo (id=$newId)")
+    return newId
 }

@@ -102,9 +102,9 @@ class MainViewModel @Inject constructor(
                 .map { it.ownerAndRepo }
                 .toMutableSet()
 
-            // Failsafe fallback if no devices exist or all are explicitly disabled
             if (repositories.isEmpty() && allRepos.isEmpty()) {
-                repositories.add(DEFAULT_REPO) // Failsafe fallback
+                Log.i(TAG, "No repositories found, skipping update check.")
+                return@launch
             }
 
             Log.i(TAG, "Refreshing versions from ${repositories.size} repositories: $repositories")

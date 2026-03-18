@@ -2,10 +2,10 @@ package ca.cgagnier.wlednativeandroid.service
 
 import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
+import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.util.isIpAddress
@@ -33,7 +33,7 @@ class DeviceFirstContactService @Inject constructor(
     private suspend fun createDevice(macAddress: String, address: String, info: Info): Device {
         Log.d(TAG, "Creating new device entry for MAC: $macAddress at address: $address")
         val deviceRepositoryStr = getRepositoryFromInfo(info)
-        val repoId = getOrCreateRepositoryId(deviceRepositoryStr)
+        val repoId = repositoryDao.getOrCreateRepositoryId(deviceRepositoryStr)
 
         val device = Device(
             macAddress = macAddress,
@@ -61,7 +61,7 @@ class DeviceFirstContactService @Inject constructor(
         val updatedDevice: Device
         if (info != null) {
             val deviceRepositoryStr = getRepositoryFromInfo(info)
-            val repoId = getOrCreateRepositoryId(deviceRepositoryStr)
+            val repoId = repositoryDao.getOrCreateRepositoryId(deviceRepositoryStr)
 
             updatedDevice = device.copy(
                 address = deviceAddress,
@@ -142,29 +142,5 @@ class DeviceFirstContactService @Inject constructor(
             Log.d(TAG, "Fast update: Device IP unchanged for $macAddress")
         }
         return true
-    }
-
-    /**
-     * Returns the database ID for a repository, creating a new entry if it doesn't exist.
-     * Newly created repositories have updates disabled by default to prevent unwanted API
-     * calls for unvetted forks.
-     */
-    private suspend fun getOrCreateRepositoryId(ownerAndRepo: String): Long {
-        val repo = repositoryDao.getRepositoryByOwnerAndRepo(ownerAndRepo)
-        if (repo != null) {
-            return repo.id
-        }
-        val autoDiscoveredRepo = Repository(
-            name = ownerAndRepo,
-            ownerAndRepo = ownerAndRepo,
-            description = "",
-            htmlUrl = "https://github.com/$ownerAndRepo",
-            isDefault = false,
-            isEnabled = false,
-            isUpdateEnabled = false,
-        )
-        val newId = repositoryDao.insert(autoDiscoveredRepo)
-        Log.d(TAG, "Auto-discovered and inserted new repository: $ownerAndRepo (id=$newId)")
-        return newId
     }
 }

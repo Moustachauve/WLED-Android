@@ -4,11 +4,11 @@ import android.content.Context
 import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
+import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
@@ -132,24 +132,7 @@ class WebsocketClient(
         val branchChanged = deviceState.device.branch != branch
 
         val repositoryStr = getRepositoryFromInfo(deviceStateInfo.info)
-        var repoIdToSave = deviceState.device.repositoryId
-
-        val repo = repositoryDao.getRepositoryByOwnerAndRepo(repositoryStr)
-        if (repo == null) {
-            val autoDiscoveredRepo = Repository(
-                name = repositoryStr,
-                ownerAndRepo = repositoryStr,
-                description = "",
-                htmlUrl = "https://github.com/$repositoryStr",
-                isDefault = false,
-                isEnabled = false,
-                isUpdateEnabled = false,
-            )
-            repoIdToSave = repositoryDao.insert(autoDiscoveredRepo)
-            Log.d(TAG, "Auto-discovered and inserted new repository: $repositoryStr")
-        } else if (repoIdToSave != repo.id) {
-            repoIdToSave = repo.id
-        }
+        val repoIdToSave = repositoryDao.getOrCreateRepositoryId(repositoryStr)
 
         val repositoryChanged = deviceState.device.repositoryId != repoIdToSave
 
