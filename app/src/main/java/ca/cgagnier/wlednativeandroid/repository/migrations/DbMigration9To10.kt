@@ -43,7 +43,7 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
                 `ownerAndRepo` TEXT NOT NULL,
                 `description` TEXT NOT NULL,
                 `htmlUrl` TEXT NOT NULL,
-                `isDefault` INTEGER NOT NULL,
+                `isDefault` INTEGER NOT NULL DEFAULT 0,
                 `isEnabled` INTEGER NOT NULL DEFAULT 1,
                 `isUpdateEnabled` INTEGER NOT NULL DEFAULT 1
             )
