@@ -136,10 +136,10 @@ class WledWidgetManager @Inject constructor(
     }
 
     /**
-     * Updates the name displayed on all widgets for a device.
-     * Call this when the device's customName or originalName changes.
+     * Updates the name and address displayed on all widgets for a device.
+     * Call this when the device's customName, originalName or address changes.
      */
-    suspend fun updateWidgetNamesForDevice(context: Context, device: Device) {
+    suspend fun updateWidgetDeviceDetails(context: Context, device: Device) {
         val manager = GlanceAppWidgetManager(context)
         val glanceIds = manager.getGlanceIds(WledWidget::class.java)
         val displayName = getDeviceName(device, context.getString(R.string.default_device_name))
@@ -147,8 +147,8 @@ class WledWidgetManager @Inject constructor(
         glanceIds.forEach { glanceId ->
             val widgetState = getWidgetState(context, glanceId) ?: return@forEach
             if (widgetState.macAddress == device.macAddress) {
-                Log.d(TAG, "Updating widget name for MAC ${device.macAddress} to $displayName")
-                val newData = widgetState.copy(name = displayName)
+                Log.d(TAG, "Updating widget details for MAC ${device.macAddress} to $displayName at ${device.address}")
+                val newData = widgetState.copy(name = displayName, address = device.address)
                 saveStateAndPush(context, glanceId, newData)
             }
         }

@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.service
 
+import android.content.Context
 import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
@@ -9,6 +10,8 @@ import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.util.isIpAddress
+import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
 
@@ -21,6 +24,8 @@ class DeviceFirstContactService @Inject constructor(
     private val repositoryDao: RepositoryDao,
     private val repository: DeviceRepository,
     private val deviceApiFactory: DeviceApiFactory,
+    private val widgetManager: WledWidgetManager,
+    @param:ApplicationContext private val applicationContext: Context,
 ) {
     /**
      * Creates a new device record in the database.
@@ -74,6 +79,7 @@ class DeviceFirstContactService @Inject constructor(
             )
         }
         repository.update(updatedDevice)
+        widgetManager.updateWidgetDeviceDetails(applicationContext, updatedDevice)
         return updatedDevice
     }
 

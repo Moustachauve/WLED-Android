@@ -59,7 +59,7 @@ class DeviceEditViewModel @Inject constructor(
         deviceRepository.update(updatedDevice)
 
         // Update widgets to show the new name
-        widgetManager.updateWidgetNamesForDevice(applicationContext, updatedDevice)
+        widgetManager.updateWidgetDeviceDetails(applicationContext, updatedDevice)
     }
 
     fun updateDeviceHidden(device: Device, isHidden: Boolean) = viewModelScope.launch(Dispatchers.IO) {
