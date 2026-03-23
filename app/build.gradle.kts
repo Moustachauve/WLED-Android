@@ -75,6 +75,9 @@ android {
         enableAggregatingTask = true
     }
     namespace = "ca.cgagnier.wlednativeandroid"
+    lint {
+        fatal += "MissingTranslation"
+    }
 }
 
 ksp {
