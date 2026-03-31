@@ -4,7 +4,7 @@ app-versionCode = "50"
 app-versionName = "7.0.0-beta260317-01"
 
 agp = "9.1.0"
-composeBom = "2026.03.00"
+composeBom = "2026.03.01"
 converterMoshi = "3.0.0"
 core = "4.6.2"
 coreKtx = "1.18.0"
