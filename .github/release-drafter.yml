@@ -21,10 +21,13 @@ version-resolver:
   minor:
     labels:
       - 'minor'
+      - 'feature'
+      - 'enhancement'
   patch:
     labels:
       - 'patch'
       - 'fix'
+      - 'bug'
   default: patch
 autolabeler:
   - label: "documentation"
@@ -55,10 +58,13 @@ autolabeler:
       - '/fix\/.+/'
       - '/bug(\/|-).+/'
     title:
-      - "/fix/i"
+      - '/fix/i'
       - '/^bug?:/i'
   - label: "feature"
     branch:
+      - '/feat(ure)?(\/|-).+/'
+      - '/enhancement(\/|-).+/'
+    title:
       - '/^feat(ure)?:/i'
       - '/^enhancement?:/i'
 template: |
