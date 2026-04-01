@@ -23,5 +23,8 @@ jobs:
     steps:
       # Drafts your next Release notes as Pull Requests are merged into "dev"
       - uses: release-drafter/release-drafter@v7
+        with:
+          # Disable the releaser when running on PRs to prevent target_commitish errors
+          disable-releaser: ${{ github.event_name == 'pull_request' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
