@@ -202,12 +202,13 @@ fun DeviceEdit(
                                     text = stringResource(R.string.update_source),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.padding(end = 8.dp),
                                 )
                                 Text(
                                     text = repo.ownerAndRepo,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f),
                                     textAlign = TextAlign.End,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
