@@ -26,6 +26,41 @@ version-resolver:
       - 'patch'
       - 'fix'
   default: patch
+autolabeler:
+  - label: "documentation"
+    files:
+      - "*.md"
+    branch:
+      - '/docs{0,1}\/.+/'
+    title:
+      - '/^docs?:/i'
+  - label: "chore"
+    files:
+      - "*.gradle.kts"
+      - "gradle/libs.versions.toml"
+      - ".github/**/*.yml"
+    branch:
+      - '/chore(\/|-).+/'
+      - '/dependabot\/.+/'
+    title:
+      - '/^chore?:/i'
+      - '/^bump /i'
+  - label: "refactor"
+    branch:
+      - '/refactor(\/|-).+/'
+    title:
+      - '/^refactor?:/i'
+  - label: "bug"
+    branch:
+      - '/fix\/.+/'
+      - '/bug(\/|-).+/'
+    title:
+      - "/fix/i"
+      - '/^bug?:/i'
+  - label: "feature"
+    branch:
+      - '/^feat(ure)?:/i'
+      - '/^enhancement?:/i'
 template: |
   ## What's New
   $CHANGES
