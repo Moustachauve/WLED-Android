@@ -82,6 +82,7 @@
     <string name="unknown_error">未知错误</string>
     <string name="success">成功！</string>
     <string name="update_channel">更新频道</string>
+    <string name="update_source">更新来源</string>
     <string name="stable">稳定</string>
     <string name="beta">Beta</string>
     <string name="your_device_is_up_to_date">您的设备已是最新版本</string>

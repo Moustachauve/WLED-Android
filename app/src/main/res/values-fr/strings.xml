@@ -84,6 +84,7 @@
     <string name="unknown_error">Erreur inconnue</string>
     <string name="success">Succès!</string>
     <string name="update_channel">Variante de MàJ</string>
+    <string name="update_source">Source de mise à jour</string>
     <string name="stable">Stable</string>
     <string name="beta">Bêta</string>
     <string name="version_v_num">Version <xliff:g example="v0.14.0" id="version_name">%1$s</xliff:g></string>
