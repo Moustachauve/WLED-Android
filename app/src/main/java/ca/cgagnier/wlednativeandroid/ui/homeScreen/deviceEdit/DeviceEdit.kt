@@ -23,6 +23,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +48,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -79,6 +81,11 @@ fun DeviceEdit(
     val updateDisclaimerVersion by viewModel.updateDisclaimerVersion.collectAsState()
     val updateInstallVersion by viewModel.updateInstallVersion.collectAsState()
     val isCheckingUpdates by viewModel.isCheckingUpdates.collectAsState()
+    val repository by viewModel.repository.collectAsState()
+
+    LaunchedEffect(device.device.repositoryId) {
+        viewModel.loadRepository(device.device.repositoryId)
+    }
 
     Scaffold(
         topBar = {
@@ -181,6 +188,31 @@ fun DeviceEdit(
                                     viewModel.checkForUpdates(device.device)
                                 },
                             )
+                        }
+                        repository?.let { repo ->
+                            HorizontalDivider(
+                                modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.update_source),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    text = repo.ownerAndRepo,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.End,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                 }

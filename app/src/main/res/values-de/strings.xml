@@ -85,6 +85,7 @@
     <string name="unknown_error">Unbekannter Fehler</string>
     <string name="success">Erfolg!</string>
     <string name="update_channel">Update-Kanal</string>
+    <string name="update_source">Update-Quelle</string>
     <string name="stable">Stable</string>
     <string name="beta">Beta</string>
     <string name="your_device_is_up_to_date">Dein Gerät ist auf dem neuesten Stand</string>

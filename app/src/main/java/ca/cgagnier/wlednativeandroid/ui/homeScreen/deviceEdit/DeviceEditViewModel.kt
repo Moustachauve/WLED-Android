@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
@@ -48,6 +49,13 @@ class DeviceEditViewModel @Inject constructor(
 
     private var _isCheckingUpdates = MutableStateFlow(false)
     val isCheckingUpdates = _isCheckingUpdates.asStateFlow()
+
+    private val _repository = MutableStateFlow<Repository?>(null)
+    val repository = _repository.asStateFlow()
+
+    fun loadRepository(repositoryId: Long) = viewModelScope.launch(Dispatchers.IO) {
+        _repository.value = repositoryDao.getRepositoryById(repositoryId)
+    }
 
     fun updateCustomName(device: Device, name: String) = viewModelScope.launch(Dispatchers.IO) {
         val updatedDevice = device.copy(
