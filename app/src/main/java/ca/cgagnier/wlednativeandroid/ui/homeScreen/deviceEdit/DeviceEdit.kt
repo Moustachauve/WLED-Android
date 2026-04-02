@@ -319,6 +319,8 @@ private fun UpdateStatusCard(
     onCheckForUpdates: () -> Unit,
     onSeeUpdateDetails: (String) -> Unit,
 ) {
+    val isOfflineNoState = !device.isOnline && device.stateInfo.value == null
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -329,19 +331,23 @@ private fun UpdateStatusCard(
                 .padding(12.dp)
                 .fillMaxWidth(),
         ) {
-            val currentUpdateTag = uiState.updateTag
-            if (currentUpdateTag != null) {
-                UpdateAvailable(
-                    device = device,
-                    updateTag = currentUpdateTag,
-                    seeUpdateDetails = { onSeeUpdateDetails(currentUpdateTag) },
-                )
+            if (isOfflineNoState) {
+                DeviceOfflineStatus()
             } else {
-                NoUpdateAvailable(
-                    device = device,
-                    isCheckingUpdates = uiState.isCheckingUpdates,
-                    checkForUpdate = onCheckForUpdates,
-                )
+                val currentUpdateTag = uiState.updateTag
+                if (currentUpdateTag != null) {
+                    UpdateAvailable(
+                        device = device,
+                        updateTag = currentUpdateTag,
+                        seeUpdateDetails = { onSeeUpdateDetails(currentUpdateTag) },
+                    )
+                } else {
+                    NoUpdateAvailable(
+                        device = device,
+                        isCheckingUpdates = uiState.isCheckingUpdates,
+                        checkForUpdate = onCheckForUpdates,
+                    )
+                }
             }
             uiState.repository?.let { repo ->
                 HorizontalDivider(
@@ -369,6 +375,32 @@ private fun UpdateStatusCard(
                     )
                 }
             }
+        }
+    }
+}
+
+/** Shows an informational message when the device is offline and has no known state. */
+@Composable
+private fun DeviceOfflineStatus() {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            modifier = Modifier
+                .padding(8.dp)
+                .padding(end = 10.dp),
+            painter = painterResource(R.drawable.outline_wifi_off_24),
+            contentDescription = stringResource(R.string.is_offline),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column {
+            Text(
+                stringResource(R.string.device_offline_update_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                stringResource(R.string.device_offline_update_message),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -588,6 +620,28 @@ private fun PreviewBetaNoBack() {
             ),
             actions = DeviceEditActions(),
             canNavigateBack = false,
+            navigateUp = {},
+        )
+    }
+}
+
+@Preview(name = "Offline — no state", showBackground = true)
+@Composable
+private fun PreviewOfflineNoState() {
+    WLEDNativeTheme(darkTheme = false) {
+        DeviceEditContent(
+            device = DeviceWithState(
+                Device(
+                    macAddress = AP_MODE_MAC_ADDRESS,
+                    address = "192.168.1.42",
+                    originalName = "Garage LEDs",
+                ),
+            ),
+            uiState = DeviceEditUiState(
+                repository = Repository.BUILT_IN_REPOSITORIES.first(),
+            ),
+            actions = DeviceEditActions(),
+            canNavigateBack = true,
             navigateUp = {},
         )
     }
