@@ -43,7 +43,7 @@ import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
 fun UpdateInstallingDialog(
     device: DeviceWithState,
     version: VersionWithAssets,
-    onDismiss: () -> Unit,
+    onDismiss: (wasSuccessful: Boolean) -> Unit,
     viewModel: UpdateInstallingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -57,8 +57,9 @@ fun UpdateInstallingDialog(
         state = state,
         device = device,
         onDismiss = {
+            val wasSuccessful = state.step is UpdateInstallingStep.Done
             viewModel.resetState()
-            onDismiss()
+            onDismiss(wasSuccessful)
         },
         onToggleErrorMessage = {
             viewModel.toggleErrorMessage()
