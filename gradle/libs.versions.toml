@@ -1,7 +1,7 @@
 [versions]
 # App version - Update these when releasing
-app-versionCode = "50"
-app-versionName = "7.0.0-beta260317-01"
+app-versionCode = "51"
+app-versionName = "7.0.0"
 
 agp = "9.1.0"
 composeBom = "2026.03.01"
