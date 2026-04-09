@@ -109,7 +109,7 @@ private fun ChangelogContent(content: String, modifier: Modifier = Modifier) {
     ) {
         WledMarkdown(
             content = content,
-            modifier = modifier,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
