@@ -13,6 +13,7 @@ import kotlinx.serialization.Serializable
 fun MainNavHost(
     navController: NavHostController = rememberNavController(),
     startDeviceAddress: NavigationEvent? = null,
+    openChangelogs: () -> Unit = {},
 ) {
     NavHost(
         navController = navController,
@@ -24,6 +25,7 @@ fun MainNavHost(
                 openSettings = {
                     navController.navigate(SettingsScreen)
                 },
+                openChangelogs = openChangelogs,
             )
         }
         composable<SettingsScreen> {

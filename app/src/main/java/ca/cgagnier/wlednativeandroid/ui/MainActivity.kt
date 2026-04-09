@@ -42,6 +42,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
+    private val changelogViewModel: ChangelogViewModel by viewModels()
 
     // For WebView file upload support
     var uploadMessage: ValueCallback<Array<Uri>>? = null
@@ -73,7 +74,11 @@ class MainActivity : ComponentActivity() {
                         navigationEvent = event
                     },
                 )
-                MainNavHost(startDeviceAddress = navigationEvent)
+                MainNavHost(
+                    startDeviceAddress = navigationEvent,
+                    openChangelogs = { changelogViewModel.showAllChangelogs() }
+                )
+                ca.cgagnier.wlednativeandroid.ui.components.ChangelogBottomSheet(viewModel = changelogViewModel)
             }
         }
         viewModel.downloadUpdateMetadata()

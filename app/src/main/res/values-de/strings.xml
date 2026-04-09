@@ -133,4 +133,9 @@
     <string name="control_off">Aus</string>
     <string name="no_release_notes_provided">Keine Versionshinweise vorhanden</string>
 
+    <!-- Changelog -->
+    <string name="changelog_title">Was gibt\'s Neues</string>
+    <string name="changelog_dismiss_button">Fantastisch</string>
+    <string name="show_changelog">Änderungsprotokoll anzeigen</string>
+
 </resources>

@@ -46,6 +46,7 @@ fun DeviceListDetail(
     modifier: Modifier = Modifier,
     initialDeviceMacAddress: NavigationEvent? = null,
     openSettings: () -> Unit,
+    openChangelogs: () -> Unit = {},
     viewModel: DeviceListDetailViewModel = hiltViewModel(),
     deviceWebsocketListViewModel: DeviceWebsocketListViewModel = hiltViewModel(),
 ) {
@@ -91,7 +92,7 @@ fun DeviceListDetail(
         gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             ModalDrawerSheet {
-                DrawerSheetContent(coroutineScope, drawerState, showHiddenDevices, viewModel, openSettings)
+                DrawerSheetContent(coroutineScope, drawerState, showHiddenDevices, viewModel, openSettings, openChangelogs)
             }
         },
     ) {
@@ -176,6 +177,7 @@ private fun DrawerSheetContent(
     showHiddenDevices: Boolean,
     viewModel: DeviceListDetailViewModel,
     openSettings: () -> Unit,
+    openChangelogs: () -> Unit,
 ) {
     DrawerContent(
         showHiddenDevices = showHiddenDevices,
@@ -194,6 +196,12 @@ private fun DrawerSheetContent(
         openSettings = {
             coroutineScope.launch {
                 openSettings()
+                drawerState.close()
+            }
+        },
+        openChangelogs = {
+            coroutineScope.launch {
+                openChangelogs()
                 drawerState.close()
             }
         },
