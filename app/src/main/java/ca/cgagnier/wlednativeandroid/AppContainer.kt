@@ -6,6 +6,7 @@ import androidx.datastore.dataStore
 import ca.cgagnier.wlednativeandroid.repository.AssetDao
 import ca.cgagnier.wlednativeandroid.repository.DeviceDao
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
+import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesSerializer
@@ -31,76 +32,67 @@ private val Context.userPreferencesStore: DataStore<UserPreferences> by dataStor
     serializer = UserPreferencesSerializer(),
     produceMigrations = { _ ->
         listOf(UserPreferencesV0ToV1())
-    })
+    },
+)
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AppContainer {
     @Provides
     @Singleton
-    fun provideAppDatabase(@ApplicationContext appContext: Context): DevicesDatabase {
-        return DevicesDatabase.getDatabase(appContext)
-    }
+    fun provideAppDatabase(@ApplicationContext appContext: Context): DevicesDatabase =
+        DevicesDatabase.getDatabase(appContext)
 
     @Provides
     @Singleton
-    fun provideDeviceDao(appDatabase: DevicesDatabase): DeviceDao {
-        return appDatabase.deviceDao()
-    }
+    fun provideDeviceDao(appDatabase: DevicesDatabase): DeviceDao = appDatabase.deviceDao()
 
     @Provides
     @Singleton
-    fun provideVersionDao(appDatabase: DevicesDatabase): VersionDao {
-        return appDatabase.versionDao()
-    }
+    fun provideVersionDao(appDatabase: DevicesDatabase): VersionDao = appDatabase.versionDao()
 
     @Provides
     @Singleton
-    fun provideAssetDao(appDatabase: DevicesDatabase): AssetDao {
-        return appDatabase.assetDao()
-    }
+    fun provideRepositoryDao(appDatabase: DevicesDatabase): RepositoryDao = appDatabase.repositoryDao()
+
+    @Provides
+    @Singleton
+    fun provideAssetDao(appDatabase: DevicesDatabase): AssetDao = appDatabase.assetDao()
 
     @Provides
     @Singleton
     fun provideVersionWithAssetsRepository(
-        appDatabase: DevicesDatabase, versionDao: VersionDao, assetDao: AssetDao
-    ): VersionWithAssetsRepository {
-        return VersionWithAssetsRepository(appDatabase, versionDao, assetDao)
-    }
+        appDatabase: DevicesDatabase,
+        repositoryDao: RepositoryDao,
+        versionDao: VersionDao,
+        assetDao: AssetDao,
+    ): VersionWithAssetsRepository = VersionWithAssetsRepository(appDatabase, repositoryDao, versionDao, assetDao)
 
     @Provides
     @Singleton
-    fun providesReleaseService(versionWithAssetsRepository: VersionWithAssetsRepository): ReleaseService {
-        return ReleaseService(versionWithAssetsRepository)
-    }
+    fun providesReleaseService(
+        versionWithAssetsRepository: VersionWithAssetsRepository,
+        repositoryDao: RepositoryDao,
+    ): ReleaseService = ReleaseService(versionWithAssetsRepository, repositoryDao)
 
     @Provides
     @Singleton
-    fun provideUserPreferencesStore(
-        @ApplicationContext appContext: Context
-    ): DataStore<UserPreferences> {
-        return appContext.userPreferencesStore
-    }
+    fun provideUserPreferencesStore(@ApplicationContext appContext: Context): DataStore<UserPreferences> =
+        appContext.userPreferencesStore
 
     @Provides
     @Singleton
-    fun provideUserPreferencesRepository(
-        @ApplicationContext appContext: Context
-    ): UserPreferencesRepository {
-        return UserPreferencesRepository(appContext.userPreferencesStore)
-    }
+    fun provideUserPreferencesRepository(@ApplicationContext appContext: Context): UserPreferencesRepository =
+        UserPreferencesRepository(appContext.userPreferencesStore)
 
     @Provides
     @Singleton
-    fun providesCoroutineScope(): CoroutineScope {
-        return CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    }
+    fun providesCoroutineScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Provides
     @Singleton
     fun providesNetworkConnectivityManager(
-        @ApplicationContext appContext: Context, coroutineScope: CoroutineScope
-    ): NetworkConnectivityManager {
-        return NetworkConnectivityManager(appContext, coroutineScope)
-    }
+        @ApplicationContext appContext: Context,
+        coroutineScope: CoroutineScope,
+    ): NetworkConnectivityManager = NetworkConnectivityManager(appContext, coroutineScope)
 }

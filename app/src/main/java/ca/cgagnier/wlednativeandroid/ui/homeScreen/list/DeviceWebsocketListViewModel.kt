@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen.list
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -10,11 +11,12 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
-import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
-import com.squareup.moshi.Moshi
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientFactory
+import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,7 +26,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 private const val TAG = "DeviceWebsocketListViewModel"
@@ -33,18 +34,23 @@ private const val TAG = "DeviceWebsocketListViewModel"
 class DeviceWebsocketListViewModel @Inject constructor(
     userPreferencesRepository: UserPreferencesRepository,
     private val deviceRepository: DeviceRepository,
-    private val deviceUpdateManager: DeviceUpdateManager,
-    private val okHttpClient: OkHttpClient,
-    private val moshi: Moshi
-) : ViewModel(), DefaultLifecycleObserver {
+    private val websocketClientFactory: WebsocketClientFactory,
+    private val widgetManager: WledWidgetManager,
+    @ApplicationContext private val applicationContext: Context,
+) : ViewModel(),
+    DefaultLifecycleObserver {
     private val activeClients = MutableStateFlow<Map<String, WebsocketClient>>(emptyMap())
     private val devicesFromDb = deviceRepository.allDevices
 
     val showOfflineDevicesLast = userPreferencesRepository.showOfflineDevicesLast.stateIn(
-        scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = false
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false,
     )
     val showHiddenDevices = userPreferencesRepository.showHiddenDevices.stateIn(
-        scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = false
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false,
     )
 
     // Track if the ViewModel is paused or not. It would be paused if the app is in the
@@ -75,9 +81,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
                     if (existingClient == null) {
                         // Device added: create and connect a new client.
                         Log.d(TAG, "[Scan] Device added: $macAddress. Creating client.")
-                        val newClient = WebsocketClient(
-                            device, deviceRepository, deviceUpdateManager, okHttpClient, moshi
-                        )
+                        val newClient = websocketClientFactory.create(device)
                         if (!isPaused.value) {
                             newClient.connect()
                         }
@@ -86,12 +90,10 @@ class DeviceWebsocketListViewModel @Inject constructor(
                         // Device IP changed: reconnect the client.
                         Log.d(
                             TAG,
-                            "[Scan] Device address changed for $macAddress. Reconnecting client."
+                            "[Scan] Device address changed for $macAddress. Reconnecting client.",
                         )
                         existingClient.destroy()
-                        val newClient = WebsocketClient(
-                            device, deviceRepository, deviceUpdateManager, okHttpClient, moshi
-                        )
+                        val newClient = websocketClientFactory.create(device)
                         if (!isPaused.value) {
                             newClient.connect()
                         }
@@ -107,7 +109,6 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 // Emit the new map of clients to the StateFlow.
                 activeClients.value = updatedClients
             }
-
         }
     }
 
@@ -141,7 +142,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
+        initialValue = emptyList(),
     )
 
     override fun onCleared() {
@@ -174,7 +175,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
             if (client == null) {
                 Log.w(
                     TAG,
-                    "setBrightness: No active client found for MAC address ${device.device.macAddress}"
+                    "setBrightness: No active client found for MAC address ${device.device.macAddress}",
                 )
                 return@launch
             }
@@ -189,7 +190,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
             if (client == null) {
                 Log.w(
                     TAG,
-                    "setDevicePower: No active client found for MAC address ${device.device.macAddress}"
+                    "setDevicePower: No active client found for MAC address ${device.device.macAddress}",
                 )
                 return@launch
             }
@@ -199,8 +200,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
     }
 
     fun deleteDevice(device: Device) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             Log.d(TAG, "Deleting device ${device.originalName} - ${device.address}")
+            widgetManager.deleteWidgetsForDevice(applicationContext, device.macAddress)
             deviceRepository.delete(device)
         }
     }

@@ -24,4 +24,7 @@ interface AssetDao {
 
     @Query("DELETE FROM asset")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM asset WHERE versionId IN (SELECT id FROM version WHERE repositoryId = :repositoryId)")
+    suspend fun getAssetsByRepository(repositoryId: Long): List<Asset>
 }

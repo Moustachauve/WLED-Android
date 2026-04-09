@@ -35,17 +35,37 @@ interface VersionDao {
     @Query("DELETE FROM version")
     suspend fun deleteAll()
 
-    @Transaction
-    @Query("SELECT * FROM version WHERE isPrerelease = 0 AND tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1")
-    suspend fun getLatestStableVersionWithAssets(): VersionWithAssets?
+    @Query("SELECT * FROM version WHERE repositoryId = :repositoryId")
+    suspend fun getVersionsByRepository(repositoryId: Long): List<Version>
 
     @Transaction
-    @Query("SELECT * FROM version WHERE tagName != '$IGNORED_TAG' ORDER BY publishedDate DESC LIMIT 1")
-    suspend fun getLatestBetaVersionWithAssets(): VersionWithAssets?
+    @Query(
+        """
+        SELECT * FROM version
+        WHERE repositoryId = :repositoryId
+        AND isPrerelease = 0
+        AND tagName != '$IGNORED_TAG'
+        ORDER BY publishedDate DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun getLatestStableVersionWithAssets(repositoryId: Long): VersionWithAssets?
 
     @Transaction
-    @Query("SELECT * FROM version WHERE tagName = :tagName LIMIT 1")
-    suspend fun getVersionByTagName(tagName: String): VersionWithAssets?
+    @Query(
+        """
+        SELECT * FROM version
+        WHERE repositoryId = :repositoryId
+        AND tagName != '$IGNORED_TAG'
+        ORDER BY publishedDate DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun getLatestBetaVersionWithAssets(repositoryId: Long): VersionWithAssets?
+
+    @Transaction
+    @Query("SELECT * FROM version WHERE repositoryId = :repositoryId AND tagName = :tagName LIMIT 1")
+    suspend fun getVersionByTagName(repositoryId: Long, tagName: String): VersionWithAssets?
 
     @Transaction
     @Query("SELECT * FROM version")

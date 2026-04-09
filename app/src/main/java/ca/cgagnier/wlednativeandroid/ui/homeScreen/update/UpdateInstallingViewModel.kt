@@ -6,10 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
+import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateService
+import ca.cgagnier.wlednativeandroid.service.update.splitRepository
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -29,8 +32,9 @@ private const val TAG = "UpdateInstallingViewModel"
 @HiltViewModel
 class UpdateInstallingViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository,
+    private val repositoryDao: RepositoryDao,
     private val deviceApiFactory: DeviceApiFactory,
-    private val githubApi: GithubApi
+    private val githubApi: GithubApi,
 ) : ViewModel() {
     private var updateStarted = false
 
@@ -51,8 +55,9 @@ class UpdateInstallingViewModel @Inject constructor(
             val step = previousState.step as UpdateInstallingStep.Error
             previousState.copy(
                 step = UpdateInstallingStep.Error(
-                    step.error, !step.showError
-                )
+                    step.error,
+                    !step.showError,
+                ),
             )
         }
     }
@@ -62,15 +67,11 @@ class UpdateInstallingViewModel @Inject constructor(
         updateStarted = false
     }
 
-    fun startUpdate(
-        device: DeviceWithState,
-        version: VersionWithAssets,
-        cacheDir: File,
-    ) {
+    fun startUpdate(device: DeviceWithState, version: VersionWithAssets, cacheDir: File) {
         if (updateStarted) {
             Log.w(
                 TAG,
-                "Update already started, ignoring startUpdate for ${device.device.originalName}"
+                "Update already started, ignoring startUpdate for ${device.device.originalName}",
             )
             return
         }
@@ -80,7 +81,8 @@ class UpdateInstallingViewModel @Inject constructor(
         _version.update { version }
         _state.update { previousState ->
             previousState.copy(
-                canDismiss = true, step = UpdateInstallingStep.Starting
+                canDismiss = true,
+                step = UpdateInstallingStep.Starting,
             )
         }
 
@@ -91,7 +93,7 @@ class UpdateInstallingViewModel @Inject constructor(
                 previousState.copy(
                     canDismiss = true,
                     step = UpdateInstallingStep.NoCompatibleVersion,
-                    assetName = updateService.getAssetName()
+                    assetName = updateService.getAssetName(),
                 )
             }
             return
@@ -100,9 +102,7 @@ class UpdateInstallingViewModel @Inject constructor(
         downloadAsset(updateService)
     }
 
-    private fun downloadAsset(
-        updateService: DeviceUpdateService
-    ) = viewModelScope.launch(Dispatchers.IO) {
+    private fun downloadAsset(updateService: DeviceUpdateService) = viewModelScope.launch(Dispatchers.IO) {
         if (updateService.isAssetFileCached()) {
             Log.d(TAG, "asset '${updateService.getAssetName()}' is already downloaded, reusing")
             installUpdate(updateService)
@@ -110,7 +110,11 @@ class UpdateInstallingViewModel @Inject constructor(
         }
 
         Log.d(TAG, "Downloading asset '${updateService.getAssetName()}'")
-        updateService.downloadBinary().collect { downloadState ->
+        val repo = repositoryDao.getRepositoryById(updateService.device.device.repositoryId)
+        val repoStr = repo?.ownerAndRepo ?: DEFAULT_REPO
+        val (repoOwner, repoName) = splitRepository(repoStr)
+
+        updateService.downloadBinary(repoOwner, repoName).collect { downloadState ->
             when (downloadState) {
                 is DownloadState.Downloading -> {
                     Log.d(TAG, "File download Progress=${downloadState.progress}")
@@ -118,7 +122,7 @@ class UpdateInstallingViewModel @Inject constructor(
                         previousState.copy(
                             canDismiss = true,
                             step = UpdateInstallingStep.Downloading(downloadState.progress),
-                            assetName = updateService.getAssetName()
+                            assetName = updateService.getAssetName(),
                         )
                     }
                 }
@@ -127,9 +131,11 @@ class UpdateInstallingViewModel @Inject constructor(
                     Log.e(TAG, "File download Fail: ${downloadState.error}")
                     _state.update { previousState ->
                         previousState.copy(
-                            canDismiss = true, step = UpdateInstallingStep.Error(
-                                downloadState.error.toString()
-                            ), assetName = updateService.getAssetName()
+                            canDismiss = true,
+                            step = UpdateInstallingStep.Error(
+                                downloadState.error.toString(),
+                            ),
+                            assetName = updateService.getAssetName(),
                         )
                     }
                     this.coroutineContext.job.cancel()
@@ -150,7 +156,7 @@ class UpdateInstallingViewModel @Inject constructor(
             previousState.copy(
                 canDismiss = false,
                 step = UpdateInstallingStep.Installing,
-                assetName = updateService.getAssetName()
+                assetName = updateService.getAssetName(),
             )
         }
         updateService.sendSoftwareUpdateRequest(
@@ -165,7 +171,8 @@ class UpdateInstallingViewModel @Inject constructor(
         if (response.code() in 200..299) {
             _state.update { previousState ->
                 previousState.copy(
-                    canDismiss = true, step = UpdateInstallingStep.Done
+                    canDismiss = true,
+                    step = UpdateInstallingStep.Done,
                 )
             }
         } else {
@@ -174,7 +181,8 @@ class UpdateInstallingViewModel @Inject constructor(
             Log.d(TAG, "OTA Failed onResponse, error $errorString")
             _state.update { previousState ->
                 previousState.copy(
-                    canDismiss = true, step = UpdateInstallingStep.Error(errorString)
+                    canDismiss = true,
+                    step = UpdateInstallingStep.Error(errorString),
                 )
             }
         }
@@ -188,7 +196,8 @@ class UpdateInstallingViewModel @Inject constructor(
         Log.d(TAG, "OTA Failed onFailure, error $errorString")
         _state.update { previousState ->
             previousState.copy(
-                canDismiss = true, step = UpdateInstallingStep.Error(errorString)
+                canDismiss = true,
+                step = UpdateInstallingStep.Error(errorString),
             )
         }
     }
@@ -200,7 +209,7 @@ class UpdateInstallingViewModel @Inject constructor(
         val device = device.value ?: return@launch
         Log.d(TAG, "Resetting skipUpdateTag")
         val updatedDevice = device.device.copy(
-            skipUpdateTag = ""
+            skipUpdateTag = "",
         )
         deviceRepository.update(updatedDevice)
     }
@@ -224,7 +233,7 @@ class UpdateInstallingViewModel @Inject constructor(
             Pattern.compile("<body[^>]*>(.*?)</body>", Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
         private val JUNK_TAG_PATTERN = Pattern.compile(
             "<(button|script|style)[^>]*>.*?</\\1>",
-            Pattern.CASE_INSENSITIVE or Pattern.DOTALL
+            Pattern.CASE_INSENSITIVE or Pattern.DOTALL,
         )
     }
 }

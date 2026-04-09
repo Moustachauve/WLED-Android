@@ -86,10 +86,13 @@
     <string name="unknown_error">Unknown Error</string>
     <string name="success">Success!</string>
     <string name="update_channel">Update Channel</string>
+    <string name="update_source">Update Source</string>
     <string name="stable">Stable</string>
     <string name="beta">Beta</string>
     <string name="your_device_is_up_to_date">Your device is up to date</string>
     <string name="version_v_num">Version <xliff:g example="v0.14.0" id="version_name">%1$s</xliff:g></string>
+    <string name="device_offline_update_title">Unable to check for updates</string>
+    <string name="device_offline_update_message">The device must be online to verify its current version and check for available updates.</string>
     <string name="select_a_device_from_the_list">Select a device from the list</string>
     <string name="help">WLED Help</string>
     <string name="support_me">Support Moustachauve</string>
@@ -113,4 +116,22 @@
     <string name="open">Open</string>
     <string name="dismiss">Dismiss</string>
     <string name="some_devices_hidden">Some of your devices are hidden</string>
+    <!-- TODO: Translate the widget texts -->
+    <string name="widget_single_device_name">Single Device</string>
+    <string name="widget_description">Control a single WLED device</string>
+    <string name="widget_please_configure">Please configure</string>
+    <string name="select_a_device">Select a Device</string>
+    <string name="last_updated">Last Updated</string>
+
+    <!-- Deep linking -->
+    <string name="deep_link_loading">Connecting to device…</string>
+    <string name="deep_link_error_title">Device Not Found</string>
+    <string name="deep_link_error_mac_not_found">Device with MAC address %1$s not found in your device list</string>
+    <string name="deep_link_error_unreachable">Could not reach device at %1$s. Make sure it is powered on and connected to the network.</string>
+
+    <!-- Device Controls (Quick Settings) -->
+    <string name="control_on">On</string>
+    <string name="control_off">Off</string>
+    <string name="no_release_notes_provided">No release notes provided</string>
+
 </resources>

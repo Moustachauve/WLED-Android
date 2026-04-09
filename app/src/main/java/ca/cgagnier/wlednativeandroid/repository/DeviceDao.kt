@@ -31,7 +31,7 @@ interface DeviceDao {
     @Query("SELECT * FROM Device2 WHERE address = :address")
     fun findLiveDeviceByAddress(address: String): Flow<Device?>
 
-    @Query("SELECT * FROM Device2 WHERE macAddress != '' AND macAddress = :address")
+    @Query("SELECT * FROM Device2 WHERE macAddress != '' AND LOWER(macAddress) = LOWER(:address)")
     suspend fun findDeviceByMacAddress(address: String): Device?
 
     @Query("SELECT COUNT() FROM Device2 WHERE address = :address")
@@ -42,6 +42,9 @@ interface DeviceDao {
 
     @Query("SELECT * FROM Device2")
     fun getAllDevices(): List<Device>
+
+    @Query("SELECT DISTINCT repositoryId FROM Device2")
+    fun getUsedRepositoryIds(): List<Long>
 
     @Query("SELECT * FROM Device2 ORDER BY LOWER(COALESCE(customName, originalName)) ASC, LOWER(address) ASC")
     fun getAlphabetizedDevices(): Flow<List<Device>>

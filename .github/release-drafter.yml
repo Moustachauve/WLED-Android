@@ -1,5 +1,5 @@
-name-template: 'v$NEXT_PATCH_VERSION'
-tag-template: 'v$NEXT_PATCH_VERSION'
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
 categories:
   - title: '🚀 New Features'
     labels:
@@ -21,11 +21,52 @@ version-resolver:
   minor:
     labels:
       - 'minor'
+      - 'feature'
+      - 'enhancement'
   patch:
     labels:
       - 'patch'
       - 'fix'
+      - 'bug'
   default: patch
+autolabeler:
+  - label: "documentation"
+    files:
+      - "*.md"
+    branch:
+      - '/docs{0,1}\/.+/'
+    title:
+      - '/^docs?:/i'
+  - label: "chore"
+    files:
+      - "*.gradle.kts"
+      - "gradle/libs.versions.toml"
+      - ".github/**/*.yml"
+    branch:
+      - '/chore(\/|-).+/'
+      - '/dependabot\/.+/'
+    title:
+      - '/^chore?:/i'
+      - '/^bump /i'
+  - label: "refactor"
+    branch:
+      - '/refactor(\/|-).+/'
+    title:
+      - '/^refactor?:/i'
+  - label: "bug"
+    branch:
+      - '/fix\/.+/'
+      - '/bug(\/|-).+/'
+    title:
+      - '/fix/i'
+      - '/^bug?:/i'
+  - label: "feature"
+    branch:
+      - '/feat(ure)?(\/|-).+/'
+      - '/enhancement(\/|-).+/'
+    title:
+      - '/^feat(ure)?:/i'
+      - '/^enhancement?:/i'
 template: |
   ## What's New
   $CHANGES

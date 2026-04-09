@@ -82,9 +82,12 @@
     <string name="unknown_error">未知错误</string>
     <string name="success">成功！</string>
     <string name="update_channel">更新频道</string>
+    <string name="update_source">更新来源</string>
     <string name="stable">稳定</string>
     <string name="beta">Beta</string>
     <string name="your_device_is_up_to_date">您的设备已是最新版本</string>
+    <string name="device_offline_update_title">无法检查更新</string>
+    <string name="device_offline_update_message">设备必须在线才能验证其当前版本并检查可用更新。</string>
     <string name="version_v_num">版本 <xliff:g example="v0.14.0" id="version_name">%1$s</xliff:g></string>
     <string name="select_a_device_from_the_list">从列表中选择一个设备</string>
     <string name="downloading_file">正在下载 %1$s…</string>
@@ -109,4 +112,22 @@
     <string name="open">打开</string>
     <string name="dismiss">关闭</string>
     <string name="some_devices_hidden">你有已隐藏的设备</string>
+
+    <string name="widget_single_device_name">单个设备</string>
+    <string name="widget_description">控制单个 WLED 设备</string>
+    <string name="widget_please_configure">请配置</string>
+    <string name="select_a_device">选择设备</string>
+    <string name="last_updated">最后更新</string>
+
+    <!-- Deep linking -->
+    <string name="deep_link_loading">正在连接设备…</string>
+    <string name="deep_link_error_title">未找到设备</string>
+    <string name="deep_link_error_mac_not_found">未在列表中找到 MAC 地址为 %1$s 的设备</string>
+    <string name="deep_link_error_unreachable">无法连接到 %1$s。请确保设备已开机并连接到网络。</string>
+
+    <!-- Device Controls (Quick Settings) -->
+    <string name="control_on">开</string>
+    <string name="control_off">关</string>
+    <string name="no_release_notes_provided">未提供发行说明</string>
+
 </resources>
