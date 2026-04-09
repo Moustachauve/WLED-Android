@@ -138,6 +138,8 @@ dependencies {
     implementation(libs.moshi)
     implementation(libs.multiplatformmarkdownrenderer)
     implementation(libs.multiplatformmarkdownrenderer.m3)
+    implementation(libs.multiplatformmarkdownrenderer.coil3)
+    implementation(libs.coil3.compose)
     implementation(libs.okhttp)
     implementation(libs.protobuf.javalite)
     implementation(libs.retrofit)

@@ -134,4 +134,9 @@
     <string name="control_off">Off</string>
     <string name="no_release_notes_provided">No release notes provided</string>
 
+    <!-- Changelog -->
+    <string name="changelog_title">What\'s new</string>
+    <string name="changelog_dismiss_button">Awesome</string>
+    <string name="show_changelog">Show changelog</string>
+
 </resources>

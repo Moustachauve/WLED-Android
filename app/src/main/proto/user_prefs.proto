@@ -35,4 +35,6 @@ message UserPreferences {
   int64 date_last_written = 10;
 
   bool show_hidden_devices = 11;
+
+  string last_changelog_version_seen = 12;
 }

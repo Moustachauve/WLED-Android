@@ -14,6 +14,10 @@ This aims to replace the previous WLED app [found here](https://github.com/Airco
 - Light and dark mode
 - Tablet support for a better experience on wider screens
 
+## Changelog
+You can view the release notes and keep track of new features inside the [Changelog Directory](app/src/main/assets/changelog/). 
+If you are contributing to the project, please try to keep the latest changelog up to date with your changes!
+
 ## Disclaimer
 
 This project is not an official Google project. It is not supported by

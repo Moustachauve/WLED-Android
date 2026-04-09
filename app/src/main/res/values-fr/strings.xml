@@ -132,4 +132,9 @@
     <string name="control_off">Éteint</string>
     <string name="no_release_notes_provided">Aucune note de version fournie</string>
 
+    <!-- Changelog -->
+    <string name="changelog_title">Nouveautés</string>
+    <string name="changelog_dismiss_button">Génial</string>
+    <string name="show_changelog">Afficher les nouveautés</string>
+
 </resources>

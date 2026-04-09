@@ -22,3 +22,7 @@ If you are fixing a critical bug in production:
 1. Branch off `main`.
 2. Submit a PR to `main`.
 3. **Important:** You must also merge these changes back into `dev` to ensure the bug doesn't reappear in the next release.
+
+## Updating the Changelog
+When your Pull Request introduces a new feature or an important bug fix, please update the development changelog file located at `app/src/main/assets/changelog/dev.md`. 
+**Do not** create new versioned files (like `7.2.0.md`) or edit production changelogs for new PRs. Keeping `dev.md` up to date ensures all new features are correctly aggregated for the next release and displayed clearly for beta testers!

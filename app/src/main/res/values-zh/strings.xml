@@ -130,4 +130,9 @@
     <string name="control_off">关</string>
     <string name="no_release_notes_provided">未提供发行说明</string>
 
+    <!-- Changelog -->
+    <string name="changelog_title">更新内容</string>
+    <string name="changelog_dismiss_button">太棒了</string>
+    <string name="show_changelog">查看更新日志</string>
+
 </resources>

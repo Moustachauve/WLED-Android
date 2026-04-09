@@ -5,6 +5,7 @@ app-versionName = "7.0.0"
 
 agp = "9.1.0"
 composeBom = "2026.03.01"
+coil3 = "3.4.0"
 converterMoshi = "3.0.0"
 core = "4.6.2"
 coreKtx = "1.18.0"
@@ -94,6 +95,8 @@ moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshiVersion" }
 moshi-kotlin-codegen = { module = "com.squareup.moshi:moshi-kotlin-codegen", version.ref = "moshiKotlinCodegen" }
 multiplatformmarkdownrenderer = { module = "com.mikepenz:multiplatform-markdown-renderer", version.ref = "multiplatformmarkdownrenderer" }
 multiplatformmarkdownrenderer-m3 = { module = "com.mikepenz:multiplatform-markdown-renderer-m3", version.ref = "multiplatformmarkdownrenderer" }
+multiplatformmarkdownrenderer-coil3 = { module = "com.mikepenz:multiplatform-markdown-renderer-coil3", version.ref = "multiplatformmarkdownrenderer" }
+coil3-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobufJavalite" }
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }

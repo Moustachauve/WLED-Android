@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 fun DeviceListDetail(
     modifier: Modifier = Modifier,
     initialDeviceMacAddress: NavigationEvent? = null,
-    openSettings: () -> Unit,
+    actions: DeviceListDetailActions,
     viewModel: DeviceListDetailViewModel = hiltViewModel(),
     deviceWebsocketListViewModel: DeviceWebsocketListViewModel = hiltViewModel(),
 ) {
@@ -91,7 +91,13 @@ fun DeviceListDetail(
         gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             ModalDrawerSheet {
-                DrawerSheetContent(coroutineScope, drawerState, showHiddenDevices, viewModel, openSettings)
+                DrawerSheetContent(
+                    coroutineScope = coroutineScope,
+                    drawerState = drawerState,
+                    showHiddenDevices = showHiddenDevices,
+                    viewModel = viewModel,
+                    actions = actions,
+                )
             }
         },
     ) {
@@ -175,7 +181,7 @@ private fun DrawerSheetContent(
     drawerState: DrawerState,
     showHiddenDevices: Boolean,
     viewModel: DeviceListDetailViewModel,
-    openSettings: () -> Unit,
+    actions: DeviceListDetailActions,
 ) {
     DrawerContent(
         showHiddenDevices = showHiddenDevices,
@@ -193,9 +199,17 @@ private fun DrawerSheetContent(
         },
         openSettings = {
             coroutineScope.launch {
-                openSettings()
+                actions.openSettings()
+                drawerState.close()
+            }
+        },
+        openChangelogs = {
+            coroutineScope.launch {
+                actions.openChangelogs()
                 drawerState.close()
             }
         },
     )
 }
+
+data class DeviceListDetailActions(val openSettings: () -> Unit, val openChangelogs: () -> Unit = {})
