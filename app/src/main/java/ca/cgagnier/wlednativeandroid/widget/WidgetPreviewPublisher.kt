@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.collection.intSetOf
 import androidx.core.content.edit
@@ -57,15 +58,25 @@ object WidgetPreviewPublisher {
                 return@launch
             }
 
-            val result = GlanceAppWidgetManager(context)
-                .setWidgetPreviews(
-                    WledWidgetReceiver::class,
-                    intSetOf(AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN),
-                )
+            try {
+                val result = GlanceAppWidgetManager(context)
+                    .setWidgetPreviews(
+                        WledWidgetReceiver::class,
+                        intSetOf(AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN),
+                    )
 
-            // Only save version if successful (not rate-limited)
-            if (result == SET_WIDGET_PREVIEWS_RESULT_SUCCESS) {
-                prefs.edit { putInt(KEY_PREVIEW_VERSION, currentVersionCode) }
+                // Only save version if successful (not rate-limited)
+                if (result == SET_WIDGET_PREVIEWS_RESULT_SUCCESS) {
+                    prefs.edit { putInt(KEY_PREVIEW_VERSION, currentVersionCode) }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: IllegalArgumentException) {
+                Log.e("WidgetPreview", "Failed to publish widget previews: system limit or invalid state", e)
+            } catch (e: android.os.RemoteException) {
+                Log.e("WidgetPreview", "Failed to publish widget previews: binder error", e)
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                Log.e("WidgetPreview", "Failed to publish widget previews: unexpected error", e)
             }
         }
     }
