@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.DeviceListDetail
+import ca.cgagnier.wlednativeandroid.ui.homeScreen.DeviceListDetailActions
 import ca.cgagnier.wlednativeandroid.ui.settingsScreen.Settings
 import kotlinx.serialization.Serializable
 
@@ -13,6 +14,7 @@ import kotlinx.serialization.Serializable
 fun MainNavHost(
     navController: NavHostController = rememberNavController(),
     startDeviceAddress: NavigationEvent? = null,
+    openChangelogs: () -> Unit = {},
 ) {
     NavHost(
         navController = navController,
@@ -21,9 +23,12 @@ fun MainNavHost(
         composable<DeviceListDetailScreen> {
             DeviceListDetail(
                 initialDeviceMacAddress = startDeviceAddress,
-                openSettings = {
-                    navController.navigate(SettingsScreen)
-                },
+                actions = DeviceListDetailActions(
+                    openSettings = {
+                        navController.navigate(SettingsScreen)
+                    },
+                    openChangelogs = openChangelogs,
+                ),
             )
         }
         composable<SettingsScreen> {

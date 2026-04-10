@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.FileUploadContract
 import ca.cgagnier.wlednativeandroid.FileUploadContractResult
 import ca.cgagnier.wlednativeandroid.R
+import ca.cgagnier.wlednativeandroid.ui.components.ChangelogBottomSheet
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -42,6 +43,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
+    private val changelogViewModel: ChangelogViewModel by viewModels()
 
     // For WebView file upload support
     var uploadMessage: ValueCallback<Array<Uri>>? = null
@@ -73,7 +75,11 @@ class MainActivity : ComponentActivity() {
                         navigationEvent = event
                     },
                 )
-                MainNavHost(startDeviceAddress = navigationEvent)
+                MainNavHost(
+                    startDeviceAddress = navigationEvent,
+                    openChangelogs = { changelogViewModel.showAllChangelogs() },
+                )
+                ChangelogBottomSheet(viewModel = changelogViewModel)
             }
         }
         viewModel.downloadUpdateMetadata()

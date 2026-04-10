@@ -11,6 +11,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     val showOfflineDevicesLast get() = dataStore.data.map { it.showOfflineLast }
     val showHiddenDevices get() = dataStore.data.map { it.showHiddenDevices }
     val lastUpdateCheckDate get() = dataStore.data.map { it.lastUpdateCheckDate }
+    val lastChangelogVersionSeen get() = dataStore.data.map { it.lastChangelogVersionSeen }
 
     suspend fun updateThemeMode(themeSettings: ThemeSettings) {
         Log.d(TAG, "updateThemeMode")
@@ -57,6 +58,16 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         dataStore.updateData {
             it.toBuilder()
                 .setLastUpdateCheckDate(lastUpdateCheckDate)
+                .setDateLastWritten(System.currentTimeMillis())
+                .build()
+        }
+    }
+
+    suspend fun updateLastChangelogVersionSeen(version: String) {
+        Log.d(TAG, "updateLastChangelogVersionSeen")
+        dataStore.updateData {
+            it.toBuilder()
+                .setLastChangelogVersionSeen(version)
                 .setDateLastWritten(System.currentTimeMillis())
                 .build()
         }
