@@ -63,7 +63,6 @@ fun ChangelogBottomSheet(viewModel: ChangelogViewModel, modifier: Modifier = Mod
                     onClick = {
                         scope.launch {
                             sheetState.hide()
-                            viewModel.dismiss()
                         }
                     },
                     modifier = Modifier.align(Alignment.End),

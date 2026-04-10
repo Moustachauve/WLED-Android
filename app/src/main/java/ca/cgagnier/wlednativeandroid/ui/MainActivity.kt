@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.FileUploadContract
 import ca.cgagnier.wlednativeandroid.FileUploadContractResult
 import ca.cgagnier.wlednativeandroid.R
+import ca.cgagnier.wlednativeandroid.ui.components.ChangelogBottomSheet
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -78,7 +79,7 @@ class MainActivity : ComponentActivity() {
                     startDeviceAddress = navigationEvent,
                     openChangelogs = { changelogViewModel.showAllChangelogs() },
                 )
-                ca.cgagnier.wlednativeandroid.ui.components.ChangelogBottomSheet(viewModel = changelogViewModel)
+                ChangelogBottomSheet(viewModel = changelogViewModel)
             }
         }
         viewModel.downloadUpdateMetadata()
