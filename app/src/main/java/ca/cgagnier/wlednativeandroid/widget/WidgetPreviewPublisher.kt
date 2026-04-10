@@ -16,6 +16,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+private const val TAG = "WidgetPreviewPublisher"
+
 /**
  * Publishes widget previews for the launcher widget picker (Android 15+).
  * Handles rate limiting by checking if preview is already published and tracking app version.
@@ -72,11 +74,11 @@ object WidgetPreviewPublisher {
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: IllegalArgumentException) {
-                Log.e("WidgetPreview", "Failed to publish widget previews: system limit or invalid state", e)
+                Log.e(TAG, "Failed to publish widget previews: system limit or invalid state", e)
             } catch (e: android.os.RemoteException) {
-                Log.e("WidgetPreview", "Failed to publish widget previews: binder error", e)
+                Log.e(TAG, "Failed to publish widget previews: binder error", e)
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                Log.e("WidgetPreview", "Failed to publish widget previews: unexpected error", e)
+                Log.e(TAG, "Failed to publish widget previews: unexpected error", e)
             }
         }
     }
