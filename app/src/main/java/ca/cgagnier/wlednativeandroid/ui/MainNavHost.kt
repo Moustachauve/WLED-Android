@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.DeviceListDetail
+import ca.cgagnier.wlednativeandroid.ui.homeScreen.audio.AudioSyncScreen
 import ca.cgagnier.wlednativeandroid.ui.settingsScreen.Settings
 import kotlinx.serialization.Serializable
 
@@ -24,10 +25,20 @@ fun MainNavHost(
                 openSettings = {
                     navController.navigate(SettingsScreen)
                 },
+                openAudioSync = {
+                    navController.navigate(AudioSyncScreenRoute)
+                },
             )
         }
         composable<SettingsScreen> {
             Settings(
+                navigateUp = {
+                    navController.navigateUp()
+                },
+            )
+        }
+        composable<AudioSyncScreenRoute> {
+            AudioSyncScreen(
                 navigateUp = {
                     navController.navigateUp()
                 },
@@ -41,3 +52,6 @@ object DeviceListDetailScreen
 
 @Serializable
 object SettingsScreen
+
+@Serializable
+object AudioSyncScreenRoute

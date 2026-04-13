@@ -46,6 +46,7 @@ fun DeviceListDetail(
     modifier: Modifier = Modifier,
     initialDeviceMacAddress: NavigationEvent? = null,
     openSettings: () -> Unit,
+    openAudioSync: () -> Unit,
     viewModel: DeviceListDetailViewModel = hiltViewModel(),
     deviceWebsocketListViewModel: DeviceWebsocketListViewModel = hiltViewModel(),
 ) {
@@ -91,7 +92,14 @@ fun DeviceListDetail(
         gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             ModalDrawerSheet {
-                DrawerSheetContent(coroutineScope, drawerState, showHiddenDevices, viewModel, openSettings)
+                DrawerSheetContent(
+                    coroutineScope,
+                    drawerState,
+                    showHiddenDevices,
+                    viewModel,
+                    openSettings,
+                    openAudioSync,
+                )
             }
         },
     ) {
@@ -176,6 +184,7 @@ private fun DrawerSheetContent(
     showHiddenDevices: Boolean,
     viewModel: DeviceListDetailViewModel,
     openSettings: () -> Unit,
+    openAudioSync: () -> Unit,
 ) {
     DrawerContent(
         showHiddenDevices = showHiddenDevices,
@@ -194,6 +203,12 @@ private fun DrawerSheetContent(
         openSettings = {
             coroutineScope.launch {
                 openSettings()
+                drawerState.close()
+            }
+        },
+        openAudioSync = {
+            coroutineScope.launch {
+                openAudioSync()
                 drawerState.close()
             }
         },

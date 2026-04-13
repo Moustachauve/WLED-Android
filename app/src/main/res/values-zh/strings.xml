@@ -129,5 +129,6 @@
     <string name="control_on">开</string>
     <string name="control_off">关</string>
     <string name="no_release_notes_provided">未提供发行说明</string>
+    <string name="audio_sync">音频同步</string>
 
 </resources>

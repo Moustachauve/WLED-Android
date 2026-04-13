@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ internal fun DrawerContent(
     addDevice: () -> Unit,
     toggleShowHiddenDevices: () -> Unit,
     openSettings: () -> Unit,
+    openAudioSync: () -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
     val scrollState = rememberScrollState()
@@ -45,7 +47,7 @@ internal fun DrawerContent(
         modifier = Modifier.verticalScroll(scrollState),
     ) {
         DrawerHeader()
-        DrawerMainActions(addDevice, showHiddenDevices, toggleShowHiddenDevices, openSettings)
+        DrawerMainActions(addDevice, showHiddenDevices, toggleShowHiddenDevices, openSettings, openAudioSync)
         HorizontalDivider(modifier = Modifier.padding(12.dp))
         DrawerExternalLinks(uriHandler)
         Spacer(Modifier.height(24.dp))
@@ -74,6 +76,7 @@ private fun DrawerMainActions(
     showHiddenDevices: Boolean,
     toggleShowHiddenDevices: () -> Unit,
     openSettings: () -> Unit,
+    openAudioSync: () -> Unit,
 ) {
     NavigationDrawerItem(
         label = { Text(text = stringResource(R.string.add_a_device)) },
@@ -88,6 +91,18 @@ private fun DrawerMainActions(
         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
     )
     ToggleHiddenDeviceButton(showHiddenDevices, toggleShowHiddenDevices)
+    NavigationDrawerItem(
+        label = { Text(text = stringResource(R.string.audio_sync)) },
+        icon = {
+            Icon(
+                imageVector = Icons.Filled.Mic,
+                contentDescription = stringResource(R.string.audio_sync),
+            )
+        },
+        selected = false,
+        onClick = openAudioSync,
+        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+    )
     NavigationDrawerItem(
         label = { Text(text = stringResource(R.string.settings)) },
         icon = {

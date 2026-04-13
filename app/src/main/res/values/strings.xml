@@ -134,4 +134,7 @@
     <string name="control_off">Off</string>
     <string name="no_release_notes_provided">No release notes provided</string>
 
+    <!-- Audio Sync -->
+    <string name="audio_sync">Audio Sync</string>
+
 </resources>
