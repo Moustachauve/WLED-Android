@@ -61,6 +61,12 @@ captures/
 .externalNativeBuild
 .cxx/
 
+# Mkdocs temporary serving folder
+docs-gen
+site
+*.bak
+.idea/appInsightsSettings.xml
+
 # Freeline
 freeline.py
 freeline/
@@ -90,3 +96,5 @@ lint/tmp/
 /.idea/runConfigurations.xml
 .idea/deviceManager.xml
 .idea/androidTestResultsUserPreferences.xml
+/.idea/spotless-applier.xml
+/.idea/detekt.xml

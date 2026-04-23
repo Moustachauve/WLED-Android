@@ -14,5 +14,5 @@ data class Reactions(
     @field:Json(name = "confused") var confused: Int,
     @field:Json(name = "heart") var heart: Int,
     @field:Json(name = "rocket") var rocket: Int,
-    @field:Json(name = "eyes") var eyes: Int
+    @field:Json(name = "eyes") var eyes: Int,
 )

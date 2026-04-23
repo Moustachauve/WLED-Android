@@ -9,11 +9,7 @@ import retrofit2.http.Streaming
 
 interface GithubApiEndpoints {
     @GET("repos/{repoOwner}/{repoName}/releases")
-    suspend fun getAllReleases(
-        @Path("repoOwner") repoOwner: String,
-        @Path("repoName") repoName: String
-    ): List<Release>
-
+    suspend fun getAllReleases(@Path("repoOwner") repoOwner: String, @Path("repoName") repoName: String): List<Release>
 
     @Streaming
     @Headers("Accept: application/octet-stream")
@@ -21,6 +17,6 @@ interface GithubApiEndpoints {
     suspend fun downloadReleaseBinary(
         @Path("repoOwner") repoOwner: String,
         @Path("repoName") repoName: String,
-        @Path("assetId") assetId: Int
+        @Path("assetId") assetId: Int,
     ): ResponseBody
 }

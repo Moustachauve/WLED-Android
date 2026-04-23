@@ -30,21 +30,22 @@ class DeviceListDetailViewModel @Inject constructor(
     private val preferencesRepository: UserPreferencesRepository,
     networkManager: NetworkConnectivityManager,
     private val deviceFirstContactService: DeviceFirstContactService,
-) : AndroidViewModel(application), DefaultLifecycleObserver {
+) : AndroidViewModel(application),
+    DefaultLifecycleObserver {
     val isWLEDCaptivePortal = networkManager.isWLEDCaptivePortal
 
     val showHiddenDevices = preferencesRepository.showHiddenDevices
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
-            initialValue = false
+            initialValue = false,
         )
 
     private val discoveryService = DeviceDiscovery(
         context = getApplication<Application>().applicationContext,
         onDeviceDiscovered = { address, macAddress ->
             deviceDiscovered(address, macAddress)
-        }
+        },
     )
 
     private val _isAddDeviceDialogVisible = MutableStateFlow(false)
@@ -79,13 +80,12 @@ class DeviceListDetailViewModel @Inject constructor(
         discoveryService.start()
     }
 
-    fun startDiscoveryServiceTimed(timeMillis: Long = 10000) =
-        viewModelScope.launch(Dispatchers.IO) {
-            Log.i(TAG, "Starting timed device discovery")
-            startDiscoveryService()
-            delay(timeMillis)
-            stopDiscoveryService()
-        }
+    fun startDiscoveryServiceTimed(timeMillis: Long = 10000) = viewModelScope.launch(Dispatchers.IO) {
+        Log.i(TAG, "Starting timed device discovery")
+        startDiscoveryService()
+        delay(timeMillis)
+        stopDiscoveryService()
+    }
 
     fun stopDiscoveryService() {
         Log.i(TAG, "Stop device discovery")

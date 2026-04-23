@@ -36,9 +36,10 @@ data class Device(
 
     @ColumnInfo(defaultValue = "0")
     val lastSeen: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(defaultValue = "1")
+    val repositoryId: Long = Repository.DEFAULT_ID,
 ) : Parcelable {
 
-    fun getDeviceUrl(): String {
-        return "http://$address"
-    }
+    fun getDeviceUrl(): String = "http://$address"
 }

@@ -18,58 +18,57 @@ import javax.inject.Singleton
 @Singleton
 class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints) {
 
-    suspend fun getAllReleases(): Result<List<Release>> {
-        Log.d(TAG, "retrieving latest release")
+    suspend fun getAllReleases(repoOwner: String, repoName: String): Result<List<Release>> {
+        Log.d(TAG, "retrieving latest releases from $repoOwner/$repoName")
         return try {
-            Result.success(apiEndpoints.getAllReleases(REPO_OWNER, REPO_NAME))
+            Result.success(apiEndpoints.getAllReleases(repoOwner, repoName))
         } catch (e: Exception) {
-            Log.w(TAG, "Error retrieving releases: ${e.message}")
+            Log.w(TAG, "Error retrieving releases from $repoOwner/$repoName: ${e.message}")
             Result.failure(e)
         }
     }
 
     fun downloadReleaseBinary(
-        asset: Asset, targetFile: File
+        asset: Asset,
+        repoOwner: String,
+        repoName: String,
+        targetFile: File,
     ): Flow<DownloadState> = flow {
         try {
             emit(DownloadState.Downloading(0))
             val responseBody =
-                apiEndpoints.downloadReleaseBinary(REPO_OWNER, REPO_NAME, asset.assetId)
+                apiEndpoints.downloadReleaseBinary(repoOwner, repoName, asset.assetId)
             emitAll(responseBody.saveFile(targetFile))
         } catch (e: Exception) {
             emit(DownloadState.Failed(e))
         }
     }.flowOn(Dispatchers.IO)
 
-    private fun ResponseBody.saveFile(destinationFile: File): Flow<DownloadState> {
-        return flow {
-            emit(DownloadState.Downloading(0))
+    private fun ResponseBody.saveFile(destinationFile: File): Flow<DownloadState> = flow {
+        emit(DownloadState.Downloading(0))
 
-            try {
-                byteStream().use { inputStream ->
-                    destinationFile.outputStream().use { outputStream ->
-                        val totalBytes = contentLength()
-                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                        var progressBytes = 0L
-                        var bytes = inputStream.read(buffer)
-                        while (bytes >= 0) {
-                            outputStream.write(buffer, 0, bytes)
-                            progressBytes += bytes
-                            bytes = inputStream.read(buffer)
-                            emit(DownloadState.Downloading(((progressBytes * 100) / totalBytes).toInt()))
-                        }
+        try {
+            byteStream().use { inputStream ->
+                destinationFile.outputStream().use { outputStream ->
+                    val totalBytes = contentLength()
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var progressBytes = 0L
+                    var bytes = inputStream.read(buffer)
+                    while (bytes >= 0) {
+                        outputStream.write(buffer, 0, bytes)
+                        progressBytes += bytes
+                        bytes = inputStream.read(buffer)
+                        emit(DownloadState.Downloading(((progressBytes * 100) / totalBytes).toInt()))
                     }
                 }
-                emit(DownloadState.Finished)
-            } catch (e: Exception) {
-                emit(DownloadState.Failed(e))
             }
-        }.flowOn(Dispatchers.IO).distinctUntilChanged()
-    }
+            emit(DownloadState.Finished)
+        } catch (e: Exception) {
+            emit(DownloadState.Failed(e))
+        }
+    }.flowOn(Dispatchers.IO).distinctUntilChanged()
 
     companion object {
         private const val TAG = "github-release"
-        const val REPO_OWNER = "Aircoookie"
-        const val REPO_NAME = "WLED"
     }
 }

@@ -6,19 +6,23 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.sqlite.db.SupportSQLiteDatabase
 import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration7To8
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
+import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_9_10
 
 @Database(
     entities = [
         Device::class,
+        Repository::class,
         Version::class,
         Asset::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -29,28 +33,40 @@ import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
         AutoMigration(from = 6, to = 7),
         AutoMigration(from = 7, to = 8, spec = DbMigration7To8::class),
         AutoMigration(from = 8, to = 9, spec = DbMigration8To9::class),
-    ]
+    ],
 )
 @TypeConverters(Converters::class)
 abstract class DevicesDatabase : RoomDatabase() {
     abstract fun deviceDao(): DeviceDao
+    abstract fun repositoryDao(): RepositoryDao
     abstract fun versionDao(): VersionDao
     abstract fun assetDao(): AssetDao
 
     companion object {
         @Volatile
-        private var INSTANCE: DevicesDatabase? = null
+        private var instance: DevicesDatabase? = null
 
-        fun getDatabase(context: Context): DevicesDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    DevicesDatabase::class.java,
-                    "devices_database"
-                ).build()
-                INSTANCE = instance
-                instance
-            }
+        fun getDatabase(context: Context): DevicesDatabase = instance ?: synchronized(this) {
+            val instance = Room.databaseBuilder(
+                context.applicationContext,
+                DevicesDatabase::class.java,
+                "devices_database",
+            )
+                .addMigrations(MIGRATION_9_10)
+                .addCallback(object : RoomDatabase.Callback() {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        super.onCreate(db)
+                        db.execSQL(
+                            """
+                            INSERT INTO Repository (id, name, ownerAndRepo, description, htmlUrl, isDefault, isEnabled, isUpdateEnabled)
+                            VALUES (1, 'WLED', 'wled/WLED', 'Official WLED Repository', 'https://github.com/wled/WLED', 1, 1, 1)
+                            """.trimIndent(),
+                        )
+                    }
+                })
+                .build()
+            this.instance = instance
+            instance
         }
     }
 }

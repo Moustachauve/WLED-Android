@@ -10,9 +10,7 @@ import javax.inject.Inject
 
 private const val TAG = "DeviceUpdateManager"
 
-class DeviceUpdateManager @Inject constructor(
-    private val releaseService: ReleaseService
-) {
+class DeviceUpdateManager @Inject constructor(private val releaseService: ReleaseService) {
 
     /**
      * Returns a Flow that emits the version tag (e.g., "v0.14.0") if an update is available,
@@ -30,16 +28,15 @@ class DeviceUpdateManager @Inject constructor(
             .map { (info, branch, skipUpdateTag) ->
                 if (info == null) return@map null
 
-                val source = UpdateSourceRegistry.getSource(info) ?: return@map null
+                val repository = getRepositoryFromInfo(info)
                 Log.d(
                     TAG,
-                    "Checking for software update for ${deviceWithState.device.macAddress} on ${source.githubOwner}:${source.githubRepo}"
+                    "Checking for software update for ${deviceWithState.device.macAddress} on $repository",
                 )
                 releaseService.getNewerReleaseTag(
                     deviceInfo = info,
                     branch = branch,
                     ignoreVersion = skipUpdateTag,
-                    updateSourceDefinition = source,
                 )
             }
     }
