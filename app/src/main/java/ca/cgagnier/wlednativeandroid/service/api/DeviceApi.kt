@@ -3,6 +3,7 @@ package ca.cgagnier.wlednativeandroid.service.api
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
+import ca.cgagnier.wlednativeandroid.model.wledapi.Preset
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -15,7 +16,6 @@ import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
-import retrofit2.http.Body
 import java.util.concurrent.TimeUnit
 
 interface DeviceApi {
@@ -30,6 +30,9 @@ interface DeviceApi {
 
     @POST("json/state")
     suspend fun postState(@Body state: State): Response<State>
+
+    @POST("json/state")
+    suspend fun postJson(@Body jsonPost: JsonPost): Response<State>
 
     @Multipart
     @POST("update")

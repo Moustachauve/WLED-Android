@@ -98,7 +98,7 @@ class PresetWidgetConfigureActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DeviceSelectionScreen(viewModel: PresetWidgetConfigureViewModel, onDeviceSelected: (Device) -> Unit) {
+private fun DeviceSelectionScreen(viewModel: PresetWidgetConfigureViewModel, onDeviceSelected: (Device) -> Unit) {
     val devices by viewModel.allDevices.collectAsState(initial = emptyList())
 
     Scaffold(
@@ -119,7 +119,7 @@ fun DeviceSelectionScreen(viewModel: PresetWidgetConfigureViewModel, onDeviceSel
 }
 
 @Composable
-fun DeviceItem(device: Device, onClick: (Device) -> Unit) {
+private fun DeviceItem(device: Device, onClick: (Device) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()

@@ -114,7 +114,7 @@ class WledWidgetConfigureActivity : ComponentActivity() {
 // TODO: Style the widget selection screen better so it looks more like the rest of the WLED app.
 
 @Composable
-fun ConfigurationScreen(devices: List<Device>, onDeviceSelected: (Device) -> Unit) {
+private fun ConfigurationScreen(devices: List<Device>, onDeviceSelected: (Device) -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -138,7 +138,7 @@ fun ConfigurationScreen(devices: List<Device>, onDeviceSelected: (Device) -> Uni
 }
 
 @Composable
-fun DeviceItem(device: Device, onClick: () -> Unit) {
+private fun DeviceItem(device: Device, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
