@@ -8,6 +8,11 @@ import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import javax.inject.Inject
 
+/**
+ * nightly tag is not supported at the moment. Exclude it from results.
+ * TODO: Add support for nightly tags. This will need special handling since the tag itself never
+ *   changes. Probably need a new Branch option for it too.
+ */
 private const val IGNORED_TAG = "nightly"
 
 class VersionWithAssetsRepository @Inject constructor(
