@@ -77,11 +77,36 @@ class VersionWithAssetsRepository @Inject constructor(
     }
 
     suspend fun getLatestStableVersionWithAssets(repositoryId: Long): VersionWithAssets? =
-        versionDao.getLatestStableVersionWithAssets(repositoryId)
+        versionDao.getVersionsWithAssetsByRepository(repositoryId)
+            .filter { !it.version.isPrerelease }
+            .maxWithOrNull(SemVerComparator)
 
     suspend fun getLatestBetaVersionWithAssets(repositoryId: Long): VersionWithAssets? =
-        versionDao.getLatestBetaVersionWithAssets(repositoryId)
+        versionDao.getVersionsWithAssetsByRepository(repositoryId)
+            .maxWithOrNull(SemVerComparator)
 
     suspend fun getVersionByTag(repositoryId: Long, tagName: String): VersionWithAssets? =
         versionDao.getVersionByTagName(repositoryId, tagName)
+
+    companion object {
+        val SemVerComparator = Comparator<VersionWithAssets> { v1, v2 ->
+            val semver1 = runCatching {
+                com.vdurmont.semver4j.Semver(v1.version.tagName, com.vdurmont.semver4j.Semver.SemverType.LOOSE)
+            }.getOrNull()
+
+            val semver2 = runCatching {
+                com.vdurmont.semver4j.Semver(v2.version.tagName, com.vdurmont.semver4j.Semver.SemverType.LOOSE)
+            }.getOrNull()
+
+            if (semver1 != null && semver2 != null) {
+                semver1.compareTo(semver2)
+            } else if (semver1 != null) {
+                1
+            } else if (semver2 != null) {
+                -1
+            } else {
+                v1.version.publishedDate.compareTo(v2.version.publishedDate)
+            }
+        }
+    }
 }
