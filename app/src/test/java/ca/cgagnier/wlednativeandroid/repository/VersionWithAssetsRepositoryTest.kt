@@ -18,29 +18,34 @@ class VersionWithAssetsRepositoryTest {
             createVersion("invalid-old", "2023-12-01T00:00:00Z"), // Fallback to date
         ).shuffled()
 
-        val sorted = versions.sortedWith(VersionWithAssetsRepository.SemVerComparator)
+        val parsedVersions = versions.map {
+            it to runCatching {
+                com.vdurmont.semver4j.Semver(it.tagName, com.vdurmont.semver4j.Semver.SemverType.LOOSE)
+            }.getOrNull()
+        }
+        val sorted = parsedVersions.sortedWith(VersionWithAssetsRepository.SemVerComparator).map { it.first }
 
         // Invalid semver tags are sorted by date and placed before valid semver tags
-        assertEquals("invalid-old", sorted[0].version.tagName)
-        assertEquals("invalid-tag", sorted[1].version.tagName)
+        assertEquals("invalid-old", sorted[0].tagName)
+        assertEquals("invalid-tag", sorted[1].tagName)
         // Valid semver tags are sorted by semver
-        assertEquals("0.14.0", sorted[2].version.tagName)
-        assertEquals("0.15.0", sorted[3].version.tagName)
-        assertEquals("0.15.5", sorted[4].version.tagName)
-        assertEquals("16.0.0", sorted[5].version.tagName)
+        assertEquals("0.14.0", sorted[2].tagName)
+        assertEquals("0.15.0", sorted[3].tagName)
+        assertEquals("0.15.5", sorted[4].tagName)
+        assertEquals("16.0.0", sorted[5].tagName)
+
+        val latest = VersionWithAssetsRepository.getLatestVersion(versions)
+        assertEquals("16.0.0", latest?.tagName)
     }
 
-    private fun createVersion(tagName: String, publishedDate: String): VersionWithAssets = VersionWithAssets(
-        version = Version(
-            id = 0,
-            repositoryId = 0,
-            tagName = tagName,
-            name = tagName,
-            description = "",
-            isPrerelease = false,
-            publishedDate = publishedDate,
-            htmlUrl = "",
-        ),
-        assets = emptyList(),
+    private fun createVersion(tagName: String, publishedDate: String): Version = Version(
+        id = 0,
+        repositoryId = 0,
+        tagName = tagName,
+        name = tagName,
+        description = "",
+        isPrerelease = false,
+        publishedDate = publishedDate,
+        htmlUrl = "",
     )
 }
