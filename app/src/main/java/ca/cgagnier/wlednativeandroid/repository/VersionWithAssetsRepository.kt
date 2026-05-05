@@ -8,6 +8,8 @@ import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import javax.inject.Inject
 
+private const val IGNORED_TAG = "nightly"
+
 class VersionWithAssetsRepository @Inject constructor(
     private val database: DevicesDatabase,
     private val repositoryDao: RepositoryDao,
@@ -76,37 +78,46 @@ class VersionWithAssetsRepository @Inject constructor(
         }
     }
 
-    suspend fun getLatestStableVersionWithAssets(repositoryId: Long): VersionWithAssets? =
-        versionDao.getVersionsWithAssetsByRepository(repositoryId)
-            .filter { !it.version.isPrerelease }
-            .maxWithOrNull(SemVerComparator)
+    suspend fun getLatestStableVersionWithAssets(repositoryId: Long): VersionWithAssets? {
+        val latestVersion = getLatestVersion(
+            versionDao.getVersionsByRepository(repositoryId).filter { !it.isPrerelease && it.tagName != IGNORED_TAG },
+        )
+        return latestVersion?.let { versionDao.getVersionByTagName(repositoryId, it.tagName) }
+    }
 
-    suspend fun getLatestBetaVersionWithAssets(repositoryId: Long): VersionWithAssets? =
-        versionDao.getVersionsWithAssetsByRepository(repositoryId)
-            .maxWithOrNull(SemVerComparator)
+    suspend fun getLatestBetaVersionWithAssets(repositoryId: Long): VersionWithAssets? {
+        val latestVersion = getLatestVersion(
+            versionDao.getVersionsByRepository(repositoryId).filter { it.tagName != IGNORED_TAG },
+        )
+        return latestVersion?.let { versionDao.getVersionByTagName(repositoryId, it.tagName) }
+    }
 
     suspend fun getVersionByTag(repositoryId: Long, tagName: String): VersionWithAssets? =
         versionDao.getVersionByTagName(repositoryId, tagName)
 
     companion object {
-        val SemVerComparator = Comparator<VersionWithAssets> { v1, v2 ->
-            val semver1 = runCatching {
-                com.vdurmont.semver4j.Semver(v1.version.tagName, com.vdurmont.semver4j.Semver.SemverType.LOOSE)
-            }.getOrNull()
+        val SemVerComparator =
+            Comparator<Pair<ca.cgagnier.wlednativeandroid.model.Version, com.vdurmont.semver4j.Semver?>> { v1, v2 ->
+                val semver1 = v1.second
+                val semver2 = v2.second
 
-            val semver2 = runCatching {
-                com.vdurmont.semver4j.Semver(v2.version.tagName, com.vdurmont.semver4j.Semver.SemverType.LOOSE)
-            }.getOrNull()
-
-            if (semver1 != null && semver2 != null) {
-                semver1.compareTo(semver2)
-            } else if (semver1 != null) {
-                1
-            } else if (semver2 != null) {
-                -1
-            } else {
-                v1.version.publishedDate.compareTo(v2.version.publishedDate)
+                if (semver1 != null && semver2 != null) {
+                    semver1.compareTo(semver2)
+                } else if (semver1 != null) {
+                    1
+                } else if (semver2 != null) {
+                    -1
+                } else {
+                    v1.first.publishedDate.compareTo(v2.first.publishedDate)
+                }
             }
-        }
+
+        fun getLatestVersion(
+            versions: List<ca.cgagnier.wlednativeandroid.model.Version>,
+        ): ca.cgagnier.wlednativeandroid.model.Version? = versions.map {
+            it to runCatching {
+                com.vdurmont.semver4j.Semver(it.tagName, com.vdurmont.semver4j.Semver.SemverType.LOOSE)
+            }.getOrNull()
+        }.maxWithOrNull(SemVerComparator)?.first
     }
 }
