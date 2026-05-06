@@ -6,6 +6,7 @@ import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
+import com.vdurmont.semver4j.Semver
 import javax.inject.Inject
 
 /**
@@ -101,28 +102,23 @@ class VersionWithAssetsRepository @Inject constructor(
         versionDao.getVersionByTagName(repositoryId, tagName)
 
     companion object {
-        val SemVerComparator =
-            Comparator<Pair<ca.cgagnier.wlednativeandroid.model.Version, com.vdurmont.semver4j.Semver?>> { v1, v2 ->
+        val semVerComparator =
+            Comparator<Pair<Version, Semver?>> { v1, v2 ->
                 val semver1 = v1.second
                 val semver2 = v2.second
 
-                if (semver1 != null && semver2 != null) {
-                    semver1.compareTo(semver2)
-                } else if (semver1 != null) {
-                    1
-                } else if (semver2 != null) {
-                    -1
-                } else {
-                    v1.first.publishedDate.compareTo(v2.first.publishedDate)
+                when {
+                    semver1 != null && semver2 != null -> semver1.compareTo(semver2)
+                    semver1 != null -> 1
+                    semver2 != null -> -1
+                    else -> v1.first.publishedDate.compareTo(v2.first.publishedDate)
                 }
             }
 
-        fun getLatestVersion(
-            versions: List<ca.cgagnier.wlednativeandroid.model.Version>,
-        ): ca.cgagnier.wlednativeandroid.model.Version? = versions.map {
+        fun getLatestVersion(versions: List<Version>): Version? = versions.map {
             it to runCatching {
-                com.vdurmont.semver4j.Semver(it.tagName, com.vdurmont.semver4j.Semver.SemverType.LOOSE)
+                Semver(it.tagName, Semver.SemverType.LOOSE)
             }.getOrNull()
-        }.maxWithOrNull(SemVerComparator)?.first
+        }.maxWithOrNull(semVerComparator)?.first
     }
 }

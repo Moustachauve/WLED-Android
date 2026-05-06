@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.repository
 
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
+import com.vdurmont.semver4j.Semver
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -20,10 +21,10 @@ class VersionWithAssetsRepositoryTest {
 
         val parsedVersions = versions.map {
             it to runCatching {
-                com.vdurmont.semver4j.Semver(it.tagName, com.vdurmont.semver4j.Semver.SemverType.LOOSE)
+                Semver(it.tagName, Semver.SemverType.LOOSE)
             }.getOrNull()
         }
-        val sorted = parsedVersions.sortedWith(VersionWithAssetsRepository.SemVerComparator).map { it.first }
+        val sorted = parsedVersions.sortedWith(VersionWithAssetsRepository.semVerComparator).map { it.first }
 
         // Invalid semver tags are sorted by date and placed before valid semver tags
         assertEquals("invalid-old", sorted[0].tagName)
