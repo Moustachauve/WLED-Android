@@ -8,31 +8,34 @@ import android.widget.RemoteViewsService
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.wledapi.Preset
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.Types
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 
 class PresetWidgetService : RemoteViewsService() {
-    override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
-        return PresetWidgetRemoteViewsFactory(this.applicationContext, intent)
-    }
+    override fun onGetViewFactory(intent: Intent): RemoteViewsFactory =
+        PresetWidgetRemoteViewsFactory(this.applicationContext, intent)
 }
 
-class PresetWidgetRemoteViewsFactory(
-    private val context: Context,
-    intent: Intent
-) : RemoteViewsService.RemoteViewsFactory {
+@Suppress("TooGenericExceptionCaught", "MagicNumber")
+class PresetWidgetRemoteViewsFactory(private val context: Context, intent: Intent) :
+    RemoteViewsService.RemoteViewsFactory {
 
     private val appWidgetId: Int = intent.getIntExtra(
         android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID,
-        android.appwidget.AppWidgetManager.INVALID_APPWIDGET_ID
+        android.appwidget.AppWidgetManager.INVALID_APPWIDGET_ID,
     )
     private val limit: Int = intent.getIntExtra(PresetWidgetProvider.EXTRA_LIST_LIMIT, 0)
-    private val itemLayoutId: Int = intent.getIntExtra(PresetWidgetProvider.EXTRA_LAYOUT_ID, R.layout.widget_preset_item)
+    private val itemLayoutId: Int = intent.getIntExtra(
+        PresetWidgetProvider.EXTRA_LAYOUT_ID,
+        R.layout.widget_preset_item,
+    )
     private var presets: List<Pair<String, Preset>> = emptyList()
     private var deviceAddress: String? = null
 
@@ -49,6 +52,7 @@ class PresetWidgetRemoteViewsFactory(
 
     private var selectedPresetId: Int = -1
 
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     override fun onDataSetChanged() {
         deviceAddress = PresetWidgetConfigureActivity.loadDeviceAddress(context, appWidgetId)
         if (deviceAddress == null) {
@@ -58,44 +62,74 @@ class PresetWidgetRemoteViewsFactory(
 
         val entryPoint = EntryPointAccessors.fromApplication(
             context,
-            PresetWidgetServiceEntryPoint::class.java
+            PresetWidgetServiceEntryPoint::class.java,
         )
         val deviceApiFactory = entryPoint.deviceApiFactory()
         val moshi = entryPoint.moshi()
 
+        // Always load from cache first to ensure immediate display of existing data
+        loadPresetsFromCache(moshi)
+
+        // Throttle check
+        val currentTime = System.currentTimeMillis()
+        val lastFetchTime = lastFetchTimeMap[appWidgetId] ?: 0L
+        val isForce = forceRefreshMap[appWidgetId] ?: false
+
+        if (!isForce && currentTime - lastFetchTime < 15000L) {
+            Log.d(TAG, "Skipping network fetch for $appWidgetId, throttled")
+            return
+        }
+
+        // Reset force flag and update last fetch time
+        forceRefreshMap[appWidgetId] = false
+        lastFetchTimeMap[appWidgetId] = currentTime
+
         runBlocking {
             try {
                 Log.d(TAG, "Fetching presets for $deviceAddress")
-                val api = deviceApiFactory.create(deviceAddress!!)
-                
-                // Fetch state to know selected preset
-                val stateResponse = api.getState()
-                if (stateResponse.isSuccessful) {
+                val api = deviceApiFactory.create(deviceAddress!!, 4L)
+
+                val stateDeferred = async(Dispatchers.IO) { api.getState() }
+                val presetsDeferred = async(Dispatchers.IO) { api.getPresets() }
+
+                val stateResponse = try {
+                    stateDeferred.await()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error fetching state concurrently", e)
+                    null
+                }
+
+                if (stateResponse != null && stateResponse.isSuccessful) {
                     val state = stateResponse.body()
                     if (state != null) {
                         selectedPresetId = state.selectedPresetId ?: -1
-                        if (selectedPresetId == -1 && state.selectedPlaylistId != null && state.selectedPlaylistId > 0) {
-                             selectedPresetId = state.selectedPlaylistId
+                        if (selectedPresetId == -1 && state.selectedPlaylistId != null &&
+                            state.selectedPlaylistId > 0
+                        ) {
+                            selectedPresetId = state.selectedPlaylistId
                         }
                     }
                 }
 
-                // Fetch Presets
-                val response = api.getPresets()
-                if (response.isSuccessful) {
-                    val presetsMap = response.body()
+                val presetsResponse = try {
+                    presetsDeferred.await()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error fetching presets concurrently", e)
+                    null
+                }
+
+                if (presetsResponse != null && presetsResponse.isSuccessful) {
+                    val presetsMap = presetsResponse.body()
                     Log.d(TAG, "Presets fetched: ${presetsMap?.size}")
                     if (presetsMap != null) {
-                         savePresetsToCache(presetsMap, moshi)
-                         processPresets(presetsMap)
+                        savePresetsToCache(presetsMap, moshi)
+                        processPresets(presetsMap)
                     }
                 } else {
-                    Log.e(TAG, "Error fetching presets: ${response.code()}")
-                    loadPresetsFromCache(moshi)
+                    Log.e(TAG, "Error fetching presets: ${presetsResponse?.code() ?: "null response"}")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching presets", e)
-                loadPresetsFromCache(moshi)
             }
         }
     }
@@ -105,11 +139,11 @@ class PresetWidgetRemoteViewsFactory(
             .filter { it.key != "0" }
             .map { it.key to it.value }
             .sortedBy { it.first.toIntOrNull() ?: Int.MAX_VALUE }
-       
-       if (limit > 0) {
-           sortedPresets = sortedPresets.take(limit)
-       }
-       presets = sortedPresets
+
+        if (limit > 0) {
+            sortedPresets = sortedPresets.take(limit)
+        }
+        presets = sortedPresets
     }
 
     private fun savePresetsToCache(presetsMap: Map<String, Preset>, moshi: Moshi) {
@@ -117,7 +151,7 @@ class PresetWidgetRemoteViewsFactory(
             val type = Types.newParameterizedType(Map::class.java, String::class.java, Preset::class.java)
             val adapter = moshi.adapter<Map<String, Preset>>(type)
             val json = adapter.toJson(presetsMap)
-            
+
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
             prefs.putString(PREF_CACHE_PRESETS + appWidgetId, json)
             prefs.putInt(PREF_CACHE_SELECTED_ID + appWidgetId, selectedPresetId)
@@ -132,7 +166,7 @@ class PresetWidgetRemoteViewsFactory(
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val json = prefs.getString(PREF_CACHE_PRESETS + appWidgetId, null)
             selectedPresetId = prefs.getInt(PREF_CACHE_SELECTED_ID + appWidgetId, -1)
-            
+
             if (json != null) {
                 val type = Types.newParameterizedType(Map::class.java, String::class.java, Preset::class.java)
                 val adapter = moshi.adapter<Map<String, Preset>>(type)
@@ -146,19 +180,14 @@ class PresetWidgetRemoteViewsFactory(
             Log.e(TAG, "Failed to load presets from cache", e)
         }
     }
-    
-    // ... (rest of the file)
 
+    // ... (rest of the file)
 
     override fun onDestroy() {
         presets = emptyList()
     }
 
-    override fun getCount(): Int {
-        return presets.size
-    }
-
-
+    override fun getCount(): Int = presets.size
 
     // ... (rest of class)
 
@@ -167,14 +196,14 @@ class PresetWidgetRemoteViewsFactory(
 
         val (id, preset) = presets[position]
         val views = RemoteViews(context.packageName, itemLayoutId)
-        
+
         var name = preset.name
         if (name.isEmpty()) {
             name = "Preset $id"
         }
-        
+
         views.setTextViewText(R.id.preset_name, name)
-        
+
         if (id.toIntOrNull() == selectedPresetId) {
             if (itemLayoutId == R.layout.widget_preset_button_item) {
                 views.setInt(R.id.widget_item, "setBackgroundResource", R.drawable.widget_button_selected)
@@ -198,26 +227,25 @@ class PresetWidgetRemoteViewsFactory(
         return views
     }
 
-    override fun getLoadingView(): RemoteViews? {
-        return null
-    }
+    override fun getLoadingView(): RemoteViews? = null
 
-    override fun getViewTypeCount(): Int {
-        return 1
-    }
+    override fun getViewTypeCount(): Int = 1
 
-    override fun getItemId(position: Int): Long {
-        return position.toLong()
-    }
+    override fun getItemId(position: Int): Long = position.toLong()
 
-    override fun hasStableIds(): Boolean {
-        return true
-    }
+    override fun hasStableIds(): Boolean = true
 
     companion object {
         private const val TAG = "PresetWidgetService"
         private const val PREFS_NAME = "ca.cgagnier.wlednativeandroid.widget.PresetWidgetCache"
         private const val PREF_CACHE_PRESETS = "cache_presets_"
         private const val PREF_CACHE_SELECTED_ID = "cache_selected_id_"
+
+        private val lastFetchTimeMap = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+        private val forceRefreshMap = java.util.concurrent.ConcurrentHashMap<Int, Boolean>()
+
+        fun forceRefresh(appWidgetId: Int) {
+            forceRefreshMap[appWidgetId] = true
+        }
     }
 }

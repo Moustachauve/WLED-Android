@@ -26,6 +26,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
@@ -33,7 +35,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
-import androidx.lifecycle.ViewModel
 
 @AndroidEntryPoint
 class PresetWidgetConfigureActivity : ComponentActivity() {
@@ -50,7 +51,8 @@ class PresetWidgetConfigureActivity : ComponentActivity() {
         val extras = intent.extras
         if (extras != null) {
             appWidgetId = extras.getInt(
-                AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID,
             )
         }
 
@@ -63,6 +65,24 @@ class PresetWidgetConfigureActivity : ComponentActivity() {
             WLEDNativeTheme {
                 DeviceSelectionScreen(viewModel) { device ->
                     saveDevicePref(this, appWidgetId, device)
+
+                    val appWidgetManager = AppWidgetManager.getInstance(this)
+                    val info = appWidgetManager.getAppWidgetInfo(appWidgetId)
+                    val providerClass = info?.provider?.className
+                    if (providerClass == SmallPresetWidgetProvider::class.java.name) {
+                        PresetWidgetProvider.updateAppWidget(
+                            this,
+                            appWidgetManager,
+                            appWidgetId,
+                            limit = 3,
+                            layoutId = R.layout.widget_preset_horizontal,
+                            listId = R.id.preset_grid,
+                            itemLayoutId = R.layout.widget_preset_button_item,
+                            titleViewId = null,
+                        )
+                    } else {
+                        PresetWidgetProvider.updateAppWidget(this, appWidgetManager, appWidgetId)
+                    }
 
                     val resultValue = Intent()
                     resultValue.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
@@ -88,9 +108,9 @@ class PresetWidgetConfigureActivity : ComponentActivity() {
             val prefs = context.getSharedPreferences(PREFS_NAME, 0)
             return prefs.getString(PREF_PREFIX_KEY + appWidgetId, null)
         }
-        
+
         internal fun loadDeviceName(context: Context, appWidgetId: Int): String {
-             val prefs = context.getSharedPreferences(PREFS_NAME, 0)
+            val prefs = context.getSharedPreferences(PREFS_NAME, 0)
             return prefs.getString(PREF_PREFIX_KEY + appWidgetId + "_name", "WLED Device") ?: "WLED Device"
         }
     }
@@ -104,12 +124,12 @@ private fun DeviceSelectionScreen(viewModel: PresetWidgetConfigureViewModel, onD
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Select WLED Device") })
-        }
+        },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(padding),
         ) {
             items(devices) { device ->
                 DeviceItem(device, onDeviceSelected)
@@ -124,7 +144,7 @@ private fun DeviceItem(device: Device, onClick: (Device) -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .clickable { onClick(device) }
+            .clickable { onClick(device) },
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = device.name, style = MaterialTheme.typography.titleMedium)
@@ -134,11 +154,15 @@ private fun DeviceItem(device: Device, onClick: (Device) -> Unit) {
 }
 
 @HiltViewModel
-class PresetWidgetConfigureViewModel @Inject constructor(
-    private val deviceRepository: DeviceRepository
-) : ViewModel() {
+class PresetWidgetConfigureViewModel @Inject constructor(private val deviceRepository: DeviceRepository) : ViewModel() {
     val allDevices: Flow<List<Device>> = deviceRepository.allDevices
 }
 
 val Device.name: String
-    get() = if (customName.isNotEmpty()) customName else if (originalName.isNotEmpty()) originalName else address
+    get() = if (customName.isNotEmpty()) {
+        customName
+    } else if (originalName.isNotEmpty()) {
+        originalName
+    } else {
+        address
+    }

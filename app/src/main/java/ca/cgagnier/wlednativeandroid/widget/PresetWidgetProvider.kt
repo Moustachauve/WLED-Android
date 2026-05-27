@@ -23,11 +23,7 @@ class PresetWidgetProvider : AppWidgetProvider() {
     @Inject
     lateinit var deviceApiFactory: DeviceApiFactory
 
-    override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray
-    ) {
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
@@ -36,7 +32,10 @@ class PresetWidgetProvider : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == ACTION_TRIGGER_PRESET) {
-            val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+            val appWidgetId = intent.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID,
+            )
             val presetId = intent.getIntExtra(EXTRA_PRESET_ID, -1)
             val deviceAddress = intent.getStringExtra(EXTRA_DEVICE_ADDRESS)
             val listId = intent.getIntExtra(EXTRA_LIST_ID, R.id.preset_list)
@@ -47,15 +46,20 @@ class PresetWidgetProvider : AppWidgetProvider() {
         }
 
         if (intent.action == ACTION_REFRESH) {
-            val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+            val appWidgetId = intent.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID,
+            )
             val listId = intent.getIntExtra(EXTRA_LIST_ID, R.id.preset_list)
             if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                PresetWidgetRemoteViewsFactory.forceRefresh(appWidgetId)
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, listId)
             }
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun triggerPreset(context: Context, deviceAddress: String, presetId: Int, appWidgetId: Int, listId: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -63,13 +67,18 @@ class PresetWidgetProvider : AppWidgetProvider() {
                 val response = api.postState(State(selectedPresetId = presetId))
 
                 if (response.isSuccessful) {
-                     // Add a small delay to allow device state to update internally if needed
-                     // kotlinx.coroutines.delay(200) 
-                     // Wait, I need to import delay if I use it. 
-                     // Or just trigger update immediately.
-                     val appWidgetManager = AppWidgetManager.getInstance(context)
-                     appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, listId)
-                     Log.d(TAG, "Triggered widget update for $appWidgetId")
+                    val prefs = context.getSharedPreferences(
+                        "ca.cgagnier.wlednativeandroid.widget.PresetWidgetCache",
+                        Context.MODE_PRIVATE,
+                    ).edit()
+                    prefs.putInt("cache_selected_id_" + appWidgetId, presetId)
+                    prefs.apply()
+
+                    PresetWidgetRemoteViewsFactory.forceRefresh(appWidgetId)
+
+                    val appWidgetManager = AppWidgetManager.getInstance(context)
+                    appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, listId)
+                    Log.d(TAG, "Triggered widget update for $appWidgetId")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error triggering preset", e)
@@ -87,6 +96,7 @@ class PresetWidgetProvider : AppWidgetProvider() {
         const val EXTRA_LIST_ID = "ca.cgagnier.wlednativeandroid.widget.EXTRA_LIST_ID"
         private const val TAG = "PresetWidgetProvider"
 
+        @Suppress("LongParameterList")
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -94,24 +104,34 @@ class PresetWidgetProvider : AppWidgetProvider() {
             limit: Int = 0,
             layoutId: Int = R.layout.widget_preset,
             listId: Int = R.id.preset_list,
-            itemLayoutId: Int = R.layout.widget_preset_item
+            itemLayoutId: Int = R.layout.widget_preset_item,
+            titleViewId: Int? = R.id.appwidget_text,
         ) {
             val deviceName = PresetWidgetConfigureActivity.loadDeviceName(context, appWidgetId)
             val deviceAddress = PresetWidgetConfigureActivity.loadDeviceAddress(context, appWidgetId)
 
+            // Construct the RemoteViews object
+            val views = RemoteViews(context.packageName, layoutId)
+
             if (deviceAddress == null) {
+                titleViewId?.let {
+                    views.setTextViewText(it, context.getString(R.string.widget_please_configure))
+                }
+                views.setEmptyView(listId, R.id.empty_view)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
                 return
             }
 
-            // Construct the RemoteViews object
-            val views = RemoteViews(context.packageName, layoutId)
-            views.setTextViewText(R.id.appwidget_text, deviceName)
+            titleViewId?.let {
+                views.setTextViewText(it, deviceName)
+            }
 
             // Set up the collection
             val intent = Intent(context, PresetWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 putExtra(EXTRA_LIST_LIMIT, limit)
                 putExtra(EXTRA_LAYOUT_ID, itemLayoutId)
+                putExtra(EXTRA_LIST_ID, listId)
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             views.setRemoteAdapter(listId, intent)
@@ -124,8 +144,10 @@ class PresetWidgetProvider : AppWidgetProvider() {
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             val refreshPendingIntent = PendingIntent.getBroadcast(
-                context, appWidgetId, refreshIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                context,
+                appWidgetId,
+                refreshIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
             )
             views.setOnClickPendingIntent(R.id.empty_view, refreshPendingIntent)
 
@@ -137,8 +159,10 @@ class PresetWidgetProvider : AppWidgetProvider() {
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             val toastPendingIntent = PendingIntent.getBroadcast(
-                context, 0, toastIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                context,
+                appWidgetId,
+                toastIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
             )
             views.setPendingIntentTemplate(listId, toastPendingIntent)
 

@@ -1,5 +1,7 @@
 package ca.cgagnier.wlednativeandroid.widget
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.util.Log
 import androidx.glance.GlanceId
@@ -53,6 +55,9 @@ class WledWidgetManager @Inject constructor(
 
         Log.d(TAG, "Updating widgets from websocket for MAC ${deviceWithState.device.macAddress}")
         updateWidgetsForMacAddress(context, deviceWithState.device.macAddress, newData)
+
+        // Also update standard preset widgets
+        updatePresetWidgetsForDevice(context, deviceWithState.device.address)
     }
 
     suspend fun updateAllWidgets(context: Context) {
@@ -152,6 +157,38 @@ class WledWidgetManager @Inject constructor(
                 saveStateAndPush(context, glanceId, newData)
             }
         }
+
+        // Update name and configurations for any preset widgets matching the device
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val presetIds = appWidgetManager.getAppWidgetIds(
+            ComponentName(context, PresetWidgetProvider::class.java),
+        )
+        for (appWidgetId in presetIds) {
+            val cachedAddress = PresetWidgetConfigureActivity.loadDeviceAddress(context, appWidgetId)
+            if (cachedAddress == device.address) {
+                PresetWidgetConfigureActivity.saveDevicePref(context, appWidgetId, device)
+                PresetWidgetProvider.updateAppWidget(context, appWidgetManager, appWidgetId)
+            }
+        }
+
+        val smallPresetIds = appWidgetManager.getAppWidgetIds(
+            ComponentName(context, SmallPresetWidgetProvider::class.java),
+        )
+        for (appWidgetId in smallPresetIds) {
+            val cachedAddress = PresetWidgetConfigureActivity.loadDeviceAddress(context, appWidgetId)
+            if (cachedAddress == device.address) {
+                PresetWidgetConfigureActivity.saveDevicePref(context, appWidgetId, device)
+                PresetWidgetProvider.updateAppWidget(
+                    context,
+                    appWidgetManager,
+                    appWidgetId,
+                    limit = 3,
+                    layoutId = R.layout.widget_preset_horizontal,
+                    listId = R.id.preset_grid,
+                    itemLayoutId = R.layout.widget_preset_button_item,
+                )
+            }
+        }
     }
 
     /**
@@ -178,6 +215,52 @@ class WledWidgetManager @Inject constructor(
                 }
             }
         }
+
+        // Also handle preset widgets for the deleted device
+        val device = deviceRepository.findDeviceByMacAddress(macAddress)
+        val address = device?.address
+        if (address != null) {
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val presetPrefsName = "ca.cgagnier.wlednativeandroid.widget.PresetWidget"
+
+            // Standard Preset Widgets
+            val presetIds = appWidgetManager.getAppWidgetIds(
+                ComponentName(context, PresetWidgetProvider::class.java),
+            )
+            for (appWidgetId in presetIds) {
+                val cachedAddress = PresetWidgetConfigureActivity.loadDeviceAddress(context, appWidgetId)
+                if (cachedAddress == address) {
+                    val prefs = context.getSharedPreferences(presetPrefsName, 0).edit()
+                    prefs.remove("appwidget_$appWidgetId")
+                    prefs.remove("appwidget_${appWidgetId}_name")
+                    prefs.apply()
+                    PresetWidgetProvider.updateAppWidget(context, appWidgetManager, appWidgetId)
+                }
+            }
+
+            // Small Preset Widgets
+            val smallPresetIds = appWidgetManager.getAppWidgetIds(
+                ComponentName(context, SmallPresetWidgetProvider::class.java),
+            )
+            for (appWidgetId in smallPresetIds) {
+                val cachedAddress = PresetWidgetConfigureActivity.loadDeviceAddress(context, appWidgetId)
+                if (cachedAddress == address) {
+                    val prefs = context.getSharedPreferences(presetPrefsName, 0).edit()
+                    prefs.remove("appwidget_$appWidgetId")
+                    prefs.remove("appwidget_${appWidgetId}_name")
+                    prefs.apply()
+                    PresetWidgetProvider.updateAppWidget(
+                        context,
+                        appWidgetManager,
+                        appWidgetId,
+                        limit = 3,
+                        layoutId = R.layout.widget_preset_horizontal,
+                        listId = R.id.preset_grid,
+                        itemLayoutId = R.layout.widget_preset_button_item,
+                    )
+                }
+            }
+        }
     }
 
     private suspend fun getWidgetState(context: Context, glanceId: GlanceId): WidgetStateData? {
@@ -199,5 +282,41 @@ class WledWidgetManager @Inject constructor(
             prefs[WIDGET_DATA_KEY] = Json.encodeToString(data)
         }
         WledWidget().update(context, glanceId)
+    }
+
+    private fun updatePresetWidgetsForDevice(context: Context, deviceAddress: String) {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+
+        // Standard Preset Widgets
+        val presetIds = appWidgetManager.getAppWidgetIds(
+            ComponentName(context, PresetWidgetProvider::class.java),
+        )
+        for (appWidgetId in presetIds) {
+            val address = PresetWidgetConfigureActivity.loadDeviceAddress(context, appWidgetId)
+            if (address == deviceAddress) {
+                PresetWidgetRemoteViewsFactory.forceRefresh(appWidgetId)
+                PresetWidgetProvider.updateAppWidget(context, appWidgetManager, appWidgetId)
+            }
+        }
+
+        // Small Preset Widgets
+        val smallPresetIds = appWidgetManager.getAppWidgetIds(
+            ComponentName(context, SmallPresetWidgetProvider::class.java),
+        )
+        for (appWidgetId in smallPresetIds) {
+            val address = PresetWidgetConfigureActivity.loadDeviceAddress(context, appWidgetId)
+            if (address == deviceAddress) {
+                PresetWidgetRemoteViewsFactory.forceRefresh(appWidgetId)
+                PresetWidgetProvider.updateAppWidget(
+                    context,
+                    appWidgetManager,
+                    appWidgetId,
+                    limit = 3,
+                    layoutId = R.layout.widget_preset_horizontal,
+                    listId = R.id.preset_grid,
+                    itemLayoutId = R.layout.widget_preset_button_item,
+                )
+            }
+        }
     }
 }

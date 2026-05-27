@@ -65,6 +65,24 @@ class DeviceApiFactory(private val client: OkHttpClient) {
     }
 
     /**
+     * Create a new DeviceApi instance with a custom timeout.
+     *
+     * @param address The address of a device to create the API for.
+     * @param timeout The custom timeout in seconds.
+     */
+    fun create(address: String, timeout: Long): DeviceApi {
+        val baseUrl = if (!address.startsWith("http://") && !address.startsWith("https://")) {
+            "http://$address/"
+        } else {
+            address
+        }
+        val customClient = client.newBuilder().connectTimeout(timeout, TimeUnit.SECONDS)
+            .readTimeout(timeout, TimeUnit.SECONDS).writeTimeout(timeout, TimeUnit.SECONDS).build()
+
+        return createForDeviceAndClient(baseUrl, customClient)
+    }
+
+    /**
      * Create a new DeviceApi instance for a device.
      *
      * @param device The device to create the API for.
