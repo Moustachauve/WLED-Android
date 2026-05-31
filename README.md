@@ -21,3 +21,6 @@ Google and Google specifically disclaims all warranties as to its quality,
 merchantability, or fitness for a particular purpose.
 
 Google Play and the Google Play logo are trademarks of Google LLC.
+
+
+I just added some home screen widgets so that i can control my wled light just from my home screen without even opening the app.

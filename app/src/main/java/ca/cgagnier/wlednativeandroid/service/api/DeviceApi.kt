@@ -3,6 +3,7 @@ package ca.cgagnier.wlednativeandroid.service.api
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
+import ca.cgagnier.wlednativeandroid.model.wledapi.Preset
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -21,8 +22,17 @@ interface DeviceApi {
     @GET("json/info")
     suspend fun getInfo(): Response<Info>
 
+    @GET("presets.json")
+    suspend fun getPresets(): Response<Map<String, Preset>>
+
+    @GET("json/state")
+    suspend fun getState(): Response<State>
+
     @POST("json/state")
-    suspend fun postJson(@Body state: JsonPost): Response<State>
+    suspend fun postState(@Body state: State): Response<State>
+
+    @POST("json/state")
+    suspend fun postJson(@Body jsonPost: JsonPost): Response<State>
 
     @Multipart
     @POST("update")
@@ -52,6 +62,24 @@ class DeviceApiFactory(private val client: OkHttpClient) {
             address
         }
         return createForDeviceAndClient(baseUrl, client)
+    }
+
+    /**
+     * Create a new DeviceApi instance with a custom timeout.
+     *
+     * @param address The address of a device to create the API for.
+     * @param timeout The custom timeout in seconds.
+     */
+    fun create(address: String, timeout: Long): DeviceApi {
+        val baseUrl = if (!address.startsWith("http://") && !address.startsWith("https://")) {
+            "http://$address/"
+        } else {
+            address
+        }
+        val customClient = client.newBuilder().connectTimeout(timeout, TimeUnit.SECONDS)
+            .readTimeout(timeout, TimeUnit.SECONDS).writeTimeout(timeout, TimeUnit.SECONDS).build()
+
+        return createForDeviceAndClient(baseUrl, customClient)
     }
 
     /**

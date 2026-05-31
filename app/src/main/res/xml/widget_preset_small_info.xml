@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="ca.cgagnier.wlednativeandroid.widget.PresetWidgetConfigureActivity"
+    android:description="@string/appwidget_text"
+    android:initialKeyguardLayout="@layout/widget_preset"
+    android:initialLayout="@layout/widget_preset"
+    android:minWidth="180dp"
+    android:minHeight="40dp"
+    android:previewImage="@drawable/widget_preset_small_preview"
+    android:resizeMode="horizontal"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

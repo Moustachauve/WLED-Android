@@ -46,6 +46,13 @@
                 <data android:scheme="http" android:host="4.3.2.1" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".widget.PresetWidgetConfigureActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
 
         <receiver
             android:name=".widget.WledWidgetReceiver"
@@ -71,6 +78,40 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".widget.PresetWidgetProvider"
+            android:exported="true"
+            android:label="@string/appwidget_text">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="ca.cgagnier.wlednativeandroid.widget.ACTION_TRIGGER_PRESET" />
+                <action android:name="ca.cgagnier.wlednativeandroid.widget.ACTION_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_preset_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.SmallPresetWidgetProvider"
+            android:exported="true"
+            android:label="WLED Small Presets">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="ca.cgagnier.wlednativeandroid.widget.ACTION_TRIGGER_PRESET" />
+                <action android:name="ca.cgagnier.wlednativeandroid.widget.ACTION_REFRESH" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_preset_small_info" />
+        </receiver>
+
+        <service
+            android:name=".widget.PresetWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
+
         <!-- Device Controls (Quick Access) service for Android 11+ -->
         <service
             android:name=".service.controls.WledControlsService"
@@ -85,3 +126,4 @@
     </application>
 
 </manifest>
+

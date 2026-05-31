@@ -116,6 +116,8 @@
     <string name="open">Open</string>
     <string name="dismiss">Dismiss</string>
     <string name="some_devices_hidden">Some of your devices are hidden</string>
+    <string name="appwidget_text">Presets</string>
+    <string name="no_presets_found">No presets found</string>
     <!-- TODO: Translate the widget texts -->
     <string name="widget_single_device_name">Single Device</string>
     <string name="widget_description">Control a single WLED device</string>
