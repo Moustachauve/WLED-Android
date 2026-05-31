@@ -79,6 +79,7 @@ class PresetWidgetConfigureActivity : ComponentActivity() {
                             listId = R.id.preset_grid,
                             itemLayoutId = R.layout.widget_preset_button_item,
                             titleViewId = null,
+                            providerClass = SmallPresetWidgetProvider::class.java,
                         )
                     } else {
                         PresetWidgetProvider.updateAppWidget(this, appWidgetManager, appWidgetId)

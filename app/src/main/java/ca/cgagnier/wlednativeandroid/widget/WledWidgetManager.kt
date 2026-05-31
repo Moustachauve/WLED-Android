@@ -186,6 +186,7 @@ class WledWidgetManager @Inject constructor(
                     layoutId = R.layout.widget_preset_horizontal,
                     listId = R.id.preset_grid,
                     itemLayoutId = R.layout.widget_preset_button_item,
+                    providerClass = SmallPresetWidgetProvider::class.java,
                 )
             }
         }
@@ -257,6 +258,7 @@ class WledWidgetManager @Inject constructor(
                         layoutId = R.layout.widget_preset_horizontal,
                         listId = R.id.preset_grid,
                         itemLayoutId = R.layout.widget_preset_button_item,
+                        providerClass = SmallPresetWidgetProvider::class.java,
                     )
                 }
             }
@@ -315,6 +317,7 @@ class WledWidgetManager @Inject constructor(
                     layoutId = R.layout.widget_preset_horizontal,
                     listId = R.id.preset_grid,
                     itemLayoutId = R.layout.widget_preset_button_item,
+                    providerClass = SmallPresetWidgetProvider::class.java,
                 )
             }
         }
