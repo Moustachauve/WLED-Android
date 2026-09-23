@@ -64,7 +64,7 @@ The code is located in `app/src/main/java/ca/cgagnier/wlednativeandroid/`.
 *   `repository/` - Data access layer (Repositories).
 *   `service/` - Background services (including mDNS device discovery).
 *   `ui/` - User Interface (Jetpack Compose screens and components).
-    *   Uses Navigation Compose for routing (`MainNavHost.kt`).
+    *   Uses Navigation 3 for routing (`MainNavHost.kt`).
     *   ViewModels follow Hilt injection patterns.
 *   `util/` - Utility classes.
 *   `widget/` - Jetpack Glance app widgets.
