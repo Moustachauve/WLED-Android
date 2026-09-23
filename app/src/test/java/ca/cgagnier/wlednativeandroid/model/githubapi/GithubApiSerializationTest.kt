@@ -2,118 +2,120 @@ package ca.cgagnier.wlednativeandroid.model.githubapi
 
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
-private val SAMPLE_RELEASE_JSON = """
+private val SAMPLE_RELEASE_16_0_1_JSON = """
     {
-        "url": "https://api.github.com/repos/Aircoookie/WLED/releases/12345",
-        "assets_url": "https://api.github.com/repos/Aircoookie/WLED/releases/12345/assets",
-        "upload_url": "https://uploads.github.com/repos/Aircoookie/WLED/releases/12345/assets{?name,label}",
-        "html_url": "https://github.com/Aircoookie/WLED/releases/tag/v0.14.0",
-        "id": 12345,
-        "node_id": "MDc6UmVsZWFzZTEyMzQ1",
-        "tag_name": "v0.14.0",
-        "target_commitish": "main",
-        "name": "WLED 0.14.0 H скидки",
-        "draft": false,
-        "prerelease": false,
-        "created_at": "2023-10-13T12:00:00Z",
-        "published_at": "2023-10-13T13:00:00Z",
-        "tarball_url": "https://api.github.com/repos/Aircoookie/WLED/tarball/v0.14.0",
-        "zipball_url": "https://api.github.com/repos/Aircoookie/WLED/zipball/v0.14.0",
-        "body": "## Release Notes\n* Awesome new feature",
+        "url": "https://api.github.com/repos/wled/WLED/releases/347085524",
+        "assets_url": "https://api.github.com/repos/wled/WLED/releases/347085524/assets",
+        "upload_url": "https://uploads.github.com/repos/wled/WLED/releases/347085524/assets{?name,label}",
+        "html_url": "https://github.com/wled/WLED/releases/tag/v16.0.1",
+        "id": 347085524,
         "author": {
-            "login": "Aircoookie",
-            "id": 100,
-            "node_id": "MDQ6VXNlcjEwMA==",
-            "avatar_url": "https://avatars.githubusercontent.com/u/100?v=4",
+            "login": "github-actions[bot]",
+            "id": 41898282,
+            "node_id": "MDM6Qm90NDE4OTgyODI=",
+            "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
             "gravatar_id": "",
-            "url": "https://api.github.com/users/Aircoookie",
-            "html_url": "https://github.com/Aircoookie",
-            "followers_url": "https://api.github.com/users/Aircoookie/followers",
-            "following_url": "https://api.github.com/users/Aircoookie/following{/other_user}",
-            "gists_url": "https://api.github.com/users/Aircoookie/gists{/gist_id}",
-            "starred_url": "https://api.github.com/users/Aircoookie/starred{/owner}{/repo}",
-            "subscriptions_url": "https://api.github.com/users/Aircoookie/subscriptions",
-            "organizations_url": "https://api.github.com/users/Aircoookie/orgs",
-            "repos_url": "https://api.github.com/users/Aircoookie/repos",
-            "events_url": "https://api.github.com/users/Aircoookie/events{/privacy}",
-            "received_events_url": "https://api.github.com/users/Aircoookie/received_events",
-            "type": "User",
+            "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+            "html_url": "https://github.com/apps/github-actions",
+            "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+            "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+            "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+            "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+            "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+            "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+            "type": "Bot",
             "site_admin": false
         },
+        "node_id": "RE_kwDOBJbHAc4UsHDU",
+        "tag_name": "v16.0.1",
+        "target_commitish": "main",
+        "name": "WLED Release 16.0.1",
+        "draft": false,
+        "prerelease": false,
+        "created_at": "2026-06-30T17:15:37Z",
+        "published_at": "2026-06-30T21:12:47Z",
         "assets": [
             {
-                "url": "https://api.github.com/repos/Aircoookie/WLED/releases/assets/999",
-                "id": 999,
-                "node_id": "MDEyOlJlbGVhc2VBc3NldDk5OQ==",
-                "name": "WLED_0.14.0_ESP32.bin",
+                "url": "https://api.github.com/repos/wled/WLED/releases/assets/462495760",
+                "id": 462495760,
+                "node_id": "RA_kwDOBJbHAc4bkSAQ",
+                "name": "WLED_16.0.1_ESP8266_compat.bin",
                 "label": null,
+                "uploader": {
+                    "login": "github-actions[bot]",
+                    "id": 41898282,
+                    "node_id": "MDM6Qm90NDE4OTgyODI=",
+                    "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                    "gravatar_id": "",
+                    "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                    "html_url": "https://github.com/apps/github-actions",
+                    "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                    "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                    "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                    "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                    "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                    "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                    "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                    "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                    "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                    "type": "Bot",
+                    "site_admin": false
+                },
                 "content_type": "application/octet-stream",
                 "state": "uploaded",
-                "size": 1546200,
-                "download_count": 5000,
-                "created_at": "2023-10-13T12:30:00Z",
-                "updated_at": "2023-10-13T12:35:00Z",
-                "browser_download_url": "https://github.com/Aircoookie/WLED/releases/download/v0.14.0/WLED_0.14.0_ESP32.bin",
-                "uploader": {
-                    "login": "Aircoookie",
-                    "id": 100,
-                    "node_id": "MDQ6VXNlcjEwMA==",
-                    "avatar_url": "https://avatars.githubusercontent.com/u/100?v=4",
-                    "gravatar_id": "",
-                    "url": "https://api.github.com/users/Aircoookie",
-                    "html_url": "https://github.com/Aircoookie",
-                    "followers_url": "https://api.github.com/users/Aircoookie/followers",
-                    "following_url": "https://api.github.com/users/Aircoookie/following{/other_user}",
-                    "gists_url": "https://api.github.com/users/Aircoookie/gists{/gist_id}",
-                    "starred_url": "https://api.github.com/users/Aircoookie/starred{/owner}{/repo}",
-                    "subscriptions_url": "https://api.github.com/users/Aircoookie/subscriptions",
-                    "organizations_url": "https://api.github.com/users/Aircoookie/orgs",
-                    "repos_url": "https://api.github.com/users/Aircoookie/repos",
-                    "events_url": "https://api.github.com/users/Aircoookie/events{/privacy}",
-                    "received_events_url": "https://api.github.com/users/Aircoookie/received_events",
-                    "type": "User",
-                    "site_admin": false
-                }
+                "size": 934992,
+                "download_count": 636,
+                "created_at": "2026-06-30T20:28:04Z",
+                "updated_at": "2026-06-30T20:28:04Z",
+                "browser_download_url": "https://github.com/wled/WLED/releases/download/v16.0.1/WLED_16.0.1_ESP8266_compat.bin"
             }
         ],
+        "tarball_url": "https://api.github.com/repos/wled/WLED/tarball/v16.0.1",
+        "zipball_url": "https://api.github.com/repos/wled/WLED/zipball/v16.0.1",
+        "body": "# WLED Version 16.0.1 Announcement",
         "reactions": {
-            "url": "https://api.github.com/repos/Aircoookie/WLED/releases/12345/reactions",
-            "total_count": 42,
-            "+1": 35,
+            "url": "https://api.github.com/repos/wled/WLED/releases/347085524/reactions",
+            "total_count": 25,
+            "+1": 0,
             "-1": 0,
-            "laugh": 1,
-            "hooray": 2,
+            "laugh": 0,
+            "hooray": 14,
             "confused": 0,
-            "heart": 3,
-            "rocket": 1,
+            "heart": 8,
+            "rocket": 3,
             "eyes": 0
         },
-        "mentions_count": 5
+        "mentions_count": 10
     }
 """.trimIndent()
 
 private val SAMPLE_MINIMAL_RELEASE_JSON = """
     {
-        "url": "https://api.github.com/repos/Aircoookie/WLED/releases/1",
-        "assets_url": "https://api.github.com/repos/Aircoookie/WLED/releases/1/assets",
-        "upload_url": "https://uploads.github.com/repos/Aircoookie/WLED/releases/1/assets",
-        "html_url": "https://github.com/Aircoookie/WLED/releases/tag/v0.14.0-b1",
+        "url": "https://api.github.com/repos/wled/WLED/releases/1",
+        "assets_url": "https://api.github.com/repos/wled/WLED/releases/1/assets",
+        "upload_url": "https://uploads.github.com/repos/wled/WLED/releases/1/assets",
+        "html_url": "https://github.com/wled/WLED/releases/tag/v16.0.0-beta",
         "id": 1,
         "node_id": "MDc6UmVsZWFzZTE=",
-        "tag_name": "v0.14.0-b1",
+        "tag_name": "v16.0.0-beta",
         "target_commitish": "dev",
-        "name": "WLED Beta",
+        "name": "WLED 16.0.0 Beta",
         "draft": false,
         "prerelease": true,
-        "created_at": "2023-09-01T12:00:00Z",
-        "published_at": "2023-09-01T13:00:00Z",
+        "created_at": "2026-05-01T12:00:00Z",
+        "published_at": "2026-05-01T13:00:00Z",
         "tarball_url": "",
         "zipball_url": "",
-        "body": "Beta test",
+        "body": "Beta release",
         "author": {
             "login": "tester",
             "id": 2,
@@ -148,33 +150,37 @@ class GithubApiSerializationTest {
     }
 
     @Test
-    fun `test Release deserialization with reactions and assets`() {
-        val release = json.decodeFromString<Release>(SAMPLE_RELEASE_JSON)
+    fun `test Release deserialization with real WLED 16_0_1 data`() {
+        val release = json.decodeFromString<Release>(SAMPLE_RELEASE_16_0_1_JSON)
 
-        assertEquals("v0.14.0", release.tagName)
-        assertEquals(12345, release.id)
-        assertEquals("Aircoookie", release.author.login)
+        assertEquals("v16.0.1", release.tagName)
+        assertEquals(347085524, release.id)
+        assertEquals("WLED Release 16.0.1", release.name)
+        assertEquals("github-actions[bot]", release.author.login)
+        assertFalse(release.prerelease)
         assertEquals(1, release.assets.size)
 
         val asset = release.assets.first()
-        assertEquals("WLED_0.14.0_ESP32.bin", asset.name)
-        assertEquals(1546200L, asset.size)
+        assertEquals("WLED_16.0.1_ESP8266_compat.bin", asset.name)
+        assertEquals(934992L, asset.size)
+        assertEquals(636, asset.downloadCount)
         assertNull(asset.label)
-        assertEquals("Aircoookie", asset.uploader.login)
+        assertEquals("github-actions[bot]", asset.uploader.login)
 
         val reactions = release.reactions
         assertNotNull(reactions)
-        assertEquals(42, reactions?.totalCount)
-        assertEquals(35, reactions?.positive)
-        assertEquals(0, reactions?.negative)
-        assertEquals(3, reactions?.heart)
-        assertEquals(5, release.mentionsCount)
+        assertEquals(25, reactions?.totalCount)
+        assertEquals(14, reactions?.hooray)
+        assertEquals(8, reactions?.heart)
+        assertEquals(3, reactions?.rocket)
+        assertEquals(10, release.mentionsCount)
     }
 
     @Test
     fun `test Release deserialization without optional reactions or mentions`() {
         val release = json.decodeFromString<Release>(SAMPLE_MINIMAL_RELEASE_JSON)
-        assertEquals("v0.14.0-b1", release.tagName)
+        assertEquals("v16.0.0-beta", release.tagName)
+        assertTrue(release.prerelease)
         assertNull(release.reactions)
         assertNull(release.mentionsCount)
     }
