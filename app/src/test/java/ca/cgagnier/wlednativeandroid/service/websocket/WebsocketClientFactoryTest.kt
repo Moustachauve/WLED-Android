@@ -5,8 +5,8 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
-import com.squareup.moshi.Moshi
 import io.mockk.mockk
+import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -22,7 +22,7 @@ class WebsocketClientFactoryTest {
 
     private lateinit var context: Context
     private lateinit var okHttpClient: OkHttpClient
-    private lateinit var moshi: Moshi
+    private lateinit var json: Json
     private lateinit var factory: WebsocketClientFactory
 
     // Using mockk for mocking dependencies (relaxed = true ignores unstubbed calls)
@@ -35,7 +35,11 @@ class WebsocketClientFactoryTest {
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
         okHttpClient = OkHttpClient.Builder().build()
-        moshi = Moshi.Builder().build()
+        json = Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            explicitNulls = false
+        }
 
         factory = WebsocketClientFactory(
             applicationContext = context,
@@ -43,7 +47,7 @@ class WebsocketClientFactoryTest {
             widgetManager = widgetManager,
             deviceUpdateManager = deviceUpdateManager,
             okHttpClient = okHttpClient,
-            moshi = moshi,
+            json = json,
             repositoryDao = repositoryDao,
         )
     }

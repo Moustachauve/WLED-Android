@@ -1,12 +1,20 @@
 package ca.cgagnier.wlednativeandroid.model.wledapi
 
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
 
-@JsonClass(generateAdapter = true)
+@Serializable
 data class UserMods(
-
     // Battery values
-    @param:Json(name = "Battery level") val batteryLevel: List<Any>? = null,
-    @param:Json(name = "Battery voltage") val batteryVoltage: List<Any>? = null,
-)
+    @SerialName("Battery level") val batteryLevel: List<JsonElement>? = null,
+    @SerialName("Battery voltage") val batteryVoltage: List<JsonElement>? = null,
+) {
+    val batteryPercentage: Double?
+        get() = (batteryLevel?.firstOrNull() as? JsonPrimitive)?.doubleOrNull
+
+    val batteryVoltageValue: Double?
+        get() = (batteryVoltage?.firstOrNull() as? JsonPrimitive)?.doubleOrNull
+}

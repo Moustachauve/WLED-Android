@@ -1,18 +1,17 @@
 package ca.cgagnier.wlednativeandroid.model.wledapi
 
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
-@JsonClass(generateAdapter = true)
+@Serializable
 data class State(
-
-    @param:Json(name = "on") val isOn: Boolean? = null,
-    @param:Json(name = "bri") val brightness: Int? = null,
-    @param:Json(name = "transition") val transition: Int? = null,
-    @param:Json(name = "ps") val selectedPresetId: Int? = null,
-    @param:Json(name = "pl") val selectedPlaylistId: Int? = null,
-    @param:Json(name = "nl") val nightlight: Nightlight? = null,
-    @param:Json(name = "lor") val liveDataOverride: Int? = null,
-    @param:Json(name = "mainseg") val mainSegment: Int? = null,
-    @param:Json(name = "seg") val segment: List<Segment>? = null,
+    @SerialName("on") val isOn: Boolean? = null,
+    @SerialName("bri") val brightness: Int? = null,
+    @SerialName("transition") val transition: Int? = null,
+    @SerialName("ps") val selectedPresetId: Int? = null,
+    @SerialName("pl") val selectedPlaylistId: Int? = null,
+    @SerialName("nl") val nightlight: Nightlight? = null,
+    @SerialName("lor") val liveDataOverride: Int? = null,
+    @SerialName("mainseg") val mainSegment: Int? = null,
+    @SerialName("seg") val segment: List<Segment>? = null,
 )

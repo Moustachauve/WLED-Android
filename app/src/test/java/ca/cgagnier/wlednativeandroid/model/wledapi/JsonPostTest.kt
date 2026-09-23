@@ -1,11 +1,21 @@
 package ca.cgagnier.wlednativeandroid.model.wledapi
 
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class JsonPostTest {
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        explicitNulls = false
+        encodeDefaults = true
+    }
 
     @Test
     fun `test JsonPost defaults`() {
@@ -21,5 +31,30 @@ class JsonPostTest {
         assertEquals(true, jsonPost.isOn)
         assertEquals(128, jsonPost.brightness)
         assertEquals(false, jsonPost.verbose)
+    }
+
+    @Test
+    fun `test JsonPost serialization omits null values`() {
+        val jsonPost = JsonPost()
+        val serialized = json.encodeToString(jsonPost)
+        assertEquals("""{"v":true}""", serialized)
+    }
+
+    @Test
+    fun `test JsonPost serialization with all values set`() {
+        val jsonPost = JsonPost(isOn = true, brightness = 200, verbose = false)
+        val serialized = json.encodeToString(jsonPost)
+        assertTrue(serialized.contains(""""on":true"""))
+        assertTrue(serialized.contains(""""bri":200"""))
+        assertTrue(serialized.contains(""""v":false"""))
+    }
+
+    @Test
+    fun `test JsonPost deserialization`() {
+        val rawJson = """{"on":true,"bri":255,"v":false}"""
+        val parsed = json.decodeFromString<JsonPost>(rawJson)
+        assertEquals(true, parsed.isOn)
+        assertEquals(255, parsed.brightness)
+        assertFalse(parsed.verbose)
     }
 }

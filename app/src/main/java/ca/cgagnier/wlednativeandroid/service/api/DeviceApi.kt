@@ -4,12 +4,14 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Multipart
@@ -29,6 +31,16 @@ interface DeviceApi {
     suspend fun updateDevice(@Part binaryFile: MultipartBody.Part): Response<ResponseBody>
 }
 
+private val defaultJson = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+    explicitNulls = false
+    coerceInputValues = true
+    encodeDefaults = true
+}
+
+private val JSON_MEDIA_TYPE = "application/json".toMediaType()
+
 /**
  * Factory for creating instances of DeviceApi.
  *
@@ -36,8 +48,9 @@ interface DeviceApi {
  * Instead, we provide this factory to create a new DeviceApi on-demand.
  *
  * @param client The OkHttpClient to use for the API calls.
+ * @param json The Json instance to use for serialization/deserialization.
  */
-class DeviceApiFactory(private val client: OkHttpClient) {
+class DeviceApiFactory(private val client: OkHttpClient, private val json: Json = defaultJson) {
 
     /**
      * Create a new DeviceApi instance from a device address.
@@ -76,6 +89,6 @@ class DeviceApiFactory(private val client: OkHttpClient) {
 
     private fun createForDeviceAndClient(address: String, client: OkHttpClient): DeviceApi =
         Retrofit.Builder().baseUrl(address).client(client)
-            .addConverterFactory(MoshiConverterFactory.create()).build()
+            .addConverterFactory(json.asConverterFactory(JSON_MEDIA_TYPE)).build()
             .create(DeviceApi::class.java)
 }

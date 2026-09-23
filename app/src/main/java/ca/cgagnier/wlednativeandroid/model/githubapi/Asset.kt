@@ -1,21 +1,21 @@
 package ca.cgagnier.wlednativeandroid.model.githubapi
 
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
-@JsonClass(generateAdapter = true)
+@Serializable
 data class Asset(
-    @field:Json(name = "url") var url: String,
-    @field:Json(name = "id") var id: Int,
-    @field:Json(name = "node_id") var nodeId: String,
-    @field:Json(name = "name") var name: String,
-    @field:Json(name = "label") var label: String?,
-    @field:Json(name = "uploader") var uploader: Uploader,
-    @field:Json(name = "content_type") var contentType: String,
-    @field:Json(name = "state") var state: String,
-    @field:Json(name = "size") var size: Long,
-    @field:Json(name = "download_count") var downloadCount: Int,
-    @field:Json(name = "created_at") var createdAt: String,
-    @field:Json(name = "updated_at") var updatedAt: String,
-    @field:Json(name = "browser_download_url") var browserDownloadUrl: String,
+    @SerialName("url") var url: String,
+    @SerialName("id") var id: Int,
+    @SerialName("node_id") var nodeId: String,
+    @SerialName("name") var name: String,
+    @SerialName("label") var label: String?,
+    @SerialName("uploader") var uploader: Uploader,
+    @SerialName("content_type") var contentType: String,
+    @SerialName("state") var state: String,
+    @SerialName("size") var size: Long,
+    @SerialName("download_count") var downloadCount: Int,
+    @SerialName("created_at") var createdAt: String,
+    @SerialName("updated_at") var updatedAt: String,
+    @SerialName("browser_download_url") var browserDownloadUrl: String,
 )

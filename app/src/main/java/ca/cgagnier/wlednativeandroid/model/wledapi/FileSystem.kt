@@ -1,12 +1,11 @@
 package ca.cgagnier.wlednativeandroid.model.wledapi
 
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
-@JsonClass(generateAdapter = true)
+@Serializable
 data class FileSystem(
-
-    @param:Json(name = "u") val spaceUsed: Int? = null,
-    @param:Json(name = "t") val spaceTotal: Int? = null,
-    @param:Json(name = "pmt") val presetLastModification: Int? = null,
+    @SerialName("u") val spaceUsed: Int? = null,
+    @SerialName("t") val spaceTotal: Int? = null,
+    @SerialName("pmt") val presetLastModification: Int? = null,
 )

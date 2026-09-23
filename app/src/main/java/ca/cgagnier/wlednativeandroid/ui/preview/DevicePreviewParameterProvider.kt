@@ -11,6 +11,7 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.UserMods
 import ca.cgagnier.wlednativeandroid.model.wledapi.Wifi
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
+import kotlinx.serialization.json.JsonPrimitive
 import java.util.concurrent.TimeUnit
 
 class DevicePreviewParameterProvider : PreviewParameterProvider<DeviceWithState> {
@@ -73,7 +74,7 @@ class DevicePreviewParameterProvider : PreviewParameterProvider<DeviceWithState>
                     name = "WLED",
                     wifi = Wifi(bssid = "ff:ee:dd:cc:bb:aa", rssi = -65, signal = 70, channel = 6),
                     userMods = UserMods(
-                        batteryLevel = listOf(75.0),
+                        batteryLevel = listOf(JsonPrimitive(75.0)),
                     ),
                 ),
             )

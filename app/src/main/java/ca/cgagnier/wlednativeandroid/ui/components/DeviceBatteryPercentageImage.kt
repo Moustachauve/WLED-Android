@@ -26,8 +26,8 @@ private fun getBatteryImage(batteryPercentage: Double): Int = when {
 @Composable
 fun deviceBatteryPercentageImage(device: DeviceWithState) {
     val stateInfo by device.stateInfo
-    if (stateInfo?.info?.userMods?.batteryLevel != null) {
-        val batteryPercentage = stateInfo?.info?.userMods?.batteryLevel?.get(0) as? Double ?: 0.0
+    val batteryPercentage = stateInfo?.info?.userMods?.batteryPercentage
+    if (batteryPercentage != null) {
         Icon(
             painter = painterResource(getBatteryImage(batteryPercentage)),
             contentDescription = stringResource(R.string.battery_percentage),
