@@ -11,8 +11,9 @@ Build, test, and automate Android applications using accessibility-driven naviga
 ## Quick Start
 
 ```bash
-# 1. Check environment
+# 1. Check environment (use .sh on macOS/Linux, .ps1 on Windows)
 bash scripts/emu_health_check.sh
+# or on Windows: .\scripts\emu_health_check.ps1
 
 # 2. Launch app
 python scripts/app_launcher.py --launch com.example.app
@@ -82,7 +83,8 @@ All scripts support `--help` for detailed options and `--json` for machine-reada
    - Shutdown emulators
    - Options: `--list`, `--boot`, `--shutdown`, `--json`
 
-9. **emu_health_check.sh** - Verify environment is properly configured
+9. **emu_health_check** - Verify environment is properly configured
+    - Use `emu_health_check.sh` on macOS/Linux and `emu_health_check.ps1` on Windows
     - Check ADB, Emulator, Java, Gradle, ANDROID_HOME
     - List connected devices
 
