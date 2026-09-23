@@ -6,7 +6,15 @@ import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
+import com.vdurmont.semver4j.Semver
 import javax.inject.Inject
+
+/**
+ * nightly tag is not supported at the moment. Exclude it from results.
+ * TODO: Add support for nightly tags. This will need special handling since the tag itself never
+ *   changes. Probably need a new Branch option for it too.
+ */
+private const val IGNORED_TAG = "nightly"
 
 class VersionWithAssetsRepository @Inject constructor(
     private val database: DevicesDatabase,
@@ -76,12 +84,41 @@ class VersionWithAssetsRepository @Inject constructor(
         }
     }
 
-    suspend fun getLatestStableVersionWithAssets(repositoryId: Long): VersionWithAssets? =
-        versionDao.getLatestStableVersionWithAssets(repositoryId)
+    suspend fun getLatestStableVersionWithAssets(repositoryId: Long): VersionWithAssets? {
+        val latestVersion = getLatestVersion(
+            versionDao.getVersionsByRepository(repositoryId).filter { !it.isPrerelease && it.tagName != IGNORED_TAG },
+        )
+        return latestVersion?.let { versionDao.getVersionByTagName(repositoryId, it.tagName) }
+    }
 
-    suspend fun getLatestBetaVersionWithAssets(repositoryId: Long): VersionWithAssets? =
-        versionDao.getLatestBetaVersionWithAssets(repositoryId)
+    suspend fun getLatestBetaVersionWithAssets(repositoryId: Long): VersionWithAssets? {
+        val latestVersion = getLatestVersion(
+            versionDao.getVersionsByRepository(repositoryId).filter { it.tagName != IGNORED_TAG },
+        )
+        return latestVersion?.let { versionDao.getVersionByTagName(repositoryId, it.tagName) }
+    }
 
     suspend fun getVersionByTag(repositoryId: Long, tagName: String): VersionWithAssets? =
         versionDao.getVersionByTagName(repositoryId, tagName)
+
+    companion object {
+        val semVerComparator =
+            Comparator<Pair<Version, Semver?>> { v1, v2 ->
+                val semver1 = v1.second
+                val semver2 = v2.second
+
+                when {
+                    semver1 != null && semver2 != null -> semver1.compareTo(semver2)
+                    semver1 != null -> 1
+                    semver2 != null -> -1
+                    else -> v1.first.publishedDate.compareTo(v2.first.publishedDate)
+                }
+            }
+
+        fun getLatestVersion(versions: List<Version>): Version? = versions.map {
+            it to runCatching {
+                Semver(it.tagName, Semver.SemverType.LOOSE)
+            }.getOrNull()
+        }.maxWithOrNull(semVerComparator)?.first
+    }
 }
