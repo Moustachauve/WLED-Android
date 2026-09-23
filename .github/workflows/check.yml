@@ -27,6 +27,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
 
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest
@@ -53,9 +55,14 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
 
-      - name: Run Analysis
-        run: ./gradlew spotlessCheck detekt lintDebug
+      - name: Run Code Formatting and Quality
+        run: ./gradlew spotlessCheck detekt
+
+      - name: Run Android Lint
+        run: ./gradlew lintDebug
 
       - name: Upload Lint Results
         if: always()

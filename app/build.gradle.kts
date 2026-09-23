@@ -77,6 +77,9 @@ android {
     namespace = "ca.cgagnier.wlednativeandroid"
     lint {
         fatal += "MissingTranslation"
+        checkTestSources = false
+        checkDependencies = false
+        abortOnError = true
     }
 }
 
