@@ -26,11 +26,12 @@ kotlinxSerializationJson = "1.11.0"
 ksp = "2.3.12"
 lifecycleViewmodelKtx = "2.11.0"
 loggingInterceptor = "5.5.0"
+material = "1.14.0"
 materialKolor = "5.0.1"
 moshiKotlinCodegen = "1.15.2"
 moshiVersion = "1.15.2"
 multiplatformmarkdownrenderer = "0.45.0"
-navigationCompose = "2.10.1"
+navigation3 = "1.1.7"
 okhttp = "5.5.0"
 preferenceKtx = "1.2.1"
 protobuf = "0.10.0"
@@ -53,8 +54,9 @@ androidx-adaptive = { module = "androidx.compose.material3.adaptive:adaptive" }
 androidx-adaptive-layout = { module = "androidx.compose.material3.adaptive:adaptive-layout" }
 androidx-adaptive-navigation = { module = "androidx.compose.material3.adaptive:adaptive-navigation" }
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
-androidx-compose-navigation = { group = "androidx.navigation", name = "navigation-compose", version.ref="navigationCompose"}
-androidx-compose-navigation-ui = { group = "androidx.navigation", name = "navigation-ui-ktx", version.ref = "navigationCompose" }
+androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
+androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
+androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycleViewmodelKtx" }
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "coreSplashscreen" }
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espressoCore" }
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
@@ -113,13 +115,14 @@ androidx-glance-appwidget-preview = { group = "androidx.glance", name = "glance-
 androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
 androidx-glance-preview = { group = "androidx.glance", name = "glance-preview", version.ref = "glance" }
 
+material = { module = "com.google.android.material:material", version.ref = "material" }
+
 # TODO: Manually import the icons instead of importing this.
 compose-material-icons = { group = "androidx.compose.material", name = "material-icons-core" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-androidx-navigation-safeargs = { id = "androidx.navigation.safeargs.kotlin", version.ref = "navigationCompose" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-protobuf = { id = "com.google.protobuf", version.ref = "protobuf" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hiltAndroid" }
