@@ -12,30 +12,48 @@ private val SAMPLE_DEVICE_STATE_INFO_JSON = """
     {
         "state": {
             "on": true,
-            "bri": 128,
+            "bri": 195,
             "transition": 7,
-            "ps": 1,
+            "ps": -1,
             "pl": -1,
             "nl": {
                 "on": false,
                 "dur": 60,
-                "fade": true,
                 "mode": 1,
                 "tbri": 0,
                 "rem": -1
             },
+            "lor": 0,
             "mainseg": 0,
             "seg": [
                 {
                     "id": 0,
                     "start": 0,
-                    "stop": 30,
-                    "len": 30,
+                    "stop": 88,
+                    "len": 88,
                     "grp": 1,
                     "spc": 0,
                     "on": true,
                     "bri": 255,
-                    "col": [[255, 160, 0], [0, 0, 0]],
+                    "col": [[0, 17, 255, 0], [144, 79, 255, 0], [0, 0, 0, 0]],
+                    "fx": 107,
+                    "sx": 20,
+                    "ix": 144,
+                    "pal": 3,
+                    "sel": false,
+                    "rev": false,
+                    "mi": false
+                },
+                {
+                    "id": 1,
+                    "start": 88,
+                    "stop": 177,
+                    "len": 89,
+                    "grp": 1,
+                    "spc": 0,
+                    "on": true,
+                    "bri": 255,
+                    "col": [[99, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
                     "fx": 0,
                     "sx": 128,
                     "ix": 128,
@@ -47,40 +65,50 @@ private val SAMPLE_DEVICE_STATE_INFO_JSON = """
             ]
         },
         "info": {
-            "ver": "0.14.0",
-            "vid": 2310130,
-            "name": "Living Room LED",
+            "ver": "16.0.1",
+            "vid": 2606300,
+            "cn": "Niji",
+            "release": "ESP32",
+            "repo": "wled/WLED",
+            "name": "WLED Desk",
             "udpport": 21324,
+            "simplifiedui": false,
             "live": false,
-            "fxcount": 187,
-            "palcount": 71,
-            "opt": 1,
+            "liveseg": -1,
+            "ws": 3,
+            "fxcount": 220,
+            "palcount": 73,
+            "cpalcount": 1,
             "arch": "esp32",
-            "core": "v3.3.5-1-g850c099",
-            "freeheap": 145000,
-            "uptime": 3600,
+            "core": "4.4.8.240628",
+            "clock": 240,
+            "flash": 4,
+            "freeheap": 120932,
+            "uptime": 2252733,
+            "time": "2026-9-22, 23:30:48",
+            "opt": 79,
             "brand": "WLED",
-            "product": "Fargbot",
-            "mac": "a0b1c2d3e4f5",
+            "product": "FOSS",
+            "mac": "aabbccddeeff",
             "ip": "192.168.1.100",
             "leds": {
-                "count": 30,
-                "pwr": 450,
-                "fps": 42,
-                "maxpwr": 850,
-                "maxseg": 16
+                "count": 277,
+                "pwr": 2171,
+                "fps": 43,
+                "maxpwr": 10002,
+                "maxseg": 32
             },
             "wifi": {
                 "bssid": "aa:bb:cc:dd:ee:ff",
-                "rssi": -60,
-                "signal": 80,
-                "channel": 11,
+                "rssi": -72,
+                "signal": 56,
+                "channel": 1,
                 "ap": false
             },
             "fs": {
-                "u": 64,
-                "t": 1024,
-                "pmt": 1699999999
+                "u": 32,
+                "t": 983,
+                "pmt": 1788492069
             }
         }
     }
@@ -89,7 +117,7 @@ private val SAMPLE_DEVICE_STATE_INFO_JSON = """
 private val SAMPLE_UNKNOWN_FIELDS_INFO_JSON = """
     {
         "name": "Test LED",
-        "ver": "0.15.0",
+        "ver": "16.0.1",
         "future_field_not_yet_known": "hello",
         "another_extra_number": 42,
         "leds": { "count": 100 },
@@ -107,36 +135,46 @@ class WledApiSerializationTest {
     }
 
     @Test
-    fun `test DeviceStateInfo full deserialization`() {
+    fun `test DeviceStateInfo full deserialization with real WLED 16_0_1 data`() {
         val deviceStateInfo = json.decodeFromString<DeviceStateInfo>(SAMPLE_DEVICE_STATE_INFO_JSON)
 
         // Verify State
         assertEquals(true, deviceStateInfo.state.isOn)
-        assertEquals(128, deviceStateInfo.state.brightness)
+        assertEquals(195, deviceStateInfo.state.brightness)
         assertEquals(7, deviceStateInfo.state.transition)
-        assertEquals(1, deviceStateInfo.state.selectedPresetId)
+        assertEquals(-1, deviceStateInfo.state.selectedPresetId)
         assertNotNull(deviceStateInfo.state.nightlight)
         assertEquals(false, deviceStateInfo.state.nightlight?.isOn)
-        assertEquals(1, deviceStateInfo.state.segment?.size)
+        assertEquals(2, deviceStateInfo.state.segment?.size)
 
         val segment = deviceStateInfo.state.segment?.first()
         assertNotNull(segment)
         assertEquals(0, segment?.id)
-        assertEquals(30, segment?.length)
-        assertEquals(listOf(listOf(255, 160, 0), listOf(0, 0, 0)), segment?.colors)
+        assertEquals(88, segment?.length)
+        assertEquals(listOf(listOf(0, 17, 255, 0), listOf(144, 79, 255, 0), listOf(0, 0, 0, 0)), segment?.colors)
+        assertEquals(107, segment?.effect)
 
         // Verify Info
-        assertEquals("0.14.0", deviceStateInfo.info.version)
-        assertEquals(2310130, deviceStateInfo.info.buildId)
-        assertEquals("Living Room LED", deviceStateInfo.info.name)
+        assertEquals("16.0.1", deviceStateInfo.info.version)
+        assertEquals(2606300, deviceStateInfo.info.buildId)
+        assertEquals("Niji", deviceStateInfo.info.codeName)
+        assertEquals("ESP32", deviceStateInfo.info.release)
+        assertEquals("wled/WLED", deviceStateInfo.info.repository)
+        assertEquals("WLED Desk", deviceStateInfo.info.name)
         assertEquals("esp32", deviceStateInfo.info.platformName)
-        assertEquals("a0b1c2d3e4f5", deviceStateInfo.info.macAddress)
-        assertEquals(30, deviceStateInfo.info.leds.count)
-        assertEquals(42, deviceStateInfo.info.leds.fps)
-        assertEquals(-60, deviceStateInfo.info.wifi.rssi)
-        assertEquals(80, deviceStateInfo.info.wifi.signal)
+        assertEquals("4.4.8.240628", deviceStateInfo.info.arduinoCoreVersion)
+        assertEquals(240, deviceStateInfo.info.clockFrequency)
+        assertEquals(4, deviceStateInfo.info.flashChipSize)
+        assertEquals("FOSS", deviceStateInfo.info.product)
+        assertEquals("aabbccddeeff", deviceStateInfo.info.macAddress)
+        assertEquals("192.168.1.100", deviceStateInfo.info.ipAddress)
+        assertEquals(277, deviceStateInfo.info.leds.count)
+        assertEquals(43, deviceStateInfo.info.leds.fps)
+        assertEquals(-72, deviceStateInfo.info.wifi.rssi)
+        assertEquals(56, deviceStateInfo.info.wifi.signal)
         assertFalse(deviceStateInfo.info.wifi.isApMode ?: true)
-        assertEquals(64, deviceStateInfo.info.fileSystem?.spaceUsed)
+        assertEquals(32, deviceStateInfo.info.fileSystem?.spaceUsed)
+        assertEquals(983, deviceStateInfo.info.fileSystem?.spaceTotal)
         assertTrue(deviceStateInfo.info.isOtaEnabled)
     }
 
@@ -144,7 +182,7 @@ class WledApiSerializationTest {
     fun `test Info with unknown fields ignores extra keys`() {
         val info = json.decodeFromString<Info>(SAMPLE_UNKNOWN_FIELDS_INFO_JSON)
         assertEquals("Test LED", info.name)
-        assertEquals("0.15.0", info.version)
+        assertEquals("16.0.1", info.version)
         assertEquals(100, info.leds.count)
         assertEquals(-55, info.wifi.rssi)
     }
