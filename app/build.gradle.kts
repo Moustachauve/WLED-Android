@@ -3,7 +3,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.google.protobuf)
-    alias(libs.plugins.kotlin)
     alias(libs.plugins.androidx.navigation.safeargs)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
@@ -13,7 +12,7 @@ plugins {
 }
 
 android {
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "ca.cgagnier.wlednativeandroid"
