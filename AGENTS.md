@@ -18,7 +18,7 @@ WLED-Android is a native Android application for controlling WLED devices (WiFi-
     *   *Instruction:* Modify the `.proto` definition for user preferences. Do not use standard SharedPreferences.
 *   **Build System:** Gradle (Kotlin DSL), Version Catalogs (`gradle/libs.versions.toml`)
 *   **Min SDK:** 24
-*   **Target SDK:** 36
+*   **Target SDK:** 37
 
 ## 3. Code Style & Quality (CRITICAL)
 This project enforces strict code style, static analysis, and localization rules.
