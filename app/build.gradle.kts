@@ -16,7 +16,7 @@ android {
     defaultConfig {
         applicationId = "ca.cgagnier.wlednativeandroid"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode =
             libs.versions.app.versionCode
                 .get()
