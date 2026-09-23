@@ -6,8 +6,8 @@ import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
-import com.squareup.moshi.Moshi
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,7 +24,7 @@ class WebsocketClientFactory @Inject constructor(
     private val widgetManager: WledWidgetManager,
     private val deviceUpdateManager: DeviceUpdateManager,
     private val okHttpClient: OkHttpClient,
-    private val moshi: Moshi,
+    private val json: Json,
     private val repositoryDao: RepositoryDao,
 ) {
     /**
@@ -37,7 +37,7 @@ class WebsocketClientFactory @Inject constructor(
         widgetManager = widgetManager,
         deviceUpdateManager = deviceUpdateManager,
         okHttpClient = okHttpClient,
-        moshi = moshi,
+        json = json,
         repositoryDao = repositoryDao,
     )
 }

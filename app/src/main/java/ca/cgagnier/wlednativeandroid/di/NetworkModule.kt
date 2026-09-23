@@ -3,16 +3,17 @@ package ca.cgagnier.wlednativeandroid.di
 import android.content.Context
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApiEndpoints
-import com.squareup.moshi.Moshi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.serialization.json.Json
 import okhttp3.Cache
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -23,10 +24,17 @@ object NetworkModule {
     private const val GITHUB_BASE_URL = "https://api.github.com"
     private const val DEFAULT_TIMEOUT_SECONDS = 30L
     private const val CACHE_SIZE_BYTES = 20 * 1024 * 1024L // 20MB
+    private val JSON_MEDIA_TYPE = "application/json".toMediaType()
 
     @Provides
     @Singleton
-    fun provideMoshi(): Moshi = Moshi.Builder().build()
+    fun provideJson(): Json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        explicitNulls = false
+        coerceInputValues = true
+        encodeDefaults = true
+    }
 
     @Provides
     @Singleton
@@ -40,10 +48,10 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideGithubRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit = Retrofit.Builder()
+    fun provideGithubRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit = Retrofit.Builder()
         .baseUrl(GITHUB_BASE_URL)
         .client(okHttpClient)
-        .addConverterFactory(MoshiConverterFactory.create(moshi))
+        .addConverterFactory(json.asConverterFactory(JSON_MEDIA_TYPE))
         .build()
 
     @Provides
@@ -52,5 +60,6 @@ object NetworkModule {
         retrofit.create(GithubApiEndpoints::class.java)
 
     @Provides
-    fun provideDeviceApiFactory(okHttpClient: OkHttpClient): DeviceApiFactory = DeviceApiFactory(okHttpClient)
+    fun provideDeviceApiFactory(okHttpClient: OkHttpClient, json: Json): DeviceApiFactory =
+        DeviceApiFactory(okHttpClient, json)
 }

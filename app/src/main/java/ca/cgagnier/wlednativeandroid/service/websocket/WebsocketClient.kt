@@ -12,13 +12,14 @@ import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
-import com.squareup.moshi.JsonAdapter
-import com.squareup.moshi.Moshi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -38,7 +39,7 @@ class WebsocketClient(
     private val widgetManager: WledWidgetManager,
     deviceUpdateManager: DeviceUpdateManager,
     private val okHttpClient: OkHttpClient,
-    moshi: Moshi,
+    private val json: Json,
     private val repositoryDao: RepositoryDao,
 ) {
 
@@ -49,11 +50,6 @@ class WebsocketClient(
     private var isManuallyDisconnected = false
     private var isConnecting = false
     private var retryCount = 0
-
-    // Moshi setup
-    private val deviceStateInfoJsonAdapter: JsonAdapter<DeviceStateInfo> =
-        moshi.adapter(DeviceStateInfo::class.java)
-    private val stateJsonAdapter: JsonAdapter<State> = moshi.adapter(State::class.java)
 
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
 
@@ -75,21 +71,18 @@ class WebsocketClient(
         override fun onMessage(webSocket: WebSocket, text: String) {
             Log.d(TAG, "onMessage for ${deviceState.device.address}: $text")
             try {
-                // Use the pre-created Moshi adapter
-                val deviceStateInfo = deviceStateInfoJsonAdapter.fromJson(text)
-                if (deviceStateInfo != null) {
-                    deviceState.stateInfo.value = deviceStateInfo
+                val deviceStateInfo = json.decodeFromString<DeviceStateInfo>(text)
+                deviceState.stateInfo.value = deviceStateInfo
 
-                    // Update information about the device when we receive a message.
-                    // Ideally, this should probably not be done in the client directly
-                    coroutineScope.launch {
-                        saveDeviceIfChanged(deviceStateInfo)
-                        updateWidgets()
-                    }
-                } else {
-                    Log.w(TAG, "Received a null message after parsing.")
+                // Update information about the device when we receive a message.
+                // Ideally, this should probably not be done in the client directly
+                coroutineScope.launch {
+                    saveDeviceIfChanged(deviceStateInfo)
+                    updateWidgets()
                 }
-            } catch (e: IOException) {
+            } catch (e: SerializationException) {
+                Log.e(TAG, "Failed to parse JSON from WebSocket", e)
+            } catch (e: IllegalArgumentException) {
                 Log.e(TAG, "Failed to parse JSON from WebSocket", e)
             }
         }
@@ -248,8 +241,8 @@ class WebsocketClient(
             Log.w(TAG, "Not connected to ${deviceState.device.address}")
             connect()
         }
-        val json = stateJsonAdapter.toJson(state)
-        sendMessage(json)
+        val jsonString = json.encodeToString(state)
+        sendMessage(jsonString)
     }
 
     fun destroy() {

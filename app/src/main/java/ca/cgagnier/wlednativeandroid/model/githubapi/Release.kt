@@ -1,28 +1,28 @@
 package ca.cgagnier.wlednativeandroid.model.githubapi
 
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
-@JsonClass(generateAdapter = true)
+@Serializable
 data class Release(
-    @field:Json(name = "url") var url: String,
-    @field:Json(name = "assets_url") var assetsUrl: String,
-    @field:Json(name = "upload_url") var uploadUrl: String,
-    @field:Json(name = "html_url") var htmlUrl: String,
-    @field:Json(name = "id") var id: Int,
-    @field:Json(name = "author") var author: Author,
-    @field:Json(name = "node_id") var nodeId: String,
-    @field:Json(name = "tag_name") var tagName: String,
-    @field:Json(name = "target_commitish") var targetCommitish: String,
-    @field:Json(name = "name") var name: String,
-    @field:Json(name = "draft") var draft: Boolean,
-    @field:Json(name = "prerelease") var prerelease: Boolean,
-    @field:Json(name = "created_at") var createdAt: String,
-    @field:Json(name = "published_at") var publishedAt: String,
-    @field:Json(name = "assets") var assets: List<Asset>,
-    @field:Json(name = "tarball_url") var tarballUrl: String,
-    @field:Json(name = "zipball_url") var zipballUrl: String,
-    @field:Json(name = "body") var body: String,
-    @field:Json(name = "reactions") var reactions: Reactions?,
-    @field:Json(name = "mentions_count") var mentionsCount: Int?,
+    @SerialName("url") var url: String,
+    @SerialName("assets_url") var assetsUrl: String,
+    @SerialName("upload_url") var uploadUrl: String,
+    @SerialName("html_url") var htmlUrl: String,
+    @SerialName("id") var id: Int,
+    @SerialName("author") var author: Author,
+    @SerialName("node_id") var nodeId: String,
+    @SerialName("tag_name") var tagName: String,
+    @SerialName("target_commitish") var targetCommitish: String,
+    @SerialName("name") var name: String,
+    @SerialName("draft") var draft: Boolean,
+    @SerialName("prerelease") var prerelease: Boolean,
+    @SerialName("created_at") var createdAt: String,
+    @SerialName("published_at") var publishedAt: String,
+    @SerialName("assets") var assets: List<Asset>,
+    @SerialName("tarball_url") var tarballUrl: String,
+    @SerialName("zipball_url") var zipballUrl: String,
+    @SerialName("body") var body: String,
+    @SerialName("reactions") var reactions: Reactions? = null,
+    @SerialName("mentions_count") var mentionsCount: Int? = null,
 )

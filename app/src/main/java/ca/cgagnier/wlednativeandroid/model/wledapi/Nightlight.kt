@@ -1,15 +1,14 @@
 package ca.cgagnier.wlednativeandroid.model.wledapi
 
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
-@JsonClass(generateAdapter = true)
+@Serializable
 data class Nightlight(
-
-    @param:Json(name = "on") val isOn: Boolean? = null,
-    @param:Json(name = "dur") val duration: Int? = null,
-    @param:Json(name = "fade") val fade: Boolean? = null,
-    @param:Json(name = "mode") val mode: Int? = null,
-    @param:Json(name = "tbri") val targetBrightness: Int? = null,
-    @param:Json(name = "rem") val remainingTime: Int? = null,
+    @SerialName("on") val isOn: Boolean? = null,
+    @SerialName("dur") val duration: Int? = null,
+    @SerialName("fade") val fade: Boolean? = null,
+    @SerialName("mode") val mode: Int? = null,
+    @SerialName("tbri") val targetBrightness: Int? = null,
+    @SerialName("rem") val remainingTime: Int? = null,
 )

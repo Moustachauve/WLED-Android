@@ -1,62 +1,61 @@
 package ca.cgagnier.wlednativeandroid.model.wledapi
 
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * The options bitmask at 0x01 being 0 means OTA is disabled on the device.
  */
 private const val OTA_ENABLED_FLAG = 0x01
 
-@JsonClass(generateAdapter = true)
+@Serializable
 data class Info(
-
-    @param:Json(name = "leds") val leds: Leds,
-    @param:Json(name = "wifi") val wifi: Wifi,
-    @param:Json(name = "ver") val version: String? = null,
-    @param:Json(name = "vid") val buildId: Int? = null,
+    @SerialName("leds") val leds: Leds,
+    @SerialName("wifi") val wifi: Wifi,
+    @SerialName("ver") val version: String? = null,
+    @SerialName("vid") val buildId: Int? = null,
     // Added in 0.15
-    @param:Json(name = "cn") val codeName: String? = null,
+    @SerialName("cn") val codeName: String? = null,
     // Added in 0.15
-    @param:Json(name = "release") val release: String? = null,
+    @SerialName("release") val release: String? = null,
     // Added in 0.15.2
-    @param:Json(name = "repo") val repository: String? = null,
-    @param:Json(name = "name") val name: String,
-    @param:Json(name = "str") val syncToggleReceive: Boolean? = null,
-    @param:Json(name = "udpport") val udpPort: Int? = null,
+    @SerialName("repo") val repository: String? = null,
+    @SerialName("name") val name: String,
+    @SerialName("str") val syncToggleReceive: Boolean? = null,
+    @SerialName("udpport") val udpPort: Int? = null,
     // Added in 0.15
-    @param:Json(name = "simplifiedui") val simplifiedUI: Boolean? = null,
-    @param:Json(name = "live") val isUpdatedLive: Boolean? = null,
-    @param:Json(name = "liveseg") val liveSegment: Int? = null,
-    @param:Json(name = "lm") val realtimeMode: String? = null,
-    @param:Json(name = "lip") val realtimeIp: String? = null,
-    @param:Json(name = "ws") val websocketClientCount: Int? = null,
-    @param:Json(name = "fxcount") val effectCount: Int? = null,
-    @param:Json(name = "palcount") val paletteCount: Int? = null,
-    @param:Json(name = "cpalcount") val customPaletteCount: Int? = null,
+    @SerialName("simplifiedui") val simplifiedUI: Boolean? = null,
+    @SerialName("live") val isUpdatedLive: Boolean? = null,
+    @SerialName("liveseg") val liveSegment: Int? = null,
+    @SerialName("lm") val realtimeMode: String? = null,
+    @SerialName("lip") val realtimeIp: String? = null,
+    @SerialName("ws") val websocketClientCount: Int? = null,
+    @SerialName("fxcount") val effectCount: Int? = null,
+    @SerialName("palcount") val paletteCount: Int? = null,
+    @SerialName("cpalcount") val customPaletteCount: Int? = null,
     // Missing: maps
-    @param:Json(name = "fs") val fileSystem: FileSystem? = null,
-    @param:Json(name = "ndc") val nodeListCount: Int? = null,
-    @param:Json(name = "arch") val platformName: String? = null,
-    @param:Json(name = "core") val arduinoCoreVersion: String? = null,
+    @SerialName("fs") val fileSystem: FileSystem? = null,
+    @SerialName("ndc") val nodeListCount: Int? = null,
+    @SerialName("arch") val platformName: String? = null,
+    @SerialName("core") val arduinoCoreVersion: String? = null,
     // Added in 0.15
-    @param:Json(name = "clock") val clockFrequency: Int? = null,
+    @SerialName("clock") val clockFrequency: Int? = null,
     // Added in 0.15
-    @param:Json(name = "flash") val flashChipSize: Int? = null,
+    @SerialName("flash") val flashChipSize: Int? = null,
     @Deprecated(
         "lwip is deprecated and is supposed to be removed in 0.14.0",
-    ) @param:Json(name = "lwip") val lwip: Int? =
+    ) @SerialName("lwip") val lwip: Int? =
         null,
-    @param:Json(name = "freeheap") val freeHeap: Int? = null,
-    @param:Json(name = "uptime") val uptime: Int? = null,
-    @param:Json(name = "time") val time: String? = null,
+    @SerialName("freeheap") val freeHeap: Int? = null,
+    @SerialName("uptime") val uptime: Int? = null,
+    @SerialName("time") val time: String? = null,
     // Contains some extra options status in the form of a bitset
-    @param:Json(name = "opt") val options: Int? = null,
-    @param:Json(name = "brand") val brand: String? = null,
-    @param:Json(name = "product") val product: String? = null,
-    @param:Json(name = "mac") val macAddress: String? = null,
-    @param:Json(name = "ip") val ipAddress: String? = null,
-    @param:Json(name = "u") val userMods: UserMods? = null,
+    @SerialName("opt") val options: Int? = null,
+    @SerialName("brand") val brand: String? = null,
+    @SerialName("product") val product: String? = null,
+    @SerialName("mac") val macAddress: String? = null,
+    @SerialName("ip") val ipAddress: String? = null,
+    @SerialName("u") val userMods: UserMods? = null,
 )
 
 /**
