@@ -16,60 +16,60 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     suspend fun updateThemeMode(themeSettings: ThemeSettings) {
         Log.d(TAG, "updateThemeMode")
         dataStore.updateData {
-            it.toBuilder()
-                .setTheme(themeSettings)
-                .setDateLastWritten(System.currentTimeMillis())
-                .build()
+            it.copy(
+                theme = themeSettings,
+                dateLastWritten = System.currentTimeMillis(),
+            )
         }
     }
 
     suspend fun updateAutoDiscovery(autoDiscover: Boolean) {
         Log.d(TAG, "updateAutoDiscovery")
         dataStore.updateData {
-            it.toBuilder()
-                .setAutomaticDiscovery(autoDiscover)
-                .setDateLastWritten(System.currentTimeMillis())
-                .build()
+            it.copy(
+                automaticDiscovery = autoDiscover,
+                dateLastWritten = System.currentTimeMillis(),
+            )
         }
     }
 
     suspend fun updateShowOfflineDeviceLast(showOfflineDeviceLast: Boolean) {
         Log.d(TAG, "updateShowOfflineDeviceLast")
         dataStore.updateData {
-            it.toBuilder()
-                .setShowOfflineLast(showOfflineDeviceLast)
-                .setDateLastWritten(System.currentTimeMillis())
-                .build()
+            it.copy(
+                showOfflineLast = showOfflineDeviceLast,
+                dateLastWritten = System.currentTimeMillis(),
+            )
         }
     }
 
     suspend fun updateShowHiddenDevices(showHiddenDevices: Boolean) {
         Log.d(TAG, "updateShowHiddenDevices")
         dataStore.updateData {
-            it.toBuilder()
-                .setShowHiddenDevices(showHiddenDevices)
-                .setDateLastWritten(System.currentTimeMillis())
-                .build()
+            it.copy(
+                showHiddenDevices = showHiddenDevices,
+                dateLastWritten = System.currentTimeMillis(),
+            )
         }
     }
 
     suspend fun updateLastUpdateCheckDate(lastUpdateCheckDate: Long) {
         Log.d(TAG, "updateLastUpdateCheckDate")
         dataStore.updateData {
-            it.toBuilder()
-                .setLastUpdateCheckDate(lastUpdateCheckDate)
-                .setDateLastWritten(System.currentTimeMillis())
-                .build()
+            it.copy(
+                lastUpdateCheckDate = lastUpdateCheckDate,
+                dateLastWritten = System.currentTimeMillis(),
+            )
         }
     }
 
     suspend fun updateLastChangelogVersionSeen(version: String) {
         Log.d(TAG, "updateLastChangelogVersionSeen")
         dataStore.updateData {
-            it.toBuilder()
-                .setLastChangelogVersionSeen(version)
-                .setDateLastWritten(System.currentTimeMillis())
-                .build()
+            it.copy(
+                lastChangelogVersionSeen = version,
+                dateLastWritten = System.currentTimeMillis(),
+            )
         }
     }
 

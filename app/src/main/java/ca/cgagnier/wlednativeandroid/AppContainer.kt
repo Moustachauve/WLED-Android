@@ -12,6 +12,7 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesSerializer
 import ca.cgagnier.wlednativeandroid.repository.VersionDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
+import ca.cgagnier.wlednativeandroid.repository.migrations.LegacyProtoToKotlinxPreferencesMigration
 import ca.cgagnier.wlednativeandroid.repository.migrations.UserPreferencesV0ToV1
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
@@ -25,13 +26,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import javax.inject.Singleton
 
-private const val DATA_STORE_FILE_NAME = "user_prefs.pb"
+private const val DATA_STORE_FILE_NAME = "user_preferences.json"
 
 private val Context.userPreferencesStore: DataStore<UserPreferences> by dataStore(
     fileName = DATA_STORE_FILE_NAME,
     serializer = UserPreferencesSerializer(),
-    produceMigrations = { _ ->
-        listOf(UserPreferencesV0ToV1())
+    produceMigrations = { context ->
+        listOf(
+            LegacyProtoToKotlinxPreferencesMigration(context),
+            UserPreferencesV0ToV1(),
+        )
     },
 )
 
