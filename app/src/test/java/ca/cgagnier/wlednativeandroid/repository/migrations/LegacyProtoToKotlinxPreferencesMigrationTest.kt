@@ -2,9 +2,12 @@ package ca.cgagnier.wlednativeandroid.repository.migrations
 
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -13,6 +16,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import ca.cgagnier.wlednativeandroid.repository.legacy.ThemeSettings as LegacyProtoThemeSettings
 import ca.cgagnier.wlednativeandroid.repository.legacy.UserPreferences as LegacyProtoUserPreferences
 
@@ -107,13 +111,17 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
     }
 
     @Test
-    fun migrate_withV0LegacyProto_setsExpectedDefaultsAndVersion1() = runBlocking {
+    fun migrate_withV0LegacyProto_setsExpectedDefaultsAndResetsDataSharingFlags() = runBlocking {
         val protoFile = tempFolder.newFile("user_prefs_v0.pb")
         val legacyProto = LegacyProtoUserPreferences.newBuilder()
             .setVersion(0)
+            .setSelectedDeviceAddress("192.168.1.99")
+            .setSendCrashData(true)
+            .setSendPerformanceData(true)
             .build()
 
         FileOutputStream(protoFile).use { legacyProto.writeTo(it) }
+        assertTrue(protoFile.length() > 0)
 
         val migration = LegacyProtoToKotlinxPreferencesMigration(protoFile)
         val migrated = migration.migrate(UserPreferences())
@@ -122,18 +130,25 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
         assertTrue(migrated.automaticDiscovery)
         assertTrue(migrated.showOfflineLast)
         assertEquals(1, migrated.version)
+        assertEquals("192.168.1.99", migrated.selectedDeviceAddress)
+        assertFalse(migrated.sendCrashData)
+        assertFalse(migrated.sendPerformanceData)
     }
 
     @Test
-    fun migrate_withCorruptFile_returnsCurrentDataGracefully() = runBlocking {
+    fun migrate_withCorruptFile_throwsExceptionAndRetainsFile() {
         val protoFile = tempFolder.newFile("corrupt.pb")
         protoFile.writeText("corrupt binary data not a protobuf")
 
         val migration = LegacyProtoToKotlinxPreferencesMigration(protoFile)
         val defaultPrefs = UserPreferences(version = 1)
-        val result = migration.migrate(defaultPrefs)
 
-        assertEquals(defaultPrefs, result)
+        assertThrows(Exception::class.java) {
+            runBlocking {
+                migration.migrate(defaultPrefs)
+            }
+        }
+        assertTrue(protoFile.exists())
     }
 
     @Test
@@ -147,5 +162,21 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
 
         assertFalse(protoFile.exists())
         assertFalse(migration.shouldMigrate(UserPreferences()))
+    }
+
+    @Test
+    fun cleanUp_whenDeleteFails_throwsIOException() {
+        val mockFile = mockk<File>()
+        every { mockFile.exists() } returns true
+        every { mockFile.delete() } returns false
+        every { mockFile.absolutePath } returns "/fake/path/user_prefs.pb"
+
+        val migration = LegacyProtoToKotlinxPreferencesMigration(mockFile)
+
+        assertThrows(IOException::class.java) {
+            runBlocking {
+                migration.cleanUp()
+            }
+        }
     }
 }
