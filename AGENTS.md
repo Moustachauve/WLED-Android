@@ -14,8 +14,8 @@ WLED-Android is a native Android application for controlling WLED devices (WiFi-
 *   **Network:** Retrofit, OkHttp, kotlinx.serialization (JSON), Protobuf
 *   **Database:** Room (Exports schemas to `app/schemas`)
     *   *Instruction:* If modifying a generic `@Entity`, consider database migrations and schema versioning.
-*   **DataStore:** Protobuf (Managed via `app/src/main/proto/user_prefs.proto`)
-    *   *Instruction:* Modify the `.proto` definition for user preferences. Do not use standard SharedPreferences.
+*   **DataStore:** Core + kotlinx.serialization (JSON) (with migration from legacy `user_prefs.proto`)
+    *   *Instruction:* Manage preferences via `UserPreferences.kt` using `@Serializable`. Do not use standard SharedPreferences.
 *   **Build System:** Gradle (Kotlin DSL), Version Catalogs (`gradle/libs.versions.toml`)
 *   **Min SDK:** 24
 *   **Target SDK:** 37
@@ -74,4 +74,4 @@ The code is located in `app/src/main/java/ca/cgagnier/wlednativeandroid/`.
 **Key Configuration Files:**
 *   `gradle/libs.versions.toml` - Version catalog for all dependencies.
 *   `config/detekt/detekt.yml` - Detekt rules configuration.
-*   `app/src/main/proto/user_prefs.proto` - Protobuf schema for DataStore preferences.
+*   `app/src/main/proto/user_prefs.proto` - Legacy Protobuf schema (kept for data migration to `user_preferences.json`).

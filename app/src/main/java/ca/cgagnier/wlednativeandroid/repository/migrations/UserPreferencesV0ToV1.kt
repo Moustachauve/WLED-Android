@@ -8,14 +8,14 @@ class UserPreferencesV0ToV1 : DataMigration<UserPreferences> {
     override suspend fun cleanUp() {
     }
 
-    override suspend fun migrate(currentData: UserPreferences): UserPreferences = currentData.toBuilder()
-        .setThemeValue(ThemeSettings.Auto_VALUE)
-        .setAutomaticDiscovery(true)
-        .setShowOfflineLast(true)
-        .setSendCrashData(false)
-        .setSendPerformanceData(false)
-        .setVersion(1)
-        .build()
+    override suspend fun migrate(currentData: UserPreferences): UserPreferences = currentData.copy(
+        theme = ThemeSettings.Auto,
+        automaticDiscovery = true,
+        showOfflineLast = true,
+        sendCrashData = false,
+        sendPerformanceData = false,
+        version = 1,
+    )
 
     override suspend fun shouldMigrate(currentData: UserPreferences): Boolean = currentData.version <= 0
 }
