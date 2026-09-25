@@ -10,9 +10,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import okhttp3.Cache
 import okhttp3.OkHttpClient
@@ -48,14 +45,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideKtorHttpClient(okHttpClient: OkHttpClient, json: Json): HttpClient = HttpClient(OkHttp) {
-        engine {
-            preconfigured = okHttpClient
-        }
-        install(ContentNegotiation) {
-            json(json)
-        }
-    }
+    fun provideKtorHttpClient(okHttpClient: OkHttpClient, json: Json): HttpClient =
+        DeviceApiFactory.createHttpClient(okHttpClient, json)
 
     @Provides
     @Singleton

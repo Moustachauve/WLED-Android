@@ -88,7 +88,7 @@ class DeviceFirstContactService @Inject constructor(
      * @param address - The network address (e.g., IP) to query.
      * @return The device information object.
      */
-    private suspend fun getDeviceInfo(address: String): Info = deviceApiFactory.create(address).getInfo().body()
+    private suspend fun getDeviceInfo(address: String): Info = deviceApiFactory.create(address).getInfo().body
         ?: throw IOException("Response body is null")
 
     /**

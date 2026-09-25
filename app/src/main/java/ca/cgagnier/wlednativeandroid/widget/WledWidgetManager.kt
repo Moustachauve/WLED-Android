@@ -103,7 +103,7 @@ class WledWidgetManager @Inject constructor(
         val response = api.postJson(jsonPost)
 
         if (response.isSuccessful) {
-            response.body()?.let { body ->
+            response.body?.let { body ->
                 val newData = widgetData.copy(
                     address = targetAddress,
                     name = getDeviceName(device, context.getString(R.string.default_device_name)),

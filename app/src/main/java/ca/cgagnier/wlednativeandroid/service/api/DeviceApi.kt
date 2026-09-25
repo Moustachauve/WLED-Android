@@ -9,6 +9,7 @@ import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.forms.InputProvider
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
@@ -21,6 +22,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.utils.io.streams.asInput
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import java.io.File
@@ -68,7 +70,9 @@ class KtorDeviceApi(private val baseUrl: String, private val httpClient: HttpCli
             formData = formData {
                 append(
                     key = "file",
-                    value = binaryFile.readBytes(),
+                    value = InputProvider(size = binaryFile.length()) {
+                        binaryFile.inputStream().asInput()
+                    },
                     headers = Headers.build {
                         append(HttpHeaders.ContentType, "application/octet-stream")
                         append(HttpHeaders.ContentDisposition, "filename=\"${binaryFile.name}\"")
@@ -124,19 +128,27 @@ class DeviceApiFactory(
      */
     fun create(device: Device): DeviceApi = create(device.getDeviceUrl())
 
+    private val timeoutClients = java.util.concurrent.ConcurrentHashMap<Long, HttpClient>()
+
     /**
      * Create a new DeviceApi instance with a custom timeout.
+     *
+     * HttpClient.config shares the parent client's OkHttp engine, connection pool, and threads
+     * while applying custom timeout configuration. Configured clients are cached per timeout
+     * to avoid redundant allocations.
      *
      * @param device The device to create the API for.
      * @param timeout The custom timeout in seconds.
      */
     fun create(device: Device, timeout: Long): DeviceApi {
         val timeoutMillis = timeout * MILLIS_PER_SECOND
-        val customHttpClient = defaultHttpClient.config {
-            install(HttpTimeout) {
-                requestTimeoutMillis = timeoutMillis
-                connectTimeoutMillis = timeoutMillis
-                socketTimeoutMillis = timeoutMillis
+        val customHttpClient = timeoutClients.computeIfAbsent(timeoutMillis) { ms ->
+            defaultHttpClient.config {
+                install(HttpTimeout) {
+                    requestTimeoutMillis = ms
+                    connectTimeoutMillis = ms
+                    socketTimeoutMillis = ms
+                }
             }
         }
         return KtorDeviceApi(normalizeAddress(device.getDeviceUrl()), customHttpClient)
