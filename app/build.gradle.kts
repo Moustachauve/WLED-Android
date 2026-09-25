@@ -79,6 +79,11 @@ android {
         checkDependencies = false
         abortOnError = true
     }
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+    }
 }
 
 ksp {
@@ -152,6 +157,9 @@ dependencies {
     ksp(libs.hilt.compiler)
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.vintage.engine)
+    testImplementation(libs.selfie.runner.junit5)
     testImplementation(libs.robolectric)
     testImplementation(libs.mockk)
     testImplementation(libs.ktor.client.mock)
@@ -181,6 +189,12 @@ protobuf {
 
 tasks.withType<Test>().configureEach {
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
+    // Track Selfie disk snapshot files for accurate up-to-date checks
+    inputs.files(
+        fileTree("src/test") {
+            include("**/*.ss")
+        },
+    )
     // Optional: Improve console output for parallel tests
     testLogging {
         events("passed", "skipped", "failed")
