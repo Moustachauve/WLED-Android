@@ -29,20 +29,95 @@ class DeviceApiTest {
         coerceInputValues = true
     }
 
+    // Real device json/info from WLED 16.0.1 (anonymized IP/MAC/BSSID)
     private val sampleInfoJson = """
         {
-            "name": "Living Room LED",
-            "ver": "0.14.0",
-            "mac": "aabbccddeeff",
-            "leds": { "count": 60 },
-            "wifi": { "rssi": -65 }
+            "ver": "16.0.1",
+            "vid": 2606300,
+            "cn": "Niji",
+            "release": "ESP32",
+            "repo": "wled/WLED",
+            "name": "WLED Office",
+            "udpport": 21324,
+            "simplifiedui": false,
+            "live": false,
+            "liveseg": -1,
+            "ws": 3,
+            "fxcount": 220,
+            "palcount": 73,
+            "cpalcount": 1,
+            "arch": "esp32",
+            "core": "4.4.8.240628",
+            "clock": 240,
+            "flash": 4,
+            "freeheap": 120936,
+            "uptime": 2428926,
+            "time": "2026-9-25, 00:27:19",
+            "opt": 79,
+            "brand": "WLED",
+            "product": "FOSS",
+            "mac": "001122334455",
+            "ip": "10.0.0.100",
+            "leds": {
+                "count": 277,
+                "pwr": 2172,
+                "fps": 43,
+                "maxpwr": 10002,
+                "maxseg": 32,
+                "rgbw": true
+            },
+            "wifi": {
+                "bssid": "00:11:22:33:44:55",
+                "rssi": -66,
+                "signal": 68,
+                "channel": 1,
+                "ap": false
+            },
+            "fs": {
+                "u": 32,
+                "t": 983,
+                "pmt": 1788492069
+            }
         }
     """.trimIndent()
 
+    // Real device json/state from WLED 16.0.1
     private val sampleStateJson = """
         {
             "on": true,
-            "bri": 128
+            "bri": 195,
+            "transition": 7,
+            "ps": -1,
+            "pl": -1,
+            "nl": {
+                "on": false,
+                "dur": 60,
+                "mode": 1,
+                "tbri": 0,
+                "rem": -1
+            },
+            "lor": 0,
+            "mainseg": 0,
+            "seg": [
+                {
+                    "id": 0,
+                    "start": 0,
+                    "stop": 88,
+                    "len": 88,
+                    "grp": 1,
+                    "spc": 0,
+                    "on": true,
+                    "bri": 255,
+                    "col": [[0, 17, 255, 0], [144, 79, 255, 0], [0, 0, 0, 0]],
+                    "fx": 107,
+                    "sx": 20,
+                    "ix": 144,
+                    "pal": 3,
+                    "sel": false,
+                    "rev": false,
+                    "mi": false
+                }
+            ]
         }
     """.trimIndent()
 
@@ -62,14 +137,18 @@ class DeviceApiTest {
             }
         }
 
-        val deviceApi = KtorDeviceApi("http://192.168.1.50/", httpClient)
+        val deviceApi = KtorDeviceApi("http://10.0.0.100/", httpClient)
         val response = deviceApi.getInfo()
 
         assertTrue(response.isSuccessful)
         assertEquals(200, response.code)
         assertNotNull(response.body)
-        assertEquals("Living Room LED", response.body?.name)
-        assertEquals("aabbccddeeff", response.body?.macAddress)
+        assertEquals("WLED Office", response.body?.name)
+        assertEquals("16.0.1", response.body?.version)
+        assertEquals("ESP32", response.body?.release)
+        assertEquals("wled/WLED", response.body?.repository)
+        assertEquals(277, response.body?.leds?.count)
+        assertEquals("001122334455", response.body?.macAddress)
     }
 
     @Test
@@ -87,7 +166,7 @@ class DeviceApiTest {
             }
         }
 
-        val deviceApi = KtorDeviceApi("http://192.168.1.50/", httpClient)
+        val deviceApi = KtorDeviceApi("http://10.0.0.100/", httpClient)
         val response = deviceApi.getInfo()
 
         assertFalse(response.isSuccessful)
@@ -111,14 +190,16 @@ class DeviceApiTest {
             }
         }
 
-        val deviceApi = KtorDeviceApi("http://192.168.1.50/", httpClient)
-        val response = deviceApi.postJson(JsonPost(isOn = true, brightness = 128))
+        val deviceApi = KtorDeviceApi("http://10.0.0.100/", httpClient)
+        val response = deviceApi.postJson(JsonPost(isOn = true, brightness = 195))
 
         assertTrue(response.isSuccessful)
         assertEquals(200, response.code)
         assertNotNull(response.body)
         assertEquals(true, response.body?.isOn)
-        assertEquals(128, response.body?.brightness)
+        assertEquals(195, response.body?.brightness)
+        assertEquals(1, response.body?.segment?.size)
+        assertEquals(107, response.body?.segment?.first()?.effect)
     }
 
     @Test
@@ -138,7 +219,7 @@ class DeviceApiTest {
         }
         val httpClient = HttpClient(mockEngine)
 
-        val deviceApi = KtorDeviceApi("http://192.168.1.50/", httpClient)
+        val deviceApi = KtorDeviceApi("http://10.0.0.100/", httpClient)
         val response = deviceApi.updateDevice(tempFile)
 
         assertTrue(response.isSuccessful)
@@ -149,9 +230,9 @@ class DeviceApiTest {
     @Test
     fun `DeviceApiFactory creates device API with normalized url`() {
         val factory = DeviceApiFactory(OkHttpClient(), testJson)
-        val device = Device(macAddress = "AABBCCDDEEFF", address = "192.168.1.100")
+        val device = Device(macAddress = "AABBCCDDEEFF", address = "10.0.0.100")
 
-        val apiFromAddress = factory.create("192.168.1.100")
+        val apiFromAddress = factory.create("10.0.0.100")
         assertNotNull(apiFromAddress)
 
         val apiFromDevice = factory.create(device)
