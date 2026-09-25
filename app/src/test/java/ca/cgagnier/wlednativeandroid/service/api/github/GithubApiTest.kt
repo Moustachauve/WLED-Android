@@ -30,79 +30,80 @@ class GithubApiTest {
         coerceInputValues = true
     }
 
+    // Real release structure from https://api.github.com/repos/wled/WLED/releases/tags/v16.0.1
     private val sampleReleasesJson = """
         [
             {
-                "url": "https://api.github.com/repos/Aircoookie/WLED/releases/1",
-                "assets_url": "https://api.github.com/repos/Aircoookie/WLED/releases/1/assets",
-                "upload_url": "https://uploads.github.com/repos/Aircoookie/WLED/releases/1/assets",
-                "html_url": "https://github.com/Aircoookie/WLED/releases/tag/v0.14.0",
-                "id": 1,
-                "node_id": "MDc6UmVsZWFzZTE=",
-                "tag_name": "v0.14.0",
+                "url": "https://api.github.com/repos/wled/WLED/releases/347085524",
+                "assets_url": "https://api.github.com/repos/wled/WLED/releases/347085524/assets",
+                "upload_url": "https://uploads.github.com/repos/wled/WLED/releases/347085524/assets{?name,label}",
+                "html_url": "https://github.com/wled/WLED/releases/tag/v16.0.1",
+                "id": 347085524,
+                "node_id": "RE_kwDOBJbHAc4UsHDU",
+                "tag_name": "v16.0.1",
                 "target_commitish": "main",
-                "name": "WLED 0.14.0",
+                "name": "WLED Release 16.0.1",
                 "draft": false,
                 "prerelease": false,
-                "created_at": "2024-01-01T00:00:00Z",
-                "published_at": "2024-01-01T00:00:00Z",
-                "tarball_url": "",
-                "zipball_url": "",
-                "body": "Release notes",
+                "created_at": "2026-06-30T17:15:37Z",
+                "published_at": "2026-06-30T21:12:47Z",
+                "tarball_url": "https://api.github.com/repos/wled/WLED/tarball/v16.0.1",
+                "zipball_url": "https://api.github.com/repos/wled/WLED/zipball/v16.0.1",
+                "body": "# WLED Version 16.0.1 Announcement",
                 "author": {
-                    "login": "Aircoookie",
-                    "id": 123,
-                    "node_id": "MDQ6VXNlcjEyMw==",
-                    "avatar_url": "",
+                    "login": "github-actions[bot]",
+                    "id": 41898282,
+                    "node_id": "MDM6Qm90NDE4OTgyODI=",
+                    "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
                     "gravatar_id": "",
-                    "url": "",
-                    "html_url": "",
-                    "followers_url": "",
-                    "following_url": "",
-                    "gists_url": "",
-                    "starred_url": "",
-                    "subscriptions_url": "",
-                    "organizations_url": "",
-                    "repos_url": "",
-                    "events_url": "",
-                    "received_events_url": "",
-                    "type": "User",
+                    "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                    "html_url": "https://github.com/apps/github-actions",
+                    "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                    "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                    "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                    "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                    "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                    "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                    "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                    "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                    "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                    "type": "Bot",
                     "site_admin": false
                 },
                 "assets": [
                     {
-                        "url": "https://api.github.com/repos/Aircoookie/WLED/releases/assets/12345",
-                        "id": 12345,
-                        "node_id": "MDE=",
-                        "name": "WLED_0.14.0_ESP32.bin",
-                        "label": null,
+                        "url": "https://api.github.com/repos/wled/WLED/releases/assets/462495760",
+                        "id": 462495760,
+                        "node_id": "RA_kwDOBJbHAc4bkSAQ",
+                        "name": "WLED_16.0.1_ESP32.bin",
+                        "label": "",
                         "uploader": {
-                            "login": "Aircoookie",
-                            "id": 123,
-                            "node_id": "MDQ6VXNlcjEyMw==",
-                            "avatar_url": "",
+                            "login": "github-actions[bot]",
+                            "id": 41898282,
+                            "node_id": "MDM6Qm90NDE4OTgyODI=",
+                            "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
                             "gravatar_id": "",
-                            "url": "",
-                            "html_url": "",
-                            "followers_url": "",
-                            "following_url": "",
-                            "gists_url": "",
-                            "starred_url": "",
-                            "subscriptions_url": "",
-                            "organizations_url": "",
-                            "repos_url": "",
-                            "events_url": "",
-                            "received_events_url": "",
-                            "type": "User",
+                            "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                            "html_url": "https://github.com/apps/github-actions",
+                            "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                            "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                            "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                            "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                            "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                            "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                            "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                            "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                            "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                            "type": "Bot",
                             "site_admin": false
                         },
                         "content_type": "application/octet-stream",
                         "state": "uploaded",
-                        "size": 1048576,
-                        "download_count": 50,
-                        "created_at": "2024-01-01T00:00:00Z",
-                        "updated_at": "2024-01-01T00:00:00Z",
-                        "browser_download_url": "https://github.com/downloads/WLED_0.14.0_ESP32.bin"
+                        "size": 1729440,
+                        "download_count": 5218,
+                        "created_at": "2026-06-30T20:28:04Z",
+                        "updated_at": "2026-06-30T20:28:04Z",
+                        "browser_download_url": "https://github.com/wled/WLED/releases/download/v16.0.1/WLED_16.0.1_ESP32.bin"
                     }
                 ]
             }
@@ -112,7 +113,7 @@ class GithubApiTest {
     @Test
     fun `getAllReleases returns successful release list`() = runTest {
         val mockEngine = MockEngine { request ->
-            assertEquals("/repos/Aircoookie/WLED/releases", request.url.encodedPath)
+            assertEquals("/repos/wled/WLED/releases", request.url.encodedPath)
             respond(
                 content = sampleReleasesJson,
                 status = HttpStatusCode.OK,
@@ -128,14 +129,15 @@ class GithubApiTest {
         val endpoints = KtorGithubApiEndpoints(httpClient)
         val githubApi = GithubApi(endpoints)
 
-        val result = githubApi.getAllReleases("Aircoookie", "WLED")
+        val result = githubApi.getAllReleases("wled", "WLED")
 
         assertTrue(result.isSuccess)
         val releases = result.getOrNull()
         assertEquals(1, releases?.size)
-        assertEquals("v0.14.0", releases?.first()?.tagName)
+        assertEquals("v16.0.1", releases?.first()?.tagName)
+        assertEquals("WLED Release 16.0.1", releases?.first()?.name)
         assertEquals(1, releases?.first()?.assets?.size)
-        assertEquals("WLED_0.14.0_ESP32.bin", releases?.first()?.assets?.first()?.name)
+        assertEquals("WLED_16.0.1_ESP32.bin", releases?.first()?.assets?.first()?.name)
     }
 
     @Test
@@ -155,7 +157,7 @@ class GithubApiTest {
         val endpoints = KtorGithubApiEndpoints(httpClient)
         val githubApi = GithubApi(endpoints)
 
-        val result = githubApi.getAllReleases("Aircoookie", "WLED")
+        val result = githubApi.getAllReleases("wled", "WLED")
 
         assertTrue(result.isFailure)
     }
@@ -164,7 +166,7 @@ class GithubApiTest {
     fun `downloadReleaseBinary streams bytes and reports progress`() = runTest {
         val binaryData = ByteArray(1024) { (it % 256).toByte() }
         val mockEngine = MockEngine { request ->
-            assertEquals("/repos/Aircoookie/WLED/releases/assets/12345", request.url.encodedPath)
+            assertEquals("/repos/wled/WLED/releases/assets/462495760", request.url.encodedPath)
             respond(
                 content = binaryData,
                 status = HttpStatusCode.OK,
@@ -184,15 +186,15 @@ class GithubApiTest {
 
         val asset = Asset(
             versionId = 1L,
-            name = "WLED_0.14.0_ESP32.bin",
-            size = 1024L,
-            downloadUrl = "https://example.com/download",
-            assetId = 12345,
+            name = "WLED_16.0.1_ESP32.bin",
+            size = 1729440L,
+            downloadUrl = "https://github.com/wled/WLED/releases/download/v16.0.1/WLED_16.0.1_ESP32.bin",
+            assetId = 462495760,
         )
 
         val states = githubApi.downloadReleaseBinary(
             asset = asset,
-            repoOwner = "Aircoookie",
+            repoOwner = "wled",
             repoName = "WLED",
             targetFile = targetFile,
         ).toList()
