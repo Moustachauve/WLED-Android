@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.repository
 
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
+import com.diffplug.selfie.Selfie.expectSelfie
 import com.vdurmont.semver4j.Semver
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -27,13 +28,11 @@ class VersionWithAssetsRepositoryTest {
         val sorted = parsedVersions.sortedWith(VersionWithAssetsRepository.semVerComparator).map { it.first }
 
         // Invalid semver tags are sorted by date and placed before valid semver tags
-        assertEquals("invalid-old", sorted[0].tagName)
-        assertEquals("invalid-tag", sorted[1].tagName)
-        // Valid semver tags are sorted by semver
-        assertEquals("0.14.0", sorted[2].tagName)
-        assertEquals("0.15.0", sorted[3].tagName)
-        assertEquals("0.15.5", sorted[4].tagName)
-        assertEquals("16.0.0", sorted[5].tagName)
+        expectSelfie(
+            sorted.map {
+                it.tagName
+            }.joinToString(", "),
+        ).toBe("invalid-old, invalid-tag, 0.14.0, 0.15.0, 0.15.5, 16.0.0")
 
         val latest = VersionWithAssetsRepository.getLatestVersion(versions)
         assertEquals("16.0.0", latest?.tagName)

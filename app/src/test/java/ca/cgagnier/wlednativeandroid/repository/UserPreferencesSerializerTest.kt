@@ -1,6 +1,7 @@
 package ca.cgagnier.wlednativeandroid.repository
 
 import androidx.datastore.core.CorruptionException
+import com.diffplug.selfie.Selfie.expectSelfie
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -15,14 +16,7 @@ class UserPreferencesSerializerTest {
     @Test
     fun defaultValue_hasExpectedValues() {
         val defaultPrefs = serializer.defaultValue
-        assertEquals(ThemeSettings.Auto, defaultPrefs.theme)
-        assertEquals(true, defaultPrefs.automaticDiscovery)
-        assertEquals(true, defaultPrefs.showOfflineLast)
-        assertEquals(false, defaultPrefs.showHiddenDevices)
-        assertEquals(false, defaultPrefs.sendCrashData)
-        assertEquals(false, defaultPrefs.sendPerformanceData)
-        assertEquals(1, defaultPrefs.version)
-        assertEquals("", defaultPrefs.lastChangelogVersionSeen)
+        expectSelfie(defaultPrefs.toString()).toMatchDisk()
     }
 
     @Test
@@ -44,6 +38,8 @@ class UserPreferencesSerializerTest {
 
         val output = ByteArrayOutputStream()
         serializer.writeTo(original, output)
+
+        expectSelfie(output.toString("UTF-8")).toMatchDisk()
 
         val input = ByteArrayInputStream(output.toByteArray())
         val deserialized = serializer.readFrom(input)
@@ -84,8 +80,8 @@ class UserPreferencesSerializerTest {
         val input = ByteArrayInputStream(json.toByteArray(Charsets.UTF_8))
         val deserialized = serializer.readFrom(input)
 
-        assertEquals(ThemeSettings.Light, deserialized.theme)
-        assertEquals(true, deserialized.automaticDiscovery)
+        expectSelfie(deserialized.toString()).toMatchDisk()
+        Unit
     }
 
     @Test
@@ -94,9 +90,7 @@ class UserPreferencesSerializerTest {
         val input = ByteArrayInputStream(json.toByteArray(Charsets.UTF_8))
         val deserialized = serializer.readFrom(input)
 
-        assertEquals(ThemeSettings.Dark, deserialized.theme)
-        assertEquals(true, deserialized.automaticDiscovery)
-        assertEquals(true, deserialized.showOfflineLast)
-        assertEquals(false, deserialized.showHiddenDevices)
+        expectSelfie(deserialized.toString()).toMatchDisk()
+        Unit
     }
 }

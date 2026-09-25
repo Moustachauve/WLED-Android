@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.repository.migrations
 
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
+import com.diffplug.selfie.Selfie.expectSelfie
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -38,12 +39,7 @@ class UserPreferencesV0ToV1Test {
 
         val migrated = migration.migrate(oldPrefs)
 
-        assertEquals(1, migrated.version)
-        assertEquals(ThemeSettings.Auto, migrated.theme)
-        assertTrue(migrated.automaticDiscovery)
-        assertTrue(migrated.showOfflineLast)
-        assertFalse(migrated.sendCrashData)
-        assertFalse(migrated.sendPerformanceData)
-        assertEquals("192.168.1.10", migrated.selectedDeviceAddress)
+        expectSelfie(migrated.toString()).toMatchDisk()
+        Unit
     }
 }

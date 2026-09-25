@@ -1,9 +1,9 @@
 package ca.cgagnier.wlednativeandroid.model.wledapi
 
+import com.diffplug.selfie.Selfie.expectSelfie
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -37,24 +37,20 @@ class JsonPostTest {
     fun `test JsonPost serialization omits null values`() {
         val jsonPost = JsonPost()
         val serialized = json.encodeToString(jsonPost)
-        assertEquals("""{"v":true}""", serialized)
+        expectSelfie(serialized).toBe("""{"v":true}""")
     }
 
     @Test
     fun `test JsonPost serialization with all values set`() {
         val jsonPost = JsonPost(isOn = true, brightness = 200, verbose = false)
         val serialized = json.encodeToString(jsonPost)
-        assertTrue(serialized.contains(""""on":true"""))
-        assertTrue(serialized.contains(""""bri":200"""))
-        assertTrue(serialized.contains(""""v":false"""))
+        expectSelfie(serialized).toBe("{\"on\":true,\"bri\":200,\"v\":false}")
     }
 
     @Test
     fun `test JsonPost deserialization`() {
         val rawJson = """{"on":true,"bri":255,"v":false}"""
         val parsed = json.decodeFromString<JsonPost>(rawJson)
-        assertEquals(true, parsed.isOn)
-        assertEquals(255, parsed.brightness)
-        assertFalse(parsed.verbose)
+        expectSelfie(parsed.toString()).toBe("JsonPost(isOn=true, brightness=255, verbose=false)")
     }
 }

@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.repository.migrations
 
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
+import com.diffplug.selfie.Selfie.expectSelfie
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
@@ -12,15 +13,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import ca.cgagnier.wlednativeandroid.repository.legacy.ThemeSettings as LegacyProtoThemeSettings
 import ca.cgagnier.wlednativeandroid.repository.legacy.UserPreferences as LegacyProtoUserPreferences
 
-@RunWith(RobolectricTestRunner::class)
 class LegacyProtoToKotlinxPreferencesMigrationTest {
 
     @get:Rule
@@ -75,18 +73,8 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
         val initialPreferences = UserPreferences()
         val migrated = migration.migrate(initialPreferences)
 
-        assertEquals("10.0.0.42", migrated.selectedDeviceAddress)
-        assertTrue(migrated.hasMigratedSharedPref)
-        assertEquals(ThemeSettings.Dark, migrated.theme)
-        assertFalse(migrated.automaticDiscovery)
-        assertEquals(3, migrated.version)
-        assertFalse(migrated.showOfflineLast)
-        assertTrue(migrated.sendCrashData)
-        assertTrue(migrated.sendPerformanceData)
-        assertEquals(1705000000L, migrated.lastUpdateCheckDate)
-        assertEquals(1705000100L, migrated.dateLastWritten)
-        assertTrue(migrated.showHiddenDevices)
-        assertEquals("2.1.0", migrated.lastChangelogVersionSeen)
+        expectSelfie(migrated.toString()).toMatchDisk()
+        Unit
     }
 
     @Test
@@ -126,13 +114,8 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
         val migration = LegacyProtoToKotlinxPreferencesMigration(protoFile)
         val migrated = migration.migrate(UserPreferences())
 
-        assertEquals(ThemeSettings.Auto, migrated.theme)
-        assertTrue(migrated.automaticDiscovery)
-        assertTrue(migrated.showOfflineLast)
-        assertEquals(1, migrated.version)
-        assertEquals("192.168.1.99", migrated.selectedDeviceAddress)
-        assertFalse(migrated.sendCrashData)
-        assertFalse(migrated.sendPerformanceData)
+        expectSelfie(migrated.toString()).toMatchDisk()
+        Unit
     }
 
     @Test

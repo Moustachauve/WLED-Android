@@ -1,10 +1,9 @@
 package ca.cgagnier.wlednativeandroid.model.wledapi
 
+import com.diffplug.selfie.Selfie.expectSelfie
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -134,57 +133,36 @@ class WledApiSerializationTest {
         coerceInputValues = true
     }
 
+    private val prettyJson = Json {
+        prettyPrint = true
+        prettyPrintIndent = "  "
+        ignoreUnknownKeys = true
+        isLenient = true
+        explicitNulls = false
+        coerceInputValues = true
+    }
+
     @Test
     fun `test DeviceStateInfo full deserialization with real WLED 16_0_1 data`() {
         val deviceStateInfo = json.decodeFromString<DeviceStateInfo>(SAMPLE_DEVICE_STATE_INFO_JSON)
-
-        // Verify State
-        assertEquals(true, deviceStateInfo.state.isOn)
-        assertEquals(195, deviceStateInfo.state.brightness)
-        assertEquals(7, deviceStateInfo.state.transition)
-        assertEquals(-1, deviceStateInfo.state.selectedPresetId)
-        assertNotNull(deviceStateInfo.state.nightlight)
-        assertEquals(false, deviceStateInfo.state.nightlight?.isOn)
-        assertEquals(2, deviceStateInfo.state.segment?.size)
-
-        val segment = deviceStateInfo.state.segment?.first()
-        assertNotNull(segment)
-        assertEquals(0, segment?.id)
-        assertEquals(88, segment?.length)
-        assertEquals(listOf(listOf(0, 17, 255, 0), listOf(144, 79, 255, 0), listOf(0, 0, 0, 0)), segment?.colors)
-        assertEquals(107, segment?.effect)
-
-        // Verify Info
-        assertEquals("16.0.1", deviceStateInfo.info.version)
-        assertEquals(2606300, deviceStateInfo.info.buildId)
-        assertEquals("Niji", deviceStateInfo.info.codeName)
-        assertEquals("ESP32", deviceStateInfo.info.release)
-        assertEquals("wled/WLED", deviceStateInfo.info.repository)
-        assertEquals("WLED Desk", deviceStateInfo.info.name)
-        assertEquals("esp32", deviceStateInfo.info.platformName)
-        assertEquals("4.4.8.240628", deviceStateInfo.info.arduinoCoreVersion)
-        assertEquals(240, deviceStateInfo.info.clockFrequency)
-        assertEquals(4, deviceStateInfo.info.flashChipSize)
-        assertEquals("FOSS", deviceStateInfo.info.product)
-        assertEquals("aabbccddeeff", deviceStateInfo.info.macAddress)
-        assertEquals("192.168.1.100", deviceStateInfo.info.ipAddress)
-        assertEquals(277, deviceStateInfo.info.leds.count)
-        assertEquals(43, deviceStateInfo.info.leds.fps)
-        assertEquals(-72, deviceStateInfo.info.wifi.rssi)
-        assertEquals(56, deviceStateInfo.info.wifi.signal)
-        assertFalse(deviceStateInfo.info.wifi.isApMode ?: true)
-        assertEquals(32, deviceStateInfo.info.fileSystem?.spaceUsed)
-        assertEquals(983, deviceStateInfo.info.fileSystem?.spaceTotal)
-        assertTrue(deviceStateInfo.info.isOtaEnabled)
+        expectSelfie(prettyJson.encodeToString(deviceStateInfo)).toMatchDisk()
     }
 
     @Test
     fun `test Info with unknown fields ignores extra keys`() {
         val info = json.decodeFromString<Info>(SAMPLE_UNKNOWN_FIELDS_INFO_JSON)
-        assertEquals("Test LED", info.name)
-        assertEquals("16.0.1", info.version)
-        assertEquals(100, info.leds.count)
-        assertEquals(-55, info.wifi.rssi)
+        expectSelfie(prettyJson.encodeToString(info)).toBe(
+            """{
+  "leds": {
+    "count": 100
+  },
+  "wifi": {
+    "rssi": -55
+  },
+  "ver": "16.0.1",
+  "name": "Test LED"
+}""",
+        )
     }
 
     @Test
@@ -195,11 +173,36 @@ class WledApiSerializationTest {
         )
 
         val serialized = json.encodeToString(state)
-        assertTrue(serialized.contains(""""on":true"""))
-        assertTrue(serialized.contains(""""bri":255"""))
-        assertFalse(serialized.contains(""""transition""""))
-        assertFalse(serialized.contains(""""ps""""))
-        assertFalse(serialized.contains(""""seg""""))
+        expectSelfie(serialized).toBe("{\"on\":true,\"bri\":255}")
+    }
+
+    @Test
+    fun `test State with multiple segments and nightlight serialization`() {
+        val state = State(
+            isOn = true,
+            brightness = 195,
+            transition = 7,
+            nightlight = Nightlight(isOn = false, duration = 60, mode = 1, targetBrightness = 0, remainingTime = -1),
+            segment = listOf(
+                Segment(
+                    id = 0,
+                    start = 0,
+                    stop = 88,
+                    length = 88,
+                    grouping = 1,
+                    spacing = 0,
+                    isOn = true,
+                    brightness = 255,
+                    colors = listOf(listOf(0, 17, 255, 0), listOf(144, 79, 255, 0)),
+                    effect = 107,
+                    effectSpeed = 20,
+                    effectIntensity = 144,
+                    palette = 3,
+                ),
+            ),
+        )
+        val serialized = prettyJson.encodeToString(state)
+        expectSelfie(serialized).toMatchDisk()
     }
 
     @Test

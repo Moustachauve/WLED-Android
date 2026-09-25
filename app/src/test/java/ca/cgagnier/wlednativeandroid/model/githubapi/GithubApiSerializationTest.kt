@@ -1,11 +1,8 @@
 package ca.cgagnier.wlednativeandroid.model.githubapi
 
+import com.diffplug.selfie.Selfie.expectSelfie
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 private val SAMPLE_RELEASE_16_0_1_JSON = """
@@ -149,39 +146,24 @@ class GithubApiSerializationTest {
         coerceInputValues = true
     }
 
+    private val prettyJson = Json {
+        prettyPrint = true
+        prettyPrintIndent = "  "
+        ignoreUnknownKeys = true
+        isLenient = true
+        explicitNulls = false
+        coerceInputValues = true
+    }
+
     @Test
     fun `test Release deserialization with real WLED 16_0_1 data`() {
         val release = json.decodeFromString<Release>(SAMPLE_RELEASE_16_0_1_JSON)
-
-        assertEquals("v16.0.1", release.tagName)
-        assertEquals(347085524, release.id)
-        assertEquals("WLED Release 16.0.1", release.name)
-        assertEquals("github-actions[bot]", release.author.login)
-        assertFalse(release.prerelease)
-        assertEquals(1, release.assets.size)
-
-        val asset = release.assets.first()
-        assertEquals("WLED_16.0.1_ESP8266_compat.bin", asset.name)
-        assertEquals(934992L, asset.size)
-        assertEquals(636, asset.downloadCount)
-        assertNull(asset.label)
-        assertEquals("github-actions[bot]", asset.uploader.login)
-
-        val reactions = release.reactions
-        assertNotNull(reactions)
-        assertEquals(25, reactions?.totalCount)
-        assertEquals(14, reactions?.hooray)
-        assertEquals(8, reactions?.heart)
-        assertEquals(3, reactions?.rocket)
-        assertEquals(10, release.mentionsCount)
+        expectSelfie(prettyJson.encodeToString(release)).toMatchDisk()
     }
 
     @Test
     fun `test Release deserialization without optional reactions or mentions`() {
         val release = json.decodeFromString<Release>(SAMPLE_MINIMAL_RELEASE_JSON)
-        assertEquals("v16.0.0-beta", release.tagName)
-        assertTrue(release.prerelease)
-        assertNull(release.reactions)
-        assertNull(release.mentionsCount)
+        expectSelfie(prettyJson.encodeToString(release)).toMatchDisk()
     }
 }
