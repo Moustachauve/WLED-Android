@@ -54,6 +54,5 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideDeviceApiFactory(okHttpClient: OkHttpClient, json: Json, httpClient: HttpClient): DeviceApiFactory =
-        DeviceApiFactory(okHttpClient, json, httpClient)
+    fun provideDeviceApiFactory(httpClient: HttpClient): DeviceApiFactory = DeviceApiFactory(httpClient)
 }

@@ -106,14 +106,8 @@ private val defaultJson = Json {
  * @param client The OkHttpClient engine to use for the underlying HTTP transport.
  * @param json The Json instance to use for serialization/deserialization.
  */
-class DeviceApiFactory(
-    private val client: OkHttpClient,
-    private val json: Json = defaultJson,
-    private val sharedHttpClient: HttpClient? = null,
-) {
-    private val defaultHttpClient: HttpClient by lazy {
-        sharedHttpClient ?: createHttpClient(client, json)
-    }
+class DeviceApiFactory(private val defaultHttpClient: HttpClient) {
+    constructor(client: OkHttpClient, json: Json = defaultJson) : this(createHttpClient(client, json))
 
     /**
      * Create a new DeviceApi instance from a device address.
