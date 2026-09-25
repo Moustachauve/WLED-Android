@@ -81,7 +81,11 @@ class KtorDeviceApi(private val baseUrl: String, private val httpClient: HttpCli
             },
         )
         val text = response.bodyAsText()
-        return ApiResponse(code = response.status.value, body = text, errorBody = text)
+        return if (response.status.isSuccess()) {
+            ApiResponse(code = response.status.value, body = text)
+        } else {
+            ApiResponse(code = response.status.value, errorBody = text)
+        }
     }
 }
 

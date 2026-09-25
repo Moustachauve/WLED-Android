@@ -10,6 +10,7 @@ import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentLength
+import io.ktor.http.isSuccess
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.io.File
+import java.io.IOException
 
 interface GithubApiEndpoints {
     suspend fun getAllReleases(repoOwner: String, repoName: String): List<Release>
@@ -47,19 +49,21 @@ class KtorGithubApiEndpoints(private val httpClient: HttpClient, private val bas
             httpClient.prepareGet(url) {
                 header(HttpHeaders.Accept, "application/octet-stream")
             }.execute { response ->
+                if (!response.status.isSuccess()) {
+                    throw IOException("Download failed: HTTP ${response.status.value} ${response.status.description}")
+                }
                 val channel = response.bodyAsChannel()
                 val totalBytes = response.contentLength() ?: -1L
                 emitAll(channel.saveFile(targetFile, totalBytes))
             }
         } catch (e: Exception) {
+            targetFile.delete()
             emit(DownloadState.Failed(e))
         }
     }.flowOn(Dispatchers.IO)
 
     @Suppress("TooGenericExceptionCaught")
     private fun ByteReadChannel.saveFile(destinationFile: File, totalBytes: Long): Flow<DownloadState> = flow {
-        emit(DownloadState.Downloading(0))
-
         try {
             destinationFile.outputStream().use { outputStream ->
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -76,6 +80,7 @@ class KtorGithubApiEndpoints(private val httpClient: HttpClient, private val bas
             }
             emit(DownloadState.Finished)
         } catch (e: Exception) {
+            destinationFile.delete()
             emit(DownloadState.Failed(e))
         }
     }.flowOn(Dispatchers.IO).distinctUntilChanged()

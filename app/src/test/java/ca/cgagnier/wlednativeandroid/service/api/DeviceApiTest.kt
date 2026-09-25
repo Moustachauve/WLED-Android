@@ -16,6 +16,7 @@ import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -215,6 +216,32 @@ class DeviceApiTest {
         assertTrue(response.isSuccessful)
         assertEquals(200, response.code)
         assertEquals("Update Success! Rebooting...", response.body)
+        assertNull(response.errorBody)
+    }
+
+    @Test
+    fun `updateDevice error returns error status and errorBody`() = runTest {
+        val tempFile = File.createTempFile("wled_test_update_fail", ".bin").apply {
+            writeBytes(byteArrayOf(0x01, 0x02, 0x03, 0x04))
+            deleteOnExit()
+        }
+
+        val mockEngine = MockEngine { _ ->
+            respond(
+                content = "Update Failed: Not enough space",
+                status = HttpStatusCode.InternalServerError,
+                headers = headersOf(HttpHeaders.ContentType, "text/plain"),
+            )
+        }
+        val httpClient = HttpClient(mockEngine)
+
+        val deviceApi = KtorDeviceApi("http://10.0.0.100/", httpClient)
+        val response = deviceApi.updateDevice(tempFile)
+
+        assertFalse(response.isSuccessful)
+        assertEquals(500, response.code)
+        assertNull(response.body)
+        assertEquals("Update Failed: Not enough space", response.errorBody)
     }
 
     @Test
