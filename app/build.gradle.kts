@@ -125,7 +125,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.webkit)
-    implementation(libs.converter.kotlinx.serialization)
     implementation(libs.core)
     implementation(libs.core.ktx)
     implementation(libs.datastore)
@@ -134,6 +133,10 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.jdk9)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.logging.interceptor)
     implementation(libs.material)
@@ -144,8 +147,6 @@ dependencies {
     implementation(libs.coil3.compose)
     implementation(libs.okhttp)
     implementation(libs.protobuf.javalite)
-    implementation(libs.retrofit)
-    implementation(libs.retrofit2.kotlin.coroutines.adapter)
     implementation(libs.semver4j)
     implementation(libs.compose.material.icons)
     ksp(libs.hilt.compiler)
@@ -153,6 +154,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.mockk)
+    testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 protobuf {

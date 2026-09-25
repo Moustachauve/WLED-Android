@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
+import ca.cgagnier.wlednativeandroid.service.api.ApiResponse
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
@@ -21,8 +22,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import okhttp3.ResponseBody
-import retrofit2.Response
 import java.io.File
 import java.util.regex.Pattern
 import javax.inject.Inject
@@ -167,7 +166,7 @@ class UpdateInstallingViewModel @Inject constructor(
         )
     }
 
-    private fun onSoftwareUpdateResponse(response: Response<ResponseBody>) {
+    private fun onSoftwareUpdateResponse(response: ApiResponse<String>) {
         if (response.code() in 200..299) {
             _state.update { previousState ->
                 previousState.copy(
@@ -214,8 +213,8 @@ class UpdateInstallingViewModel @Inject constructor(
         deviceRepository.update(updatedDevice)
     }
 
-    private fun getHtmlErrorMessage(response: Response<ResponseBody>): String {
-        val html = response.body()?.string() ?: response.errorBody()?.string() ?: ""
+    private fun getHtmlErrorMessage(response: ApiResponse<String>): String {
+        val html = response.body() ?: response.errorBody() ?: ""
         // Extract the body content to ignore <head> (title, scripts, styles)
         val bodyMatcher = HTML_BODY_MATCHER.matcher(html)
         var bodyContent = if (bodyMatcher.find()) bodyMatcher.group(1) else html

@@ -1,22 +1,40 @@
 package ca.cgagnier.wlednativeandroid.service.api.github
 
 import ca.cgagnier.wlednativeandroid.model.githubapi.Release
-import okhttp3.ResponseBody
-import retrofit2.http.GET
-import retrofit2.http.Headers
-import retrofit2.http.Path
-import retrofit2.http.Streaming
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.prepareGet
+import io.ktor.client.statement.HttpStatement
+import io.ktor.http.HttpHeaders
 
 interface GithubApiEndpoints {
-    @GET("repos/{repoOwner}/{repoName}/releases")
-    suspend fun getAllReleases(@Path("repoOwner") repoOwner: String, @Path("repoName") repoName: String): List<Release>
+    suspend fun getAllReleases(repoOwner: String, repoName: String): List<Release>
 
-    @Streaming
-    @Headers("Accept: application/octet-stream")
-    @GET("repos/{repoOwner}/{repoName}/releases/assets/{assetId}")
-    suspend fun downloadReleaseBinary(
-        @Path("repoOwner") repoOwner: String,
-        @Path("repoName") repoName: String,
-        @Path("assetId") assetId: Int,
-    ): ResponseBody
+    suspend fun prepareDownloadReleaseBinary(repoOwner: String, repoName: String, assetId: Int): HttpStatement
+}
+
+class KtorGithubApiEndpoints(private val httpClient: HttpClient, private val baseUrl: String = GITHUB_BASE_URL) :
+    GithubApiEndpoints {
+
+    override suspend fun getAllReleases(repoOwner: String, repoName: String): List<Release> {
+        val url = "$baseUrl/repos/$repoOwner/$repoName/releases"
+        return httpClient.get(url).body()
+    }
+
+    override suspend fun prepareDownloadReleaseBinary(
+        repoOwner: String,
+        repoName: String,
+        assetId: Int,
+    ): HttpStatement {
+        val url = "$baseUrl/repos/$repoOwner/$repoName/releases/assets/$assetId"
+        return httpClient.prepareGet(url) {
+            header(HttpHeaders.Accept, "application/octet-stream")
+        }
+    }
+
+    companion object {
+        const val GITHUB_BASE_URL = "https://api.github.com"
+    }
 }

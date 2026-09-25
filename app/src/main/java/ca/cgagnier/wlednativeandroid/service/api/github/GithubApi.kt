@@ -4,13 +4,16 @@ import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.githubapi.Release
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.http.contentLength
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import okhttp3.ResponseBody
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -36,28 +39,30 @@ class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints
     ): Flow<DownloadState> = flow {
         try {
             emit(DownloadState.Downloading(0))
-            val responseBody =
-                apiEndpoints.downloadReleaseBinary(repoOwner, repoName, asset.assetId)
-            emitAll(responseBody.saveFile(targetFile))
+            val statement = apiEndpoints.prepareDownloadReleaseBinary(repoOwner, repoName, asset.assetId)
+            statement.execute { response ->
+                val channel = response.bodyAsChannel()
+                val totalBytes = response.contentLength() ?: -1L
+                emitAll(channel.saveFile(targetFile, totalBytes))
+            }
         } catch (e: Exception) {
             emit(DownloadState.Failed(e))
         }
     }.flowOn(Dispatchers.IO)
 
-    private fun ResponseBody.saveFile(destinationFile: File): Flow<DownloadState> = flow {
+    private fun ByteReadChannel.saveFile(destinationFile: File, totalBytes: Long): Flow<DownloadState> = flow {
         emit(DownloadState.Downloading(0))
 
         try {
-            byteStream().use { inputStream ->
-                destinationFile.outputStream().use { outputStream ->
-                    val totalBytes = contentLength()
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    var progressBytes = 0L
-                    var bytes = inputStream.read(buffer)
-                    while (bytes >= 0) {
-                        outputStream.write(buffer, 0, bytes)
-                        progressBytes += bytes
-                        bytes = inputStream.read(buffer)
+            destinationFile.outputStream().use { outputStream ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                var progressBytes = 0L
+                while (!isClosedForRead) {
+                    val bytesRead = readAvailable(buffer, 0, buffer.size)
+                    if (bytesRead <= 0) break
+                    outputStream.write(buffer, 0, bytesRead)
+                    progressBytes += bytesRead
+                    if (totalBytes > 0) {
                         emit(DownloadState.Downloading(((progressBytes * 100) / totalBytes).toInt()))
                     }
                 }

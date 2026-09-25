@@ -4,17 +4,13 @@ import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
+import ca.cgagnier.wlednativeandroid.service.api.ApiResponse
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import com.vdurmont.semver4j.Semver
 import kotlinx.coroutines.flow.Flow
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.ResponseBody
-import retrofit2.Response
 import java.io.File
 
 private const val TAG = "DeviceUpdateService"
@@ -169,16 +165,13 @@ class DeviceUpdateService(
     suspend fun sendSoftwareUpdateRequest(
         device: Device,
         binaryFile: File,
-        callback: ((Response<ResponseBody>) -> Unit)? = null,
+        callback: ((ApiResponse<String>) -> Unit)? = null,
         errorCallback: ((Exception) -> Unit)? = null,
     ) {
         Log.d(TAG, "Installing software update: ${device.macAddress}")
         try {
-            val reqFile = binaryFile.asRequestBody("application/octet-stream".toMediaTypeOrNull())
             // Longer TTL because updates can take a bit of time to fully install
-            val response = deviceApiFactory.create(device, 120L).updateDevice(
-                MultipartBody.Part.createFormData("file", "binary", reqFile),
-            )
+            val response = deviceApiFactory.create(device, 120L).updateDevice(binaryFile)
             callback?.invoke(response)
         } catch (e: Exception) {
             errorCallback?.invoke(e)
