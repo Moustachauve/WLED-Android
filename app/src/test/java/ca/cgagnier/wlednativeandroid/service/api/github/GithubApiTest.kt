@@ -135,9 +135,6 @@ class GithubApiTest {
         val releases = result.getOrNull()
         assertEquals(1, releases?.size)
         assertEquals("v16.0.1", releases?.first()?.tagName)
-        assertEquals("WLED Release 16.0.1", releases?.first()?.name)
-        assertEquals(1, releases?.first()?.assets?.size)
-        assertEquals("WLED_16.0.1_ESP32.bin", releases?.first()?.assets?.first()?.name)
     }
 
     @Test

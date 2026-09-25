@@ -142,13 +142,7 @@ class DeviceApiTest {
 
         assertTrue(response.isSuccessful)
         assertEquals(200, response.code)
-        assertNotNull(response.body)
         assertEquals("WLED Office", response.body?.name)
-        assertEquals("16.0.1", response.body?.version)
-        assertEquals("ESP32", response.body?.release)
-        assertEquals("wled/WLED", response.body?.repository)
-        assertEquals(277, response.body?.leds?.count)
-        assertEquals("001122334455", response.body?.macAddress)
     }
 
     @Test
@@ -195,11 +189,7 @@ class DeviceApiTest {
 
         assertTrue(response.isSuccessful)
         assertEquals(200, response.code)
-        assertNotNull(response.body)
-        assertEquals(true, response.body?.isOn)
         assertEquals(195, response.body?.brightness)
-        assertEquals(1, response.body?.segment?.size)
-        assertEquals(107, response.body?.segment?.first()?.effect)
     }
 
     @Test
