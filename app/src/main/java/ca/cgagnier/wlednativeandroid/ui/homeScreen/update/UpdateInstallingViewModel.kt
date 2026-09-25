@@ -167,7 +167,7 @@ class UpdateInstallingViewModel @Inject constructor(
     }
 
     private fun onSoftwareUpdateResponse(response: ApiResponse<String>) {
-        if (response.code() in 200..299) {
+        if (response.isSuccessful) {
             _state.update { previousState ->
                 previousState.copy(
                     canDismiss = true,
@@ -175,8 +175,8 @@ class UpdateInstallingViewModel @Inject constructor(
                 )
             }
         } else {
-            Log.d(TAG, "OTA Failed, code ${response.code()}")
-            val errorString = "${response.code()}: ${getHtmlErrorMessage(response)}"
+            Log.d(TAG, "OTA Failed, code ${response.code}")
+            val errorString = "${response.code}: ${getHtmlErrorMessage(response)}"
             Log.d(TAG, "OTA Failed onResponse, error $errorString")
             _state.update { previousState ->
                 previousState.copy(
@@ -214,7 +214,7 @@ class UpdateInstallingViewModel @Inject constructor(
     }
 
     private fun getHtmlErrorMessage(response: ApiResponse<String>): String {
-        val html = response.body() ?: response.errorBody() ?: ""
+        val html = response.body ?: response.errorBody ?: ""
         // Extract the body content to ignore <head> (title, scripts, styles)
         val bodyMatcher = HTML_BODY_MATCHER.matcher(html)
         var bodyContent = if (bodyMatcher.find()) bodyMatcher.group(1) else html

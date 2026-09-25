@@ -195,18 +195,18 @@ class WledControlsService : ControlsProviderService() {
             val response = api.postJson(JsonPost(verbose = true))
 
             if (response.isSuccessful) {
-                response.body()?.let { state ->
+                response.body?.let { state ->
                     updateStateAndEmit(device, state, flow)
                     Log.d(
                         TAG,
                         "Emitted state for ${device.address}: on=${state.isOn}, bri=${state.brightness}",
                     )
                 } ?: run {
-                    Log.w(TAG, "Body is missing for ${device.address}: ${response.code()}")
+                    Log.w(TAG, "Body is missing for ${device.address}: ${response.code}")
                     emitUnavailableControl(device, flow)
                 }
             } else {
-                Log.w(TAG, "Failed to fetch state for ${device.address}: ${response.code()}")
+                Log.w(TAG, "Failed to fetch state for ${device.address}: ${response.code}")
                 emitUnavailableControl(device, flow)
             }
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
@@ -225,7 +225,7 @@ class WledControlsService : ControlsProviderService() {
         val response = api.postJson(JsonPost(isOn = newState, verbose = true))
 
         if (response.isSuccessful) {
-            response.body()?.let { state ->
+            response.body?.let { state ->
                 updateStateAndEmit(device, state, flow)
                 consumer.accept(ControlAction.RESPONSE_OK)
             } ?: consumer.accept(ControlAction.RESPONSE_FAIL)
@@ -245,7 +245,7 @@ class WledControlsService : ControlsProviderService() {
         val response = api.postJson(JsonPost(brightness = brightness, verbose = true))
 
         if (response.isSuccessful) {
-            response.body()?.let { state ->
+            response.body?.let { state ->
                 updateStateAndEmit(device, state, flow)
                 consumer.accept(ControlAction.RESPONSE_OK)
             } ?: consumer.accept(ControlAction.RESPONSE_FAIL)
