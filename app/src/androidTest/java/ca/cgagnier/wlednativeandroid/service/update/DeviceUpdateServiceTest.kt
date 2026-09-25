@@ -12,12 +12,13 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.Wifi
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
-import ca.cgagnier.wlednativeandroid.service.api.github.GithubApiEndpoints
+import ca.cgagnier.wlednativeandroid.service.api.github.KtorGithubApiEndpoints
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import com.google.common.truth.Truth.assertThat
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
 import okhttp3.OkHttpClient
 import org.junit.Test
-import retrofit2.Retrofit
 
 class DeviceUpdateServiceTest {
 
@@ -60,10 +61,7 @@ class DeviceUpdateServiceTest {
         val versionWithAssets =
             VersionWithAssets(version = makeVersion(targetVersionTag), assets = availableAssets)
         val deviceApiFactory = DeviceApiFactory(OkHttpClient())
-        val githubApiEndpoints = Retrofit.Builder()
-            .baseUrl("https://api.github.com/")
-            .build()
-            .create(GithubApiEndpoints::class.java)
+        val githubApiEndpoints = KtorGithubApiEndpoints(HttpClient(OkHttp))
         val githubApi = GithubApi(githubApiEndpoints)
 
         return DeviceUpdateService(

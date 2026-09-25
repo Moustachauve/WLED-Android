@@ -11,7 +11,7 @@ WLED-Android is a native Android application for controlling WLED devices (WiFi-
 *   **Architecture:** Clean Architecture / MVVM (Model-View-ViewModel)
 *   **Dependency Injection:** Hilt
 *   **Asynchronous:** Coroutines & Flow
-*   **Network:** Retrofit, OkHttp, kotlinx.serialization (JSON), Protobuf
+*   **Network:** Ktor Client (OkHttp engine), kotlinx.serialization (JSON), Protobuf
 *   **Database:** Room (Exports schemas to `app/schemas`)
     *   *Instruction:* If modifying a generic `@Entity`, consider database migrations and schema versioning.
 *   **DataStore:** Core + kotlinx.serialization (JSON) (with migration from legacy `user_prefs.proto`)
