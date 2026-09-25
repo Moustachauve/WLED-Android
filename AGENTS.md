@@ -16,6 +16,11 @@ WLED-Android is a native Android application for controlling WLED devices (WiFi-
     *   *Instruction:* If modifying a generic `@Entity`, consider database migrations and schema versioning.
 *   **DataStore:** Core + kotlinx.serialization (JSON) (with migration from legacy `user_prefs.proto`)
     *   *Instruction:* Manage preferences via `UserPreferences.kt` using `@Serializable`. Do not use standard SharedPreferences.
+*   **Testing:** JUnit 5 (JUnit Platform with Vintage Engine for JUnit 4 / Robolectric), MockK, **Selfie** snapshot testing (`selfie.dev`)
+    *   *Instruction:* When testing models, serialization/deserialization, DTOs, migrations, or complex state structures, use **Selfie** snapshot testing (`expectSelfie(...)`) instead of writing repetitive `assertEquals` blocks.
+        *   Use disk snapshots (`.toMatchDisk()`) for multiline JSON, DTOs, or complex objects to keep test files clean and avoid `MaxLineLength` issues. Corresponding `.ss` snapshot files are co-located with test files and must be committed.
+        *   Use inline snapshots (`.toBe(...)`) for short, single-line values.
+        *   Use `.toBe_TODO()` or `.toMatchDisk_TODO()` when creating new tests; running Gradle tests will automatically record and populate the snapshots.
 *   **Build System:** Gradle (Kotlin DSL), Version Catalogs (`gradle/libs.versions.toml`)
 *   **Min SDK:** 24
 *   **Target SDK:** 37
