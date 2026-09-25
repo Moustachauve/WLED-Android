@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -199,5 +200,39 @@ class GithubApiTest {
         assertTrue(states.any { it is DownloadState.Downloading })
         assertTrue(states.last() is DownloadState.Finished)
         assertEquals(1024L, targetFile.length())
+    }
+
+    @Test
+    fun `downloadReleaseBinary fails and cleans up file on HTTP error`() = runTest {
+        val mockEngine = MockEngine { _ ->
+            respond(
+                content = "404 Not Found",
+                status = HttpStatusCode.NotFound,
+                headers = headersOf(HttpHeaders.ContentType, "text/plain"),
+            )
+        }
+        val httpClient = HttpClient(mockEngine)
+        val endpoints = KtorGithubApiEndpoints(httpClient)
+        val githubApi = GithubApi(endpoints)
+
+        val targetFile = File.createTempFile("github_test_download_fail", ".bin")
+
+        val asset = Asset(
+            versionId = 1L,
+            name = "WLED_16.0.1_ESP32.bin",
+            size = 1729440L,
+            downloadUrl = "https://github.com/wled/WLED/releases/download/v16.0.1/WLED_16.0.1_ESP32.bin",
+            assetId = 462495760,
+        )
+
+        val states = githubApi.downloadReleaseBinary(
+            asset = asset,
+            repoOwner = "wled",
+            repoName = "WLED",
+            targetFile = targetFile,
+        ).toList()
+
+        assertTrue(states.last() is DownloadState.Failed)
+        assertFalse(targetFile.exists())
     }
 }

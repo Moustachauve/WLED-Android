@@ -60,8 +60,9 @@ class DeviceUpdateServiceTest {
         }
         val versionWithAssets =
             VersionWithAssets(version = makeVersion(targetVersionTag), assets = availableAssets)
-        val deviceApiFactory = DeviceApiFactory(OkHttpClient())
-        val githubApiEndpoints = KtorGithubApiEndpoints(HttpClient(OkHttp))
+        val okHttpClient = OkHttpClient()
+        val deviceApiFactory = DeviceApiFactory(okHttpClient)
+        val githubApiEndpoints = KtorGithubApiEndpoints(DeviceApiFactory.createHttpClient(okHttpClient))
         val githubApi = GithubApi(githubApiEndpoints)
 
         return DeviceUpdateService(
