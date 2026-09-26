@@ -5,7 +5,6 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferences
 import com.diffplug.selfie.Selfie.expectSelfie
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
