@@ -4,12 +4,9 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
-import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.websocket.Frame
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,7 +26,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -49,7 +45,6 @@ class WebsocketClientTest {
 
     @BeforeEach
     fun setUp() {
-        mockkStatic("io.ktor.client.plugins.websocket.BuildersKt")
         json = Json {
             ignoreUnknownKeys = true
             isLenient = true
@@ -79,8 +74,8 @@ class WebsocketClientTest {
     @Test
     fun `calculateBackoffWithJitter respects strict mathematical bounds for attempts 0 to 4`() {
         val baseDelay = 2000L
-        val minRandom = deterministicRandom(0.75)
-        val maxRandom = deterministicRandom(1.249999999)
+        val minRandom = deterministicRandom(0.0)
+        val maxRandom = deterministicRandom(1.0)
 
         for (attempt in 0..4) {
             val powerOfTwo = 1L shl attempt
@@ -91,18 +86,15 @@ class WebsocketClientTest {
             val maxResult = WebsocketClient.calculateBackoffWithJitter(attempt, random = maxRandom)
 
             assertEquals(expectedMin, minResult, "Attempt $attempt min bound violated")
-            assertTrue(
-                maxResult in expectedMin..expectedMax,
-                "Attempt $attempt max bound violated: got $maxResult, expected <= $expectedMax",
-            )
+            assertEquals(expectedMax, maxResult, "Attempt $attempt max bound violated")
         }
     }
 
     @Test
     fun `calculateBackoffWithJitter is strictly capped at 60000ms for attempts 5 and higher`() {
-        val minRandom = deterministicRandom(0.75)
-        val maxRandom = deterministicRandom(1.25)
-        val neutralRandom = deterministicRandom(1.0)
+        val minRandom = deterministicRandom(0.0)
+        val neutralRandom = deterministicRandom(0.5)
+        val maxRandom = deterministicRandom(1.0)
 
         val testAttempts = listOf(5, 6, 7, 10, 20, 30, 31, 50, 100, 1000, Int.MAX_VALUE)
 
@@ -112,7 +104,7 @@ class WebsocketClientTest {
             val maxResult = WebsocketClient.calculateBackoffWithJitter(attempt, random = maxRandom)
 
             assertEquals(45000L, minResult, "Attempt $attempt min at cap should be 45000")
-            assertEquals(60000L, neutralResult, "Attempt $attempt neutral at cap should be 60000")
+            assertEquals(52500L, neutralResult, "Attempt $attempt neutral at cap should be 52500")
             assertEquals(60000L, maxResult, "Attempt $attempt max at cap should be capped at 60000")
         }
     }
@@ -253,14 +245,6 @@ class WebsocketClientTest {
 
         val connectionAttempts = AtomicInteger(0)
 
-        coEvery { httpClient.webSocketSession(any<String>(), any()) } coAnswers {
-            val attempt = connectionAttempts.incrementAndGet()
-            when (attempt) {
-                1 -> session1
-                else -> throw IOException("Subsequent reconnect failed")
-            }
-        }
-
         val client = WebsocketClient(
             device = device,
             httpClient = httpClient,
@@ -268,6 +252,13 @@ class WebsocketClientTest {
             coroutineDispatcher = localDispatcher,
             coroutineScope = localScope,
         )
+        client.openSession = {
+            val attempt = connectionAttempts.incrementAndGet()
+            when (attempt) {
+                1 -> session1
+                else -> throw IOException("Subsequent reconnect failed")
+            }
+        }
 
         client.connect()
         localScope.runCurrent()
@@ -281,7 +272,7 @@ class WebsocketClientTest {
 
         assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
 
-        // Advance 2100ms for backoff attempt 0 (base delay 2000ms +- 25% = 1500-2500ms)
+        // Advance 2600ms for backoff attempt 0 (base delay 2000ms +- 25% = 1500-2500ms)
         localScope.advanceTimeBy(2600L)
         localScope.runCurrent()
 
@@ -311,14 +302,6 @@ class WebsocketClientTest {
 
         val connectionAttempts = AtomicInteger(0)
 
-        coEvery { httpClient.webSocketSession(any<String>(), any()) } coAnswers {
-            val attempt = connectionAttempts.incrementAndGet()
-            when (attempt) {
-                1 -> session1
-                else -> session2
-            }
-        }
-
         val client = WebsocketClient(
             device = device,
             httpClient = httpClient,
@@ -326,6 +309,13 @@ class WebsocketClientTest {
             coroutineDispatcher = localDispatcher,
             coroutineScope = localScope,
         )
+        client.openSession = {
+            val attempt = connectionAttempts.incrementAndGet()
+            when (attempt) {
+                1 -> session1
+                else -> session2
+            }
+        }
 
         client.connect()
         localScope.runCurrent()
@@ -359,6 +349,22 @@ class WebsocketClientTest {
         val client = WebsocketClient(device, httpClient, json)
         client.destroy()
         assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
+    }
+
+    @Test
+    fun `calling connect on destroyed client does not connect`() = runTest {
+        val client = WebsocketClient(device, httpClient, json)
+        client.destroy()
+        client.connect()
+        assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
+    }
+
+    @Test
+    fun `sendState returns false when client is destroyed`() = runTest {
+        val client = WebsocketClient(device, httpClient, json)
+        client.destroy()
+        val result = client.sendState(State(isOn = true))
+        assertFalse(result)
     }
 
     private fun deterministicRandom(fixedValue: Double): Random = object : Random() {

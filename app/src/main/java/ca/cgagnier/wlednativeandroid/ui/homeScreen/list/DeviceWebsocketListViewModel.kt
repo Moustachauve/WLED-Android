@@ -8,6 +8,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.di.DefaultDispatcher
+import ca.cgagnier.wlednativeandroid.di.IoDispatcher
 import ca.cgagnier.wlednativeandroid.domain.usecase.SaveDeviceStateUseCase
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
@@ -24,7 +25,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -54,14 +54,44 @@ class DeviceWebsocketListViewModel @Inject constructor(
     private val deviceUpdateManager: DeviceUpdateManager,
     @ApplicationContext private val applicationContext: Context,
     @DefaultDispatcher private val backgroundDispatcher: CoroutineDispatcher,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel(),
     DefaultLifecycleObserver {
+
+    internal var currentTimeProvider: () -> Long = System::currentTimeMillis
+    internal var lifecycleOwner: LifecycleOwner? = null
+
+    constructor(
+        userPreferencesRepository: UserPreferencesRepository,
+        deviceRepository: DeviceRepository,
+        websocketClientFactory: WebsocketClientFactory,
+        widgetManager: WledWidgetManager,
+        saveDeviceStateUseCase: SaveDeviceStateUseCase,
+        deviceUpdateManager: DeviceUpdateManager,
+        applicationContext: Context,
+        backgroundDispatcher: CoroutineDispatcher,
+        ioDispatcher: CoroutineDispatcher = backgroundDispatcher,
+        currentTimeProvider: () -> Long = System::currentTimeMillis,
+        lifecycleOwner: LifecycleOwner? = null,
+    ) : this(
+        userPreferencesRepository = userPreferencesRepository,
+        deviceRepository = deviceRepository,
+        websocketClientFactory = websocketClientFactory,
+        widgetManager = widgetManager,
+        saveDeviceStateUseCase = saveDeviceStateUseCase,
+        deviceUpdateManager = deviceUpdateManager,
+        applicationContext = applicationContext,
+        backgroundDispatcher = backgroundDispatcher,
+        ioDispatcher = ioDispatcher,
+    ) {
+        this.currentTimeProvider = currentTimeProvider
+        this.lifecycleOwner = lifecycleOwner
+    }
 
     private val activeClients = ConcurrentHashMap<String, WebsocketClient>()
     private val clientJobs = ConcurrentHashMap<String, Job>()
     private val devicesWithCompletedUpdateCheck = ConcurrentHashMap.newKeySet<String>()
     private val lastUpdateCheckAttempt = ConcurrentHashMap<String, Long>()
-    internal var clock: () -> Long = { System.currentTimeMillis() }
 
     private val _allDevicesWithState = MutableStateFlow<List<DeviceWithState>>(emptyList())
     val allDevicesWithState: StateFlow<List<DeviceWithState>> = _allDevicesWithState.asStateFlow()
@@ -84,9 +114,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
     init {
         // Observe ProcessLifecycle (App level) instead of Activity so onPause is
-        // only called when the entire app goes to background.
         try {
-            ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+            val owner = lifecycleOwner ?: ProcessLifecycleOwner.get()
+            owner.lifecycle.addObserver(this)
         } catch (e: Exception) {
             Log.w(TAG, "ProcessLifecycleOwner not available: ${e.message}")
         }
@@ -104,8 +134,55 @@ class DeviceWebsocketListViewModel @Inject constructor(
         createOrUpdateClients(newDeviceMap)
 
         val previousStateMap = _allDevicesWithState.value.associateBy { it.device.macAddress }
-        updateDevicesWithStateList(newDeviceList)
-        recheckModifiedDeviceUpdates(newDeviceList, previousStateMap)
+        val tagsToUpdate = mutableMapOf<String, String?>()
+
+        for (device in newDeviceList) {
+            val previous = previousStateMap[device.macAddress]
+            val stateInfo = previous?.stateInfo
+            if (previous != null && stateInfo != null && shouldRecheckDeviceUpdate(device, previous)) {
+                devicesWithCompletedUpdateCheck.remove(device.macAddress)
+                lastUpdateCheckAttempt.remove(device.macAddress)
+                val newTag = determineUpdateTag(
+                    current = previous,
+                    deviceToUse = device,
+                    stateInfo = stateInfo,
+                    mac = device.macAddress,
+                )
+                tagsToUpdate[device.macAddress] = newTag
+            }
+        }
+
+        _allDevicesWithState.update { currentList ->
+            val currentMap = currentList.associateBy { it.device.macAddress }
+            newDeviceList.map { device ->
+                val current = currentMap[device.macAddress]
+                val currentClient = activeClients[device.macAddress]
+                val currentStatus = currentClient?.status?.value ?: WebsocketStatus.DISCONNECTED
+
+                if (current != null) {
+                    val updateTag = if (tagsToUpdate.containsKey(device.macAddress)) {
+                        tagsToUpdate[device.macAddress]
+                    } else if (device.skipUpdateTag.isNotEmpty() &&
+                        device.skipUpdateTag == current.updateVersionTag
+                    ) {
+                        null
+                    } else {
+                        current.updateVersionTag
+                    }
+                    current.copy(
+                        device = device,
+                        websocketStatus = currentStatus,
+                        updateVersionTag = updateTag,
+                    )
+                } else {
+                    DeviceWithState(
+                        device = device,
+                        stateInfo = null,
+                        websocketStatus = currentStatus,
+                    )
+                }
+            }
+        }
     }
 
     private fun removeStaleClients(newDeviceMap: Map<String, Device>) {
@@ -146,69 +223,6 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 }
             } else {
                 existingClient.updateDevice(device)
-            }
-        }
-    }
-
-    private fun updateDevicesWithStateList(newDeviceList: List<Device>) {
-        _allDevicesWithState.update { currentList ->
-            val currentMap = currentList.associateBy { it.device.macAddress }
-            newDeviceList.map { device ->
-                val current = currentMap[device.macAddress]
-                val currentClient = activeClients[device.macAddress]
-                val currentStatus = currentClient?.status?.value ?: WebsocketStatus.DISCONNECTED
-
-                if (current != null) {
-                    val updateTag = if (device.skipUpdateTag.isNotEmpty() &&
-                        device.skipUpdateTag == current.updateVersionTag
-                    ) {
-                        null
-                    } else {
-                        current.updateVersionTag
-                    }
-                    current.copy(
-                        device = device,
-                        websocketStatus = currentStatus,
-                        updateVersionTag = updateTag,
-                    )
-                } else {
-                    DeviceWithState(
-                        device = device,
-                        stateInfo = null,
-                        websocketStatus = currentStatus,
-                    )
-                }
-            }
-        }
-    }
-
-    private suspend fun recheckModifiedDeviceUpdates(
-        newDeviceList: List<Device>,
-        previousStateMap: Map<String, DeviceWithState>,
-    ) {
-        for (device in newDeviceList) {
-            val previous = previousStateMap[device.macAddress]
-            val stateInfo = previous?.stateInfo
-            if (previous != null && stateInfo != null && shouldRecheckDeviceUpdate(device, previous)) {
-                devicesWithCompletedUpdateCheck.remove(device.macAddress)
-                lastUpdateCheckAttempt.remove(device.macAddress)
-                val newTag = determineUpdateTag(
-                    current = previous,
-                    deviceToUse = device,
-                    stateInfo = stateInfo,
-                    mac = device.macAddress,
-                )
-                if (newTag != previous.updateVersionTag) {
-                    _allDevicesWithState.update { list ->
-                        list.map {
-                            if (it.device.macAddress == device.macAddress) {
-                                it.copy(updateVersionTag = newTag)
-                            } else {
-                                it
-                            }
-                        }
-                    }
-                }
             }
         }
     }
@@ -289,28 +303,29 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
         val updateTag = determineUpdateTag(currentBeforeCas, deviceToUse, stateInfo, mac)
 
-        // 3. Update reactive state list with new stateInfo and updated device metadata
-        updateStateWithIncomingStateInfo(mac, deviceToUse, updatedDevice, stateInfo, updateTag)
+        val (previousForWidget, updatedForWidget) =
+            updateStateFromFrame(mac, updatedDevice, updateTag, stateInfo)
 
-        // 4. Update Glance widgets with latest authoritative state
-        val updatedDeviceWithState = _allDevicesWithState.value.firstOrNull { it.device.macAddress == mac }
-        if (updatedDeviceWithState != null) {
-            updateWidgetsSafe(updatedDeviceWithState, mac)
+        if (updatedForWidget != null && hasWidgetVisibleChanges(previousForWidget, updatedForWidget)) {
+            updateWidgetsSafe(updatedForWidget, mac)
         }
     }
 
-    private fun updateStateWithIncomingStateInfo(
+    private fun updateStateFromFrame(
         mac: String,
-        deviceToUse: Device,
         updatedDevice: Device?,
-        stateInfo: DeviceStateInfo,
         updateTag: String?,
-    ) {
+        stateInfo: DeviceStateInfo,
+    ): Pair<DeviceWithState?, DeviceWithState?> {
+        var previousForWidget: DeviceWithState? = null
+        var updatedForWidget: DeviceWithState? = null
+
         _allDevicesWithState.update { currentList ->
             var changed = false
             val nextList = currentList.map { current ->
                 if (current.device.macAddress == mac) {
                     changed = true
+                    previousForWidget = current
                     val finalDevice = if (updatedDevice != null) {
                         current.device.copy(
                             originalName = updatedDevice.originalName,
@@ -322,26 +337,44 @@ class DeviceWebsocketListViewModel @Inject constructor(
                         current.device
                     }
 
-                    current.copy(
+                    val finalTag = if (finalDevice.skipUpdateTag.isNotEmpty() &&
+                        finalDevice.skipUpdateTag == updateTag
+                    ) {
+                        null
+                    } else {
+                        updateTag ?: current.updateVersionTag
+                    }
+
+                    val updated = current.copy(
                         device = finalDevice,
                         stateInfo = stateInfo,
-                        updateVersionTag = updateTag,
+                        updateVersionTag = finalTag,
                     )
+                    updatedForWidget = updated
+                    updated
                 } else {
                     current
                 }
             }
-            if (changed) {
-                nextList
-            } else {
-                currentList + DeviceWithState(
-                    device = deviceToUse,
-                    stateInfo = stateInfo,
-                    websocketStatus = activeClients[mac]?.status?.value ?: WebsocketStatus.CONNECTED,
-                    updateVersionTag = updateTag,
-                )
-            }
+            if (changed) nextList else currentList
         }
+
+        return Pair(previousForWidget, updatedForWidget)
+    }
+
+    private fun hasWidgetVisibleChanges(previous: DeviceWithState?, next: DeviceWithState): Boolean {
+        if (previous == null || previous.stateInfo == null) return true
+        val prevInfo = previous.stateInfo
+        val nextInfo = next.stateInfo ?: return false
+        val prevDevice = previous.device
+        val nextDevice = next.device
+
+        return prevInfo.state.isOn != nextInfo.state.isOn ||
+            prevInfo.state.brightness != nextInfo.state.brightness ||
+            prevInfo.state.segment != nextInfo.state.segment ||
+            prevDevice.customName != nextDevice.customName ||
+            prevDevice.originalName != nextDevice.originalName ||
+            prevDevice.address != nextDevice.address
     }
 
     private suspend fun persistDeviceState(currentDevice: Device, stateInfo: DeviceStateInfo, mac: String): Device? =
@@ -379,7 +412,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
         deviceToUse: Device,
         stateInfo: DeviceStateInfo,
         mac: String,
-        currentTimeMillis: Long = clock(),
+        currentTimeMillis: Long = currentTimeProvider(),
     ): String? {
         val metadataChanged = hasMetadataChanged(current, deviceToUse, stateInfo)
         if (metadataChanged) {
@@ -409,7 +442,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
     private suspend fun updateWidgetsSafe(state: DeviceWithState, mac: String) {
         try {
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 widgetManager.updateWidgetsFromDeviceWithState(applicationContext, state)
             }
         } catch (e: CancellationException) {
@@ -444,7 +477,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         try {
-            ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
+            val owner = lifecycleOwner ?: ProcessLifecycleOwner.get()
+            owner.lifecycle.removeObserver(this)
         } catch (e: Exception) {
             Log.w(TAG, "ProcessLifecycleOwner not available during onCleared: ${e.message}")
         }
@@ -529,7 +563,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
      * Deletes a device from the database and cleans up associated widgets.
      */
     fun deleteDevice(device: Device) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             Log.d(TAG, "Deleting device ${device.originalName} - ${device.address}")
             widgetManager.deleteWidgetsForDevice(applicationContext, device.macAddress)
             deviceRepository.delete(device)

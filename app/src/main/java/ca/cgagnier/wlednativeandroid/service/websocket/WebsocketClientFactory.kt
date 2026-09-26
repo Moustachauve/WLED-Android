@@ -1,8 +1,11 @@
 package ca.cgagnier.wlednativeandroid.service.websocket
 
+import ca.cgagnier.wlednativeandroid.di.IoDispatcher
 import ca.cgagnier.wlednativeandroid.model.Device
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -12,7 +15,11 @@ import javax.inject.Singleton
  * Encapsulates the network dependencies required for WebSocket connections.
  */
 @Singleton
-class WebsocketClientFactory @Inject constructor(private val httpClient: HttpClient, private val json: Json) {
+class WebsocketClientFactory @Inject constructor(
+    private val httpClient: HttpClient,
+    private val json: Json,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
     /**
      * Creates a new WebsocketClient for the given device.
      */
@@ -21,6 +28,7 @@ class WebsocketClientFactory @Inject constructor(private val httpClient: HttpCli
             device = device,
             httpClient = httpClient,
             json = json,
+            coroutineDispatcher = ioDispatcher,
             coroutineScope = coroutineScope,
         )
     } else {
@@ -28,6 +36,7 @@ class WebsocketClientFactory @Inject constructor(private val httpClient: HttpCli
             device = device,
             httpClient = httpClient,
             json = json,
+            coroutineDispatcher = ioDispatcher,
         )
     }
 }

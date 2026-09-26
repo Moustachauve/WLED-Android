@@ -118,19 +118,10 @@ fun DeviceEdit(
             viewModel.startUpdateInstall(version)
         },
         onInstallFinished = { wasSuccessful ->
-            if (wasSuccessful && device.stateInfo != null && uiState.updateInstallVersion != null) {
-                val installedTag = uiState.updateInstallVersion.version.tagName.removePrefix("v")
-                val updatedStateInfo = device.stateInfo.copy(
-                    info = device.stateInfo.info.copy(version = installedTag),
-                )
-                onDeviceUpdated?.invoke(
-                    device.copy(
-                        stateInfo = updatedStateInfo,
-                        updateVersionTag = null,
-                    ),
-                )
+            val updated = viewModel.stopUpdateInstall(device, uiState.updateInstallVersion, wasSuccessful)
+            if (updated != null) {
+                onDeviceUpdated?.invoke(updated)
             }
-            viewModel.stopUpdateInstall()
         },
     )
 

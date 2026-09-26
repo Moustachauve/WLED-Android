@@ -146,6 +146,28 @@ class DeviceEditViewModel @Inject constructor(
     }
 
     /**
+     * Called when the OTA install process completes. Updates device state if successful.
+     */
+    fun stopUpdateInstall(
+        device: DeviceWithState,
+        version: VersionWithAssets?,
+        wasSuccessful: Boolean,
+    ): DeviceWithState? {
+        updateInstallVersion.value = null
+        if (!wasSuccessful || device.stateInfo == null || version == null) {
+            return null
+        }
+        val installedTag = version.version.tagName.removePrefix("v")
+        val updatedStateInfo = device.stateInfo.copy(
+            info = device.stateInfo.info.copy(version = installedTag),
+        )
+        return device.copy(
+            stateInfo = updatedStateInfo,
+            updateVersionTag = null,
+        )
+    }
+
+    /**
      * Clears any skipped-update tag on [device] and refreshes available
      * versions from GitHub.
      */
