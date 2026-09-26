@@ -28,7 +28,6 @@ import androidx.compose.material3.TooltipDefaults.rememberTooltipPositionProvide
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,7 +72,7 @@ fun DeviceInfoTwoRows(
     currentTime: Long = 0,
     nameMaxLines: Int = 2,
 ) {
-    val updateTag by device.updateVersionTagFlow.collectAsState(initial = null)
+    val updateTag = device.updateVersionTag
 
     Column(modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {

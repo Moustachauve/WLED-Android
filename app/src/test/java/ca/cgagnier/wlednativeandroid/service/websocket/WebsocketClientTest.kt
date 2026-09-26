@@ -28,7 +28,6 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -175,24 +174,26 @@ class WebsocketClientTest {
         client.handleTextFrame(VALID_DEVICE_STATE_INFO_JSON)
         testScheduler.runCurrent()
 
-        val stateInfo = client.stateInfo.value
-        assertNotNull(stateInfo, "stateInfo should be populated")
-        assertEquals("WLED Desk", stateInfo?.info?.name)
-        assertEquals("16.0.1", stateInfo?.info?.version)
-        assertEquals(true, stateInfo?.state?.isOn)
-        assertEquals(195, stateInfo?.state?.brightness)
-        assertEquals("aabbccddeeff", stateInfo?.info?.macAddress)
-        assertEquals("wled/WLED", stateInfo?.info?.repository)
-        assertEquals("WLED", stateInfo?.info?.brand)
-        assertEquals(277, stateInfo?.info?.leds?.count)
-
-        assertEquals(stateInfo, emittedStateInfo, "incomingStateInfo flow should emit parsed model")
+        assertNotNull(emittedStateInfo, "incomingStateInfo should emit parsed model")
+        assertEquals("WLED Desk", emittedStateInfo?.info?.name)
+        assertEquals("16.0.1", emittedStateInfo?.info?.version)
+        assertEquals(true, emittedStateInfo?.state?.isOn)
+        assertEquals(195, emittedStateInfo?.state?.brightness)
+        assertEquals("aabbccddeeff", emittedStateInfo?.info?.macAddress)
+        assertEquals("wled/WLED", emittedStateInfo?.info?.repository)
+        assertEquals("WLED", emittedStateInfo?.info?.brand)
+        assertEquals(277, emittedStateInfo?.info?.leds?.count)
         collectJob.cancel()
     }
 
     @Test
     fun `handleTextFrame handles malformed, partial, and garbage JSON without throwing`() = runTest {
         val client = WebsocketClient(device, httpClient, json)
+
+        var emittedCount = 0
+        val collectJob = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            client.incomingStateInfo.collect { emittedCount++ }
+        }
 
         val malformedPayloads = listOf(
             "",
@@ -207,22 +208,30 @@ class WebsocketClientTest {
 
         for (garbage in malformedPayloads) {
             client.handleTextFrame(garbage)
-            assertNull(client.stateInfo.value, "State must remain null after malformed frame")
         }
+        testScheduler.runCurrent()
+        assertEquals(0, emittedCount, "No state should be emitted for malformed frames")
+        collectJob.cancel()
     }
 
     @Test
     fun `handleTextFrame survives extra unknown fields with ignoreUnknownKeys`() = runTest {
         val client = WebsocketClient(device, httpClient, json)
 
-        client.handleTextFrame(UNKNOWN_FIELDS_DEVICE_STATE_INFO_JSON)
+        var parsed: ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo? = null
+        val collectJob = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            client.incomingStateInfo.collect { parsed = it }
+        }
 
-        val parsed = client.stateInfo.value
+        client.handleTextFrame(UNKNOWN_FIELDS_DEVICE_STATE_INFO_JSON)
+        testScheduler.runCurrent()
+
         assertNotNull(parsed, "Parsed object must not be null when unknown fields are present")
         assertEquals("Forward-Compatible WLED", parsed?.info?.name)
         assertEquals("0.15.0", parsed?.info?.version)
         assertEquals(true, parsed?.state?.isOn)
         assertEquals(255, parsed?.state?.brightness)
+        collectJob.cancel()
     }
 
     // -------------------------------------------------------------------------

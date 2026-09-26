@@ -58,7 +58,7 @@ class DeviceEditViewModel @Inject constructor(
      * Single combined UI state for the device edit screen.
      *
      * The [DeviceEditUiState.updateTag] field is always `null` here because
-     * the update tag comes from [DeviceWithState.updateVersionTagFlow], which
+     * the update tag comes from [DeviceWithState.updateVersionTag], which
      * is owned by the caller and merged in the composable layer.
      */
     val uiState: StateFlow<DeviceEditUiState> = combine(

@@ -22,6 +22,7 @@ import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +51,29 @@ class DeviceWebsocketListViewModel @Inject constructor(
     @ApplicationContext private val applicationContext: Context,
 ) : ViewModel(),
     DefaultLifecycleObserver {
+
+    internal var backgroundDispatcher: CoroutineDispatcher = Dispatchers.Default
+
+    constructor(
+        userPreferencesRepository: UserPreferencesRepository,
+        deviceRepository: DeviceRepository,
+        websocketClientFactory: WebsocketClientFactory,
+        widgetManager: WledWidgetManager,
+        saveDeviceStateUseCase: SaveDeviceStateUseCase,
+        deviceUpdateManager: DeviceUpdateManager,
+        applicationContext: Context,
+        backgroundDispatcher: CoroutineDispatcher,
+    ) : this(
+        userPreferencesRepository = userPreferencesRepository,
+        deviceRepository = deviceRepository,
+        websocketClientFactory = websocketClientFactory,
+        widgetManager = widgetManager,
+        saveDeviceStateUseCase = saveDeviceStateUseCase,
+        deviceUpdateManager = deviceUpdateManager,
+        applicationContext = applicationContext,
+    ) {
+        this.backgroundDispatcher = backgroundDispatcher
+    }
 
     private val activeClients = ConcurrentHashMap<String, WebsocketClient>()
     private val clientJobs = ConcurrentHashMap<String, Job>()
@@ -159,7 +183,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
     private fun startObservingClient(client: WebsocketClient) {
         val mac = client.device.macAddress
-        val job = viewModelScope.launch {
+        val job = viewModelScope.launch(backgroundDispatcher) {
             // Coroutine 1: Observe connection status
             launch {
                 client.status.collect { status ->
@@ -220,7 +244,6 @@ class DeviceWebsocketListViewModel @Inject constructor(
         val updateTag = determineUpdateTag(currentBeforeCas, deviceToUse, stateInfo, mac)
 
         // 3. Update reactive state list with new stateInfo and updated device metadata
-        var updatedDeviceWithState: DeviceWithState? = null
         _allDevicesWithState.update { currentList ->
             var changed = false
             val nextList = currentList.map { current ->
@@ -237,13 +260,11 @@ class DeviceWebsocketListViewModel @Inject constructor(
                         current.device
                     }
 
-                    val newDeviceWithState = current.copy(
+                    current.copy(
                         device = finalDevice,
                         stateInfo = stateInfo,
                         updateVersionTag = updateTag,
                     )
-                    updatedDeviceWithState = newDeviceWithState
-                    newDeviceWithState
                 } else {
                     current
                 }
@@ -252,8 +273,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
         }
 
         // 4. Update Glance widgets with latest authoritative state
-        updatedDeviceWithState?.let { state ->
-            updateWidgetsSafe(state, mac)
+        val updatedDeviceWithState = _allDevicesWithState.value.firstOrNull { it.device.macAddress == mac }
+        if (updatedDeviceWithState != null) {
+            updateWidgetsSafe(updatedDeviceWithState, mac)
         }
     }
 
