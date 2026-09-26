@@ -1,7 +1,6 @@
 package ca.cgagnier.wlednativeandroid.repository
 
 import ca.cgagnier.wlednativeandroid.model.Version
-import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import com.diffplug.selfie.Selfie.expectSelfie
 import com.vdurmont.semver4j.Semver
 import org.junit.Assert.assertEquals

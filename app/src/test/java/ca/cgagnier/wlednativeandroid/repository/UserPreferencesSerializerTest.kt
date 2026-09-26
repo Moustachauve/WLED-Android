@@ -48,7 +48,7 @@ class UserPreferencesSerializerTest {
             serializer.writeTo(original, output)
 
             val prettyOutputJson = prettyJson.encodeToString(
-                Json.parseToJsonElement(output.toString("UTF-8")),
+                Json.parseToJsonElement(output.toByteArray().decodeToString()),
             )
             expectSelfie(prettyOutputJson).toMatchDisk()
 
