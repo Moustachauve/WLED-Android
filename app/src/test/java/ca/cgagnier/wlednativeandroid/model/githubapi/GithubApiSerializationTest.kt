@@ -1,8 +1,10 @@
 package ca.cgagnier.wlednativeandroid.model.githubapi
 
+import ca.cgagnier.wlednativeandroid.test.TestJson
 import com.diffplug.selfie.Selfie.expectSelfie
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 private val SAMPLE_RELEASE_16_0_1_JSON = """
@@ -146,24 +148,16 @@ class GithubApiSerializationTest {
         coerceInputValues = true
     }
 
-    private val prettyJson = Json {
-        prettyPrint = true
-        prettyPrintIndent = "  "
-        ignoreUnknownKeys = true
-        isLenient = true
-        explicitNulls = false
-        coerceInputValues = true
-    }
-
     @Test
     fun `test Release deserialization with real WLED 16_0_1 data`() {
         val release = json.decodeFromString<Release>(SAMPLE_RELEASE_16_0_1_JSON)
-        expectSelfie(prettyJson.encodeToString(release)).toMatchDisk()
+        expectSelfie(TestJson.api.encodeToString(release)).toMatchDisk()
     }
 
     @Test
     fun `test Release deserialization without optional reactions or mentions`() {
         val release = json.decodeFromString<Release>(SAMPLE_MINIMAL_RELEASE_JSON)
-        expectSelfie(prettyJson.encodeToString(release)).toMatchDisk()
+        assertNull(release.reactions)
+        expectSelfie(TestJson.api.encodeToString(release)).toMatchDisk()
     }
 }

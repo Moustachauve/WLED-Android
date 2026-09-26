@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.repository.migrations
 
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
+import ca.cgagnier.wlednativeandroid.test.TestJson
 import com.diffplug.selfie.Selfie.expectSelfie
 import io.mockk.every
 import io.mockk.mockk
@@ -19,12 +20,6 @@ import java.io.FileOutputStream
 import java.io.IOException
 import ca.cgagnier.wlednativeandroid.repository.legacy.ThemeSettings as LegacyProtoThemeSettings
 import ca.cgagnier.wlednativeandroid.repository.legacy.UserPreferences as LegacyProtoUserPreferences
-
-private val prettyJson = Json {
-    prettyPrint = true
-    prettyPrintIndent = "  "
-    encodeDefaults = true
-}
 
 class LegacyProtoToKotlinxPreferencesMigrationTest {
 
@@ -56,33 +51,33 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
         assertTrue(migration.shouldMigrate(UserPreferences()))
     }
 
+    // Explicit Unit return types in = runBlocking tests prevent DiskSelfie return type
+    // inference from failing JUnit 4's void method check.
     @Test
-    fun migrate_withLegacyProto_migratesAllFieldsAccurately() {
-        runBlocking {
-            val protoFile = tempFolder.newFile("user_prefs.pb")
-            val legacyProto = LegacyProtoUserPreferences.newBuilder()
-                .setSelectedDeviceAddress("10.0.0.42")
-                .setHasMigratedSharedPref(true)
-                .setTheme(LegacyProtoThemeSettings.Dark)
-                .setAutomaticDiscovery(false)
-                .setVersion(3)
-                .setShowOfflineLast(false)
-                .setSendCrashData(true)
-                .setSendPerformanceData(true)
-                .setLastUpdateCheckDate(1705000000L)
-                .setDateLastWritten(1705000100L)
-                .setShowHiddenDevices(true)
-                .setLastChangelogVersionSeen("2.1.0")
-                .build()
+    fun migrate_withLegacyProto_migratesAllFieldsAccurately(): Unit = runBlocking {
+        val protoFile = tempFolder.newFile("user_prefs.pb")
+        val legacyProto = LegacyProtoUserPreferences.newBuilder()
+            .setSelectedDeviceAddress("10.0.0.42")
+            .setHasMigratedSharedPref(true)
+            .setTheme(LegacyProtoThemeSettings.Dark)
+            .setAutomaticDiscovery(false)
+            .setVersion(3)
+            .setShowOfflineLast(false)
+            .setSendCrashData(true)
+            .setSendPerformanceData(true)
+            .setLastUpdateCheckDate(1705000000L)
+            .setDateLastWritten(1705000100L)
+            .setShowHiddenDevices(true)
+            .setLastChangelogVersionSeen("2.1.0")
+            .build()
 
-            FileOutputStream(protoFile).use { legacyProto.writeTo(it) }
+        FileOutputStream(protoFile).use { legacyProto.writeTo(it) }
 
-            val migration = LegacyProtoToKotlinxPreferencesMigration(protoFile)
-            val initialPreferences = UserPreferences()
-            val migrated = migration.migrate(initialPreferences)
+        val migration = LegacyProtoToKotlinxPreferencesMigration(protoFile)
+        val initialPreferences = UserPreferences()
+        val migrated = migration.migrate(initialPreferences)
 
-            expectSelfie(prettyJson.encodeToString(migrated)).toMatchDisk()
-        }
+        expectSelfie(TestJson.preferences.encodeToString(migrated)).toMatchDisk()
     }
 
     @Test
@@ -107,24 +102,22 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
     }
 
     @Test
-    fun migrate_withV0LegacyProto_setsExpectedDefaultsAndResetsDataSharingFlags() {
-        runBlocking {
-            val protoFile = tempFolder.newFile("user_prefs_v0.pb")
-            val legacyProto = LegacyProtoUserPreferences.newBuilder()
-                .setVersion(0)
-                .setSelectedDeviceAddress("192.168.1.99")
-                .setSendCrashData(true)
-                .setSendPerformanceData(true)
-                .build()
+    fun migrate_withV0LegacyProto_setsExpectedDefaultsAndResetsDataSharingFlags(): Unit = runBlocking {
+        val protoFile = tempFolder.newFile("user_prefs_v0.pb")
+        val legacyProto = LegacyProtoUserPreferences.newBuilder()
+            .setVersion(0)
+            .setSelectedDeviceAddress("192.168.1.99")
+            .setSendCrashData(true)
+            .setSendPerformanceData(true)
+            .build()
 
-            FileOutputStream(protoFile).use { legacyProto.writeTo(it) }
-            assertTrue(protoFile.length() > 0)
+        FileOutputStream(protoFile).use { legacyProto.writeTo(it) }
+        assertTrue(protoFile.length() > 0)
 
-            val migration = LegacyProtoToKotlinxPreferencesMigration(protoFile)
-            val migrated = migration.migrate(UserPreferences())
+        val migration = LegacyProtoToKotlinxPreferencesMigration(protoFile)
+        val migrated = migration.migrate(UserPreferences())
 
-            expectSelfie(prettyJson.encodeToString(migrated)).toMatchDisk()
-        }
+        expectSelfie(TestJson.preferences.encodeToString(migrated)).toMatchDisk()
     }
 
     @Test
