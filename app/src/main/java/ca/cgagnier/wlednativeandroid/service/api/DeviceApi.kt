@@ -9,6 +9,8 @@ import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.pingInterval
 import io.ktor.client.request.forms.InputProvider
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
@@ -26,6 +28,7 @@ import io.ktor.utils.io.streams.asInput
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import java.io.File
+import kotlin.time.Duration.Companion.seconds
 
 interface DeviceApi {
     suspend fun getInfo(): ApiResponse<Info>
@@ -161,6 +164,7 @@ class DeviceApiFactory(private val defaultHttpClient: HttpClient) {
 
     companion object {
         private const val MILLIS_PER_SECOND = 1000L
+        private const val PING_INTERVAL_SECONDS = 30
 
         fun createHttpClient(okHttpClient: OkHttpClient, json: Json = defaultJson): HttpClient = HttpClient(OkHttp) {
             engine {
@@ -168,6 +172,9 @@ class DeviceApiFactory(private val defaultHttpClient: HttpClient) {
             }
             install(ContentNegotiation) {
                 json(json)
+            }
+            install(WebSockets) {
+                pingInterval = PING_INTERVAL_SECONDS.seconds
             }
         }
     }

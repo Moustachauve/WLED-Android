@@ -37,7 +37,7 @@ class WledWidgetManager @Inject constructor(
      * @param deviceWithState The device with its current state
      */
     suspend fun updateWidgetsFromDeviceWithState(context: Context, deviceWithState: DeviceWithState) {
-        val stateInfo = deviceWithState.stateInfo.value ?: return
+        val stateInfo = deviceWithState.stateInfo ?: return
 
         // Create a complete, authoritative state from scratch
         // This ensures all widgets for the device get the exact same state

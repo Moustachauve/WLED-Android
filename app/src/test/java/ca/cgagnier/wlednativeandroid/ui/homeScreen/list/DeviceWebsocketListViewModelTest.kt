@@ -1,0 +1,437 @@
+package ca.cgagnier.wlednativeandroid.ui.homeScreen.list
+
+import android.content.Context
+import ca.cgagnier.wlednativeandroid.domain.usecase.SaveDeviceStateUseCase
+import ca.cgagnier.wlednativeandroid.model.Branch
+import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
+import ca.cgagnier.wlednativeandroid.model.wledapi.Info
+import ca.cgagnier.wlednativeandroid.model.wledapi.Leds
+import ca.cgagnier.wlednativeandroid.model.wledapi.State
+import ca.cgagnier.wlednativeandroid.model.wledapi.Wifi
+import ca.cgagnier.wlednativeandroid.repository.DeviceDao
+import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
+import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
+import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientFactory
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
+import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class DeviceWebsocketListViewModelTest {
+
+    private val testDispatcher = StandardTestDispatcher()
+
+    private val userPreferencesRepository: UserPreferencesRepository = mockk(relaxed = true)
+    private val deviceDao: DeviceDao = mockk(relaxed = true)
+    private lateinit var deviceRepository: DeviceRepository
+    private val websocketClientFactory: WebsocketClientFactory = mockk()
+    private val widgetManager: WledWidgetManager = mockk(relaxed = true)
+    private val saveDeviceStateUseCase: SaveDeviceStateUseCase = mockk(relaxed = true)
+    private val deviceUpdateManager: DeviceUpdateManager = mockk(relaxed = true)
+    private val applicationContext: Context = mockk(relaxed = true)
+
+    private val allDevicesDbFlow = MutableStateFlow<List<Device>>(emptyList())
+
+    private val createdClients = mutableMapOf<String, TestClientHolder>()
+
+    private class TestClientHolder(
+        val client: WebsocketClient,
+        val statusFlow: MutableStateFlow<WebsocketStatus>,
+        val incomingFlow: MutableSharedFlow<DeviceStateInfo>,
+    )
+
+    private val device1 = Device(
+        macAddress = "AA:BB:CC:DD:EE:01",
+        address = "192.168.1.101",
+        originalName = "Device 1",
+        branch = Branch.STABLE,
+    )
+    private val device2 = Device(
+        macAddress = "AA:BB:CC:DD:EE:02",
+        address = "192.168.1.102",
+        originalName = "Device 2",
+        branch = Branch.STABLE,
+    )
+
+    @BeforeEach
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+
+        every { userPreferencesRepository.showOfflineDevicesLast } returns flowOf(false)
+        every { userPreferencesRepository.showHiddenDevices } returns flowOf(false)
+        every { deviceDao.getAlphabetizedDevices() } returns allDevicesDbFlow
+        deviceRepository = DeviceRepository(deviceDao)
+
+        every { websocketClientFactory.create(any()) } answers {
+            val dev = firstArg<Device>()
+            val statusFlow = MutableStateFlow(WebsocketStatus.DISCONNECTED)
+            val incomingFlow = MutableSharedFlow<DeviceStateInfo>(extraBufferCapacity = 64)
+            val client = mockk<WebsocketClient>(relaxed = true)
+
+            every { client.device } returns dev
+            every { client.status } returns statusFlow
+            every { client.incomingStateInfo } returns incomingFlow
+
+            val holder = TestClientHolder(client, statusFlow, incomingFlow)
+            createdClients[dev.macAddress] = holder
+            client
+        }
+
+        coEvery { saveDeviceStateUseCase.invoke(any(), any()) } answers {
+            firstArg()
+        }
+        coEvery { saveDeviceStateUseCase.invoke(any(), any(), any()) } answers {
+            firstArg()
+        }
+        coEvery { deviceUpdateManager.checkForUpdate(any<Device>(), any()) } returns null
+    }
+
+    @AfterEach
+    fun tearDown() {
+        Dispatchers.resetMain()
+        createdClients.clear()
+    }
+
+    private fun createViewModel(): DeviceWebsocketListViewModel = DeviceWebsocketListViewModel(
+        userPreferencesRepository = userPreferencesRepository,
+        deviceRepository = deviceRepository,
+        websocketClientFactory = websocketClientFactory,
+        widgetManager = widgetManager,
+        saveDeviceStateUseCase = saveDeviceStateUseCase,
+        deviceUpdateManager = deviceUpdateManager,
+        applicationContext = applicationContext,
+    )
+
+    @Test
+    fun `initial device emission creates clients and updates allDevicesWithState`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1, device2)
+        advanceUntilIdle()
+
+        verify(exactly = 1) { websocketClientFactory.create(device1) }
+        verify(exactly = 1) { websocketClientFactory.create(device2) }
+
+        val latest = viewModel.allDevicesWithState.value
+        assertEquals(2, latest.size)
+        assertEquals("AA:BB:CC:DD:EE:01", latest[0].device.macAddress)
+        assertEquals("AA:BB:CC:DD:EE:02", latest[1].device.macAddress)
+        assertEquals(WebsocketStatus.DISCONNECTED, latest[0].websocketStatus)
+        assertEquals(WebsocketStatus.DISCONNECTED, latest[1].websocketStatus)
+        assertFalse(latest[0].isOnline)
+
+        job.cancel()
+    }
+
+    @Test
+    fun `client status changes update allDevicesWithState reactively`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        holder.statusFlow.value = WebsocketStatus.CONNECTED
+        advanceUntilIdle()
+
+        val latest = viewModel.allDevicesWithState.value
+        assertEquals(1, latest.size)
+        assertEquals(WebsocketStatus.CONNECTED, latest[0].websocketStatus)
+        assertTrue(latest[0].isOnline)
+
+        job.cancel()
+    }
+
+    @Test
+    fun `incoming stateInfo invokes saveDeviceStateUseCase and updates widgets`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        val stateInfo = DeviceStateInfo(
+            state = State(isOn = true, brightness = 200),
+            info = Info(
+                version = "0.14.0",
+                name = "Living Room WLED",
+                leds = Leds(count = 60),
+                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+            ),
+        )
+
+        holder.incomingFlow.emit(stateInfo)
+        advanceUntilIdle()
+
+        coVerify(atLeast = 1) { saveDeviceStateUseCase.invoke(device1, stateInfo, any()) }
+        coVerify(atLeast = 1) { widgetManager.updateWidgetsFromDeviceWithState(applicationContext, any()) }
+
+        val latest = viewModel.allDevicesWithState.value
+        assertEquals(1, latest.size)
+        assertEquals(stateInfo, latest[0].stateInfo)
+
+        job.cancel()
+    }
+
+    @Test
+    fun `device address changed reconnects client`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val oldHolder = createdClients[device1.macAddress]!!
+        val updatedDevice1 = device1.copy(address = "192.168.1.200")
+        allDevicesDbFlow.value = listOf(updatedDevice1)
+        advanceUntilIdle()
+
+        verify(exactly = 1) { oldHolder.client.destroy() }
+        verify(exactly = 1) { websocketClientFactory.create(updatedDevice1) }
+
+        val latest = viewModel.allDevicesWithState.value
+        assertEquals("192.168.1.200", latest[0].device.address)
+
+        job.cancel()
+    }
+
+    @Test
+    fun `device removed destroys client and cancels job`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1, device2)
+        advanceUntilIdle()
+
+        val holder1 = createdClients[device1.macAddress]!!
+        allDevicesDbFlow.value = listOf(device2)
+        advanceUntilIdle()
+
+        verify(exactly = 1) { holder1.client.destroy() }
+
+        val latest = viewModel.allDevicesWithState.value
+        assertEquals(1, latest.size)
+        assertEquals(device2.macAddress, latest[0].device.macAddress)
+
+        job.cancel()
+    }
+
+    @Test
+    fun `refreshOfflineDevices reconnects disconnected clients only`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1, device2)
+        advanceUntilIdle()
+
+        val holder1 = createdClients[device1.macAddress]!!
+        val holder2 = createdClients[device2.macAddress]!!
+
+        holder1.statusFlow.value = WebsocketStatus.CONNECTED
+        holder2.statusFlow.value = WebsocketStatus.DISCONNECTED
+
+        viewModel.refreshOfflineDevices()
+
+        // holder1 is already connected, should not be reconnected
+        // holder2 is disconnected, should be reconnected
+        verify(atLeast = 1) { holder2.client.connect() }
+
+        job.cancel()
+    }
+
+    @Test
+    fun `setBrightness and setDevicePower dispatch to client`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        val devWithState = DeviceWithState(device = device1)
+
+        viewModel.setBrightness(devWithState, 150)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { holder.client.sendState(State(brightness = 150)) }
+
+        viewModel.setDevicePower(devWithState, true)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { holder.client.sendState(State(isOn = true)) }
+
+        job.cancel()
+    }
+
+    @Test
+    fun `deleteDevice deletes widgets and removes device from repository`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+
+        viewModel.deleteDevice(device1)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { widgetManager.deleteWidgetsForDevice(applicationContext, device1.macAddress) }
+        coVerify(exactly = 1) { deviceDao.delete(device1) }
+    }
+
+    @Test
+    fun `incoming stateInfo for up to date device checks update once and skips subsequent frames`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel()
+            val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.allDevicesWithState.collect {}
+            }
+
+            allDevicesDbFlow.value = listOf(device1)
+            advanceUntilIdle()
+
+            val holder = createdClients[device1.macAddress]!!
+            val stateInfo = DeviceStateInfo(
+                state = State(isOn = true, brightness = 100),
+                info = Info(
+                    version = "0.14.0",
+                    name = "Living Room WLED",
+                    leds = Leds(count = 60),
+                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+                ),
+            )
+
+            // Initial frame: stateInfo was null, so checkForUpdate must be called once
+            holder.incomingFlow.emit(stateInfo)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { deviceUpdateManager.checkForUpdate(any<Device>(), any()) }
+            assertEquals(null, viewModel.allDevicesWithState.value[0].updateVersionTag)
+
+            // Subsequent frames with only brightness changes (device remains up-to-date)
+            for (b in 101..110) {
+                holder.incomingFlow.emit(stateInfo.copy(state = State(isOn = true, brightness = b)))
+            }
+            advanceUntilIdle()
+
+            // checkForUpdate should NOT have been called on any of the subsequent frames
+            coVerify(exactly = 1) { deviceUpdateManager.checkForUpdate(any<Device>(), any()) }
+
+            job.cancel()
+        }
+
+    @Test
+    fun `incoming stateInfo rechecks update when version changes`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        val baseStateInfo = DeviceStateInfo(
+            state = State(isOn = true, brightness = 100),
+            info = Info(
+                version = "0.14.0",
+                name = "Living Room WLED",
+                leds = Leds(count = 60),
+                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+            ),
+        )
+
+        holder.incomingFlow.emit(baseStateInfo)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { deviceUpdateManager.checkForUpdate(any<Device>(), any()) }
+
+        // Emit new frame with changed version
+        val updatedVersionStateInfo = baseStateInfo.copy(
+            info = baseStateInfo.info.copy(version = "0.14.1"),
+        )
+        holder.incomingFlow.emit(updatedVersionStateInfo)
+        advanceUntilIdle()
+
+        // checkForUpdate must be called a second time
+        coVerify(exactly = 2) { deviceUpdateManager.checkForUpdate(any<Device>(), any()) }
+
+        job.cancel()
+    }
+
+    @Test
+    fun `cancellation exception in persistDeviceState is rethrown and cancels frame observation`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel()
+            val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.allDevicesWithState.collect {}
+            }
+
+            allDevicesDbFlow.value = listOf(device1)
+            advanceUntilIdle()
+
+            val holder = createdClients[device1.macAddress]!!
+            coEvery {
+                saveDeviceStateUseCase.invoke(any(), any(), any())
+            } throws CancellationException("Test cancellation")
+
+            val stateInfo = DeviceStateInfo(
+                state = State(isOn = true, brightness = 100),
+                info = Info(
+                    version = "0.14.0",
+                    name = "Living Room WLED",
+                    leds = Leds(count = 60),
+                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+                ),
+            )
+
+            holder.incomingFlow.emit(stateInfo)
+            advanceUntilIdle()
+
+            // Subsequent emissions should not update state because the coroutine cancelled cooperatively
+            coEvery { saveDeviceStateUseCase.invoke(any(), any(), any()) } returns device1
+            holder.incomingFlow.emit(stateInfo.copy(state = State(isOn = true, brightness = 222)))
+            advanceUntilIdle()
+
+            // State was not updated to 222 because client observation coroutine was cancelled
+            assertTrue(viewModel.allDevicesWithState.value.first().stateInfo?.state?.brightness != 222)
+
+            job.cancel()
+        }
+}

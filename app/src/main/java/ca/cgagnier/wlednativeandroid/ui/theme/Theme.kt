@@ -328,7 +328,7 @@ fun DeviceTheme(
     themeViewModel: ThemeViewModel = hiltViewModel(),
     content: @Composable () -> Unit,
 ) {
-    val stateInfo by device.stateInfo
+    val stateInfo = device.stateInfo
 
     val theme by themeViewModel.theme.collectAsStateWithLifecycle()
     val darkTheme = when (theme) {
