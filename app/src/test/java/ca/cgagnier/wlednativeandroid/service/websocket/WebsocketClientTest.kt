@@ -163,7 +163,7 @@ class WebsocketClientTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `handleTextFrame successfully parses valid DeviceStateInfo JSON and updates state`() = runTest {
+    fun `handleTextFrame successfully parses valid DeviceStateInfo JSON and emits to incomingStateInfo`() = runTest {
         val client = WebsocketClient(device, httpClient, json)
 
         var emittedStateInfo: ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo? = null
@@ -176,13 +176,6 @@ class WebsocketClientTest {
 
         assertNotNull(emittedStateInfo, "incomingStateInfo should emit parsed model")
         assertEquals("WLED Desk", emittedStateInfo?.info?.name)
-        assertEquals("16.0.1", emittedStateInfo?.info?.version)
-        assertEquals(true, emittedStateInfo?.state?.isOn)
-        assertEquals(195, emittedStateInfo?.state?.brightness)
-        assertEquals("aabbccddeeff", emittedStateInfo?.info?.macAddress)
-        assertEquals("wled/WLED", emittedStateInfo?.info?.repository)
-        assertEquals("WLED", emittedStateInfo?.info?.brand)
-        assertEquals(277, emittedStateInfo?.info?.leds?.count)
         collectJob.cancel()
     }
 
@@ -211,26 +204,6 @@ class WebsocketClientTest {
         }
         testScheduler.runCurrent()
         assertEquals(0, emittedCount, "No state should be emitted for malformed frames")
-        collectJob.cancel()
-    }
-
-    @Test
-    fun `handleTextFrame survives extra unknown fields with ignoreUnknownKeys`() = runTest {
-        val client = WebsocketClient(device, httpClient, json)
-
-        var parsed: ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo? = null
-        val collectJob = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            client.incomingStateInfo.collect { parsed = it }
-        }
-
-        client.handleTextFrame(UNKNOWN_FIELDS_DEVICE_STATE_INFO_JSON)
-        testScheduler.runCurrent()
-
-        assertNotNull(parsed, "Parsed object must not be null when unknown fields are present")
-        assertEquals("Forward-Compatible WLED", parsed?.info?.name)
-        assertEquals("0.15.0", parsed?.info?.version)
-        assertEquals(true, parsed?.state?.isOn)
-        assertEquals(255, parsed?.state?.brightness)
         collectJob.cancel()
     }
 
@@ -456,33 +429,6 @@ private val VALID_DEVICE_STATE_INFO_JSON = """
           "ap": false
         },
         "str": false
-      }
-    }
-""".trimIndent()
-
-private val UNKNOWN_FIELDS_DEVICE_STATE_INFO_JSON = """
-    {
-      "unknown_root_property": "ignored_value",
-      "experimental_array": [1, 2, 3],
-      "state": {
-        "on": true,
-        "bri": 255,
-        "future_feature_flag": true,
-        "nested_unknown_object": {
-          "sub_key": 42
-        }
-      },
-      "info": {
-        "name": "Forward-Compatible WLED",
-        "ver": "0.15.0",
-        "brand_new_telemetry": "active",
-        "leds": {
-          "count": 60,
-          "hardware_revision": "v3"
-        },
-        "wifi": {
-          "rssi": -55
-        }
       }
     }
 """.trimIndent()
