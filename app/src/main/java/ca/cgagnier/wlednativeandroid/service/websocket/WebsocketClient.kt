@@ -25,7 +25,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-import java.io.IOException
 import kotlin.math.min
 import kotlin.math.pow
 
