@@ -17,10 +17,10 @@ import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import io.mockk.mockk
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Before
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
 /**
  * Unit tests for [DeviceEditViewModel].
@@ -36,7 +36,7 @@ class DeviceEditViewModelTest {
 
     private lateinit var viewModel: DeviceEditViewModel
 
-    @Before
+    @BeforeEach
     fun setup() {
         viewModel = DeviceEditViewModel(
             deviceRepository = mockk(relaxed = true),
