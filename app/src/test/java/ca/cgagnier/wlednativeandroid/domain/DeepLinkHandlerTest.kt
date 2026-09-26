@@ -21,15 +21,21 @@ class DeepLinkHandlerTest {
     }
 
     private fun mockUri(uriString: String): Uri {
-        val mock = mockk<Uri>()
-        if (uriString == "wled://") {
-            every { mock.scheme } returns "wled"
+        val mock = mockk<Uri>(relaxed = true)
+        every { mock.toString() } returns uriString
+        // Using runCatching because RFC 2396 strict parser in java.net.URI throws on empty authority (e.g. "wled://")
+        val javaUri = runCatching { java.net.URI.create(uriString) }.getOrNull()
+        if (javaUri != null) {
+            every { mock.scheme } returns javaUri.scheme
+            every { mock.host } returns javaUri.host
+            every { mock.path } returns javaUri.path
+        } else {
+            // Fallback for malformed / empty-authority URIs
+            val scheme = uriString.substringBefore("://", missingDelimiterValue = "").takeIf { it.isNotEmpty() }
+            every { mock.scheme } returns scheme
             every { mock.host } returns null
-            return mock
+            every { mock.path } returns null
         }
-        val javaUri = java.net.URI.create(uriString)
-        every { mock.scheme } returns javaUri.scheme
-        every { mock.host } returns javaUri.host
         return mock
     }
 
