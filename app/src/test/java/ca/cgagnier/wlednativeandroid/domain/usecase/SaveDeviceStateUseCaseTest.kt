@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 
 class SaveDeviceStateUseCaseTest {
 
@@ -60,41 +62,28 @@ class SaveDeviceStateUseCaseTest {
         coVerify(exactly = 1) { deviceRepository.update(result!!) }
     }
 
-    @Test
-    fun `invoke infers Branch BETA when device branch is UNKNOWN and version contains -b`() = runTest {
-        val currentDevice = Device(
-            macAddress = "AABBCCDDEEFF",
-            address = "192.168.1.100",
-            originalName = "WLED",
-            branch = Branch.UNKNOWN,
-            lastSeen = 10000L,
-        )
-        val stateInfo = createDeviceStateInfo(name = "WLED", version = "0.14.0-b1")
+    @ParameterizedTest
+    @CsvSource(
+        "0.14.0-b1, BETA",
+        "0.14.0, STABLE",
+    )
+    fun `invoke infers correct Branch when device branch is UNKNOWN`(version: String, expectedBranch: Branch) =
+        runTest {
+            val currentDevice = Device(
+                macAddress = "AABBCCDDEEFF",
+                address = "192.168.1.100",
+                originalName = "WLED",
+                branch = Branch.UNKNOWN,
+                lastSeen = 10000L,
+            )
+            val stateInfo = createDeviceStateInfo(name = "WLED", version = version)
 
-        val result = useCase(currentDevice, stateInfo, currentTimeMillis = 11000L)
+            val result = useCase(currentDevice, stateInfo, currentTimeMillis = 11000L)
 
-        assertNotNull(result)
-        assertEquals(Branch.BETA, result?.branch)
-        coVerify(exactly = 1) { deviceRepository.update(result!!) }
-    }
-
-    @Test
-    fun `invoke infers Branch STABLE when device branch is UNKNOWN and version does not contain -b`() = runTest {
-        val currentDevice = Device(
-            macAddress = "AABBCCDDEEFF",
-            address = "192.168.1.100",
-            originalName = "WLED",
-            branch = Branch.UNKNOWN,
-            lastSeen = 10000L,
-        )
-        val stateInfo = createDeviceStateInfo(name = "WLED", version = "0.14.0")
-
-        val result = useCase(currentDevice, stateInfo, currentTimeMillis = 11000L)
-
-        assertNotNull(result)
-        assertEquals(Branch.STABLE, result?.branch)
-        coVerify(exactly = 1) { deviceRepository.update(result!!) }
-    }
+            assertNotNull(result)
+            assertEquals(expectedBranch, result?.branch)
+            coVerify(exactly = 1) { deviceRepository.update(result!!) }
+        }
 
     @Test
     fun `invoke preserves existing branch when branch is already STABLE`() = runTest {
