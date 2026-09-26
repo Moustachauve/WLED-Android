@@ -140,25 +140,9 @@ class DeviceEditViewModel @Inject constructor(
 
     /**
      * Called when the OTA install dialog is dismissed.
-     *
-     * If [wasSuccessful], the device's in-memory [DeviceWithState.stateInfo]
-     * is patched with the new version so the UI reflects it immediately
-     * (before the next websocket refresh).
      */
-    fun stopUpdateInstall(
-        device: DeviceWithState? = null,
-        version: VersionWithAssets? = null,
-        wasSuccessful: Boolean = false,
-    ): DeviceWithState? {
+    fun stopUpdateInstall() {
         updateInstallVersion.value = null
-        if (wasSuccessful && device != null && version != null) {
-            val currentState = device.stateInfo ?: return device
-            val updatedInfo = currentState.info.copy(
-                version = version.version.tagName.removePrefix("v"),
-            )
-            return device.copy(stateInfo = currentState.copy(info = updatedInfo))
-        }
-        return device
     }
 
     /**

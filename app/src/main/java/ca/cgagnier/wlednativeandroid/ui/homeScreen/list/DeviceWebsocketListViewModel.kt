@@ -7,6 +7,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ca.cgagnier.wlednativeandroid.di.DefaultDispatcher
 import ca.cgagnier.wlednativeandroid.domain.usecase.SaveDeviceStateUseCase
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
@@ -49,31 +50,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
     private val saveDeviceStateUseCase: SaveDeviceStateUseCase,
     private val deviceUpdateManager: DeviceUpdateManager,
     @ApplicationContext private val applicationContext: Context,
+    @DefaultDispatcher private val backgroundDispatcher: CoroutineDispatcher,
 ) : ViewModel(),
     DefaultLifecycleObserver {
-
-    internal var backgroundDispatcher: CoroutineDispatcher = Dispatchers.Default
-
-    constructor(
-        userPreferencesRepository: UserPreferencesRepository,
-        deviceRepository: DeviceRepository,
-        websocketClientFactory: WebsocketClientFactory,
-        widgetManager: WledWidgetManager,
-        saveDeviceStateUseCase: SaveDeviceStateUseCase,
-        deviceUpdateManager: DeviceUpdateManager,
-        applicationContext: Context,
-        backgroundDispatcher: CoroutineDispatcher,
-    ) : this(
-        userPreferencesRepository = userPreferencesRepository,
-        deviceRepository = deviceRepository,
-        websocketClientFactory = websocketClientFactory,
-        widgetManager = widgetManager,
-        saveDeviceStateUseCase = saveDeviceStateUseCase,
-        deviceUpdateManager = deviceUpdateManager,
-        applicationContext = applicationContext,
-    ) {
-        this.backgroundDispatcher = backgroundDispatcher
-    }
 
     private val activeClients = ConcurrentHashMap<String, WebsocketClient>()
     private val clientJobs = ConcurrentHashMap<String, Job>()

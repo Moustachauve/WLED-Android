@@ -116,12 +116,8 @@ fun DeviceEdit(
             viewModel.hideUpdateDisclaimer()
             viewModel.startUpdateInstall(version)
         },
-        onInstallFinished = { wasSuccessful ->
-            viewModel.stopUpdateInstall(
-                device,
-                uiState.updateInstallVersion,
-                wasSuccessful,
-            )
+        onInstallFinished = {
+            viewModel.stopUpdateInstall()
         },
     )
 
