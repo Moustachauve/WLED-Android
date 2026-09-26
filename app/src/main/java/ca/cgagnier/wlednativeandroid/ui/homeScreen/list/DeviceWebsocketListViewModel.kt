@@ -42,6 +42,7 @@ import javax.inject.Inject
 private const val TAG = "DeviceWebsocketListViewModel"
 private const val SUBSCRIPTION_TIMEOUT_MS = 5000L
 private const val UPDATE_CHECK_RETRY_INTERVAL_MS = 60_000L
+private const val UPDATE_CHECK_CACHE_TTL_MS = 3600_000L // 1 hour
 
 @HiltViewModel
 @Suppress("LongParameterList", "TooGenericExceptionCaught") // DI constructor and lifecycle error handling
@@ -59,38 +60,10 @@ class DeviceWebsocketListViewModel @Inject constructor(
     DefaultLifecycleObserver {
 
     internal var currentTimeProvider: () -> Long = System::currentTimeMillis
-    internal var lifecycleOwner: LifecycleOwner? = null
-
-    constructor(
-        userPreferencesRepository: UserPreferencesRepository,
-        deviceRepository: DeviceRepository,
-        websocketClientFactory: WebsocketClientFactory,
-        widgetManager: WledWidgetManager,
-        saveDeviceStateUseCase: SaveDeviceStateUseCase,
-        deviceUpdateManager: DeviceUpdateManager,
-        applicationContext: Context,
-        backgroundDispatcher: CoroutineDispatcher,
-        ioDispatcher: CoroutineDispatcher = backgroundDispatcher,
-        currentTimeProvider: () -> Long = System::currentTimeMillis,
-        lifecycleOwner: LifecycleOwner? = null,
-    ) : this(
-        userPreferencesRepository = userPreferencesRepository,
-        deviceRepository = deviceRepository,
-        websocketClientFactory = websocketClientFactory,
-        widgetManager = widgetManager,
-        saveDeviceStateUseCase = saveDeviceStateUseCase,
-        deviceUpdateManager = deviceUpdateManager,
-        applicationContext = applicationContext,
-        backgroundDispatcher = backgroundDispatcher,
-        ioDispatcher = ioDispatcher,
-    ) {
-        this.currentTimeProvider = currentTimeProvider
-        this.lifecycleOwner = lifecycleOwner
-    }
 
     private val activeClients = ConcurrentHashMap<String, WebsocketClient>()
     private val clientJobs = ConcurrentHashMap<String, Job>()
-    private val devicesWithCompletedUpdateCheck = ConcurrentHashMap.newKeySet<String>()
+    private val lastSuccessfulUpdateCheck = ConcurrentHashMap<String, Long>()
     private val lastUpdateCheckAttempt = ConcurrentHashMap<String, Long>()
 
     private val _allDevicesWithState = MutableStateFlow<List<DeviceWithState>>(emptyList())
@@ -115,8 +88,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
     init {
         // Observe ProcessLifecycle (App level) instead of Activity so onPause is
         try {
-            val owner = lifecycleOwner ?: ProcessLifecycleOwner.get()
-            owner.lifecycle.addObserver(this)
+            ProcessLifecycleOwner.get().lifecycle.addObserver(this)
         } catch (e: Exception) {
             Log.w(TAG, "ProcessLifecycleOwner not available: ${e.message}")
         }
@@ -134,23 +106,6 @@ class DeviceWebsocketListViewModel @Inject constructor(
         createOrUpdateClients(newDeviceMap)
 
         val previousStateMap = _allDevicesWithState.value.associateBy { it.device.macAddress }
-        val tagsToUpdate = mutableMapOf<String, String?>()
-
-        for (device in newDeviceList) {
-            val previous = previousStateMap[device.macAddress]
-            val stateInfo = previous?.stateInfo
-            if (previous != null && stateInfo != null && shouldRecheckDeviceUpdate(device, previous)) {
-                devicesWithCompletedUpdateCheck.remove(device.macAddress)
-                lastUpdateCheckAttempt.remove(device.macAddress)
-                val newTag = determineUpdateTag(
-                    current = previous,
-                    deviceToUse = device,
-                    stateInfo = stateInfo,
-                    mac = device.macAddress,
-                )
-                tagsToUpdate[device.macAddress] = newTag
-            }
-        }
 
         _allDevicesWithState.update { currentList ->
             val currentMap = currentList.associateBy { it.device.macAddress }
@@ -160,9 +115,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 val currentStatus = currentClient?.status?.value ?: WebsocketStatus.DISCONNECTED
 
                 if (current != null) {
-                    val updateTag = if (tagsToUpdate.containsKey(device.macAddress)) {
-                        tagsToUpdate[device.macAddress]
-                    } else if (device.skipUpdateTag.isNotEmpty() &&
+                    val updateTag = if (device.skipUpdateTag.isNotEmpty() &&
                         device.skipUpdateTag == current.updateVersionTag
                     ) {
                         null
@@ -183,6 +136,44 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 }
             }
         }
+
+        recheckModifiedDevicesAsync(newDeviceList, previousStateMap)
+    }
+
+    private fun recheckModifiedDevicesAsync(
+        newDeviceList: List<Device>,
+        previousStateMap: Map<String, DeviceWithState>,
+    ) {
+        for (device in newDeviceList) {
+            val previous = previousStateMap[device.macAddress]
+            val stateInfo = previous?.stateInfo
+            if (previous != null && stateInfo != null && shouldRecheckDeviceUpdate(device, previous)) {
+                lastSuccessfulUpdateCheck.remove(device.macAddress)
+                lastUpdateCheckAttempt.remove(device.macAddress)
+                viewModelScope.launch {
+                    val newTag = determineUpdateTag(
+                        current = previous,
+                        deviceToUse = device,
+                        stateInfo = stateInfo,
+                        mac = device.macAddress,
+                    )
+                    _allDevicesWithState.update { currentList ->
+                        currentList.map { current ->
+                            if (current.device.macAddress == device.macAddress) {
+                                val tag = if (device.skipUpdateTag.isNotEmpty() && device.skipUpdateTag == newTag) {
+                                    null
+                                } else {
+                                    newTag
+                                }
+                                current.copy(updateVersionTag = tag)
+                            } else {
+                                current
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun removeStaleClients(newDeviceMap: Map<String, Device>) {
@@ -191,7 +182,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
             Log.d(TAG, "[Sync] Device removed: $macAddress. Cancelling job and destroying client.")
             clientJobs.remove(macAddress)?.cancel()
             activeClients.remove(macAddress)?.destroy()
-            devicesWithCompletedUpdateCheck.remove(macAddress)
+            lastSuccessfulUpdateCheck.remove(macAddress)
             lastUpdateCheckAttempt.remove(macAddress)
         }
     }
@@ -342,7 +333,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
                     ) {
                         null
                     } else {
-                        updateTag ?: current.updateVersionTag
+                        updateTag
                     }
 
                     val updated = current.copy(
@@ -416,21 +407,23 @@ class DeviceWebsocketListViewModel @Inject constructor(
     ): String? {
         val metadataChanged = hasMetadataChanged(current, deviceToUse, stateInfo)
         if (metadataChanged) {
-            devicesWithCompletedUpdateCheck.remove(mac)
+            lastSuccessfulUpdateCheck.remove(mac)
         }
 
-        val hasChecked = devicesWithCompletedUpdateCheck.contains(mac)
+        val lastSuccessfulCheck = lastSuccessfulUpdateCheck[mac]
+        val hasRecentCheck = lastSuccessfulCheck != null &&
+            currentTimeMillis - lastSuccessfulCheck < UPDATE_CHECK_CACHE_TTL_MS
         val lastAttempt = lastUpdateCheckAttempt[mac] ?: 0L
         val retryAllowed = currentTimeMillis - lastAttempt > UPDATE_CHECK_RETRY_INTERVAL_MS
 
-        if (hasChecked || (!metadataChanged && !retryAllowed)) {
+        if (!metadataChanged && (hasRecentCheck || !retryAllowed)) {
             return current?.updateVersionTag
         }
 
         lastUpdateCheckAttempt[mac] = currentTimeMillis
         return try {
             val tag = deviceUpdateManager.checkForUpdate(deviceToUse, stateInfo)
-            devicesWithCompletedUpdateCheck.add(mac)
+            lastSuccessfulUpdateCheck[mac] = currentTimeMillis
             tag
         } catch (e: CancellationException) {
             throw e
@@ -477,8 +470,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         try {
-            val owner = lifecycleOwner ?: ProcessLifecycleOwner.get()
-            owner.lifecycle.removeObserver(this)
+            ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
         } catch (e: Exception) {
             Log.w(TAG, "ProcessLifecycleOwner not available during onCleared: ${e.message}")
         }
@@ -534,7 +526,17 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 return@launch
             }
             Log.d(TAG, "Setting brightness for ${device.device.macAddress} to $brightness")
-            client.sendState(State(brightness = brightness))
+            val originalStateInfo = device.stateInfo
+            val optimisticStateInfo = originalStateInfo?.copy(
+                state = originalStateInfo.state.copy(brightness = brightness),
+            )
+            if (optimisticStateInfo != null) {
+                updateDeviceState(device.copy(stateInfo = optimisticStateInfo))
+            }
+            val success = client.sendState(State(brightness = brightness))
+            if (!success && originalStateInfo != null) {
+                updateDeviceState(device.copy(stateInfo = originalStateInfo))
+            }
         }
     }
 
@@ -555,7 +557,17 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 return@launch
             }
             Log.d(TAG, "Setting isOn for ${device.device.macAddress} to $isOn")
-            client.sendState(State(isOn = isOn))
+            val originalStateInfo = device.stateInfo
+            val optimisticStateInfo = originalStateInfo?.copy(
+                state = originalStateInfo.state.copy(isOn = isOn),
+            )
+            if (optimisticStateInfo != null) {
+                updateDeviceState(device.copy(stateInfo = optimisticStateInfo))
+            }
+            val success = client.sendState(State(isOn = isOn))
+            if (!success && originalStateInfo != null) {
+                updateDeviceState(device.copy(stateInfo = originalStateInfo))
+            }
         }
     }
 
