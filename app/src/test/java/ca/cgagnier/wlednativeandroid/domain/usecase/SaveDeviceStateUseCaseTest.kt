@@ -13,6 +13,7 @@ import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -24,6 +25,7 @@ import org.junit.jupiter.params.provider.CsvSource
 
 class SaveDeviceStateUseCaseTest {
 
+    private val testDispatcher = StandardTestDispatcher()
     private val deviceRepository: DeviceRepository = mockk(relaxed = true)
     private val repositoryDao: RepositoryDao = mockk(relaxed = true)
     private lateinit var useCase: SaveDeviceStateUseCase
@@ -39,11 +41,11 @@ class SaveDeviceStateUseCaseTest {
     @BeforeEach
     fun setUp() {
         coEvery { repositoryDao.getRepositoryByOwnerAndRepo(any()) } returns defaultRepo
-        useCase = SaveDeviceStateUseCase(deviceRepository, repositoryDao)
+        useCase = SaveDeviceStateUseCase(deviceRepository, repositoryDao, testDispatcher)
     }
 
     @Test
-    fun `invoke updates device and returns newDevice when originalName changes`() = runTest {
+    fun `invoke updates device and returns newDevice when originalName changes`() = runTest(testDispatcher) {
         val currentDevice = Device(
             macAddress = "AABBCCDDEEFF",
             address = "192.168.1.100",
@@ -68,7 +70,7 @@ class SaveDeviceStateUseCaseTest {
         "0.14.0, STABLE",
     )
     fun `invoke infers correct Branch when device branch is UNKNOWN`(version: String, expectedBranch: Branch) =
-        runTest {
+        runTest(testDispatcher) {
             val currentDevice = Device(
                 macAddress = "AABBCCDDEEFF",
                 address = "192.168.1.100",
@@ -86,7 +88,7 @@ class SaveDeviceStateUseCaseTest {
         }
 
     @Test
-    fun `invoke preserves existing branch when branch is already STABLE`() = runTest {
+    fun `invoke preserves existing branch when branch is already STABLE`() = runTest(testDispatcher) {
         val currentDevice = Device(
             macAddress = "AABBCCDDEEFF",
             address = "192.168.1.100",
@@ -105,7 +107,7 @@ class SaveDeviceStateUseCaseTest {
     }
 
     @Test
-    fun `invoke updates device when repositoryId changes`() = runTest {
+    fun `invoke updates device when repositoryId changes`() = runTest(testDispatcher) {
         val currentDevice = Device(
             macAddress = "AABBCCDDEEFF",
             address = "192.168.1.100",
@@ -137,7 +139,7 @@ class SaveDeviceStateUseCaseTest {
     }
 
     @Test
-    fun `invoke updates device when timeSinceLastUpdate exceeds threshold`() = runTest {
+    fun `invoke updates device when timeSinceLastUpdate exceeds threshold`() = runTest(testDispatcher) {
         val currentDevice = Device(
             macAddress = "AABBCCDDEEFF",
             address = "192.168.1.100",
@@ -157,7 +159,7 @@ class SaveDeviceStateUseCaseTest {
     }
 
     @Test
-    fun `invoke returns null and does not update when unchanged and within threshold`() = runTest {
+    fun `invoke returns null and does not update when unchanged and within threshold`() = runTest(testDispatcher) {
         val currentDevice = Device(
             macAddress = "AABBCCDDEEFF",
             address = "192.168.1.100",
@@ -176,7 +178,7 @@ class SaveDeviceStateUseCaseTest {
     }
 
     @Test
-    fun `invoke does not query repositoryDao when device uses default repository`() = runTest {
+    fun `invoke does not query repositoryDao when device uses default repository`() = runTest(testDispatcher) {
         val currentDevice = Device(
             macAddress = "AABBCCDDEEFF",
             address = "192.168.1.100",

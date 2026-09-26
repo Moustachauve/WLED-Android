@@ -271,7 +271,7 @@ class WebsocketClient(
         val session = currentSession
         if (session == null || !session.isActive) {
             Log.w(TAG, "Cannot send state: WebSocket not connected to ${device.address}")
-            if (_status.value != WebsocketStatus.CONNECTED && !isManuallyDisconnected.get()) {
+            if (_status.value == WebsocketStatus.DISCONNECTED && !isManuallyDisconnected.get()) {
                 connect()
             }
             return false
@@ -296,9 +296,8 @@ class WebsocketClient(
             trimmedAddress.startsWith("wss://", ignoreCase = true)
         val scheme = if (isSecure) "wss://" else "ws://"
 
-        val protocolRegex = Regex("^(https?|wss?)://", RegexOption.IGNORE_CASE)
         val cleanAddress = trimmedAddress
-            .replace(protocolRegex, "")
+            .replace(PROTOCOL_REGEX, "")
             .trimEnd('/')
 
         val hostAndPort = if (cleanAddress.endsWith("/$WEBSOCKET_PATH", ignoreCase = true)) {
@@ -314,6 +313,7 @@ class WebsocketClient(
         internal const val TAG = "WebsocketClient"
         internal const val WEBSOCKET_PATH = "ws"
         internal const val USER_AGENT = "WLED-Android"
+        private val PROTOCOL_REGEX = Regex("^(https?|wss?)://", RegexOption.IGNORE_CASE)
         private const val BASE_BACKOFF_MS = 2000L
         private const val MAX_BACKOFF_MS = 60000L
         private const val CLOSE_TIMEOUT_MS = 1000L

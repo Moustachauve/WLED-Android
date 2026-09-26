@@ -540,4 +540,94 @@ class DeviceWebsocketListViewModelTest {
 
         job.cancel()
     }
+
+    @Test
+    fun `syncDevices rechecks update when branch changes`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        val stateInfo = DeviceStateInfo(
+            state = State(isOn = true),
+            info = Info(
+                version = "0.14.0",
+                name = "Device 1",
+                leds = Leds(count = 60),
+                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+            ),
+        )
+        coEvery { deviceUpdateManager.checkForUpdate(match { it.branch == Branch.STABLE }, any()) } returns "0.14.1"
+        coEvery { deviceUpdateManager.checkForUpdate(match { it.branch == Branch.BETA }, any()) } returns "0.15.0-b1"
+
+        holder.incomingFlow.emit(stateInfo)
+        advanceUntilIdle()
+
+        assertEquals("0.14.1", viewModel.allDevicesWithState.value.first().updateVersionTag)
+
+        // User switches branch to BETA
+        val deviceBeta = device1.copy(branch = Branch.BETA)
+        allDevicesDbFlow.value = listOf(deviceBeta)
+        advanceUntilIdle()
+
+        assertEquals("0.15.0-b1", viewModel.allDevicesWithState.value.first().updateVersionTag)
+
+        job.cancel()
+    }
+
+    @Test
+    fun `incoming stateInfo retries update check after failure and cooldown`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        var fakeTime = 100_000L
+        viewModel.clock = { fakeTime }
+
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        val stateInfo = DeviceStateInfo(
+            state = State(isOn = true),
+            info = Info(
+                version = "0.14.0",
+                name = "Device 1",
+                leds = Leds(count = 60),
+                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+            ),
+        )
+
+        // 1st attempt fails with exception
+        coEvery { deviceUpdateManager.checkForUpdate(any(), any()) } throws java.io.IOException("Network down")
+
+        holder.incomingFlow.emit(stateInfo)
+        advanceUntilIdle()
+
+        // Still null because check failed
+        assertEquals(null, viewModel.allDevicesWithState.value.first().updateVersionTag)
+
+        // Frame before cooldown should NOT trigger another check
+        holder.incomingFlow.emit(stateInfo.copy(state = State(isOn = true, brightness = 150)))
+        advanceUntilIdle()
+        coVerify(exactly = 1) { deviceUpdateManager.checkForUpdate(any(), any()) }
+
+        // Advance time past the 60s cooldown
+        fakeTime += 61_000L
+        coEvery { deviceUpdateManager.checkForUpdate(any(), any()) } returns "0.14.1"
+
+        // Next incoming frame should now trigger a retry
+        holder.incomingFlow.emit(stateInfo.copy(state = State(isOn = true, brightness = 160)))
+        advanceUntilIdle()
+
+        coVerify(exactly = 2) { deviceUpdateManager.checkForUpdate(any(), any()) }
+        assertEquals("0.14.1", viewModel.allDevicesWithState.value.first().updateVersionTag)
+
+        job.cancel()
+    }
 }

@@ -26,7 +26,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,12 +34,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 private const val TAG = "DeviceWebsocketListViewModel"
 private const val SUBSCRIPTION_TIMEOUT_MS = 5000L
+private const val UPDATE_CHECK_RETRY_INTERVAL_MS = 60_000L
 
 @HiltViewModel
 @Suppress("LongParameterList", "TooGenericExceptionCaught") // DI constructor and lifecycle error handling
@@ -58,6 +59,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
     private val activeClients = ConcurrentHashMap<String, WebsocketClient>()
     private val clientJobs = ConcurrentHashMap<String, Job>()
+    private val devicesWithCompletedUpdateCheck = ConcurrentHashMap.newKeySet<String>()
+    private val lastUpdateCheckAttempt = ConcurrentHashMap<String, Long>()
+    internal var clock: () -> Long = { System.currentTimeMillis() }
 
     private val _allDevicesWithState = MutableStateFlow<List<DeviceWithState>>(emptyList())
     val allDevicesWithState: StateFlow<List<DeviceWithState>> = _allDevicesWithState.asStateFlow()
@@ -110,6 +114,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
             Log.d(TAG, "[Sync] Device removed: $macAddress. Cancelling job and destroying client.")
             clientJobs.remove(macAddress)?.cancel()
             activeClients.remove(macAddress)?.destroy()
+            devicesWithCompletedUpdateCheck.remove(macAddress)
+            lastUpdateCheckAttempt.remove(macAddress)
         }
     }
 
@@ -184,9 +190,15 @@ class DeviceWebsocketListViewModel @Inject constructor(
             val previous = previousStateMap[device.macAddress]
             val stateInfo = previous?.stateInfo
             if (previous != null && stateInfo != null && shouldRecheckDeviceUpdate(device, previous)) {
-                val current = _allDevicesWithState.value.firstOrNull { it.device.macAddress == device.macAddress }
-                val newTag = determineUpdateTag(current, device, stateInfo, device.macAddress)
-                if (newTag != current?.updateVersionTag) {
+                devicesWithCompletedUpdateCheck.remove(device.macAddress)
+                lastUpdateCheckAttempt.remove(device.macAddress)
+                val newTag = determineUpdateTag(
+                    current = previous,
+                    deviceToUse = device,
+                    stateInfo = stateInfo,
+                    mac = device.macAddress,
+                )
+                if (newTag != previous.updateVersionTag) {
                     _allDevicesWithState.update { list ->
                         list.map {
                             if (it.device.macAddress == device.macAddress) {
@@ -209,22 +221,24 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
     private fun startObservingClient(client: WebsocketClient) {
         val mac = client.device.macAddress
-        val job = viewModelScope.launch(backgroundDispatcher + SupervisorJob()) {
-            // Coroutine 1: Observe connection status
-            launch {
-                client.status.collect { status ->
-                    onClientStatusChanged(mac, status)
+        val job = viewModelScope.launch(backgroundDispatcher) {
+            supervisorScope {
+                // Coroutine 1: Observe connection status
+                launch {
+                    client.status.collect { status ->
+                        onClientStatusChanged(mac, status)
+                    }
                 }
-            }
-            // Coroutine 2: Observe incoming state info frames
-            launch {
-                client.incomingStateInfo.collect { stateInfo ->
-                    try {
-                        onIncomingStateInfo(mac, stateInfo)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error processing incoming frame for $mac", e)
+                // Coroutine 2: Observe incoming state info frames
+                launch {
+                    client.incomingStateInfo.collect { stateInfo ->
+                        try {
+                            onIncomingStateInfo(mac, stateInfo)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error processing incoming frame for $mac", e)
+                        }
                     }
                 }
             }
@@ -340,36 +354,51 @@ class DeviceWebsocketListViewModel @Inject constructor(
             null
         }
 
+    private fun hasMetadataChanged(
+        current: DeviceWithState?,
+        deviceToUse: Device,
+        stateInfo: DeviceStateInfo,
+    ): Boolean {
+        val oldStateInfo = current?.stateInfo ?: return true
+        val info = stateInfo.info
+        val oldInfo = oldStateInfo.info
+
+        val firmwareChanged = oldInfo.version != info.version ||
+            oldInfo.options != info.options ||
+            oldInfo.repository != info.repository
+        val hardwareChanged = oldInfo.brand != info.brand ||
+            oldInfo.product != info.product
+        val settingsChanged = current.device.branch != deviceToUse.branch ||
+            current.device.skipUpdateTag != deviceToUse.skipUpdateTag
+
+        return firmwareChanged || hardwareChanged || settingsChanged
+    }
+
     private suspend fun determineUpdateTag(
         current: DeviceWithState?,
         deviceToUse: Device,
         stateInfo: DeviceStateInfo,
         mac: String,
+        currentTimeMillis: Long = clock(),
     ): String? {
-        val isInitialCheck = current?.stateInfo == null
-        val versionChanged = current?.stateInfo?.info?.version != stateInfo.info.version
-        val optionsChanged = current?.stateInfo?.info?.options != stateInfo.info.options
-        val brandChanged = current?.stateInfo?.info?.brand != stateInfo.info.brand
-        val productChanged = current?.stateInfo?.info?.product != stateInfo.info.product
-        val repoChanged = current?.stateInfo?.info?.repository != stateInfo.info.repository
-        val branchChanged = current?.device?.branch != deviceToUse.branch
-        val skipTagChanged = current?.device?.skipUpdateTag != deviceToUse.skipUpdateTag
-
-        val needsUpdateCheck = isInitialCheck ||
-            versionChanged ||
-            optionsChanged ||
-            brandChanged ||
-            productChanged ||
-            repoChanged ||
-            branchChanged ||
-            skipTagChanged
-
-        if (!needsUpdateCheck) {
-            return current.updateVersionTag
+        val metadataChanged = hasMetadataChanged(current, deviceToUse, stateInfo)
+        if (metadataChanged) {
+            devicesWithCompletedUpdateCheck.remove(mac)
         }
 
+        val hasChecked = devicesWithCompletedUpdateCheck.contains(mac)
+        val lastAttempt = lastUpdateCheckAttempt[mac] ?: 0L
+        val retryAllowed = currentTimeMillis - lastAttempt > UPDATE_CHECK_RETRY_INTERVAL_MS
+
+        if (hasChecked || (!metadataChanged && !retryAllowed)) {
+            return current?.updateVersionTag
+        }
+
+        lastUpdateCheckAttempt[mac] = currentTimeMillis
         return try {
-            deviceUpdateManager.checkForUpdate(deviceToUse, stateInfo)
+            val tag = deviceUpdateManager.checkForUpdate(deviceToUse, stateInfo)
+            devicesWithCompletedUpdateCheck.add(mac)
+            tag
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
