@@ -132,18 +132,26 @@ class WebsocketClientTest {
     @CsvSource(
         "192.168.1.100, ws://192.168.1.100/ws",
         "http://192.168.1.100, ws://192.168.1.100/ws",
-        "https://192.168.1.100, ws://192.168.1.100/ws",
+        "https://192.168.1.100, wss://192.168.1.100/ws",
         "ws://192.168.1.100, ws://192.168.1.100/ws",
-        "wss://192.168.1.100, ws://192.168.1.100/ws",
+        "wss://192.168.1.100, wss://192.168.1.100/ws",
         "192.168.1.100/, ws://192.168.1.100/ws",
         "http://192.168.1.100/, ws://192.168.1.100/ws",
+        "https://192.168.1.100/, wss://192.168.1.100/ws",
         "192.168.1.100///, ws://192.168.1.100/ws",
         "192.168.1.100:8080, ws://192.168.1.100:8080/ws",
         "http://192.168.1.100:8080/, ws://192.168.1.100:8080/ws",
+        "https://192.168.1.100:8443/, wss://192.168.1.100:8443/ws",
         "wled-device.local, ws://wled-device.local/ws",
         "http://wled-device.local, ws://wled-device.local/ws",
+        "https://wled-device.local, wss://wled-device.local/ws",
+        "192.168.1.100/ws, ws://192.168.1.100/ws",
+        "http://192.168.1.100/ws/, ws://192.168.1.100/ws",
+        "https://192.168.1.100/ws, wss://192.168.1.100/ws",
+        "wss://192.168.1.100/ws/, wss://192.168.1.100/ws",
         "[fe80::1], ws://[fe80::1]/ws",
         "http://[fe80::1]:80/, ws://[fe80::1]:80/ws",
+        "https://[fe80::1]:443/, wss://[fe80::1]:443/ws",
     )
     fun `buildWebsocketUrl correctly formats diverse host and IP address inputs`(input: String, expected: String) {
         val client = WebsocketClient(device, httpClient, json)
@@ -355,8 +363,7 @@ class WebsocketClientTest {
 
     private fun deterministicRandom(fixedValue: Double): Random = object : Random() {
         override fun nextBits(bitCount: Int): Int = 0
-        override fun nextDouble(from: Double, until: Double): Double =
-            (from + (until - from) * ((fixedValue - 0.75) / 0.5)).coerceIn(from, until)
+        override fun nextDouble(from: Double, until: Double): Double = fixedValue.coerceIn(from, until)
     }
 }
 

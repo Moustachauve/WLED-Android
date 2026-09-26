@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.service.websocket
 
 import ca.cgagnier.wlednativeandroid.model.Device
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,9 +16,18 @@ class WebsocketClientFactory @Inject constructor(private val httpClient: HttpCli
     /**
      * Creates a new WebsocketClient for the given device.
      */
-    fun create(device: Device): WebsocketClient = WebsocketClient(
-        device = device,
-        httpClient = httpClient,
-        json = json,
-    )
+    fun create(device: Device, coroutineScope: CoroutineScope? = null): WebsocketClient = if (coroutineScope != null) {
+        WebsocketClient(
+            device = device,
+            httpClient = httpClient,
+            json = json,
+            coroutineScope = coroutineScope,
+        )
+    } else {
+        WebsocketClient(
+            device = device,
+            httpClient = httpClient,
+            json = json,
+        )
+    }
 }

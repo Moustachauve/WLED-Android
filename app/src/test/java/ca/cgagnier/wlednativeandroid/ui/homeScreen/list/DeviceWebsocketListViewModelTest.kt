@@ -89,8 +89,7 @@ class DeviceWebsocketListViewModelTest {
         every { deviceDao.getAlphabetizedDevices() } returns allDevicesDbFlow
         deviceRepository = DeviceRepository(deviceDao)
 
-        every { websocketClientFactory.create(any()) } answers {
-            val dev = firstArg<Device>()
+        val createMockClient: (Device) -> WebsocketClient = { dev ->
             val statusFlow = MutableStateFlow(WebsocketStatus.DISCONNECTED)
             val incomingFlow = MutableSharedFlow<DeviceStateInfo>(extraBufferCapacity = 64)
             val client = mockk<WebsocketClient>(relaxed = true)
@@ -103,6 +102,8 @@ class DeviceWebsocketListViewModelTest {
             createdClients[dev.macAddress] = holder
             client
         }
+        every { websocketClientFactory.create(any()) } answers { createMockClient(firstArg()) }
+        every { websocketClientFactory.create(any(), any()) } answers { createMockClient(firstArg()) }
 
         coEvery { saveDeviceStateUseCase.invoke(any(), any()) } answers {
             firstArg()
@@ -140,8 +141,8 @@ class DeviceWebsocketListViewModelTest {
         allDevicesDbFlow.value = listOf(device1, device2)
         advanceUntilIdle()
 
-        verify(exactly = 1) { websocketClientFactory.create(device1) }
-        verify(exactly = 1) { websocketClientFactory.create(device2) }
+        verify(exactly = 1) { websocketClientFactory.create(device1, any()) }
+        verify(exactly = 1) { websocketClientFactory.create(device2, any()) }
 
         val latest = viewModel.allDevicesWithState.value
         assertEquals(2, latest.size)
@@ -226,7 +227,7 @@ class DeviceWebsocketListViewModelTest {
         advanceUntilIdle()
 
         verify(exactly = 1) { oldHolder.client.destroy() }
-        verify(exactly = 1) { websocketClientFactory.create(updatedDevice1) }
+        verify(exactly = 1) { websocketClientFactory.create(updatedDevice1, any()) }
 
         val latest = viewModel.allDevicesWithState.value
         assertEquals("192.168.1.200", latest[0].device.address)
@@ -463,6 +464,79 @@ class DeviceWebsocketListViewModelTest {
             viewModel.allDevicesWithState.value.map { it.device.macAddress },
         )
         assertTrue(emittedLists.contains(listOf("AA:BB:CC:DD:EE:02", "AA:BB:CC:DD:EE:01")))
+
+        job.cancel()
+    }
+
+    @Test
+    fun `updateDeviceState updates device in allDevicesWithState immediately`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val updatedState = DeviceWithState(
+            device = device1.copy(originalName = "Updated Name"),
+            stateInfo = DeviceStateInfo(
+                state = State(isOn = true),
+                info = Info(
+                    version = "16.0.1",
+                    name = "Updated Name",
+                    leds = Leds(count = 60),
+                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+                ),
+            ),
+            websocketStatus = WebsocketStatus.CONNECTED,
+            updateVersionTag = null,
+        )
+
+        viewModel.updateDeviceState(updatedState)
+        advanceUntilIdle()
+
+        val latest = viewModel.allDevicesWithState.value
+        assertEquals(1, latest.size)
+        assertEquals("16.0.1", latest[0].stateInfo?.info?.version)
+        assertEquals("Updated Name", latest[0].device.originalName)
+
+        job.cancel()
+    }
+
+    @Test
+    fun `syncDevices clears updateVersionTag when skipUpdateTag matches`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        val stateInfo = DeviceStateInfo(
+            state = State(isOn = true),
+            info = Info(
+                version = "0.14.0",
+                name = "Device 1",
+                leds = Leds(count = 60),
+                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+            ),
+        )
+        coEvery { deviceUpdateManager.checkForUpdate(any(), any()) } returns "0.15.0"
+
+        holder.incomingFlow.emit(stateInfo)
+        advanceUntilIdle()
+
+        assertEquals("0.15.0", viewModel.allDevicesWithState.value.first().updateVersionTag)
+
+        // User skips 0.15.0
+        val deviceSkipped = device1.copy(skipUpdateTag = "0.15.0")
+        allDevicesDbFlow.value = listOf(deviceSkipped)
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.allDevicesWithState.value.first().updateVersionTag)
 
         job.cancel()
     }

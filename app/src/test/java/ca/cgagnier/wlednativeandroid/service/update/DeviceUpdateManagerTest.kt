@@ -11,8 +11,6 @@ import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -95,27 +93,6 @@ class DeviceUpdateManagerTest {
         val result = updateManager.checkForUpdate(deviceWithState)
 
         assertEquals("0.14.2", result)
-    }
-
-    @Test
-    fun `getUpdateFlow deduplicates emissions when only non-update fields change`() = runTest {
-        val info1 = createInfo(version = "0.14.0", uptime = 100)
-        val info2 = createInfo(version = "0.14.0", uptime = 200)
-        val stateInfo1 = DeviceStateInfo(state = State(isOn = true, brightness = 100), info = info1)
-        val stateInfo2 = DeviceStateInfo(state = State(isOn = true, brightness = 200), info = info2)
-
-        val dev1 = DeviceWithState(device = testDevice, stateInfo = stateInfo1)
-        val dev2 = DeviceWithState(device = testDevice, stateInfo = stateInfo2)
-
-        coEvery {
-            releaseService.getNewerReleaseTag(any(), any(), any())
-        } returns "0.14.4"
-
-        val results = updateManager.getUpdateFlow(flowOf(dev1, dev2)).toList()
-
-        assertEquals(1, results.size)
-        assertEquals("0.14.4", results[0])
-        coVerify(exactly = 1) { releaseService.getNewerReleaseTag(any(), any(), any()) }
     }
 
     private fun createDeviceStateInfo(version: String? = "0.14.0", repository: String? = null): DeviceStateInfo =

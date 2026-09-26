@@ -85,6 +85,7 @@ fun DeviceEdit(
     canNavigateBack: Boolean,
     navigateUp: () -> Unit,
     viewModel: DeviceEditViewModel = hiltViewModel(),
+    onDeviceUpdated: ((DeviceWithState) -> Unit)? = null,
 ) {
     val vmState by viewModel.uiState.collectAsState()
 
@@ -116,7 +117,19 @@ fun DeviceEdit(
             viewModel.hideUpdateDisclaimer()
             viewModel.startUpdateInstall(version)
         },
-        onInstallFinished = {
+        onInstallFinished = { wasSuccessful ->
+            if (wasSuccessful && device.stateInfo != null && uiState.updateInstallVersion != null) {
+                val installedTag = uiState.updateInstallVersion.version.tagName.removePrefix("v")
+                val updatedStateInfo = device.stateInfo.copy(
+                    info = device.stateInfo.info.copy(version = installedTag),
+                )
+                onDeviceUpdated?.invoke(
+                    device.copy(
+                        stateInfo = updatedStateInfo,
+                        updateVersionTag = null,
+                    ),
+                )
+            }
             viewModel.stopUpdateInstall()
         },
     )
