@@ -187,7 +187,7 @@ class SaveDeviceStateUseCaseTest {
     }
 
     @Test
-    fun `invoke does not call repositoryDao on unchanged frames within threshold`() = runTest {
+    fun `invoke does not query repositoryDao when device uses default repository`() = runTest {
         val currentDevice = Device(
             macAddress = "AABBCCDDEEFF",
             address = "192.168.1.100",
@@ -198,22 +198,23 @@ class SaveDeviceStateUseCaseTest {
         )
         val stateInfo = createDeviceStateInfo(name = "WLED", version = "0.14.0")
 
-        // First frame within threshold: no DB query because repo is default and metadata unchanged
+        // First frame within threshold: unchanged, returns null, no DB query
         val result1 = useCase(currentDevice, stateInfo, currentTimeMillis = 11000L)
         assertNull(result1)
         coVerify(exactly = 0) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
 
-        // Second frame exceeding threshold: triggers persistence and queries repositoryDao
+        // Second frame exceeding threshold: triggers persistence, but uses Repository.DEFAULT_ID without DB query
         val result2 = useCase(currentDevice, stateInfo, currentTimeMillis = 16000L)
         assertNotNull(result2)
-        coVerify(exactly = 1) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
+        assertEquals(Repository.DEFAULT_ID, result2?.repositoryId)
+        coVerify(exactly = 0) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
+        coVerify(exactly = 1) { deviceRepository.update(result2!!) }
 
-        // Subsequent frames within threshold: no DB query because metadata unchanged and repo is default
+        // Subsequent frames within threshold: no DB query and no update
         val updatedDevice = result2!!
         val result3 = useCase(updatedDevice, stateInfo, currentTimeMillis = 17000L)
         assertNull(result3)
-        // Verify repositoryDao was NOT called again (still exactly 1)
-        coVerify(exactly = 1) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
+        coVerify(exactly = 0) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
     }
 
     private fun createDeviceStateInfo(

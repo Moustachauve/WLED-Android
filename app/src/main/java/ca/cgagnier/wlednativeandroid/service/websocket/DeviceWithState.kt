@@ -4,8 +4,6 @@ import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
 import ca.cgagnier.wlednativeandroid.model.DEFAULT_WLED_AP_IP
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
 
 /**
  * Immutable representation of a WLED device combined with its runtime state.
@@ -29,13 +27,6 @@ data class DeviceWithState(
 
     val isAPMode: Boolean
         get() = device.macAddress == AP_MODE_MAC_ADDRESS
-
-    /**
-     * Backward-compatibility flow bridge providing the update tag.
-     * Downstream UI consumers can collect this or read [updateVersionTag] directly.
-     */
-    val updateVersionTagFlow: Flow<String?>
-        get() = flowOf(updateVersionTag)
 }
 
 /**

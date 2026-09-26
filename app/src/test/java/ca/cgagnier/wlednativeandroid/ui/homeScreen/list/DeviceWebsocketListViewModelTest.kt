@@ -127,6 +127,7 @@ class DeviceWebsocketListViewModelTest {
         saveDeviceStateUseCase = saveDeviceStateUseCase,
         deviceUpdateManager = deviceUpdateManager,
         applicationContext = applicationContext,
+        backgroundDispatcher = testDispatcher,
     )
 
     @Test

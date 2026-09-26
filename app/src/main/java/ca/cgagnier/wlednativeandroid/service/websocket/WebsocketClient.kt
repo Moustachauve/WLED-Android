@@ -56,26 +56,26 @@ class WebsocketClient(
     private val httpClient: HttpClient,
     private val json: Json,
     private val coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + coroutineDispatcher),
+    coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + coroutineDispatcher),
     private val random: Random = Random.Default,
-) : WebsocketClientContract {
+) {
 
     @Volatile
-    override var device: Device = device
+    var device: Device = device
         private set
 
+    private val clientJob = SupervisorJob(coroutineScope.coroutineContext[Job])
+    private val clientScope = CoroutineScope(coroutineScope.coroutineContext + clientJob)
+
     private val _status = MutableStateFlow(WebsocketStatus.DISCONNECTED)
-    override val status: StateFlow<WebsocketStatus> = _status.asStateFlow()
+    val status: StateFlow<WebsocketStatus> = _status.asStateFlow()
 
     private val _incomingStateInfo = MutableSharedFlow<DeviceStateInfo>(
         replay = 0,
         extraBufferCapacity = BUFFER_CAPACITY,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
-    override val incomingStateInfo: SharedFlow<DeviceStateInfo> = _incomingStateInfo.asSharedFlow()
-
-    private val _stateInfo = MutableStateFlow<DeviceStateInfo?>(null)
-    override val stateInfo: StateFlow<DeviceStateInfo?> = _stateInfo.asStateFlow()
+    val incomingStateInfo: SharedFlow<DeviceStateInfo> = _incomingStateInfo.asSharedFlow()
 
     private val isManuallyDisconnected = AtomicBoolean(false)
     private val sendMutex = Mutex()
@@ -86,7 +86,7 @@ class WebsocketClient(
     @Volatile
     private var currentSession: DefaultClientWebSocketSession? = null
 
-    override fun connect() {
+    fun connect() {
         synchronized(this) {
             isManuallyDisconnected.set(false)
             val currentJob = connectionJob
@@ -100,39 +100,19 @@ class WebsocketClient(
                 }
             }
             _status.value = WebsocketStatus.CONNECTING
-            connectionJob = coroutineScope.launch(coroutineDispatcher) {
+            connectionJob = clientScope.launch(coroutineDispatcher) {
                 runConnectionLoop()
             }
         }
     }
 
-    override fun disconnect() {
+    fun disconnect() {
         Log.d(TAG, "Manually disconnecting from ${device.address}")
-        val sessionToClose: DefaultClientWebSocketSession?
         synchronized(this) {
             isManuallyDisconnected.set(true)
             connectionJob?.cancel(CancellationException("Manual disconnect"))
             connectionJob = null
-            sessionToClose = currentSession
-            currentSession = null
             _status.value = WebsocketStatus.DISCONNECTED
-        }
-
-        if (sessionToClose != null) {
-            coroutineScope.launch {
-                withContext(NonCancellable) {
-                    try {
-                        sessionToClose.close(
-                            CloseReason(
-                                CloseReason.Codes.NORMAL,
-                                "Client manual disconnect",
-                            ),
-                        )
-                    } catch (_: Exception) {
-                        // Ignore failure during close
-                    }
-                }
-            }
         }
     }
 
@@ -143,7 +123,7 @@ class WebsocketClient(
     fun destroy() {
         Log.d(TAG, "Destroying WebsocketClient for ${device.address}")
         disconnect()
-        coroutineScope.cancel()
+        clientJob.cancel()
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -272,7 +252,6 @@ class WebsocketClient(
         Log.d(TAG, "Received frame from ${device.address}: $text")
         try {
             val decodedStateInfo = json.decodeFromString<DeviceStateInfo>(text)
-            _stateInfo.value = decodedStateInfo
             _incomingStateInfo.emit(decodedStateInfo)
         } catch (e: SerializationException) {
             Log.e(TAG, "Failed to parse JSON frame from ${device.address}: $text", e)
@@ -282,7 +261,7 @@ class WebsocketClient(
     }
 
     @Suppress("TooGenericExceptionCaught")
-    override suspend fun sendState(state: State): Boolean = sendMutex.withLock {
+    suspend fun sendState(state: State): Boolean = sendMutex.withLock {
         val session = currentSession
         if (session == null || !session.isActive) {
             Log.w(TAG, "Cannot send state: WebSocket not connected to ${device.address}")
@@ -302,12 +281,6 @@ class WebsocketClient(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send state to ${device.address}", e)
             false
-        }
-    }
-
-    fun sendStateAsync(state: State) {
-        coroutineScope.launch {
-            sendState(state)
         }
     }
 
@@ -350,14 +323,4 @@ class WebsocketClient(
             return (cappedExponential * jitterFactor).toLong().coerceIn(0L, maxDelayMs)
         }
     }
-}
-
-interface WebsocketClientContract {
-    val device: Device
-    val status: StateFlow<WebsocketStatus>
-    val incomingStateInfo: SharedFlow<DeviceStateInfo>
-    val stateInfo: StateFlow<DeviceStateInfo?>
-    fun connect()
-    fun disconnect()
-    suspend fun sendState(state: State): Boolean
 }

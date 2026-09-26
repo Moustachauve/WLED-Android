@@ -86,29 +86,27 @@ fun DeviceEdit(
     navigateUp: () -> Unit,
     viewModel: DeviceEditViewModel = hiltViewModel(),
 ) {
-    var currentDeviceWithState by remember(device) { mutableStateOf(device) }
     val vmState by viewModel.uiState.collectAsState()
-    val updateTag by currentDeviceWithState.updateVersionTagFlow.collectAsState(initial = null)
 
-    LaunchedEffect(currentDeviceWithState.device.repositoryId) {
-        viewModel.loadRepository(currentDeviceWithState.device.repositoryId)
+    LaunchedEffect(device.device.repositoryId) {
+        viewModel.loadRepository(device.device.repositoryId)
     }
 
     // Merge the device-owned updateTag into the VM state.
-    val uiState = vmState.copy(updateTag = updateTag)
+    val uiState = vmState.copy(updateTag = device.updateVersionTag)
 
     val actions = DeviceEditActions(
-        onCustomNameChange = { viewModel.updateCustomName(currentDeviceWithState.device, it) },
-        onDeviceHiddenChange = { viewModel.updateDeviceHidden(currentDeviceWithState.device, it) },
-        onBranchChange = { viewModel.updateDeviceBranch(currentDeviceWithState.device, it) },
-        onCheckForUpdates = { viewModel.checkForUpdates(currentDeviceWithState.device) },
+        onCustomNameChange = { viewModel.updateCustomName(device.device, it) },
+        onDeviceHiddenChange = { viewModel.updateDeviceHidden(device.device, it) },
+        onBranchChange = { viewModel.updateDeviceBranch(device.device, it) },
+        onCheckForUpdates = { viewModel.checkForUpdates(device.device) },
         onSeeUpdateDetails = { tag ->
             if (tag.isNotEmpty()) {
-                viewModel.showUpdateDetails(currentDeviceWithState.device.repositoryId, tag)
+                viewModel.showUpdateDetails(device.device.repositoryId, tag)
             }
         },
         onHideUpdateDetails = { viewModel.hideUpdateDetails() },
-        onSkipUpdate = { version -> viewModel.skipUpdate(currentDeviceWithState.device, version) },
+        onSkipUpdate = { version -> viewModel.skipUpdate(device.device, version) },
         onInstallUpdate = { version ->
             viewModel.hideUpdateDetails()
             viewModel.showUpdateDisclaimer(version)
@@ -119,16 +117,16 @@ fun DeviceEdit(
             viewModel.startUpdateInstall(version)
         },
         onInstallFinished = { wasSuccessful ->
-            currentDeviceWithState = viewModel.stopUpdateInstall(
-                currentDeviceWithState,
+            viewModel.stopUpdateInstall(
+                device,
                 uiState.updateInstallVersion,
                 wasSuccessful,
-            ) ?: currentDeviceWithState
+            )
         },
     )
 
     DeviceEditContent(
-        device = currentDeviceWithState,
+        device = device,
         uiState = uiState,
         actions = actions,
         canNavigateBack = canNavigateBack,

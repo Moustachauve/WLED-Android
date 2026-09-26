@@ -60,7 +60,11 @@ class SaveDeviceStateUseCase @Inject constructor(
             return null
         }
 
-        val repoIdToSave = repositoryDao.getOrCreateRepositoryId(repositoryStr)
+        val repoIdToSave = if (isDefaultRepo) {
+            Repository.DEFAULT_ID
+        } else {
+            repositoryDao.getOrCreateRepositoryId(repositoryStr)
+        }
         val repositoryChanged = currentDevice.repositoryId != repoIdToSave
 
         val shouldUpdateDevice = needsPersistence || repositoryChanged
