@@ -271,6 +271,30 @@ class SaveDeviceStateUseCaseTest {
         coVerify(exactly = 1) { repositoryDao.getRepositoryByOwnerAndRepo("custom/WLED") }
     }
 
+    @Test
+    fun `invoke preserves existing name and does not persist when incoming name is blank`() = runTest(testDispatcher) {
+        val currentDevice = Device(
+            macAddress = "AABBCCDDEEFF",
+            address = "192.168.1.100",
+            originalName = "Original Device Name",
+            branch = Branch.STABLE,
+            lastSeen = 10000L,
+            repositoryId = Repository.DEFAULT_ID,
+        )
+        val stateInfoBlankName = createDeviceStateInfo(name = "", version = "16.0.1")
+
+        // Within threshold: should not persist and should return null
+        val result = useCase(currentDevice, stateInfoBlankName, currentTimeMillis = 11000L)
+        assertNull(result)
+        coVerify(exactly = 0) { deviceRepository.update(any()) }
+
+        // When exceeding threshold: name must NOT be overwritten with blank
+        val exceedingTime = currentDevice.lastSeen + SaveDeviceStateUseCase.LAST_SEEN_UPDATE_THRESHOLD + 1000L
+        val resultExceeding = useCase(currentDevice, stateInfoBlankName, currentTimeMillis = exceedingTime)
+        assertNotNull(resultExceeding)
+        assertEquals("Original Device Name", resultExceeding?.originalName)
+    }
+
     private fun createDeviceStateInfo(
         name: String = "Test Device",
         version: String? = "0.14.0",

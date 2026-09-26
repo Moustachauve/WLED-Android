@@ -63,6 +63,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
     private val activeClients = ConcurrentHashMap<String, WebsocketClient>()
     private val clientJobs = ConcurrentHashMap<String, Job>()
+    private val brightnessJobs = ConcurrentHashMap<String, Job>()
+    private val updateCheckJobs = ConcurrentHashMap<String, Job>()
     private val lastSuccessfulUpdateCheck = ConcurrentHashMap<String, Long>()
     private val lastUpdateCheckAttempt = ConcurrentHashMap<String, Long>()
 
@@ -145,21 +147,23 @@ class DeviceWebsocketListViewModel @Inject constructor(
         previousStateMap: Map<String, DeviceWithState>,
     ) {
         for (device in newDeviceList) {
-            val previous = previousStateMap[device.macAddress]
+            val mac = device.macAddress
+            val previous = previousStateMap[mac]
             val stateInfo = previous?.stateInfo
             if (previous != null && stateInfo != null && shouldRecheckDeviceUpdate(device, previous)) {
-                lastSuccessfulUpdateCheck.remove(device.macAddress)
-                lastUpdateCheckAttempt.remove(device.macAddress)
-                viewModelScope.launch {
+                lastSuccessfulUpdateCheck.remove(mac)
+                lastUpdateCheckAttempt.remove(mac)
+                updateCheckJobs[mac]?.cancel()
+                updateCheckJobs[mac] = viewModelScope.launch {
                     val newTag = determineUpdateTag(
                         current = previous,
                         deviceToUse = device,
                         stateInfo = stateInfo,
-                        mac = device.macAddress,
+                        mac = mac,
                     )
                     _allDevicesWithState.update { currentList ->
                         currentList.map { current ->
-                            if (current.device.macAddress == device.macAddress) {
+                            if (current.device.macAddress == mac) {
                                 val tag = if (device.skipUpdateTag.isNotEmpty() && device.skipUpdateTag == newTag) {
                                     null
                                 } else {
@@ -181,6 +185,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
         for (macAddress in devicesToRemove) {
             Log.d(TAG, "[Sync] Device removed: $macAddress. Cancelling job and destroying client.")
             clientJobs.remove(macAddress)?.cancel()
+            brightnessJobs.remove(macAddress)?.cancel()
+            updateCheckJobs.remove(macAddress)?.cancel()
             activeClients.remove(macAddress)?.destroy()
             lastSuccessfulUpdateCheck.remove(macAddress)
             lastUpdateCheckAttempt.remove(macAddress)
@@ -477,6 +483,10 @@ class DeviceWebsocketListViewModel @Inject constructor(
         Log.d(TAG, "ViewModel cleared. Closing all WebSocket clients and cancelling jobs.")
         clientJobs.values.forEach { it.cancel() }
         clientJobs.clear()
+        brightnessJobs.values.forEach { it.cancel() }
+        brightnessJobs.clear()
+        updateCheckJobs.values.forEach { it.cancel() }
+        updateCheckJobs.clear()
         activeClients.values.forEach { it.destroy() }
         activeClients.clear()
     }
@@ -516,26 +526,50 @@ class DeviceWebsocketListViewModel @Inject constructor(
      * @param brightness The brightness value to set (0-255).
      */
     fun setBrightness(device: DeviceWithState, brightness: Int) {
-        viewModelScope.launch {
-            val client = activeClients[device.device.macAddress]
+        val mac = device.device.macAddress
+        brightnessJobs[mac]?.cancel()
+        brightnessJobs[mac] = viewModelScope.launch {
+            val client = activeClients[mac]
             if (client == null) {
                 Log.w(
                     TAG,
-                    "setBrightness: No active client found for MAC address ${device.device.macAddress}",
+                    "setBrightness: No active client found for MAC address $mac",
                 )
                 return@launch
             }
-            Log.d(TAG, "Setting brightness for ${device.device.macAddress} to $brightness")
-            val originalStateInfo = device.stateInfo
-            val optimisticStateInfo = originalStateInfo?.copy(
-                state = originalStateInfo.state.copy(brightness = brightness),
-            )
-            if (optimisticStateInfo != null) {
-                updateDeviceState(device.copy(stateInfo = optimisticStateInfo))
+            Log.d(TAG, "Setting brightness for $mac to $brightness")
+            val previousBrightness = _allDevicesWithState.value.firstOrNull { it.device.macAddress == mac }
+                ?.stateInfo?.state?.brightness
+
+            _allDevicesWithState.update { list ->
+                list.map { current ->
+                    if (current.device.macAddress == mac && current.stateInfo != null) {
+                        current.copy(
+                            stateInfo = current.stateInfo.copy(
+                                state = current.stateInfo.state.copy(brightness = brightness),
+                            ),
+                        )
+                    } else {
+                        current
+                    }
+                }
             }
+
             val success = client.sendState(State(brightness = brightness))
-            if (!success && originalStateInfo != null) {
-                updateDeviceState(device.copy(stateInfo = originalStateInfo))
+            if (!success && previousBrightness != null) {
+                _allDevicesWithState.update { list ->
+                    list.map { current ->
+                        if (current.device.macAddress == mac && current.stateInfo != null) {
+                            current.copy(
+                                stateInfo = current.stateInfo.copy(
+                                    state = current.stateInfo.state.copy(brightness = previousBrightness),
+                                ),
+                            )
+                        } else {
+                            current
+                        }
+                    }
+                }
             }
         }
     }
@@ -547,26 +581,49 @@ class DeviceWebsocketListViewModel @Inject constructor(
      * @param isOn The desired power state.
      */
     fun setDevicePower(device: DeviceWithState, isOn: Boolean) {
+        val mac = device.device.macAddress
         viewModelScope.launch {
-            val client = activeClients[device.device.macAddress]
+            val client = activeClients[mac]
             if (client == null) {
                 Log.w(
                     TAG,
-                    "setDevicePower: No active client found for MAC address ${device.device.macAddress}",
+                    "setDevicePower: No active client found for MAC address $mac",
                 )
                 return@launch
             }
-            Log.d(TAG, "Setting isOn for ${device.device.macAddress} to $isOn")
-            val originalStateInfo = device.stateInfo
-            val optimisticStateInfo = originalStateInfo?.copy(
-                state = originalStateInfo.state.copy(isOn = isOn),
-            )
-            if (optimisticStateInfo != null) {
-                updateDeviceState(device.copy(stateInfo = optimisticStateInfo))
+            Log.d(TAG, "Setting isOn for $mac to $isOn")
+            val previousIsOn = _allDevicesWithState.value.firstOrNull { it.device.macAddress == mac }
+                ?.stateInfo?.state?.isOn
+
+            _allDevicesWithState.update { list ->
+                list.map { current ->
+                    if (current.device.macAddress == mac && current.stateInfo != null) {
+                        current.copy(
+                            stateInfo = current.stateInfo.copy(
+                                state = current.stateInfo.state.copy(isOn = isOn),
+                            ),
+                        )
+                    } else {
+                        current
+                    }
+                }
             }
+
             val success = client.sendState(State(isOn = isOn))
-            if (!success && originalStateInfo != null) {
-                updateDeviceState(device.copy(stateInfo = originalStateInfo))
+            if (!success && previousIsOn != null) {
+                _allDevicesWithState.update { list ->
+                    list.map { current ->
+                        if (current.device.macAddress == mac && current.stateInfo != null) {
+                            current.copy(
+                                stateInfo = current.stateInfo.copy(
+                                    state = current.stateInfo.state.copy(isOn = previousIsOn),
+                                ),
+                            )
+                        } else {
+                            current
+                        }
+                    }
+                }
             }
         }
     }

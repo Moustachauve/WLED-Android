@@ -47,7 +47,8 @@ class SaveDeviceStateUseCase @Inject constructor(
         currentTimeMillis: Long = System.currentTimeMillis(),
     ): Device? = withContext(ioDispatcher) {
         val branch = inferBranch(currentDevice.branch, stateInfo.info.version)
-        val nameChanged = currentDevice.originalName != stateInfo.info.name
+        val hasValidName = stateInfo.info.name.isNotBlank()
+        val nameChanged = hasValidName && currentDevice.originalName != stateInfo.info.name
         val branchChanged = currentDevice.branch != branch
         val timeSinceLastUpdate = currentTimeMillis - currentDevice.lastSeen
         val timeThresholdExceeded = timeSinceLastUpdate > LAST_SEEN_UPDATE_THRESHOLD
@@ -70,7 +71,7 @@ class SaveDeviceStateUseCase @Inject constructor(
 
         if (shouldUpdateDevice) {
             val newDevice = currentDevice.copy(
-                originalName = stateInfo.info.name,
+                originalName = if (hasValidName) stateInfo.info.name else currentDevice.originalName,
                 address = currentDevice.address,
                 lastSeen = currentTimeMillis,
                 branch = branch,

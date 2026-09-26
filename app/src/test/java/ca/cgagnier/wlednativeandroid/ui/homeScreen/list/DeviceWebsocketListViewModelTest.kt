@@ -759,4 +759,43 @@ class DeviceWebsocketListViewModelTest {
 
         job.cancel()
     }
+
+    @Test
+    fun `setBrightness rolls back optimistic state when sendState fails`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        val stateInfo = DeviceStateInfo(
+            state = State(isOn = true, brightness = 50),
+            info = Info(
+                version = "16.0.1",
+                name = "Device 1",
+                leds = Leds(count = 60),
+                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+            ),
+        )
+        holder.incomingFlow.emit(stateInfo)
+        advanceUntilIdle()
+
+        val deviceBefore = viewModel.allDevicesWithState.value.first()
+        assertEquals(50, deviceBefore.stateInfo?.state?.brightness)
+
+        // Mock sendState failure
+        coEvery { holder.client.sendState(any()) } returns false
+
+        viewModel.setBrightness(deviceBefore, 200)
+        advanceUntilIdle()
+
+        // Rolled back to 50 on failure
+        val deviceAfter = viewModel.allDevicesWithState.value.first()
+        assertEquals(50, deviceAfter.stateInfo?.state?.brightness)
+
+        job.cancel()
+    }
 }
