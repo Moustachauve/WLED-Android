@@ -181,7 +181,7 @@ complexity:
 coroutines:
   active: true
   GlobalCoroutineUsage:
-    active: false
+    active: true
   InjectDispatcher:
     active: true
     dispatcherNames:
@@ -193,7 +193,7 @@ coroutines:
   SleepInsteadOfDelay:
     active: true
   SuspendFunSwallowedCancellation:
-    active: false
+    active: true
   SuspendFunWithCoroutineScopeReceiver:
     active: false
   SuspendFunWithFlowReturnType:
@@ -418,13 +418,13 @@ potential-bugs:
     forbiddenTypePatterns:
       - 'kotlin.String'
   CastNullableToNonNullableType:
-    active: false
+    active: true
   CastToNullableType:
     active: false
   Deprecation:
     active: false
   DontDowncastCollectionTypes:
-    active: false
+    active: true
   DoubleMutabilityForCollection:
     active: true
     mutableTypes:
@@ -444,7 +444,7 @@ potential-bugs:
   EqualsWithHashCodeExist:
     active: true
   ExitOutsideMain:
-    active: false
+    active: true
   ExplicitGarbageCollectionCall:
     active: true
   HasPlatformType:
@@ -483,12 +483,12 @@ potential-bugs:
   MapGetWithNotNullAssertionOperator:
     active: true
   MissingPackageDeclaration:
-    active: false
+    active: true
     excludes: ['**/*.kts']
   NullCheckOnMutableProperty:
     active: false
   NullableToStringCall:
-    active: false
+    active: true
   PropertyUsedBeforeDeclaration:
     active: false
   UnconditionalJumpStatementInLoop:
@@ -673,7 +673,7 @@ style:
   OptionalUnit:
     active: false
   PreferToOverPairSyntax:
-    active: false
+    active: true
   ProtectedMemberInFinalClass:
     active: true
   RedundantExplicitType:
@@ -695,7 +695,7 @@ style:
   SerialVersionUIDInSerializableClass:
     active: true
   SpacingBetweenPackageAndImports:
-    active: false
+    active: true
   StringShouldBeRawString:
     active: false
     maxEscapedCharacterCount: 2
@@ -722,7 +722,7 @@ style:
   UnnecessaryApply:
     active: true
   UnnecessaryBackticks:
-    active: false
+    active: true
   UnnecessaryBracesAroundTrailingLambda:
     active: false
   UnnecessaryFilter:
@@ -730,14 +730,14 @@ style:
   UnnecessaryInheritance:
     active: true
   UnnecessaryInnerClass:
-    active: false
+    active: true
   UnnecessaryLet:
     active: false
   UnnecessaryParentheses:
-    active: false
-    allowForUnclearPrecedence: false
+    active: true
+    allowForUnclearPrecedence: true
   UntilInsteadOfRangeTo:
-    active: false
+    active: true
   UnusedImports:
     active: true
   UnusedParameter:
@@ -765,9 +765,9 @@ style:
     active: false
     allowVars: false
   UseEmptyCounterpart:
-    active: false
+    active: true
   UseIfEmptyOrIfBlank:
-    active: false
+    active: true
   UseIfInsteadOfWhen:
     active: false
     ignoreWhenContainingVariableDeclaration: false

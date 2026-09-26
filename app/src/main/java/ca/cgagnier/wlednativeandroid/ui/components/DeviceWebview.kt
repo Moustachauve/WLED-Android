@@ -1128,7 +1128,7 @@ val webStateSaver: Saver<WebViewState, Any> = run {
             WebViewState(WebContent.NavigatorOnly).apply {
                 this.pageTitle = it[pageTitleKey] as String?
                 this.lastLoadedUrl = it[lastLoadedUrlKey] as String?
-                this.isError = (it[isErrorKey] as Boolean?) ?: false
+                this.isError = it[isErrorKey] as Boolean? ?: false
                 this.viewState = it[stateBundle] as Bundle?
             }
         },

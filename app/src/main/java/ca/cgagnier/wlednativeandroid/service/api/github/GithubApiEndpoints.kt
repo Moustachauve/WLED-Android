@@ -74,7 +74,7 @@ class KtorGithubApiEndpoints(private val httpClient: HttpClient, private val bas
                     outputStream.write(buffer, 0, bytesRead)
                     progressBytes += bytesRead
                     if (totalBytes > 0) {
-                        emit(DownloadState.Downloading(((progressBytes * PERCENT_MAX) / totalBytes).toInt()))
+                        emit(DownloadState.Downloading((progressBytes * PERCENT_MAX / totalBytes).toInt()))
                     }
                 }
             }

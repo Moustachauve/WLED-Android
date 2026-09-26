@@ -17,7 +17,7 @@ const val MAX_BRIGHTNESS_PERCENT = 100f
  * @return The brightness as a percentage (0.0-100.0)
  */
 fun brightnessToPercent(brightness: Int): Float =
-    (brightness.coerceIn(0, MAX_BRIGHTNESS) / MAX_BRIGHTNESS.toFloat()) * MAX_BRIGHTNESS_PERCENT
+    brightness.coerceIn(0, MAX_BRIGHTNESS) / MAX_BRIGHTNESS.toFloat() * MAX_BRIGHTNESS_PERCENT
 
 /**
  * Converts percentage (0.0-100.0) to WLED brightness (0-255).
@@ -26,4 +26,4 @@ fun brightnessToPercent(brightness: Int): Float =
  * @return The brightness value for WLED (0-255)
  */
 fun percentToBrightness(percent: Float): Int =
-    ((percent.coerceIn(0f, MAX_BRIGHTNESS_PERCENT) / MAX_BRIGHTNESS_PERCENT) * MAX_BRIGHTNESS).toInt()
+    (percent.coerceIn(0f, MAX_BRIGHTNESS_PERCENT) / MAX_BRIGHTNESS_PERCENT * MAX_BRIGHTNESS).toInt()
