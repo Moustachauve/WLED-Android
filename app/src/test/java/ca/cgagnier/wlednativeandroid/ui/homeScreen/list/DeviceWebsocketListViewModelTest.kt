@@ -39,6 +39,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -132,8 +133,9 @@ class DeviceWebsocketListViewModelTest {
         applicationContext = applicationContext,
         backgroundDispatcher = testDispatcher,
         ioDispatcher = testDispatcher,
-        currentTimeProvider = currentTimeProvider,
-    )
+    ).apply {
+        this.currentTimeProvider = currentTimeProvider
+    }
 
     @Test
     fun `initial device emission creates clients and updates allDevicesWithState`() = runTest(testDispatcher) {
@@ -672,6 +674,88 @@ class DeviceWebsocketListViewModelTest {
 
         coVerify(exactly = 2) { deviceUpdateManager.checkForUpdate(any(), any()) }
         assertEquals("0.14.1", viewModel.allDevicesWithState.value.first().updateVersionTag)
+
+        job.cancel()
+    }
+
+    @Test
+    fun `incoming stateInfo clears updateVersionTag when device is updated to latest version`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel()
+            val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.allDevicesWithState.collect {}
+            }
+
+            allDevicesDbFlow.value = listOf(device1)
+            advanceUntilIdle()
+
+            val holder = createdClients[device1.macAddress]!!
+            val stateInfoOld = DeviceStateInfo(
+                state = State(isOn = true),
+                info = Info(
+                    version = "16.0.0",
+                    name = "Device 1",
+                    leds = Leds(count = 60),
+                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+                ),
+            )
+            // Update available
+            coEvery {
+                deviceUpdateManager.checkForUpdate(any(), match { it.info.version == "16.0.0" })
+            } returns "16.0.1"
+
+            holder.incomingFlow.emit(stateInfoOld)
+            advanceUntilIdle()
+            assertEquals("16.0.1", viewModel.allDevicesWithState.value.first().updateVersionTag)
+
+            // Device reboots and sends new version 16.0.1 (now up to date)
+            val stateInfoNew = stateInfoOld.copy(info = stateInfoOld.info.copy(version = "16.0.1"))
+            coEvery {
+                deviceUpdateManager.checkForUpdate(any(), match { it.info.version == "16.0.1" })
+            } returns null
+
+            holder.incomingFlow.emit(stateInfoNew)
+            advanceUntilIdle()
+            assertNull(viewModel.allDevicesWithState.value.first().updateVersionTag)
+
+            job.cancel()
+        }
+
+    @Test
+    fun `setDevicePower rolls back optimistic state when sendState fails`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        val stateInfo = DeviceStateInfo(
+            state = State(isOn = false),
+            info = Info(
+                version = "16.0.1",
+                name = "Device 1",
+                leds = Leds(count = 60),
+                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+            ),
+        )
+        holder.incomingFlow.emit(stateInfo)
+        advanceUntilIdle()
+
+        val deviceBefore = viewModel.allDevicesWithState.value.first()
+        assertEquals(false, deviceBefore.stateInfo?.state?.isOn)
+
+        // Mock sendState failure
+        coEvery { holder.client.sendState(any()) } returns false
+
+        viewModel.setDevicePower(deviceBefore, true)
+        advanceUntilIdle()
+
+        // Rolled back to false on failure
+        val deviceAfter = viewModel.allDevicesWithState.value.first()
+        assertEquals(false, deviceAfter.stateInfo?.state?.isOn)
 
         job.cancel()
     }

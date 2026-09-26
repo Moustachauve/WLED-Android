@@ -139,22 +139,16 @@ class DeviceEditViewModel @Inject constructor(
     }
 
     /**
-     * Called when the OTA install dialog is dismissed.
-     */
-    fun stopUpdateInstall() {
-        updateInstallVersion.value = null
-    }
-
-    /**
-     * Called when the OTA install process completes. Updates device state if successful.
+     * Called when the OTA install dialog is dismissed or completed.
+     * Updates device state if successful.
      */
     fun stopUpdateInstall(
-        device: DeviceWithState,
-        version: VersionWithAssets?,
-        wasSuccessful: Boolean,
+        device: DeviceWithState? = null,
+        version: VersionWithAssets? = null,
+        wasSuccessful: Boolean = false,
     ): DeviceWithState? {
         updateInstallVersion.value = null
-        if (!wasSuccessful || device.stateInfo == null || version == null) {
+        if (!wasSuccessful || device?.stateInfo == null || version == null) {
             return null
         }
         val installedTag = version.version.tagName.removePrefix("v")

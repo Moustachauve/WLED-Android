@@ -29,6 +29,10 @@ class SaveDeviceStateUseCase @Inject constructor(
         const val LAST_SEEN_UPDATE_THRESHOLD = 15 * 60 * 1000L // 15 minutes
     }
 
+    private val repositoryIdCache = java.util.concurrent.ConcurrentHashMap<String, Long>().apply {
+        put(Repository.DEFAULT_OWNER_REPO, Repository.DEFAULT_ID)
+    }
+
     /**
      * Evaluates stateInfo against currentDevice and persists updates if changed.
      *
@@ -42,15 +46,7 @@ class SaveDeviceStateUseCase @Inject constructor(
         stateInfo: DeviceStateInfo,
         currentTimeMillis: Long = System.currentTimeMillis(),
     ): Device? = withContext(ioDispatcher) {
-        var branch = currentDevice.branch
-        if (branch == Branch.UNKNOWN) {
-            branch = if (stateInfo.info.version?.contains("-b") == true) {
-                Branch.BETA
-            } else {
-                Branch.STABLE
-            }
-        }
-
+        val branch = inferBranch(currentDevice.branch, stateInfo.info.version)
         val nameChanged = currentDevice.originalName != stateInfo.info.name
         val branchChanged = currentDevice.branch != branch
         val timeSinceLastUpdate = currentTimeMillis - currentDevice.lastSeen
@@ -59,17 +55,15 @@ class SaveDeviceStateUseCase @Inject constructor(
         val repositoryStr = getRepositoryFromInfo(stateInfo.info)
         val isDefaultRepo = repositoryStr == Repository.DEFAULT_OWNER_REPO &&
             currentDevice.repositoryId == Repository.DEFAULT_ID
+        val cachedRepoId = repositoryIdCache[repositoryStr]
+        val isRepoUnchanged = isDefaultRepo || (cachedRepoId != null && cachedRepoId == currentDevice.repositoryId)
 
         val needsPersistence = nameChanged || branchChanged || timeThresholdExceeded
-        if (!needsPersistence && isDefaultRepo) {
+        if (!needsPersistence && isRepoUnchanged) {
             return@withContext null
         }
 
-        val repoIdToSave = if (isDefaultRepo) {
-            Repository.DEFAULT_ID
-        } else {
-            repositoryDao.getOrCreateRepositoryId(repositoryStr)
-        }
+        val repoIdToSave = resolveRepositoryId(repositoryStr, isDefaultRepo)
         val repositoryChanged = currentDevice.repositoryId != repoIdToSave
 
         val shouldUpdateDevice = needsPersistence || repositoryChanged
@@ -87,6 +81,20 @@ class SaveDeviceStateUseCase @Inject constructor(
             newDevice
         } else {
             null
+        }
+    }
+
+    private fun inferBranch(currentBranch: Branch, version: String?): Branch {
+        if (currentBranch != Branch.UNKNOWN || version.isNullOrBlank()) {
+            return currentBranch
+        }
+        return if (version.contains("-b")) Branch.BETA else Branch.STABLE
+    }
+
+    private suspend fun resolveRepositoryId(repositoryStr: String, isDefaultRepo: Boolean): Long {
+        if (isDefaultRepo) return Repository.DEFAULT_ID
+        return repositoryIdCache[repositoryStr] ?: repositoryDao.getOrCreateRepositoryId(repositoryStr).also {
+            repositoryIdCache[repositoryStr] = it
         }
     }
 }

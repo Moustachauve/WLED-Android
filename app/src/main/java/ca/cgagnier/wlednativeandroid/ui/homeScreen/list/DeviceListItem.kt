@@ -76,11 +76,7 @@ fun DeviceListItem(
 ) {
     val stateInfo = device.stateInfo
 
-    var checked by remember(stateInfo?.state?.isOn) {
-        mutableStateOf(
-            stateInfo?.state?.isOn ?: false,
-        )
-    }
+    val isDeviceOn = stateInfo?.state?.isOn ?: false
     val haptic = LocalHapticFeedback.current
 
     DeviceTheme(device) {
@@ -115,10 +111,9 @@ fun DeviceListItem(
                         )
                         Switch(
                             modifier = Modifier.padding(start = 10.dp),
-                            checked = checked,
+                            checked = isDeviceOn,
                             onCheckedChange = { isOn ->
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                checked = isOn
                                 onPowerSwitchToggle(isOn)
                             },
                         )

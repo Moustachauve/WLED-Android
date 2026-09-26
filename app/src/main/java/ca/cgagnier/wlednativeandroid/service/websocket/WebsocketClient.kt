@@ -35,8 +35,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerializationException
@@ -53,6 +51,7 @@ import kotlin.random.Random
  * Manages connection lifecycle, frame encode/decode, exponential backoff with jitter,
  * and reactive state exposure via Kotlin Coroutines and Flows.
  */
+@Suppress("LongParameterList")
 class WebsocketClient(
     device: Device,
     private val httpClient: HttpClient,
@@ -60,6 +59,11 @@ class WebsocketClient(
     private val coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
     coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + coroutineDispatcher),
     private val random: Random = Random.Default,
+    private val sessionOpener: suspend (HttpClient, String) -> DefaultClientWebSocketSession = { client, url ->
+        client.webSocketSession(url) {
+            header(HttpHeaders.UserAgent, USER_AGENT)
+        }
+    },
 ) {
 
     @Volatile
@@ -81,19 +85,12 @@ class WebsocketClient(
 
     private val isManuallyDisconnected = AtomicBoolean(false)
     private val isDestroyed = AtomicBoolean(false)
-    private val sendMutex = Mutex()
 
     @Volatile
     private var connectionJob: Job? = null
 
     @Volatile
     private var currentSession: DefaultClientWebSocketSession? = null
-
-    internal var openSession: suspend (String) -> DefaultClientWebSocketSession = { url ->
-        httpClient.webSocketSession(url) {
-            header(HttpHeaders.UserAgent, USER_AGENT)
-        }
-    }
 
     fun connect() {
         val oldJob: Job?
@@ -188,7 +185,7 @@ class WebsocketClient(
             val url = buildWebsocketUrl(device.address)
             Log.d(TAG, "Connecting to $url (attempt $retryCount)")
 
-            session = openSession(url)
+            session = sessionOpener(httpClient, url)
 
             val sessionBound = synchronized(this) {
                 if (coroutineContext.isActive && connectionJob === myJob && !isManuallyDisconnected.get()) {
@@ -233,11 +230,15 @@ class WebsocketClient(
         }
         withContext(NonCancellable) {
             try {
-                withTimeoutOrNull(CLOSE_TIMEOUT_MS) {
+                val closedGracefully = withTimeoutOrNull(CLOSE_TIMEOUT_MS) {
                     session?.close(CloseReason(CloseReason.Codes.NORMAL, "Session ended"))
+                    true
                 }
-            } catch (_: Exception) {
-                // Ignore failure during close
+                if (closedGracefully != true) {
+                    session?.cancel(CancellationException("Session close timed out"))
+                }
+            } catch (e: Exception) {
+                session?.cancel(CancellationException("Session close failed", e))
             }
         }
     }
@@ -277,7 +278,7 @@ class WebsocketClient(
     }
 
     @Suppress("TooGenericExceptionCaught")
-    suspend fun sendState(state: State): Boolean = sendMutex.withLock {
+    suspend fun sendState(state: State): Boolean {
         if (isDestroyed.get()) {
             Log.w(TAG, "Cannot send state: WebsocketClient for ${device.address} has been destroyed")
             return false

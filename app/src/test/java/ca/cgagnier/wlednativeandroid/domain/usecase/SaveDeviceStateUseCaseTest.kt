@@ -212,6 +212,65 @@ class SaveDeviceStateUseCaseTest {
         coVerify(exactly = 0) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
     }
 
+    @Test
+    fun `invoke preserves Branch UNKNOWN when info version is null or blank`() = runTest(testDispatcher) {
+        val currentDevice = Device(
+            macAddress = "AABBCCDDEEFF",
+            address = "192.168.1.100",
+            originalName = "WLED",
+            branch = Branch.UNKNOWN,
+            lastSeen = 10000L,
+            repositoryId = Repository.DEFAULT_ID,
+        )
+        val stateInfoNullVersion = createDeviceStateInfo(name = "WLED", version = null)
+
+        val result = useCase(
+            currentDevice,
+            stateInfoNullVersion,
+            currentTimeMillis = currentDevice.lastSeen + SaveDeviceStateUseCase.LAST_SEEN_UPDATE_THRESHOLD + 1000L,
+        )
+        assertNotNull(result)
+        assertEquals(Branch.UNKNOWN, result?.branch)
+    }
+
+    @Test
+    fun `invoke caches custom repository ID and avoids repeated DB queries`() = runTest(testDispatcher) {
+        val customRepoId = 42L
+        val customRepo = Repository(
+            id = customRepoId,
+            name = "custom/WLED",
+            ownerAndRepo = "custom/WLED",
+            description = "",
+            htmlUrl = "https://github.com/custom/WLED",
+        )
+        coEvery { repositoryDao.getRepositoryByOwnerAndRepo("custom/WLED") } returns customRepo
+
+        val currentDevice = Device(
+            macAddress = "AABBCCDDEEFF",
+            address = "192.168.1.100",
+            originalName = "WLED",
+            branch = Branch.STABLE,
+            lastSeen = 10000L,
+            repositoryId = customRepoId,
+        )
+        val stateInfo = createDeviceStateInfo(name = "WLED", version = "16.0.1", repository = "custom/WLED")
+
+        // First frame: needs persistence due to time threshold; resolves custom repo and caches it
+        val result1 = useCase(
+            currentDevice,
+            stateInfo,
+            currentTimeMillis = currentDevice.lastSeen + SaveDeviceStateUseCase.LAST_SEEN_UPDATE_THRESHOLD + 1000L,
+        )
+        assertNotNull(result1)
+        assertEquals(customRepoId, result1?.repositoryId)
+        coVerify(exactly = 1) { repositoryDao.getRepositoryByOwnerAndRepo("custom/WLED") }
+
+        // Second frame: unchanged and within threshold; cache prevents any DB query
+        val result2 = useCase(result1!!, stateInfo, currentTimeMillis = result1.lastSeen + 1000L)
+        assertNull(result2)
+        coVerify(exactly = 1) { repositoryDao.getRepositoryByOwnerAndRepo("custom/WLED") }
+    }
+
     private fun createDeviceStateInfo(
         name: String = "Test Device",
         version: String? = "0.14.0",

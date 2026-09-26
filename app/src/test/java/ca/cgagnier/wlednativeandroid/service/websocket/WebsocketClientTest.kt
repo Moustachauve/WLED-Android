@@ -251,14 +251,14 @@ class WebsocketClientTest {
             json = json,
             coroutineDispatcher = localDispatcher,
             coroutineScope = localScope,
+            sessionOpener = { _, _ ->
+                val attempt = connectionAttempts.incrementAndGet()
+                when (attempt) {
+                    1 -> session1
+                    else -> throw IOException("Subsequent reconnect failed")
+                }
+            },
         )
-        client.openSession = {
-            val attempt = connectionAttempts.incrementAndGet()
-            when (attempt) {
-                1 -> session1
-                else -> throw IOException("Subsequent reconnect failed")
-            }
-        }
 
         client.connect()
         localScope.runCurrent()
@@ -308,14 +308,14 @@ class WebsocketClientTest {
             json = json,
             coroutineDispatcher = localDispatcher,
             coroutineScope = localScope,
+            sessionOpener = { _, _ ->
+                val attempt = connectionAttempts.incrementAndGet()
+                when (attempt) {
+                    1 -> session1
+                    else -> session2
+                }
+            },
         )
-        client.openSession = {
-            val attempt = connectionAttempts.incrementAndGet()
-            when (attempt) {
-                1 -> session1
-                else -> session2
-            }
-        }
 
         client.connect()
         localScope.runCurrent()
