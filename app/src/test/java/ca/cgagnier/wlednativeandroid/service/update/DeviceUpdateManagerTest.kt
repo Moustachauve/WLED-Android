@@ -11,7 +11,6 @@ import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -96,19 +95,6 @@ class DeviceUpdateManagerTest {
         val result = updateManager.checkForUpdate(deviceWithState)
 
         assertEquals("0.14.2", result)
-    }
-
-    @Test
-    fun `getUpdateFlow for single DeviceWithState emits single result`() = runTest {
-        val stateInfo = createDeviceStateInfo(version = "0.14.0")
-        val deviceWithState = DeviceWithState(device = testDevice, stateInfo = stateInfo)
-        coEvery {
-            releaseService.getNewerReleaseTag(any(), any(), any())
-        } returns "0.14.3"
-
-        val result = updateManager.getUpdateFlow(deviceWithState).first()
-
-        assertEquals("0.14.3", result)
     }
 
     @Test

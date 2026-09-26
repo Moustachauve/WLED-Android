@@ -6,9 +6,7 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChangedBy
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -65,37 +63,6 @@ class DeviceUpdateManager @Inject constructor(private val releaseService: Releas
         .map { deviceWithState ->
             checkForUpdate(deviceWithState)
         }
-
-    /**
-     * Returns a [Flow] reacting to separate flows of [Device] and [DeviceStateInfo].
-     */
-    fun getUpdateFlow(deviceFlow: Flow<Device>, stateInfoFlow: Flow<DeviceStateInfo?>): Flow<String?> =
-        combine(deviceFlow, stateInfoFlow) { device, stateInfo ->
-            device to stateInfo
-        }
-            .distinctUntilChangedBy { (device, stateInfo) ->
-                UpdateCheckKey(
-                    macAddress = device.macAddress,
-                    version = stateInfo?.info?.version,
-                    options = stateInfo?.info?.options,
-                    brand = stateInfo?.info?.brand,
-                    product = stateInfo?.info?.product,
-                    repository = stateInfo?.info?.repository,
-                    branch = device.branch,
-                    skipUpdateTag = device.skipUpdateTag,
-                )
-            }
-            .map { (device, stateInfo) ->
-                checkForUpdate(device, stateInfo)
-            }
-
-    /**
-     * Returns a [Flow] that emits the version tag for a single immutable [DeviceWithState].
-     * Since [DeviceWithState] is immutable, this flow emits the result of the update check once.
-     */
-    fun getUpdateFlow(deviceWithState: DeviceWithState): Flow<String?> = flow {
-        emit(checkForUpdate(deviceWithState))
-    }
 
     private data class UpdateCheckKey(
         val macAddress: String,

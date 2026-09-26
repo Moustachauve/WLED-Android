@@ -27,6 +27,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -53,15 +54,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
     private val activeClients = ConcurrentHashMap<String, WebsocketClient>()
     private val clientJobs = ConcurrentHashMap<String, Job>()
 
-    private val devicesWithStateMap = MutableStateFlow<Map<String, DeviceWithState>>(emptyMap())
-
-    val allDevicesWithState: StateFlow<List<DeviceWithState>> = devicesWithStateMap
-        .map { it.values.toList() }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
-            initialValue = emptyList(),
-        )
+    private val _allDevicesWithState = MutableStateFlow<List<DeviceWithState>>(emptyList())
+    val allDevicesWithState: StateFlow<List<DeviceWithState>> = _allDevicesWithState.asStateFlow()
 
     private val devicesFromDb = deviceRepository.allDevices
 
@@ -138,15 +132,16 @@ class DeviceWebsocketListViewModel @Inject constructor(
             }
         }
 
-        // 3. Atomically update the immutable state map, preserving DB query order
-        devicesWithStateMap.update { currentMap ->
-            val nextMap = LinkedHashMap<String, DeviceWithState>()
-            for (device in newDeviceList) {
+        // 3. Atomically update the immutable state list, preserving DB query order.
+        // List.equals() checks element-by-element order, ensuring DB reorderings emit updates.
+        _allDevicesWithState.update { currentList ->
+            val currentMap = currentList.associateBy { it.device.macAddress }
+            newDeviceList.map { device ->
                 val current = currentMap[device.macAddress]
                 val currentClient = activeClients[device.macAddress]
                 val currentStatus = currentClient?.status?.value ?: WebsocketStatus.DISCONNECTED
 
-                nextMap[device.macAddress] = if (current != null) {
+                if (current != null) {
                     current.copy(
                         device = device,
                         websocketStatus = currentClient?.status?.value ?: current.websocketStatus,
@@ -159,7 +154,6 @@ class DeviceWebsocketListViewModel @Inject constructor(
                     )
                 }
             }
-            nextMap
         }
     }
 
@@ -184,17 +178,22 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
     private fun onClientStatusChanged(mac: String, status: WebsocketStatus) {
         Log.d(TAG, "Device $mac status changed to $status")
-        devicesWithStateMap.update { currentMap ->
-            val current = currentMap[mac] ?: return@update currentMap
-            if (current.websocketStatus == status) return@update currentMap
-            val nextMap = LinkedHashMap(currentMap)
-            nextMap[mac] = current.copy(websocketStatus = status)
-            nextMap
+        _allDevicesWithState.update { currentList ->
+            var changed = false
+            val nextList = currentList.map { item ->
+                if (item.device.macAddress == mac && item.websocketStatus != status) {
+                    changed = true
+                    item.copy(websocketStatus = status)
+                } else {
+                    item
+                }
+            }
+            if (changed) nextList else currentList
         }
     }
 
     private suspend fun onIncomingStateInfo(mac: String, stateInfo: DeviceStateInfo) {
-        val currentSnapshot = devicesWithStateMap.value[mac]
+        val currentSnapshot = _allDevicesWithState.value.firstOrNull { it.device.macAddress == mac }
         val currentDevice = currentSnapshot?.device
             ?: activeClients[mac]?.device
             ?: return
@@ -206,7 +205,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
         }
 
         // 2. Determine update tag outside the CAS block
-        val currentBeforeCas = devicesWithStateMap.value[mac]
+        val currentBeforeCas = _allDevicesWithState.value.firstOrNull { it.device.macAddress == mac }
         val deviceToUse = if (updatedDevice != null) {
             (currentBeforeCas?.device ?: currentDevice).copy(
                 originalName = updatedDevice.originalName,
@@ -220,30 +219,36 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
         val updateTag = determineUpdateTag(currentBeforeCas, deviceToUse, stateInfo, mac)
 
-        // 3. Update reactive state map with new stateInfo and updated device metadata
+        // 3. Update reactive state list with new stateInfo and updated device metadata
         var updatedDeviceWithState: DeviceWithState? = null
-        devicesWithStateMap.update { currentMap ->
-            val current = currentMap[mac] ?: return@update currentMap
-            val finalDevice = if (updatedDevice != null) {
-                current.device.copy(
-                    originalName = updatedDevice.originalName,
-                    branch = updatedDevice.branch,
-                    repositoryId = updatedDevice.repositoryId,
-                    lastSeen = updatedDevice.lastSeen,
-                )
-            } else {
-                current.device
-            }
+        _allDevicesWithState.update { currentList ->
+            var changed = false
+            val nextList = currentList.map { current ->
+                if (current.device.macAddress == mac) {
+                    changed = true
+                    val finalDevice = if (updatedDevice != null) {
+                        current.device.copy(
+                            originalName = updatedDevice.originalName,
+                            branch = updatedDevice.branch,
+                            repositoryId = updatedDevice.repositoryId,
+                            lastSeen = updatedDevice.lastSeen,
+                        )
+                    } else {
+                        current.device
+                    }
 
-            val newDeviceWithState = current.copy(
-                device = finalDevice,
-                stateInfo = stateInfo,
-                updateVersionTag = updateTag,
-            )
-            updatedDeviceWithState = newDeviceWithState
-            val nextMap = LinkedHashMap(currentMap)
-            nextMap[mac] = newDeviceWithState
-            nextMap
+                    val newDeviceWithState = current.copy(
+                        device = finalDevice,
+                        stateInfo = stateInfo,
+                        updateVersionTag = updateTag,
+                    )
+                    updatedDeviceWithState = newDeviceWithState
+                    newDeviceWithState
+                } else {
+                    current
+                }
+            }
+            if (changed) nextList else currentList
         }
 
         // 4. Update Glance widgets with latest authoritative state
