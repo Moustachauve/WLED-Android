@@ -150,11 +150,12 @@ class SaveDeviceStateUseCaseTest {
         )
         val stateInfo = createDeviceStateInfo(name = "WLED", version = "0.14.0")
 
-        // Delta is 5001ms > LAST_SEEN_UPDATE_THRESHOLD (5000ms)
-        val result = useCase(currentDevice, stateInfo, currentTimeMillis = 15001L)
+        // Delta exceeds LAST_SEEN_UPDATE_THRESHOLD
+        val updatedTime = currentDevice.lastSeen + SaveDeviceStateUseCase.LAST_SEEN_UPDATE_THRESHOLD + 1L
+        val result = useCase(currentDevice, stateInfo, currentTimeMillis = updatedTime)
 
         assertNotNull(result)
-        assertEquals(15001L, result?.lastSeen)
+        assertEquals(updatedTime, result?.lastSeen)
         coVerify(exactly = 1) { deviceRepository.update(result!!) }
     }
 
@@ -170,8 +171,9 @@ class SaveDeviceStateUseCaseTest {
         )
         val stateInfo = createDeviceStateInfo(name = "WLED", version = "0.14.0")
 
-        // Delta is 3000ms <= LAST_SEEN_UPDATE_THRESHOLD (5000ms)
-        val result = useCase(currentDevice, stateInfo, currentTimeMillis = 13000L)
+        // Delta is within LAST_SEEN_UPDATE_THRESHOLD
+        val withinThresholdTime = currentDevice.lastSeen + (SaveDeviceStateUseCase.LAST_SEEN_UPDATE_THRESHOLD / 2)
+        val result = useCase(currentDevice, stateInfo, currentTimeMillis = withinThresholdTime)
 
         assertNull(result)
         coVerify(exactly = 0) { deviceRepository.update(any()) }
@@ -195,7 +197,8 @@ class SaveDeviceStateUseCaseTest {
         coVerify(exactly = 0) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
 
         // Second frame exceeding threshold: triggers persistence, but uses Repository.DEFAULT_ID without DB query
-        val result2 = useCase(currentDevice, stateInfo, currentTimeMillis = 16000L)
+        val exceedingTime = currentDevice.lastSeen + SaveDeviceStateUseCase.LAST_SEEN_UPDATE_THRESHOLD + 1000L
+        val result2 = useCase(currentDevice, stateInfo, currentTimeMillis = exceedingTime)
         assertNotNull(result2)
         assertEquals(Repository.DEFAULT_ID, result2?.repositoryId)
         coVerify(exactly = 0) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
@@ -203,7 +206,8 @@ class SaveDeviceStateUseCaseTest {
 
         // Subsequent frames within threshold: no DB query and no update
         val updatedDevice = result2!!
-        val result3 = useCase(updatedDevice, stateInfo, currentTimeMillis = 17000L)
+        val subsequentTime = updatedDevice.lastSeen + 1000L
+        val result3 = useCase(updatedDevice, stateInfo, currentTimeMillis = subsequentTime)
         assertNull(result3)
         coVerify(exactly = 0) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
     }

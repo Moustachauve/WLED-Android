@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -79,6 +80,7 @@ class WebsocketClient(
     val incomingStateInfo: SharedFlow<DeviceStateInfo> = _incomingStateInfo.asSharedFlow()
 
     private val isManuallyDisconnected = AtomicBoolean(false)
+    private val isDestroyed = AtomicBoolean(false)
     private val sendMutex = Mutex()
 
     @Volatile
@@ -87,9 +89,19 @@ class WebsocketClient(
     @Volatile
     private var currentSession: DefaultClientWebSocketSession? = null
 
+    internal var openSession: suspend (String) -> DefaultClientWebSocketSession = { url ->
+        httpClient.webSocketSession(url) {
+            header(HttpHeaders.UserAgent, USER_AGENT)
+        }
+    }
+
     fun connect() {
         val oldJob: Job?
         synchronized(this) {
+            if (isDestroyed.get()) {
+                Log.w(TAG, "Cannot connect: WebsocketClient for ${device.address} has been destroyed")
+                return
+            }
             isManuallyDisconnected.set(false)
             val currentJob = connectionJob
             if (currentJob?.isActive == true) {
@@ -102,7 +114,7 @@ class WebsocketClient(
                     return
                 }
             } else {
-                oldJob = null
+                oldJob = currentJob
             }
             _status.value = WebsocketStatus.CONNECTING
             connectionJob = clientScope.launch(coroutineDispatcher) {
@@ -117,7 +129,6 @@ class WebsocketClient(
         synchronized(this) {
             isManuallyDisconnected.set(true)
             connectionJob?.cancel(CancellationException("Manual disconnect"))
-            connectionJob = null
             _status.value = WebsocketStatus.DISCONNECTED
         }
     }
@@ -128,6 +139,7 @@ class WebsocketClient(
 
     fun destroy() {
         Log.d(TAG, "Destroying WebsocketClient for ${device.address}")
+        isDestroyed.set(true)
         disconnect()
         clientJob.cancel()
     }
@@ -176,9 +188,7 @@ class WebsocketClient(
             val url = buildWebsocketUrl(device.address)
             Log.d(TAG, "Connecting to $url (attempt $retryCount)")
 
-            session = httpClient.webSocketSession(url) {
-                header(HttpHeaders.UserAgent, USER_AGENT)
-            }
+            session = openSession(url)
 
             val sessionBound = synchronized(this) {
                 if (coroutineContext.isActive && connectionJob === myJob && !isManuallyDisconnected.get()) {
@@ -268,12 +278,25 @@ class WebsocketClient(
 
     @Suppress("TooGenericExceptionCaught")
     suspend fun sendState(state: State): Boolean = sendMutex.withLock {
-        val session = currentSession
+        if (isDestroyed.get()) {
+            Log.w(TAG, "Cannot send state: WebsocketClient for ${device.address} has been destroyed")
+            return false
+        }
+        var session = currentSession
         if (session == null || !session.isActive) {
-            Log.w(TAG, "Cannot send state: WebSocket not connected to ${device.address}")
             if (_status.value == WebsocketStatus.DISCONNECTED && !isManuallyDisconnected.get()) {
                 connect()
             }
+            if (_status.value == WebsocketStatus.CONNECTING) {
+                withTimeoutOrNull(AWAIT_CONNECT_TIMEOUT_MS) {
+                    _status.first { it != WebsocketStatus.CONNECTING }
+                }
+                session = currentSession
+            }
+        }
+
+        if (session == null || !session.isActive) {
+            Log.w(TAG, "Cannot send state: WebSocket not connected to ${device.address}")
             return false
         }
 
@@ -317,6 +340,7 @@ class WebsocketClient(
         private const val BASE_BACKOFF_MS = 2000L
         private const val MAX_BACKOFF_MS = 60000L
         private const val CLOSE_TIMEOUT_MS = 1000L
+        private const val AWAIT_CONNECT_TIMEOUT_MS = 2000L
         private const val JITTER_RATIO = 0.25
         private const val MAX_RETRY_EXPONENT = 30
         private const val BUFFER_CAPACITY = 64
@@ -331,13 +355,18 @@ class WebsocketClient(
             require(retryCount >= 0) { "retryCount must be non-negative" }
             val effectiveExponent = retryCount.coerceAtMost(MAX_RETRY_EXPONENT)
             val rawExponential = baseDelayMs * (1L shl effectiveExponent)
-            val cappedExponential = rawExponential.coerceAtMost(maxDelayMs)
 
-            val minFactor = (1.0 - jitterRatio).coerceAtLeast(0.0)
-            val maxFactor = 1.0 + jitterRatio
-            val jitterFactor = random.nextDouble(minFactor, maxFactor)
+            val minDelay = (rawExponential * (1.0 - jitterRatio)).toLong()
+                .coerceAtMost((maxDelayMs * (1.0 - jitterRatio)).toLong())
+                .coerceAtLeast(0L)
+            val maxDelay = (rawExponential * (1.0 + jitterRatio)).toLong()
+                .coerceAtMost(maxDelayMs)
+                .coerceAtLeast(minDelay)
 
-            return (cappedExponential * jitterFactor).toLong().coerceIn(0L, maxDelayMs)
+            if (minDelay >= maxDelay) return maxDelay
+
+            val factor = random.nextDouble(0.0, 1.0)
+            return minDelay + ((maxDelay - minDelay) * factor).toLong()
         }
     }
 }

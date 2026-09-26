@@ -26,7 +26,7 @@ class SaveDeviceStateUseCase @Inject constructor(
 ) {
     companion object {
         private const val TAG = "SaveDeviceStateUseCase"
-        const val LAST_SEEN_UPDATE_THRESHOLD = 5000L // 5 seconds
+        const val LAST_SEEN_UPDATE_THRESHOLD = 15 * 60 * 1000L // 15 minutes
     }
 
     /**

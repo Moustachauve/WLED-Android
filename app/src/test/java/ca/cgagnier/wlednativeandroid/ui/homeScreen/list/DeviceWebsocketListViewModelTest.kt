@@ -120,7 +120,9 @@ class DeviceWebsocketListViewModelTest {
         createdClients.clear()
     }
 
-    private fun createViewModel(): DeviceWebsocketListViewModel = DeviceWebsocketListViewModel(
+    private fun createViewModel(
+        currentTimeProvider: () -> Long = System::currentTimeMillis,
+    ): DeviceWebsocketListViewModel = DeviceWebsocketListViewModel(
         userPreferencesRepository = userPreferencesRepository,
         deviceRepository = deviceRepository,
         websocketClientFactory = websocketClientFactory,
@@ -129,6 +131,8 @@ class DeviceWebsocketListViewModelTest {
         deviceUpdateManager = deviceUpdateManager,
         applicationContext = applicationContext,
         backgroundDispatcher = testDispatcher,
+        ioDispatcher = testDispatcher,
+        currentTimeProvider = currentTimeProvider,
     )
 
     @Test
@@ -210,6 +214,48 @@ class DeviceWebsocketListViewModelTest {
 
         job.cancel()
     }
+
+    @Test
+    fun `subsequent incoming frame with identical widget-visible state skips widget update`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel()
+            val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.allDevicesWithState.collect {}
+            }
+
+            allDevicesDbFlow.value = listOf(device1)
+            advanceUntilIdle()
+
+            val holder = createdClients[device1.macAddress]!!
+            val stateInfo1 = DeviceStateInfo(
+                state = State(isOn = true, brightness = 128),
+                info = Info(
+                    version = "16.0.1",
+                    name = "Device 1",
+                    leds = Leds(count = 60),
+                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+                ),
+            )
+
+            holder.incomingFlow.emit(stateInfo1)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { widgetManager.updateWidgetsFromDeviceWithState(applicationContext, any()) }
+
+            // Second frame only changes wifi rssi / signal, which is not widget-visible
+            val stateInfo2 = stateInfo1.copy(
+                info = stateInfo1.info.copy(
+                    wifi = Wifi(bssid = "mac", rssi = -70, signal = 60, channel = 1),
+                ),
+            )
+            holder.incomingFlow.emit(stateInfo2)
+            advanceUntilIdle()
+
+            // Still exactly 1 call: redundant widget update broadcast is skipped
+            coVerify(exactly = 1) { widgetManager.updateWidgetsFromDeviceWithState(applicationContext, any()) }
+
+            job.cancel()
+        }
 
     @Test
     fun `device address changed reconnects client`() = runTest(testDispatcher) {
@@ -581,9 +627,8 @@ class DeviceWebsocketListViewModelTest {
 
     @Test
     fun `incoming stateInfo retries update check after failure and cooldown`() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
         var fakeTime = 100_000L
-        viewModel.clock = { fakeTime }
+        val viewModel = createViewModel(currentTimeProvider = { fakeTime })
 
         val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.allDevicesWithState.collect {}
