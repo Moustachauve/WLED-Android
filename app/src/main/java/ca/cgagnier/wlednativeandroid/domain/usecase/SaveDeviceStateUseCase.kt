@@ -1,6 +1,7 @@
 package ca.cgagnier.wlednativeandroid.domain.usecase
 
 import android.util.Log
+import ca.cgagnier.wlednativeandroid.di.IoDispatcher
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.Repository
@@ -9,6 +10,9 @@ import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -18,6 +22,7 @@ import javax.inject.Inject
 class SaveDeviceStateUseCase @Inject constructor(
     private val deviceRepository: DeviceRepository,
     private val repositoryDao: RepositoryDao,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     companion object {
         private const val TAG = "SaveDeviceStateUseCase"
@@ -36,7 +41,7 @@ class SaveDeviceStateUseCase @Inject constructor(
         currentDevice: Device,
         stateInfo: DeviceStateInfo,
         currentTimeMillis: Long = System.currentTimeMillis(),
-    ): Device? {
+    ): Device? = withContext(ioDispatcher) {
         var branch = currentDevice.branch
         if (branch == Branch.UNKNOWN) {
             branch = if (stateInfo.info.version?.contains("-b") == true) {
@@ -57,7 +62,7 @@ class SaveDeviceStateUseCase @Inject constructor(
 
         val needsPersistence = nameChanged || branchChanged || timeThresholdExceeded
         if (!needsPersistence && isDefaultRepo) {
-            return null
+            return@withContext null
         }
 
         val repoIdToSave = if (isDefaultRepo) {
@@ -69,7 +74,7 @@ class SaveDeviceStateUseCase @Inject constructor(
 
         val shouldUpdateDevice = needsPersistence || repositoryChanged
 
-        return if (shouldUpdateDevice) {
+        if (shouldUpdateDevice) {
             val newDevice = currentDevice.copy(
                 originalName = stateInfo.info.name,
                 address = currentDevice.address,

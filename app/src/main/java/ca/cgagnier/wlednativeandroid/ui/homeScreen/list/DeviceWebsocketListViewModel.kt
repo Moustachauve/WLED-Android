@@ -26,6 +26,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
@@ -92,31 +94,37 @@ class DeviceWebsocketListViewModel @Inject constructor(
         }
     }
 
-    private fun syncDevices(newDeviceList: List<Device>) {
+    private suspend fun syncDevices(newDeviceList: List<Device>) {
         val newDeviceMap = newDeviceList.associateBy { it.macAddress }
+        removeStaleClients(newDeviceMap)
+        createOrUpdateClients(newDeviceMap)
 
-        // 1. Identify and destroy clients for devices that are no longer present.
+        val previousStateMap = _allDevicesWithState.value.associateBy { it.device.macAddress }
+        updateDevicesWithStateList(newDeviceList)
+        recheckModifiedDeviceUpdates(newDeviceList, previousStateMap)
+    }
+
+    private fun removeStaleClients(newDeviceMap: Map<String, Device>) {
         val devicesToRemove = activeClients.keys - newDeviceMap.keys
         for (macAddress in devicesToRemove) {
             Log.d(TAG, "[Sync] Device removed: $macAddress. Cancelling job and destroying client.")
             clientJobs.remove(macAddress)?.cancel()
             activeClients.remove(macAddress)?.destroy()
         }
+    }
 
-        // 2. Identify and create/update clients for new or changed devices.
+    private fun createOrUpdateClients(newDeviceMap: Map<String, Device>) {
         for ((macAddress, device) in newDeviceMap) {
             val existingClient = activeClients[macAddress]
             if (existingClient == null) {
-                // Device added: create, observe, and connect client
                 Log.d(TAG, "[Sync] Device added: $macAddress (${device.address}). Creating client.")
-                val newClient = websocketClientFactory.create(device)
+                val newClient = websocketClientFactory.create(device, coroutineScope = viewModelScope)
                 activeClients[macAddress] = newClient
                 startObservingClient(newClient)
                 if (!isPaused.value) {
                     newClient.connect()
                 }
             } else if (existingClient.device.address != device.address) {
-                // Device IP changed: reconnect client
                 Log.d(
                     TAG,
                     "[Sync] Device address changed for $macAddress to ${device.address}. Reconnecting client.",
@@ -124,7 +132,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 clientJobs.remove(macAddress)?.cancel()
                 existingClient.destroy()
 
-                val newClient = websocketClientFactory.create(device)
+                val newClient = websocketClientFactory.create(device, coroutineScope = viewModelScope)
                 activeClients[macAddress] = newClient
                 startObservingClient(newClient)
                 if (!isPaused.value) {
@@ -134,9 +142,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 existingClient.updateDevice(device)
             }
         }
+    }
 
-        // 3. Atomically update the immutable state list, preserving DB query order.
-        // List.equals() checks element-by-element order, ensuring DB reorderings emit updates.
+    private fun updateDevicesWithStateList(newDeviceList: List<Device>) {
         _allDevicesWithState.update { currentList ->
             val currentMap = currentList.associateBy { it.device.macAddress }
             newDeviceList.map { device ->
@@ -145,9 +153,17 @@ class DeviceWebsocketListViewModel @Inject constructor(
                 val currentStatus = currentClient?.status?.value ?: WebsocketStatus.DISCONNECTED
 
                 if (current != null) {
+                    val updateTag = if (device.skipUpdateTag.isNotEmpty() &&
+                        device.skipUpdateTag == current.updateVersionTag
+                    ) {
+                        null
+                    } else {
+                        current.updateVersionTag
+                    }
                     current.copy(
                         device = device,
-                        websocketStatus = currentClient?.status?.value ?: current.websocketStatus,
+                        websocketStatus = currentStatus,
+                        updateVersionTag = updateTag,
                     )
                 } else {
                     DeviceWithState(
@@ -160,9 +176,40 @@ class DeviceWebsocketListViewModel @Inject constructor(
         }
     }
 
+    private suspend fun recheckModifiedDeviceUpdates(
+        newDeviceList: List<Device>,
+        previousStateMap: Map<String, DeviceWithState>,
+    ) {
+        for (device in newDeviceList) {
+            val previous = previousStateMap[device.macAddress]
+            val stateInfo = previous?.stateInfo
+            if (previous != null && stateInfo != null && shouldRecheckDeviceUpdate(device, previous)) {
+                val current = _allDevicesWithState.value.firstOrNull { it.device.macAddress == device.macAddress }
+                val newTag = determineUpdateTag(current, device, stateInfo, device.macAddress)
+                if (newTag != current?.updateVersionTag) {
+                    _allDevicesWithState.update { list ->
+                        list.map {
+                            if (it.device.macAddress == device.macAddress) {
+                                it.copy(updateVersionTag = newTag)
+                            } else {
+                                it
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun shouldRecheckDeviceUpdate(device: Device, previous: DeviceWithState): Boolean {
+        val branchChanged = device.branch != previous.device.branch
+        val unskippedTag = device.skipUpdateTag != previous.device.skipUpdateTag && device.skipUpdateTag.isEmpty()
+        return branchChanged || unskippedTag
+    }
+
     private fun startObservingClient(client: WebsocketClient) {
         val mac = client.device.macAddress
-        val job = viewModelScope.launch(backgroundDispatcher) {
+        val job = viewModelScope.launch(backgroundDispatcher + SupervisorJob()) {
             // Coroutine 1: Observe connection status
             launch {
                 client.status.collect { status ->
@@ -172,7 +219,13 @@ class DeviceWebsocketListViewModel @Inject constructor(
             // Coroutine 2: Observe incoming state info frames
             launch {
                 client.incomingStateInfo.collect { stateInfo ->
-                    onIncomingStateInfo(mac, stateInfo)
+                    try {
+                        onIncomingStateInfo(mac, stateInfo)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing incoming frame for $mac", e)
+                    }
                 }
             }
         }
@@ -223,6 +276,22 @@ class DeviceWebsocketListViewModel @Inject constructor(
         val updateTag = determineUpdateTag(currentBeforeCas, deviceToUse, stateInfo, mac)
 
         // 3. Update reactive state list with new stateInfo and updated device metadata
+        updateStateWithIncomingStateInfo(mac, deviceToUse, updatedDevice, stateInfo, updateTag)
+
+        // 4. Update Glance widgets with latest authoritative state
+        val updatedDeviceWithState = _allDevicesWithState.value.firstOrNull { it.device.macAddress == mac }
+        if (updatedDeviceWithState != null) {
+            updateWidgetsSafe(updatedDeviceWithState, mac)
+        }
+    }
+
+    private fun updateStateWithIncomingStateInfo(
+        mac: String,
+        deviceToUse: Device,
+        updatedDevice: Device?,
+        stateInfo: DeviceStateInfo,
+        updateTag: String?,
+    ) {
         _allDevicesWithState.update { currentList ->
             var changed = false
             val nextList = currentList.map { current ->
@@ -248,13 +317,16 @@ class DeviceWebsocketListViewModel @Inject constructor(
                     current
                 }
             }
-            if (changed) nextList else currentList
-        }
-
-        // 4. Update Glance widgets with latest authoritative state
-        val updatedDeviceWithState = _allDevicesWithState.value.firstOrNull { it.device.macAddress == mac }
-        if (updatedDeviceWithState != null) {
-            updateWidgetsSafe(updatedDeviceWithState, mac)
+            if (changed) {
+                nextList
+            } else {
+                currentList + DeviceWithState(
+                    device = deviceToUse,
+                    stateInfo = stateInfo,
+                    websocketStatus = activeClients[mac]?.status?.value ?: WebsocketStatus.CONNECTED,
+                    updateVersionTag = updateTag,
+                )
+            }
         }
     }
 
@@ -308,7 +380,9 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
     private suspend fun updateWidgetsSafe(state: DeviceWithState, mac: String) {
         try {
-            widgetManager.updateWidgetsFromDeviceWithState(applicationContext, state)
+            withContext(Dispatchers.IO) {
+                widgetManager.updateWidgetsFromDeviceWithState(applicationContext, state)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -358,10 +432,25 @@ class DeviceWebsocketListViewModel @Inject constructor(
     fun refreshOfflineDevices() {
         Log.d(TAG, "Refreshing offline devices.")
         val offlineClients = activeClients.values.filter {
-            it.status.value != WebsocketStatus.CONNECTED
+            it.status.value == WebsocketStatus.DISCONNECTED
         }
         offlineClients.forEach {
             it.connect()
+        }
+    }
+
+    /**
+     * Optimistically updates the in-memory state of a device (e.g. immediately after OTA install).
+     */
+    fun updateDeviceState(updatedDeviceWithState: DeviceWithState) {
+        _allDevicesWithState.update { currentList ->
+            currentList.map { current ->
+                if (current.device.macAddress == updatedDeviceWithState.device.macAddress) {
+                    updatedDeviceWithState
+                } else {
+                    current
+                }
+            }
         }
     }
 

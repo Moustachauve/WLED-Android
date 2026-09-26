@@ -145,6 +145,9 @@ fun DeviceListDetail(
                                 device = device,
                                 canNavigateBack = navigator.canNavigateBack(),
                                 navigateUp = { coroutineScope.launch { navigator.navigateBack() } },
+                                onDeviceUpdated = { updated ->
+                                    deviceWebsocketListViewModel.updateDeviceState(updated)
+                                },
                             )
                         }
                     }

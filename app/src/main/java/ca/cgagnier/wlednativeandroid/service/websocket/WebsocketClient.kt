@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -87,6 +88,7 @@ class WebsocketClient(
     private var currentSession: DefaultClientWebSocketSession? = null
 
     fun connect() {
+        val oldJob: Job?
         synchronized(this) {
             isManuallyDisconnected.set(false)
             val currentJob = connectionJob
@@ -94,13 +96,17 @@ class WebsocketClient(
                 if (_status.value == WebsocketStatus.DISCONNECTED) {
                     Log.d(TAG, "Expediting reconnection for ${device.address}: cancelling backoff delay")
                     currentJob.cancel(CancellationException("Manual connect during backoff delay"))
+                    oldJob = currentJob
                 } else {
                     Log.d(TAG, "Connection already active or connecting for ${device.address}")
                     return
                 }
+            } else {
+                oldJob = null
             }
             _status.value = WebsocketStatus.CONNECTING
             connectionJob = clientScope.launch(coroutineDispatcher) {
+                oldJob?.join()
                 runConnectionLoop()
             }
         }
@@ -211,17 +217,17 @@ class WebsocketClient(
             if (currentSession === session) {
                 currentSession = null
             }
+            if (!isManuallyDisconnected.get() && connectionJob === myJob) {
+                _status.value = WebsocketStatus.DISCONNECTED
+            }
         }
         withContext(NonCancellable) {
             try {
-                session?.close(CloseReason(CloseReason.Codes.NORMAL, "Session ended"))
+                withTimeoutOrNull(CLOSE_TIMEOUT_MS) {
+                    session?.close(CloseReason(CloseReason.Codes.NORMAL, "Session ended"))
+                }
             } catch (_: Exception) {
                 // Ignore failure during close
-            }
-        }
-        synchronized(this) {
-            if (!isManuallyDisconnected.get() && connectionJob === myJob) {
-                _status.value = WebsocketStatus.DISCONNECTED
             }
         }
     }
@@ -285,13 +291,23 @@ class WebsocketClient(
     }
 
     internal fun buildWebsocketUrl(address: String): String {
-        val cleanAddress = address
-            .removePrefix("http://")
-            .removePrefix("https://")
-            .removePrefix("ws://")
-            .removePrefix("wss://")
+        val trimmedAddress = address.trim()
+        val isSecure = trimmedAddress.startsWith("https://", ignoreCase = true) ||
+            trimmedAddress.startsWith("wss://", ignoreCase = true)
+        val scheme = if (isSecure) "wss://" else "ws://"
+
+        val protocolRegex = Regex("^(https?|wss?)://", RegexOption.IGNORE_CASE)
+        val cleanAddress = trimmedAddress
+            .replace(protocolRegex, "")
             .trimEnd('/')
-        return "ws://$cleanAddress/$WEBSOCKET_PATH"
+
+        val hostAndPort = if (cleanAddress.endsWith("/$WEBSOCKET_PATH", ignoreCase = true)) {
+            cleanAddress.substring(0, cleanAddress.length - WEBSOCKET_PATH.length - 1).trimEnd('/')
+        } else {
+            cleanAddress
+        }
+
+        return "$scheme$hostAndPort/$WEBSOCKET_PATH"
     }
 
     companion object {
@@ -300,6 +316,7 @@ class WebsocketClient(
         internal const val USER_AGENT = "WLED-Android"
         private const val BASE_BACKOFF_MS = 2000L
         private const val MAX_BACKOFF_MS = 60000L
+        private const val CLOSE_TIMEOUT_MS = 1000L
         private const val JITTER_RATIO = 0.25
         private const val MAX_RETRY_EXPONENT = 30
         private const val BUFFER_CAPACITY = 64
