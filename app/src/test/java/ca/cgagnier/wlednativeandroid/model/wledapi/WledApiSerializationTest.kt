@@ -1,5 +1,6 @@
 package ca.cgagnier.wlednativeandroid.model.wledapi
 
+import ca.cgagnier.wlednativeandroid.test.TestJson
 import com.diffplug.selfie.Selfie.expectSelfie
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -133,25 +134,16 @@ class WledApiSerializationTest {
         coerceInputValues = true
     }
 
-    private val prettyJson = Json {
-        prettyPrint = true
-        prettyPrintIndent = "  "
-        ignoreUnknownKeys = true
-        isLenient = true
-        explicitNulls = false
-        coerceInputValues = true
-    }
-
     @Test
     fun `test DeviceStateInfo full deserialization with real WLED 16_0_1 data`() {
         val deviceStateInfo = json.decodeFromString<DeviceStateInfo>(SAMPLE_DEVICE_STATE_INFO_JSON)
-        expectSelfie(prettyJson.encodeToString(deviceStateInfo)).toMatchDisk()
+        expectSelfie(TestJson.api.encodeToString(deviceStateInfo)).toMatchDisk()
     }
 
     @Test
     fun `test Info with unknown fields ignores extra keys`() {
         val info = json.decodeFromString<Info>(SAMPLE_UNKNOWN_FIELDS_INFO_JSON)
-        expectSelfie(prettyJson.encodeToString(info)).toBe(
+        expectSelfie(TestJson.api.encodeToString(info)).toBe(
             """{
   "leds": {
     "count": 100
@@ -201,7 +193,7 @@ class WledApiSerializationTest {
                 ),
             ),
         )
-        val serialized = prettyJson.encodeToString(state)
+        val serialized = TestJson.api.encodeToString(state)
         expectSelfie(serialized).toMatchDisk()
     }
 

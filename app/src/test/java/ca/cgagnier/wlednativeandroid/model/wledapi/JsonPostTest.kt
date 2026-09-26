@@ -51,6 +51,6 @@ class JsonPostTest {
     fun `test JsonPost deserialization`() {
         val rawJson = """{"on":true,"bri":255,"v":false}"""
         val parsed = json.decodeFromString<JsonPost>(rawJson)
-        expectSelfie(parsed.toString()).toBe("JsonPost(isOn=true, brightness=255, verbose=false)")
+        expectSelfie(json.encodeToString(parsed)).toBe("""{"on":true,"bri":255,"v":false}""")
     }
 }
