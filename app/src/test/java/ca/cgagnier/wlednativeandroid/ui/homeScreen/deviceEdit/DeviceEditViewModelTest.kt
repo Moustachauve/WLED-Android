@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 
 /**
  * Unit tests for [DeviceEditViewModel].
@@ -68,48 +70,25 @@ class DeviceEditViewModelTest {
 
     // -- stopUpdateInstall: version patching -----------------------------------
 
-    @Test
-    fun `stopUpdateInstall patches stateInfo version on success`() {
+    @ParameterizedTest
+    @CsvSource(
+        "v0.14.0, true, 0.14.0",
+        "v0.14.0, false, 0.13.0",
+        "v0.14.0-b3, true, 0.14.0-b3",
+        "0.14.0, true, 0.14.0",
+    )
+    fun `stopUpdateInstall updates stateInfo version according to success and tag formatting`(
+        tagName: String,
+        wasSuccessful: Boolean,
+        expectedVersion: String,
+    ) {
         val deviceWithState = makeDeviceWithState("0.13.0")
-        val version = makeVersion("v0.14.0")
+        val version = makeVersion(tagName)
 
         viewModel.startUpdateInstall(version)
-        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
+        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = wasSuccessful)
 
-        assertEquals("0.14.0", result?.stateInfo?.info?.version)
-    }
-
-    @Test
-    fun `stopUpdateInstall does not change stateInfo on failure`() {
-        val deviceWithState = makeDeviceWithState("0.13.0")
-        val version = makeVersion("v0.14.0")
-
-        viewModel.startUpdateInstall(version)
-        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = false)
-
-        assertEquals("0.13.0", result?.stateInfo?.info?.version)
-    }
-
-    @Test
-    fun `stopUpdateInstall strips v prefix from tag name`() {
-        val deviceWithState = makeDeviceWithState("0.13.0")
-        val version = makeVersion("v0.14.0-b3")
-
-        viewModel.startUpdateInstall(version)
-        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
-
-        assertEquals("0.14.0-b3", result?.stateInfo?.info?.version)
-    }
-
-    @Test
-    fun `stopUpdateInstall handles tag without v prefix gracefully`() {
-        val deviceWithState = makeDeviceWithState("0.13.0")
-        val version = makeVersion("0.14.0")
-
-        viewModel.startUpdateInstall(version)
-        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
-
-        assertEquals("0.14.0", result?.stateInfo?.info?.version)
+        assertEquals(expectedVersion, result?.stateInfo?.info?.version)
     }
 
     @Test

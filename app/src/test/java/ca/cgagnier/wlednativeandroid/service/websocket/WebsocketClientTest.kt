@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -126,31 +128,27 @@ class WebsocketClientTest {
     // 2. Protocol Compliance: URL Formatting and Constants
     // -------------------------------------------------------------------------
 
-    @Test
-    fun `buildWebsocketUrl correctly formats diverse host and IP address inputs`() {
+    @ParameterizedTest
+    @CsvSource(
+        "192.168.1.100, ws://192.168.1.100/ws",
+        "http://192.168.1.100, ws://192.168.1.100/ws",
+        "https://192.168.1.100, ws://192.168.1.100/ws",
+        "ws://192.168.1.100, ws://192.168.1.100/ws",
+        "wss://192.168.1.100, ws://192.168.1.100/ws",
+        "192.168.1.100/, ws://192.168.1.100/ws",
+        "http://192.168.1.100/, ws://192.168.1.100/ws",
+        "192.168.1.100///, ws://192.168.1.100/ws",
+        "192.168.1.100:8080, ws://192.168.1.100:8080/ws",
+        "http://192.168.1.100:8080/, ws://192.168.1.100:8080/ws",
+        "wled-device.local, ws://wled-device.local/ws",
+        "http://wled-device.local, ws://wled-device.local/ws",
+        "[fe80::1], ws://[fe80::1]/ws",
+        "http://[fe80::1]:80/, ws://[fe80::1]:80/ws",
+    )
+    fun `buildWebsocketUrl correctly formats diverse host and IP address inputs`(input: String, expected: String) {
         val client = WebsocketClient(device, httpClient, json)
-
-        val testCases = mapOf(
-            "192.168.1.100" to "ws://192.168.1.100/ws",
-            "http://192.168.1.100" to "ws://192.168.1.100/ws",
-            "https://192.168.1.100" to "ws://192.168.1.100/ws",
-            "ws://192.168.1.100" to "ws://192.168.1.100/ws",
-            "wss://192.168.1.100" to "ws://192.168.1.100/ws",
-            "192.168.1.100/" to "ws://192.168.1.100/ws",
-            "http://192.168.1.100/" to "ws://192.168.1.100/ws",
-            "192.168.1.100///" to "ws://192.168.1.100/ws",
-            "192.168.1.100:8080" to "ws://192.168.1.100:8080/ws",
-            "http://192.168.1.100:8080/" to "ws://192.168.1.100:8080/ws",
-            "wled-device.local" to "ws://wled-device.local/ws",
-            "http://wled-device.local" to "ws://wled-device.local/ws",
-            "[fe80::1]" to "ws://[fe80::1]/ws",
-            "http://[fe80::1]:80/" to "ws://[fe80::1]:80/ws",
-        )
-
-        for ((input, expected) in testCases) {
-            val result = client.buildWebsocketUrl(input)
-            assertEquals(expected, result, "URL format mismatch for input '$input'")
-        }
+        val result = client.buildWebsocketUrl(input)
+        assertEquals(expected, result)
     }
 
     @Test
