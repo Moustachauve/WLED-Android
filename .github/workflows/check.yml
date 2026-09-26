@@ -11,6 +11,13 @@ on:
       - main
       - dev
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Run Unit Tests
@@ -39,6 +46,8 @@ jobs:
         with:
           name: test-results
           path: app/build/reports/tests/
+          if-no-files-found: ignore
+          retention-days: 7
 
   lint:
     name: Run Lint
@@ -69,4 +78,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: lint-results
-          path: app/build/reports/lint-results-debug.html
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/detekt/
+          if-no-files-found: ignore
+          retention-days: 7
+
