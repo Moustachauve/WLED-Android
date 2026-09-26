@@ -17,7 +17,7 @@ class DeviceUpdateManager @Inject constructor(private val releaseService: Releas
     /**
      * Checks if a software update is available for the given [device] and [stateInfo].
      *
-     * @return The latest release version tag (e.g., "0.14.0") if an update is available,
+     * @return The latest release version tag (e.g., "16.0.1") if an update is available,
      * or `null` if up-to-date, OTA is disabled, or state info is absent.
      */
     suspend fun checkForUpdate(device: Device, stateInfo: DeviceStateInfo?): String? {
@@ -41,7 +41,7 @@ class DeviceUpdateManager @Inject constructor(private val releaseService: Releas
         checkForUpdate(deviceWithState.device, deviceWithState.stateInfo)
 
     /**
-     * Returns a [Flow] that emits the version tag (e.g., "0.14.0") if an update is available,
+     * Returns a [Flow] that emits the version tag (e.g., "16.0.1") if an update is available,
      * or null if up-to-date, reacting to emissions from [deviceWithStateFlow].
      *
      * Deduplicates checks using [UpdateCheckKey] to prevent redundant network/database calls
