@@ -29,6 +29,8 @@ class WebsocketClientFactoryTest {
 
     @BeforeEach
     fun setUp() {
+        // Context is only passed down to WebsocketClient and not accessed during factory creation;
+        // relaxed mock suffices.
         context = mockk(relaxed = true)
         okHttpClient = OkHttpClient.Builder().build()
         json = Json {
