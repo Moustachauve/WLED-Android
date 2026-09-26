@@ -187,35 +187,34 @@ class SaveDeviceStateUseCaseTest {
     }
 
     @Test
-    fun `invoke caches repository ID lookup and does not call repositoryDao on subsequent unchanged frames`() =
-        runTest {
-            val currentDevice = Device(
-                macAddress = "AABBCCDDEEFF",
-                address = "192.168.1.100",
-                originalName = "WLED",
-                branch = Branch.STABLE,
-                lastSeen = 10000L,
-                repositoryId = Repository.DEFAULT_ID,
-            )
-            val stateInfo = createDeviceStateInfo(name = "WLED", version = "0.14.0")
+    fun `invoke does not call repositoryDao on unchanged frames within threshold`() = runTest {
+        val currentDevice = Device(
+            macAddress = "AABBCCDDEEFF",
+            address = "192.168.1.100",
+            originalName = "WLED",
+            branch = Branch.STABLE,
+            lastSeen = 10000L,
+            repositoryId = Repository.DEFAULT_ID,
+        )
+        val stateInfo = createDeviceStateInfo(name = "WLED", version = "0.14.0")
 
-            // First frame within threshold: no DB query because repo is default and metadata unchanged
-            val result1 = useCase(currentDevice, stateInfo, currentTimeMillis = 11000L)
-            assertNull(result1)
-            coVerify(exactly = 0) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
+        // First frame within threshold: no DB query because repo is default and metadata unchanged
+        val result1 = useCase(currentDevice, stateInfo, currentTimeMillis = 11000L)
+        assertNull(result1)
+        coVerify(exactly = 0) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
 
-            // Second frame exceeding threshold: triggers persistence and caches repository ID
-            val result2 = useCase(currentDevice, stateInfo, currentTimeMillis = 16000L)
-            assertNotNull(result2)
-            coVerify(exactly = 1) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
+        // Second frame exceeding threshold: triggers persistence and queries repositoryDao
+        val result2 = useCase(currentDevice, stateInfo, currentTimeMillis = 16000L)
+        assertNotNull(result2)
+        coVerify(exactly = 1) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
 
-            // Subsequent frames within threshold: use cached repository ID without calling repositoryDao
-            val updatedDevice = result2!!
-            val result3 = useCase(updatedDevice, stateInfo, currentTimeMillis = 17000L)
-            assertNull(result3)
-            // Verify repositoryDao was NOT called again (still exactly 1)
-            coVerify(exactly = 1) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
-        }
+        // Subsequent frames within threshold: no DB query because metadata unchanged and repo is default
+        val updatedDevice = result2!!
+        val result3 = useCase(updatedDevice, stateInfo, currentTimeMillis = 17000L)
+        assertNull(result3)
+        // Verify repositoryDao was NOT called again (still exactly 1)
+        coVerify(exactly = 1) { repositoryDao.getRepositoryByOwnerAndRepo(any()) }
+    }
 
     private fun createDeviceStateInfo(
         name: String = "Test Device",

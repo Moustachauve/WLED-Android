@@ -268,7 +268,7 @@ class WebsocketClient(
         }
     }
 
-    private suspend fun handleTextFrame(text: String) {
+    internal suspend fun handleTextFrame(text: String) {
         Log.d(TAG, "Received frame from ${device.address}: $text")
         try {
             val decodedStateInfo = json.decodeFromString<DeviceStateInfo>(text)
@@ -311,7 +311,7 @@ class WebsocketClient(
         }
     }
 
-    private fun buildWebsocketUrl(address: String): String {
+    internal fun buildWebsocketUrl(address: String): String {
         val cleanAddress = address
             .removePrefix("http://")
             .removePrefix("https://")
@@ -322,9 +322,9 @@ class WebsocketClient(
     }
 
     companion object {
-        private const val TAG = "WebsocketClient"
-        private const val WEBSOCKET_PATH = "ws"
-        private const val USER_AGENT = "WLED-Android"
+        internal const val TAG = "WebsocketClient"
+        internal const val WEBSOCKET_PATH = "ws"
+        internal const val USER_AGENT = "WLED-Android"
         private const val BASE_BACKOFF_MS = 2000L
         private const val MAX_BACKOFF_MS = 60000L
         private const val JITTER_RATIO = 0.25

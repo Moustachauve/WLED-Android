@@ -434,4 +434,35 @@ class DeviceWebsocketListViewModelTest {
 
             job.cancel()
         }
+
+    @Test
+    fun `device reordering from database emits updated list order`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val emittedLists = mutableListOf<List<String>>()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect { list ->
+                emittedLists.add(list.map { it.device.macAddress })
+            }
+        }
+
+        allDevicesDbFlow.value = listOf(device1, device2)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02"),
+            viewModel.allDevicesWithState.value.map { it.device.macAddress },
+        )
+
+        // Now reorder the list from the database
+        allDevicesDbFlow.value = listOf(device2, device1)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("AA:BB:CC:DD:EE:02", "AA:BB:CC:DD:EE:01"),
+            viewModel.allDevicesWithState.value.map { it.device.macAddress },
+        )
+        assertTrue(emittedLists.contains(listOf("AA:BB:CC:DD:EE:02", "AA:BB:CC:DD:EE:01")))
+
+        job.cancel()
+    }
 }

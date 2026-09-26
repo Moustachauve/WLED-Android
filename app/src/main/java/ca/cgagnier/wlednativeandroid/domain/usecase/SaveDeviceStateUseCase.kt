@@ -8,9 +8,7 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
-import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 /**
@@ -25,8 +23,6 @@ class SaveDeviceStateUseCase @Inject constructor(
         private const val TAG = "SaveDeviceStateUseCase"
         const val LAST_SEEN_UPDATE_THRESHOLD = 5000L // 5 seconds
     }
-
-    private val repositoryIdCache = ConcurrentHashMap<String, Long>()
 
     /**
      * Evaluates stateInfo against currentDevice and persists updates if changed.
@@ -56,26 +52,17 @@ class SaveDeviceStateUseCase @Inject constructor(
         val timeThresholdExceeded = timeSinceLastUpdate > LAST_SEEN_UPDATE_THRESHOLD
 
         val repositoryStr = getRepositoryFromInfo(stateInfo.info)
-        val cachedRepoId = repositoryIdCache[repositoryStr]
+        val isDefaultRepo = repositoryStr == Repository.DEFAULT_OWNER_REPO &&
+            currentDevice.repositoryId == Repository.DEFAULT_ID
 
-        // Defer repository lookup: only query DAO if metadata changed, threshold exceeded,
-        // or repository could have changed from DEFAULT_ID
         val needsPersistence = nameChanged || branchChanged || timeThresholdExceeded
-        val mayHaveRepoChanged = cachedRepoId != null ||
-            currentDevice.repositoryId != Repository.DEFAULT_ID ||
-            repositoryStr != DEFAULT_REPO
-
-        if (!needsPersistence && !mayHaveRepoChanged) {
+        if (!needsPersistence && isDefaultRepo) {
             return null
         }
 
-        val repoIdToSave = cachedRepoId ?: run {
-            val id = repositoryDao.getOrCreateRepositoryId(repositoryStr)
-            repositoryIdCache[repositoryStr] = id
-            id
-        }
-
+        val repoIdToSave = repositoryDao.getOrCreateRepositoryId(repositoryStr)
         val repositoryChanged = currentDevice.repositoryId != repoIdToSave
+
         val shouldUpdateDevice = needsPersistence || repositoryChanged
 
         return if (shouldUpdateDevice) {
