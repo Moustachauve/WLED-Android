@@ -189,6 +189,12 @@ protobuf {
 
 tasks.withType<Test>().configureEach {
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
+    // Pass -Pselfie command-line property to the test runner environment and system properties
+    val selfieProp = providers.gradleProperty("selfie")
+    if (selfieProp.isPresent) {
+        systemProperty("selfie", selfieProp.get())
+        environment("selfie", selfieProp.get())
+    }
     // Track Selfie disk snapshot files for accurate up-to-date checks
     inputs.files(
         fileTree("src/test") {
