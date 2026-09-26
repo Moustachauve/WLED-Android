@@ -76,6 +76,7 @@ android {
     lint {
         fatal += "MissingTranslation"
         checkTestSources = false
+        ignoreTestSources = true
         checkDependencies = false
         abortOnError = true
     }

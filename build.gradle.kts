@@ -72,6 +72,7 @@ subprojects {
         buildUponDefaultConfig = true
         config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
         baseline = file("$projectDir/detekt-baseline.xml")
+        parallel = true
     }
 }
 
