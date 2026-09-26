@@ -93,7 +93,7 @@ fun DeviceInfoTwoRows(
             //  the address + offline message can't both fit. Right now, only the address can be
             //  truncated. This is due to the limitation of the weight system of a row. When using
             //  `fill = false`, the unused space is not distributed to the other elements.
-            WebsocketStatusIndicator(device.websocketStatus.value)
+            WebsocketStatusIndicator(device.websocketStatus)
             Text(
                 device.device.address,
                 style = MaterialTheme.typography.labelMedium,
@@ -351,12 +351,12 @@ fun AnimatedWebsocketPreview() {
         }
     }
     val device = DeviceWithState(
-        Device(
+        device = Device(
             macAddress = AP_MODE_MAC_ADDRESS,
             address = "4.3.2.1",
         ),
+        websocketStatus = currentState,
     )
-    device.websocketStatus.value = currentState
 
     MaterialTheme {
         Card(

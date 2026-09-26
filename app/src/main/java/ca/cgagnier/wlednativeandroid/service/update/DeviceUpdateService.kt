@@ -68,7 +68,7 @@ class DeviceUpdateService(
     }
 
     private fun hasReleaseName(): Boolean {
-        val release = device.stateInfo.value?.info?.release
+        val release = device.stateInfo?.info?.release
         return !release.isNullOrEmpty()
     }
 
@@ -78,7 +78,7 @@ class DeviceUpdateService(
      * This is the preferred method. It is only available on WLED devices since 0.15.0.
      */
     private fun determineAssetByRelease(): Boolean {
-        val rawRelease = device.stateInfo.value?.info?.release
+        val rawRelease = device.stateInfo?.info?.release
         if (rawRelease.isNullOrEmpty()) {
             return false
         }
@@ -113,7 +113,7 @@ class DeviceUpdateService(
      * Legacy method for backwards compatibility with WLED devices older than 0.15.0
      */
     private fun determineAssetByPlatform(): Boolean {
-        val deviceInfo = device.stateInfo.value?.info
+        val deviceInfo = device.stateInfo?.info
         if (deviceInfo == null || !supportedPlatforms.contains(deviceInfo.platformName)) {
             return false
         }

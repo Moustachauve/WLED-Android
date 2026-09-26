@@ -149,15 +149,16 @@ class DeviceEditViewModel @Inject constructor(
         device: DeviceWithState? = null,
         version: VersionWithAssets? = null,
         wasSuccessful: Boolean = false,
-    ) {
+    ): DeviceWithState? {
         updateInstallVersion.value = null
         if (wasSuccessful && device != null && version != null) {
-            val currentState = device.stateInfo.value ?: return
+            val currentState = device.stateInfo ?: return device
             val updatedInfo = currentState.info.copy(
                 version = version.version.tagName.removePrefix("v"),
             )
-            device.stateInfo.value = currentState.copy(info = updatedInfo)
+            return device.copy(stateInfo = currentState.copy(info = updatedInfo))
         }
+        return device
     }
 
     /**

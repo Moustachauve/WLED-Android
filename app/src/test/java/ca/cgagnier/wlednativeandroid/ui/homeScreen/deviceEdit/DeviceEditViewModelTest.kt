@@ -47,8 +47,9 @@ class DeviceEditViewModelTest {
 
     private fun makeDeviceWithState(version: String = "0.13.0"): DeviceWithState {
         val device = Device(macAddress = "mac1", address = "192.168.0.1")
-        return DeviceWithState(device).apply {
-            stateInfo.value = DeviceStateInfo(
+        return DeviceWithState(
+            device = device,
+            stateInfo = DeviceStateInfo(
                 state = State(isOn = true, brightness = 200, transition = 7),
                 info = Info(
                     leds = Leds(count = 30, fps = 30, maxPower = 0, maxSegment = 1),
@@ -56,8 +57,8 @@ class DeviceEditViewModelTest {
                     name = "WLED",
                     version = version,
                 ),
-            )
-        }
+            ),
+        )
     }
 
     private fun makeVersion(tagName: String = "v0.14.0"): VersionWithAssets = VersionWithAssets(
@@ -73,9 +74,9 @@ class DeviceEditViewModelTest {
         val version = makeVersion("v0.14.0")
 
         viewModel.startUpdateInstall(version)
-        viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
+        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
 
-        assertEquals("0.14.0", deviceWithState.stateInfo.value?.info?.version)
+        assertEquals("0.14.0", result?.stateInfo?.info?.version)
     }
 
     @Test
@@ -84,9 +85,9 @@ class DeviceEditViewModelTest {
         val version = makeVersion("v0.14.0")
 
         viewModel.startUpdateInstall(version)
-        viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = false)
+        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = false)
 
-        assertEquals("0.13.0", deviceWithState.stateInfo.value?.info?.version)
+        assertEquals("0.13.0", result?.stateInfo?.info?.version)
     }
 
     @Test
@@ -95,9 +96,9 @@ class DeviceEditViewModelTest {
         val version = makeVersion("v0.14.0-b3")
 
         viewModel.startUpdateInstall(version)
-        viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
+        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
 
-        assertEquals("0.14.0-b3", deviceWithState.stateInfo.value?.info?.version)
+        assertEquals("0.14.0-b3", result?.stateInfo?.info?.version)
     }
 
     @Test
@@ -106,9 +107,9 @@ class DeviceEditViewModelTest {
         val version = makeVersion("0.14.0")
 
         viewModel.startUpdateInstall(version)
-        viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
+        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
 
-        assertEquals("0.14.0", deviceWithState.stateInfo.value?.info?.version)
+        assertEquals("0.14.0", result?.stateInfo?.info?.version)
     }
 
     @Test
@@ -118,9 +119,9 @@ class DeviceEditViewModelTest {
         val version = makeVersion("v0.14.0")
 
         viewModel.startUpdateInstall(version)
-        viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
+        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
 
-        assertNull(deviceWithState.stateInfo.value)
+        assertNull(result?.stateInfo)
     }
 
     @Test

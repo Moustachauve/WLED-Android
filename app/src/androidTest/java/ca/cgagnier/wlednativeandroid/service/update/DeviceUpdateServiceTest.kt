@@ -46,9 +46,8 @@ class DeviceUpdateServiceTest {
         availableAssets: List<Asset>,
     ): DeviceUpdateService {
         val device = Device(macAddress = "AA:BB:CC:DD:EE:FF", address = "192.168.1.1")
-        val deviceWithState = DeviceWithState(device)
-        if (release != null) {
-            deviceWithState.stateInfo.value = DeviceStateInfo(
+        val stateInfo = if (release != null) {
+            DeviceStateInfo(
                 state = State(),
                 info = Info(
                     leds = Leds(),
@@ -57,7 +56,10 @@ class DeviceUpdateServiceTest {
                     release = release,
                 ),
             )
+        } else {
+            null
         }
+        val deviceWithState = DeviceWithState(device, stateInfo = stateInfo)
         val versionWithAssets =
             VersionWithAssets(version = makeVersion(targetVersionTag), assets = availableAssets)
         val okHttpClient = OkHttpClient()

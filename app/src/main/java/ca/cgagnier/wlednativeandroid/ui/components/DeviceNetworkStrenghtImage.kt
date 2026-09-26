@@ -11,7 +11,6 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults.rememberTooltipPositionProvider
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -30,7 +29,7 @@ private fun getNetworkStrengthImage(networkRssi: Int, isOnline: Boolean): Int = 
 
 @Composable
 fun deviceNetworkStrengthImage(device: DeviceWithState) {
-    val stateInfo by device.stateInfo
+    val stateInfo = device.stateInfo
     val rssi = stateInfo?.info?.wifi?.rssi ?: -101
     TooltipBox(
         positionProvider = rememberTooltipPositionProvider(TooltipAnchorPosition.Above),

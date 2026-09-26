@@ -1,38 +1,25 @@
 package ca.cgagnier.wlednativeandroid.service.websocket
 
-import android.content.Context
 import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
-import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
-import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
+import io.ktor.client.HttpClient
 import io.mockk.mockk
 import kotlinx.serialization.json.Json
-import okhttp3.OkHttpClient
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.random.Random
 
 class WebsocketClientFactoryTest {
 
-    private lateinit var context: Context
-    private lateinit var okHttpClient: OkHttpClient
+    private val httpClient: HttpClient = mockk(relaxed = true)
     private lateinit var json: Json
     private lateinit var factory: WebsocketClientFactory
 
-    // Using mockk for mocking dependencies (relaxed = true ignores unstubbed calls)
-    private val deviceRepository: DeviceRepository = mockk(relaxed = true)
-    private val widgetManager: WledWidgetManager = mockk(relaxed = true)
-    private val deviceUpdateManager: DeviceUpdateManager = mockk(relaxed = true)
-    private val repositoryDao: ca.cgagnier.wlednativeandroid.repository.RepositoryDao = mockk(relaxed = true)
-
     @BeforeEach
     fun setUp() {
-        // Context is only passed down to WebsocketClient and not accessed during factory creation;
-        // relaxed mock suffices.
-        context = mockk(relaxed = true)
-        okHttpClient = OkHttpClient.Builder().build()
         json = Json {
             ignoreUnknownKeys = true
             isLenient = true
@@ -40,13 +27,8 @@ class WebsocketClientFactoryTest {
         }
 
         factory = WebsocketClientFactory(
-            applicationContext = context,
-            deviceRepository = deviceRepository,
-            widgetManager = widgetManager,
-            deviceUpdateManager = deviceUpdateManager,
-            okHttpClient = okHttpClient,
+            httpClient = httpClient,
             json = json,
-            repositoryDao = repositoryDao,
         )
     }
 
@@ -57,9 +39,9 @@ class WebsocketClientFactoryTest {
         val client = factory.create(device)
 
         assertNotNull(client)
-        assertEquals(device, client.deviceState.device)
-        assertEquals("AABBCCDDEEFF", client.deviceState.device.macAddress)
-        assertEquals("192.168.1.100", client.deviceState.device.address)
+        assertEquals(device, client.device)
+        assertEquals("AABBCCDDEEFF", client.device.macAddress)
+        assertEquals("192.168.1.100", client.device.address)
     }
 
     @Test
@@ -71,8 +53,8 @@ class WebsocketClientFactoryTest {
         val client2 = factory.create(device2)
 
         assertNotSame(client1, client2)
-        assertEquals("AABBCCDDEEFF", client1.deviceState.device.macAddress)
-        assertEquals("112233445566", client2.deviceState.device.macAddress)
+        assertEquals("AABBCCDDEEFF", client1.device.macAddress)
+        assertEquals("112233445566", client2.device.macAddress)
     }
 
     @Test
@@ -85,9 +67,9 @@ class WebsocketClientFactoryTest {
 
         val client = factory.create(device)
 
-        assertEquals("FFEEDDCCBBAA", client.deviceState.device.macAddress)
-        assertEquals("10.0.0.50", client.deviceState.device.address)
-        assertEquals("Kitchen Lights", client.deviceState.device.originalName)
+        assertEquals("FFEEDDCCBBAA", client.device.macAddress)
+        assertEquals("10.0.0.50", client.device.address)
+        assertEquals("Kitchen Lights", client.device.originalName)
     }
 
     @Test
@@ -96,7 +78,36 @@ class WebsocketClientFactoryTest {
 
         val client = factory.create(device)
 
-        assertEquals(WebsocketStatus.DISCONNECTED, client.deviceState.websocketStatus.value)
+        assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
+    }
+
+    @Test
+    fun `calculateBackoffWithJitter respects bounds for attempt 0`() {
+        // Base 2000ms with +-25% jitter -> range [1500, 2500]
+        val minRandom = object : Random() {
+            override fun nextBits(bitCount: Int): Int = 0
+            override fun nextDouble(from: Double, until: Double): Double = from
+        }
+        val maxRandom = object : Random() {
+            override fun nextBits(bitCount: Int): Int = 0
+            override fun nextDouble(from: Double, until: Double): Double = until
+        }
+
+        val minDelay = WebsocketClient.calculateBackoffWithJitter(0, random = minRandom)
+        val maxDelay = WebsocketClient.calculateBackoffWithJitter(0, random = maxRandom)
+
+        assertEquals(1500L, minDelay)
+        assertEquals(2500L, maxDelay)
+    }
+
+    @Test
+    fun `calculateBackoffWithJitter is capped at maxDelay for large retry count`() {
+        val random = Random(42)
+        val delayAttempt10 = WebsocketClient.calculateBackoffWithJitter(10, random = random)
+        val delayAttempt50 = WebsocketClient.calculateBackoffWithJitter(50, random = random)
+
+        assertTrue(delayAttempt10 <= 60000L)
+        assertTrue(delayAttempt50 <= 60000L)
     }
 
     private fun createTestDevice(macAddress: String, address: String, originalName: String): Device = Device(

@@ -74,7 +74,7 @@ fun DeviceListItem(
     onPowerSwitchToggle: (isOn: Boolean) -> Unit = {},
     onBrightnessChanged: (brightness: Int) -> Unit = {},
 ) {
-    val stateInfo by device.stateInfo
+    val stateInfo = device.stateInfo
 
     var checked by remember(stateInfo?.state?.isOn) {
         mutableStateOf(

@@ -86,28 +86,29 @@ fun DeviceEdit(
     navigateUp: () -> Unit,
     viewModel: DeviceEditViewModel = hiltViewModel(),
 ) {
+    var currentDeviceWithState by remember(device) { mutableStateOf(device) }
     val vmState by viewModel.uiState.collectAsState()
-    val updateTag by device.updateVersionTagFlow.collectAsState(initial = null)
+    val updateTag by currentDeviceWithState.updateVersionTagFlow.collectAsState(initial = null)
 
-    LaunchedEffect(device.device.repositoryId) {
-        viewModel.loadRepository(device.device.repositoryId)
+    LaunchedEffect(currentDeviceWithState.device.repositoryId) {
+        viewModel.loadRepository(currentDeviceWithState.device.repositoryId)
     }
 
     // Merge the device-owned updateTag into the VM state.
     val uiState = vmState.copy(updateTag = updateTag)
 
     val actions = DeviceEditActions(
-        onCustomNameChange = { viewModel.updateCustomName(device.device, it) },
-        onDeviceHiddenChange = { viewModel.updateDeviceHidden(device.device, it) },
-        onBranchChange = { viewModel.updateDeviceBranch(device.device, it) },
-        onCheckForUpdates = { viewModel.checkForUpdates(device.device) },
+        onCustomNameChange = { viewModel.updateCustomName(currentDeviceWithState.device, it) },
+        onDeviceHiddenChange = { viewModel.updateDeviceHidden(currentDeviceWithState.device, it) },
+        onBranchChange = { viewModel.updateDeviceBranch(currentDeviceWithState.device, it) },
+        onCheckForUpdates = { viewModel.checkForUpdates(currentDeviceWithState.device) },
         onSeeUpdateDetails = { tag ->
             if (tag.isNotEmpty()) {
-                viewModel.showUpdateDetails(device.device.repositoryId, tag)
+                viewModel.showUpdateDetails(currentDeviceWithState.device.repositoryId, tag)
             }
         },
         onHideUpdateDetails = { viewModel.hideUpdateDetails() },
-        onSkipUpdate = { version -> viewModel.skipUpdate(device.device, version) },
+        onSkipUpdate = { version -> viewModel.skipUpdate(currentDeviceWithState.device, version) },
         onInstallUpdate = { version ->
             viewModel.hideUpdateDetails()
             viewModel.showUpdateDisclaimer(version)
@@ -118,16 +119,16 @@ fun DeviceEdit(
             viewModel.startUpdateInstall(version)
         },
         onInstallFinished = { wasSuccessful ->
-            viewModel.stopUpdateInstall(
-                device,
+            currentDeviceWithState = viewModel.stopUpdateInstall(
+                currentDeviceWithState,
                 uiState.updateInstallVersion,
                 wasSuccessful,
-            )
+            ) ?: currentDeviceWithState
         },
     )
 
     DeviceEditContent(
-        device = device,
+        device = currentDeviceWithState,
         uiState = uiState,
         actions = actions,
         canNavigateBack = canNavigateBack,
@@ -319,7 +320,7 @@ private fun UpdateStatusCard(
     onCheckForUpdates: () -> Unit,
     onSeeUpdateDetails: (String) -> Unit,
 ) {
-    val isOfflineNoState = !device.isOnline && device.stateInfo.value == null
+    val isOfflineNoState = !device.isOnline && device.stateInfo == null
 
     Card(
         modifier = Modifier
@@ -444,7 +445,7 @@ private fun NoUpdateAvailable(device: DeviceWithState, isCheckingUpdates: Boolea
     Text(
         stringResource(
             R.string.version_v_num,
-            device.stateInfo.value?.info?.version ?: "<?>",
+            device.stateInfo?.info?.version ?: "<?>",
         ),
         style = MaterialTheme.typography.bodyMedium,
     )
@@ -493,7 +494,7 @@ private fun UpdateAvailable(device: DeviceWithState, updateTag: String, seeUpdat
             Text(
                 stringResource(
                     R.string.from_version_to_version,
-                    device.stateInfo.value?.info?.version ?: "<?>",
+                    device.stateInfo?.info?.version ?: "<?>",
                     updateTag,
                 ),
                 style = MaterialTheme.typography.bodyMedium,
@@ -519,15 +520,14 @@ private fun previewDevice(
     version: String = "0.14.3",
     branch: Branch = Branch.STABLE,
 ): DeviceWithState = DeviceWithState(
-    Device(
+    device = Device(
         macAddress = AP_MODE_MAC_ADDRESS,
         address = address,
         originalName = name,
         branch = branch,
     ),
-).apply {
-    websocketStatus.value = WebsocketStatus.CONNECTED
-    stateInfo.value = DeviceStateInfo(
+    websocketStatus = WebsocketStatus.CONNECTED,
+    stateInfo = DeviceStateInfo(
         state = State(isOn = true, brightness = 200, transition = 7),
         info = Info(
             version = version,
@@ -540,8 +540,8 @@ private fun previewDevice(
             ),
             name = name,
         ),
-    )
-}
+    ),
+)
 
 @Preview(name = "Up to date — Light", showBackground = true)
 @Composable
