@@ -81,6 +81,7 @@ android {
         abortOnError = true
     }
     testOptions {
+        unitTests.isReturnDefaultValues = true
         unitTests.all {
             it.useJUnitPlatform()
         }
@@ -157,11 +158,8 @@ dependencies {
     implementation(libs.compose.material.icons)
     ksp(libs.hilt.compiler)
     ksp(libs.androidx.room.compiler)
-    testImplementation(libs.junit)
     testImplementation(libs.junit.jupiter)
-    testRuntimeOnly(libs.junit.vintage.engine)
     testImplementation(libs.selfie.runner.junit5)
-    testImplementation(libs.robolectric)
     testImplementation(libs.mockk)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlinx.coroutines.test)

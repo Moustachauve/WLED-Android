@@ -3,8 +3,8 @@ package ca.cgagnier.wlednativeandroid.repository
 import ca.cgagnier.wlednativeandroid.model.Version
 import com.diffplug.selfie.Selfie.expectSelfie
 import com.vdurmont.semver4j.Semver
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class VersionWithAssetsRepositoryTest {
 

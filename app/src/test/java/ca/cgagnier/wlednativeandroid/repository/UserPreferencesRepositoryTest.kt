@@ -3,23 +3,20 @@ package ca.cgagnier.wlednativeandroid.repository
 import androidx.datastore.core.DataStoreFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Rule
-import org.junit.Test
-import org.junit.rules.TemporaryFolder
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
 
-@RunWith(RobolectricTestRunner::class)
 class UserPreferencesRepositoryTest {
 
-    @get:Rule
-    val tempFolder = TemporaryFolder()
+    @TempDir
+    lateinit var tempFolder: File
 
     private fun createRepository(): UserPreferencesRepository {
-        val testFile = tempFolder.newFile("test_user_preferences.json")
+        val testFile = File(tempFolder, "test_user_preferences.json")
         val dataStore = DataStoreFactory.create(
             serializer = UserPreferencesSerializer(),
             produceFile = { testFile },

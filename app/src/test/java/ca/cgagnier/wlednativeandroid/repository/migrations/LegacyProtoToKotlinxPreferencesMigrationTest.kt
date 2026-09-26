@@ -8,13 +8,12 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertThrows
-import org.junit.Assert.assertTrue
-import org.junit.Rule
-import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -23,12 +22,14 @@ import ca.cgagnier.wlednativeandroid.repository.legacy.UserPreferences as Legacy
 
 class LegacyProtoToKotlinxPreferencesMigrationTest {
 
-    @get:Rule
-    val tempFolder = TemporaryFolder()
+    @TempDir
+    lateinit var tempFolder: File
+
+    private fun newFile(name: String): File = File(tempFolder, name).apply { createNewFile() }
 
     @Test
     fun shouldMigrate_whenFileDoesNotExist_returnsFalse() = runBlocking {
-        val nonExistentFile = File(tempFolder.root, "non_existent.pb")
+        val nonExistentFile = File(tempFolder, "non_existent.pb")
         val migration = LegacyProtoToKotlinxPreferencesMigration(nonExistentFile)
 
         assertFalse(migration.shouldMigrate(UserPreferences()))
@@ -36,7 +37,7 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
 
     @Test
     fun shouldMigrate_whenFileIsEmpty_returnsFalse() = runBlocking {
-        val emptyFile = tempFolder.newFile("empty.pb")
+        val emptyFile = newFile("empty.pb")
         val migration = LegacyProtoToKotlinxPreferencesMigration(emptyFile)
 
         assertFalse(migration.shouldMigrate(UserPreferences()))
@@ -44,7 +45,7 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
 
     @Test
     fun shouldMigrate_whenFileHasContent_returnsTrue() = runBlocking {
-        val protoFile = tempFolder.newFile("user_prefs.pb")
+        val protoFile = newFile("user_prefs.pb")
         protoFile.writeBytes(byteArrayOf(1, 2, 3))
         val migration = LegacyProtoToKotlinxPreferencesMigration(protoFile)
 
@@ -55,7 +56,7 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
     // inference from failing JUnit 4's void method check.
     @Test
     fun migrate_withLegacyProto_migratesAllFieldsAccurately(): Unit = runBlocking {
-        val protoFile = tempFolder.newFile("user_prefs.pb")
+        val protoFile = newFile("user_prefs.pb")
         val legacyProto = LegacyProtoUserPreferences.newBuilder()
             .setSelectedDeviceAddress("10.0.0.42")
             .setHasMigratedSharedPref(true)
@@ -82,7 +83,7 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
 
     @Test
     fun migrate_withLightAndAutoThemes_mapsCorrectly() = runBlocking {
-        val protoFileLight = tempFolder.newFile("user_prefs_light.pb")
+        val protoFileLight = newFile("user_prefs_light.pb")
         val legacyLight = LegacyProtoUserPreferences.newBuilder()
             .setTheme(LegacyProtoThemeSettings.Light)
             .setVersion(1)
@@ -91,7 +92,7 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
         val migratedLight = LegacyProtoToKotlinxPreferencesMigration(protoFileLight).migrate(UserPreferences())
         assertEquals(ThemeSettings.Light, migratedLight.theme)
 
-        val protoFileAuto = tempFolder.newFile("user_prefs_auto.pb")
+        val protoFileAuto = newFile("user_prefs_auto.pb")
         val legacyAuto = LegacyProtoUserPreferences.newBuilder()
             .setTheme(LegacyProtoThemeSettings.Auto)
             .setVersion(1)
@@ -103,7 +104,7 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
 
     @Test
     fun migrate_withV0LegacyProto_setsExpectedDefaultsAndResetsDataSharingFlags(): Unit = runBlocking {
-        val protoFile = tempFolder.newFile("user_prefs_v0.pb")
+        val protoFile = newFile("user_prefs_v0.pb")
         val legacyProto = LegacyProtoUserPreferences.newBuilder()
             .setVersion(0)
             .setSelectedDeviceAddress("192.168.1.99")
@@ -122,7 +123,7 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
 
     @Test
     fun migrate_withCorruptFile_throwsExceptionAndRetainsFile() {
-        val protoFile = tempFolder.newFile("corrupt.pb")
+        val protoFile = newFile("corrupt.pb")
         protoFile.writeText("corrupt binary data not a protobuf")
 
         val migration = LegacyProtoToKotlinxPreferencesMigration(protoFile)
@@ -138,7 +139,7 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
 
     @Test
     fun cleanUp_deletesLegacyFile() = runBlocking {
-        val protoFile = tempFolder.newFile("user_prefs_cleanup.pb")
+        val protoFile = newFile("user_prefs_cleanup.pb")
         protoFile.writeBytes(byteArrayOf(1, 2, 3))
         assertTrue(protoFile.exists())
 

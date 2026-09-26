@@ -2,30 +2,42 @@ package ca.cgagnier.wlednativeandroid.domain
 
 import android.content.Intent
 import android.net.Uri
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
+import io.mockk.every
+import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
-@RunWith(RobolectricTestRunner::class)
 class DeepLinkHandlerTest {
 
     private lateinit var handler: DeepLinkHandler
 
-    @Before
+    @BeforeEach
     fun setUp() {
         handler = DeepLinkHandler()
+    }
+
+    private fun mockUri(uriString: String): Uri {
+        val mock = mockk<Uri>()
+        if (uriString == "wled://") {
+            every { mock.scheme } returns "wled"
+            every { mock.host } returns null
+            return mock
+        }
+        val javaUri = java.net.URI.create(uriString)
+        every { mock.scheme } returns javaUri.scheme
+        every { mock.host } returns javaUri.host
+        return mock
     }
 
     // --- parseUri tests ---
 
     @Test
     fun `parseUri with wled scheme and MAC address returns MacAddress`() {
-        val uri = Uri.parse("wled://AABBCCDDEEFF")
+        val uri = mockUri("wled://AABBCCDDEEFF")
         val result = handler.parseUri(uri)
 
         assertTrue(result is DeepLink.MacAddress)
@@ -34,7 +46,7 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseUri with wled scheme and lowercase MAC address returns uppercase MacAddress`() {
-        val uri = Uri.parse("wled://aabbccddeeff")
+        val uri = mockUri("wled://aabbccddeeff")
         val result = handler.parseUri(uri)
 
         assertTrue(result is DeepLink.MacAddress)
@@ -43,7 +55,7 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseUri with wled scheme and mixed case MAC address returns uppercase MacAddress`() {
-        val uri = Uri.parse("wled://AaBbCcDdEeFf")
+        val uri = mockUri("wled://AaBbCcDdEeFf")
         val result = handler.parseUri(uri)
 
         assertTrue(result is DeepLink.MacAddress)
@@ -52,7 +64,7 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseUri with wled scheme and IPv4 address returns Address`() {
-        val uri = Uri.parse("wled://192.168.1.50")
+        val uri = mockUri("wled://192.168.1.50")
         val result = handler.parseUri(uri)
 
         assertTrue(result is DeepLink.Address)
@@ -61,7 +73,7 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseUri with wled scheme and hostname returns Address`() {
-        val uri = Uri.parse("wled://wled.local")
+        val uri = mockUri("wled://wled.local")
         val result = handler.parseUri(uri)
 
         assertTrue(result is DeepLink.Address)
@@ -70,7 +82,7 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseUri with wled scheme and complex hostname returns Address`() {
-        val uri = Uri.parse("wled://my-wled-device.home.arpa")
+        val uri = mockUri("wled://my-wled-device.home.arpa")
         val result = handler.parseUri(uri)
 
         assertTrue(result is DeepLink.Address)
@@ -79,7 +91,7 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseUri with http scheme and AP mode IP returns ApMode`() {
-        val uri = Uri.parse("http://4.3.2.1")
+        val uri = mockUri("http://4.3.2.1")
         val result = handler.parseUri(uri)
 
         assertTrue(result is DeepLink.ApMode)
@@ -87,7 +99,7 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseUri with http scheme and AP mode IP with path returns ApMode`() {
-        val uri = Uri.parse("http://4.3.2.1/edit")
+        val uri = mockUri("http://4.3.2.1/edit")
         val result = handler.parseUri(uri)
 
         assertTrue(result is DeepLink.ApMode)
@@ -95,7 +107,7 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseUri with http scheme and non-AP IP returns null`() {
-        val uri = Uri.parse("http://192.168.1.50")
+        val uri = mockUri("http://192.168.1.50")
         val result = handler.parseUri(uri)
 
         assertNull(result)
@@ -103,7 +115,7 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseUri with https scheme returns null`() {
-        val uri = Uri.parse("https://4.3.2.1")
+        val uri = mockUri("https://4.3.2.1")
         val result = handler.parseUri(uri)
 
         assertNull(result)
@@ -111,7 +123,7 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseUri with unsupported scheme returns null`() {
-        val uri = Uri.parse("ftp://192.168.1.50")
+        val uri = mockUri("ftp://192.168.1.50")
         val result = handler.parseUri(uri)
 
         assertNull(result)
@@ -126,7 +138,7 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseUri with wled scheme and empty host returns null`() {
-        val uri = Uri.parse("wled://")
+        val uri = mockUri("wled://")
         val result = handler.parseUri(uri)
 
         assertNull(result)
@@ -136,7 +148,9 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseIntent with ACTION_VIEW and valid wled uri returns DeepLink`() {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("wled://192.168.1.50"))
+        val intent = mockk<Intent>()
+        every { intent.action } returns Intent.ACTION_VIEW
+        every { intent.data } returns mockUri("wled://192.168.1.50")
         val result = handler.parseIntent(intent)
 
         assertTrue(result is DeepLink.Address)
@@ -144,8 +158,9 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseIntent with ACTION_MAIN returns null`() {
-        val intent = Intent(Intent.ACTION_MAIN)
-        intent.data = Uri.parse("wled://192.168.1.50")
+        val intent = mockk<Intent>()
+        every { intent.action } returns Intent.ACTION_MAIN
+        every { intent.data } returns mockUri("wled://192.168.1.50")
         val result = handler.parseIntent(intent)
 
         assertNull(result)
@@ -160,7 +175,9 @@ class DeepLinkHandlerTest {
 
     @Test
     fun `parseIntent with ACTION_VIEW but no data returns null`() {
-        val intent = Intent(Intent.ACTION_VIEW)
+        val intent = mockk<Intent>()
+        every { intent.action } returns Intent.ACTION_VIEW
+        every { intent.data } returns null
         val result = handler.parseIntent(intent)
 
         assertNull(result)

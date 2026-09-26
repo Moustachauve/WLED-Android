@@ -8,16 +8,12 @@ import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import io.mockk.mockk
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNotSame
-import org.junit.Before
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.RuntimeEnvironment
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
-@RunWith(RobolectricTestRunner::class)
 class WebsocketClientFactoryTest {
 
     private lateinit var context: Context
@@ -31,9 +27,9 @@ class WebsocketClientFactoryTest {
     private val deviceUpdateManager: DeviceUpdateManager = mockk(relaxed = true)
     private val repositoryDao: ca.cgagnier.wlednativeandroid.repository.RepositoryDao = mockk(relaxed = true)
 
-    @Before
+    @BeforeEach
     fun setUp() {
-        context = RuntimeEnvironment.getApplication()
+        context = mockk(relaxed = true)
         okHttpClient = OkHttpClient.Builder().build()
         json = Json {
             ignoreUnknownKeys = true
