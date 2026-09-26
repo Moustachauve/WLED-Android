@@ -33,15 +33,24 @@ object NetworkModule {
         encodeDefaults = true
     }
 
+    private const val MAX_REQUESTS = 64
+    private const val MAX_REQUESTS_PER_HOST = 16
+
     @Provides
     @Singleton
-    fun provideOkHttpClient(@ApplicationContext appContext: Context): OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .readTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .writeTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .pingInterval(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .cache(Cache(appContext.cacheDir, CACHE_SIZE_BYTES))
-        .build()
+    fun provideOkHttpClient(@ApplicationContext appContext: Context): OkHttpClient {
+        val dispatcher = okhttp3.Dispatcher().apply {
+            maxRequests = MAX_REQUESTS
+            maxRequestsPerHost = MAX_REQUESTS_PER_HOST
+        }
+        return OkHttpClient.Builder()
+            .dispatcher(dispatcher)
+            .connectTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .cache(Cache(appContext.cacheDir, CACHE_SIZE_BYTES))
+            .build()
+    }
 
     @Provides
     @Singleton

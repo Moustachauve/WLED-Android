@@ -58,7 +58,7 @@ class DeviceEditViewModel @Inject constructor(
      * Single combined UI state for the device edit screen.
      *
      * The [DeviceEditUiState.updateTag] field is always `null` here because
-     * the update tag comes from [DeviceWithState.updateVersionTagFlow], which
+     * the update tag comes from [DeviceWithState.updateVersionTag], which
      * is owned by the caller and merged in the composable layer.
      */
     val uiState: StateFlow<DeviceEditUiState> = combine(
@@ -139,25 +139,26 @@ class DeviceEditViewModel @Inject constructor(
     }
 
     /**
-     * Called when the OTA install dialog is dismissed.
-     *
-     * If [wasSuccessful], the device's in-memory [DeviceWithState.stateInfo]
-     * is patched with the new version so the UI reflects it immediately
-     * (before the next websocket refresh).
+     * Called when the OTA install dialog is dismissed or completed.
+     * Updates device state if successful.
      */
     fun stopUpdateInstall(
         device: DeviceWithState? = null,
         version: VersionWithAssets? = null,
         wasSuccessful: Boolean = false,
-    ) {
+    ): DeviceWithState? {
         updateInstallVersion.value = null
-        if (wasSuccessful && device != null && version != null) {
-            val currentState = device.stateInfo.value ?: return
-            val updatedInfo = currentState.info.copy(
-                version = version.version.tagName.removePrefix("v"),
-            )
-            device.stateInfo.value = currentState.copy(info = updatedInfo)
+        if (!wasSuccessful || device?.stateInfo == null || version == null) {
+            return null
         }
+        val installedTag = version.version.tagName.removePrefix("v")
+        val updatedStateInfo = device.stateInfo.copy(
+            info = device.stateInfo.info.copy(version = installedTag),
+        )
+        return device.copy(
+            stateInfo = updatedStateInfo,
+            updateVersionTag = null,
+        )
     }
 
     /**

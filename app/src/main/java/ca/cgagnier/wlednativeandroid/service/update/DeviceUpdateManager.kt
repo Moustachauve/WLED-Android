@@ -1,11 +1,9 @@
 package ca.cgagnier.wlednativeandroid.service.update
 
 import android.util.Log
-import androidx.compose.runtime.snapshotFlow
+import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 private const val TAG = "DeviceUpdateManager"
@@ -13,31 +11,28 @@ private const val TAG = "DeviceUpdateManager"
 class DeviceUpdateManager @Inject constructor(private val releaseService: ReleaseService) {
 
     /**
-     * Returns a Flow that emits the version tag (e.g., "v0.14.0") if an update is available,
-     * or null if up-to-date.
+     * Checks if a software update is available for the given [device] and [stateInfo].
+     *
+     * @return The latest release version tag (e.g., "16.0.1") if an update is available,
+     * or `null` if up-to-date, OTA is disabled, or state info is absent.
      */
-    fun getUpdateFlow(deviceWithState: DeviceWithState): Flow<String?> {
-        return snapshotFlow {
-            // Create a stable key containing ONLY what matters for an update check
-            val info = deviceWithState.stateInfo.value?.info
-            val branch = deviceWithState.device.branch
-            val skipTag = deviceWithState.device.skipUpdateTag
-            Triple(info, branch, skipTag)
-        }
-            .distinctUntilChanged()
-            .map { (info, branch, skipUpdateTag) ->
-                if (info == null) return@map null
-
-                val repository = getRepositoryFromInfo(info)
-                Log.d(
-                    TAG,
-                    "Checking for software update for ${deviceWithState.device.macAddress} on $repository",
-                )
-                releaseService.getNewerReleaseTag(
-                    deviceInfo = info,
-                    branch = branch,
-                    ignoreVersion = skipUpdateTag,
-                )
-            }
+    suspend fun checkForUpdate(device: Device, stateInfo: DeviceStateInfo?): String? {
+        val info = stateInfo?.info ?: return null
+        val repository = getRepositoryFromInfo(info)
+        Log.d(
+            TAG,
+            "Checking for software update for ${device.macAddress} on $repository",
+        )
+        return releaseService.getNewerReleaseTag(
+            deviceInfo = info,
+            branch = device.branch,
+            ignoreVersion = device.skipUpdateTag,
+        )
     }
+
+    /**
+     * Convenience method to check for updates given an immutable [DeviceWithState].
+     */
+    suspend fun checkForUpdate(deviceWithState: DeviceWithState): String? =
+        checkForUpdate(deviceWithState.device, deviceWithState.stateInfo)
 }

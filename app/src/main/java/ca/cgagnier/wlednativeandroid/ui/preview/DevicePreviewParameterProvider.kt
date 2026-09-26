@@ -18,55 +18,50 @@ class DevicePreviewParameterProvider : PreviewParameterProvider<DeviceWithState>
     private val fakeCurrentTime = System.currentTimeMillis()
     override val values = sequenceOf(
         DeviceWithState(
-            Device(
+            device = Device(
                 macAddress = AP_MODE_MAC_ADDRESS,
                 address = "4.3.2.1",
                 originalName = "original name",
                 customName = "custom name",
                 lastSeen = fakeCurrentTime,
             ),
-        ).apply {
-            websocketStatus.value = WebsocketStatus.CONNECTED
-        },
+            websocketStatus = WebsocketStatus.CONNECTED,
+        ),
         DeviceWithState(
-            Device(
+            device = Device(
                 macAddress = AP_MODE_MAC_ADDRESS,
                 address = "4.3.2.1",
                 lastSeen = fakeCurrentTime,
             ),
-        ).apply {
-            websocketStatus.value = WebsocketStatus.CONNECTING
-        },
+            websocketStatus = WebsocketStatus.CONNECTING,
+        ),
         DeviceWithState(
-            Device(
+            device = Device(
                 macAddress = AP_MODE_MAC_ADDRESS,
                 address = "4.3.2.1",
                 originalName = "original name",
                 lastSeen = fakeCurrentTime - TimeUnit.MINUTES.toMillis(45),
             ),
-        ).apply {
-            websocketStatus.value = WebsocketStatus.DISCONNECTED
-        },
+            websocketStatus = WebsocketStatus.DISCONNECTED,
+        ),
         DeviceWithState(
-            Device(
+            device = Device(
                 macAddress = AP_MODE_MAC_ADDRESS,
                 address = "very-long-address-that-takes-more-than-a-full-width-so-should-be-truncated",
                 originalName = "Very long name that should also be truncated if everything is working",
                 lastSeen = fakeCurrentTime,
             ),
-        ).apply {
-            websocketStatus.value = WebsocketStatus.DISCONNECTED
-        },
+            websocketStatus = WebsocketStatus.DISCONNECTED,
+        ),
         DeviceWithState(
-            Device(
+            device = Device(
                 macAddress = AP_MODE_MAC_ADDRESS,
                 address = "4.3.2.1",
                 originalName = "device with battery",
                 lastSeen = fakeCurrentTime,
             ),
-        ).apply {
-            websocketStatus.value = WebsocketStatus.CONNECTED
-            stateInfo.value = DeviceStateInfo(
+            websocketStatus = WebsocketStatus.CONNECTED,
+            stateInfo = DeviceStateInfo(
                 State(isOn = true, brightness = 128, transition = 7),
                 Info(
                     version = "0.14.0",
@@ -77,8 +72,8 @@ class DevicePreviewParameterProvider : PreviewParameterProvider<DeviceWithState>
                         batteryLevel = listOf(JsonPrimitive(75.0)),
                     ),
                 ),
-            )
-        },
+            ),
+        ),
     )
 }
 

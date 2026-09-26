@@ -1,252 +1,373 @@
 package ca.cgagnier.wlednativeandroid.service.websocket
 
-import android.content.Context
 import android.util.Log
-import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
-import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
-import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
-import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
-import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
-import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
-import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
+import io.ktor.client.plugins.websocket.webSocketSession
+import io.ktor.client.request.header
+import io.ktor.http.HttpHeaders
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.Frame
+import io.ktor.websocket.close
+import io.ktor.websocket.readReason
+import io.ktor.websocket.readText
+import io.ktor.websocket.send
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
-import kotlin.math.min
-import kotlin.math.pow
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.coroutineContext
+import kotlin.random.Random
 
-private const val LAST_SEEN_UPDATE_THRESHOLD = 5000L // 5 seconds
-
+/**
+ * Pure Ktor WebSocket client for WLED devices.
+ *
+ * Manages connection lifecycle, frame encode/decode, exponential backoff with jitter,
+ * and reactive state exposure via Kotlin Coroutines and Flows.
+ */
 @Suppress("LongParameterList")
 class WebsocketClient(
-    val device: Device,
-    private val applicationContext: Context,
-    private val deviceRepository: DeviceRepository,
-    private val widgetManager: WledWidgetManager,
-    deviceUpdateManager: DeviceUpdateManager,
-    private val okHttpClient: OkHttpClient,
+    device: Device,
+    private val httpClient: HttpClient,
     private val json: Json,
-    private val repositoryDao: RepositoryDao,
+    private val coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + coroutineDispatcher),
+    private val random: Random = Random.Default,
+    private val sessionOpener: suspend (HttpClient, String) -> DefaultClientWebSocketSession = { client, url ->
+        client.webSocketSession(url) {
+            header(HttpHeaders.UserAgent, USER_AGENT)
+        }
+    },
 ) {
 
-    val deviceState: DeviceWithState = DeviceWithState(device, deviceUpdateManager)
+    @Volatile
+    var device: Device = device
+        private set
 
-    private var webSocket: WebSocket? = null
+    private val clientJob = SupervisorJob(coroutineScope.coroutineContext[Job])
+    private val clientScope = CoroutineScope(coroutineScope.coroutineContext + clientJob)
 
-    private var isManuallyDisconnected = false
-    private var isConnecting = false
-    private var retryCount = 0
+    private val _status = MutableStateFlow(WebsocketStatus.DISCONNECTED)
+    val status: StateFlow<WebsocketStatus> = _status.asStateFlow()
 
-    private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private val _incomingStateInfo = MutableSharedFlow<DeviceStateInfo>(
+        replay = 0,
+        extraBufferCapacity = BUFFER_CAPACITY,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val incomingStateInfo: SharedFlow<DeviceStateInfo> = _incomingStateInfo.asSharedFlow()
 
-    companion object {
-        private const val TAG = "WebsocketClient"
-        private const val RECONNECTION_DELAY = 2500L // 2.5 seconds
-        private const val MAX_RECONNECTION_DELAY = 60000L // 60 seconds
-        private const val NORMAL_CLOSURE_STATUS = 1000
-    }
+    private val isManuallyDisconnected = AtomicBoolean(false)
+    private val isDestroyed = AtomicBoolean(false)
 
-    private val webSocketListener = object : WebSocketListener() {
-        override fun onOpen(webSocket: WebSocket, response: Response) {
-            Log.d(TAG, "WebSocket connected for ${deviceState.device.address}")
-            deviceState.websocketStatus.value = WebsocketStatus.CONNECTED
-            retryCount = 0
-            isConnecting = false
-        }
+    @Volatile
+    private var connectionJob: Job? = null
 
-        override fun onMessage(webSocket: WebSocket, text: String) {
-            Log.d(TAG, "onMessage for ${deviceState.device.address}: $text")
-            try {
-                val deviceStateInfo = json.decodeFromString<DeviceStateInfo>(text)
-                deviceState.stateInfo.value = deviceStateInfo
-
-                // Update information about the device when we receive a message.
-                // Ideally, this should probably not be done in the client directly
-                coroutineScope.launch {
-                    saveDeviceIfChanged(deviceStateInfo)
-                    updateWidgets()
-                }
-            } catch (e: SerializationException) {
-                Log.e(TAG, "Failed to parse JSON from WebSocket", e)
-            } catch (e: IllegalArgumentException) {
-                Log.e(TAG, "Failed to parse JSON from WebSocket", e)
-            }
-        }
-
-        override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-            Log.d(
-                TAG,
-                "WebSocket closing for ${deviceState.device.address}. Code: $code, Reason: $reason",
-            )
-            deviceState.websocketStatus.value = WebsocketStatus.DISCONNECTED
-        }
-
-        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            Log.w(
-                TAG,
-                "WebSocket failure for ${deviceState.device.address}: ${t.message}; Response: $response",
-                t,
-            )
-            this@WebsocketClient.webSocket = null
-            deviceState.websocketStatus.value = WebsocketStatus.DISCONNECTED
-            isConnecting = false
-            reconnect()
-        }
-    }
-
-    /**
-     * Saves the device information to the database if it has changed.
-     */
-    private suspend fun saveDeviceIfChanged(deviceStateInfo: DeviceStateInfo) {
-        var branch = deviceState.device.branch
-        if (branch == Branch.UNKNOWN) {
-            branch = if (deviceStateInfo.info.version?.contains("-b") ?: false) {
-                Branch.BETA
-            } else {
-                Branch.STABLE
-            }
-        }
-
-        val nameChanged = deviceState.device.originalName != deviceStateInfo.info.name
-        val branchChanged = deviceState.device.branch != branch
-
-        val repositoryStr = getRepositoryFromInfo(deviceStateInfo.info)
-        val repoIdToSave = repositoryDao.getOrCreateRepositoryId(repositoryStr)
-
-        val repositoryChanged = deviceState.device.repositoryId != repoIdToSave
-
-        val timeSinceLastUpdate = System.currentTimeMillis() - deviceState.device.lastSeen
-
-        // Only update if data changed OR it's been more than some time since last "seen" update
-        val shouldUpdateDevice = nameChanged || branchChanged || repositoryChanged ||
-            timeSinceLastUpdate > LAST_SEEN_UPDATE_THRESHOLD
-        if (shouldUpdateDevice) {
-            val newDevice = deviceState.device.copy(
-                originalName = deviceStateInfo.info.name,
-                address = deviceState.device.address,
-                lastSeen = System.currentTimeMillis(),
-                branch = branch,
-                repositoryId = repoIdToSave,
-            )
-            deviceRepository.update(newDevice)
-            Log.d(TAG, "Device persisted to DB: ${newDevice.address}")
-        }
-    }
-
-    /**
-     * Updates any active widgets for this device with the latest state.
-     */
-    private suspend fun updateWidgets() {
-        widgetManager.updateWidgetsFromDeviceWithState(
-            applicationContext,
-            deviceState,
-        )
-    }
-
-    /**
-     * Updates the device state with a new device.
-     * @param newDevice The new device to update with.
-     */
-    fun updateDevice(newDevice: Device) {
-        deviceState.device = newDevice
-    }
+    @Volatile
+    private var currentSession: DefaultClientWebSocketSession? = null
 
     fun connect() {
-        if (webSocket != null || isConnecting) {
-            Log.w(
-                TAG,
-                "Already connected or connecting to ${deviceState.device.address}, isConnecting: $isConnecting",
-            )
-            return
+        val oldJob: Job?
+        synchronized(this) {
+            if (isDestroyed.get()) {
+                Log.w(TAG, "Cannot connect: WebsocketClient for ${device.address} has been destroyed")
+                return
+            }
+            isManuallyDisconnected.set(false)
+            val currentJob = connectionJob
+            if (currentJob?.isActive == true) {
+                if (_status.value == WebsocketStatus.DISCONNECTED) {
+                    Log.d(TAG, "Expediting reconnection for ${device.address}: cancelling backoff delay")
+                    currentJob.cancel(CancellationException("Manual connect during backoff delay"))
+                    oldJob = currentJob
+                } else {
+                    Log.d(TAG, "Connection already active or connecting for ${device.address}")
+                    return
+                }
+            } else {
+                oldJob = currentJob
+            }
+            _status.value = WebsocketStatus.CONNECTING
+            connectionJob = clientScope.launch(coroutineDispatcher) {
+                oldJob?.join()
+                runConnectionLoop()
+            }
         }
-        isManuallyDisconnected = false
-        isConnecting = true
-        deviceState.websocketStatus.value = WebsocketStatus.CONNECTING
-        val websocketUrl = "ws://${deviceState.device.address}/ws"
-        val request = Request.Builder()
-            .url(websocketUrl)
-            // For some reason, adding User-Agent here is ESSENTIAL for the app to be compatible
-            // with WLED 0.14.2. This is due to some flaw in the version of ESPAsyncWebServer
-            // included in that version of WLED.
-            // TODO: Extract the user agent to a constant somewhere to avoid magic string.
-            .header("User-Agent", "WLED-Android")
-            .build()
-
-        Log.d(TAG, "Connecting to ${deviceState.device.address}")
-
-        webSocket = okHttpClient.newWebSocket(request, webSocketListener)
     }
 
     fun disconnect() {
-        Log.d(TAG, "Manually disconnecting from ${deviceState.device.address}")
-        isManuallyDisconnected = true
-        webSocket?.close(NORMAL_CLOSURE_STATUS, "Client disconnected")
-        webSocket = null
-        // Ensure state is updated immediately
-        deviceState.websocketStatus.value = WebsocketStatus.DISCONNECTED
-        isConnecting = false
-    }
-
-    private fun reconnect() {
-        if (isManuallyDisconnected || isConnecting) return
-
-        coroutineScope.launch {
-            val delay = min(
-                RECONNECTION_DELAY * 2.0.pow(retryCount).toLong(),
-                MAX_RECONNECTION_DELAY,
-            )
-            Log.d(TAG, "Reconnecting to ${deviceState.device.address} in ${delay / 1000}s")
-            delay(delay)
-            retryCount++
-            connect()
+        Log.d(TAG, "Manually disconnecting from ${device.address}")
+        synchronized(this) {
+            isManuallyDisconnected.set(true)
+            connectionJob?.cancel(CancellationException("Manual disconnect"))
+            _status.value = WebsocketStatus.DISCONNECTED
         }
     }
 
-    /**
-     * Sends a message to the device.
-     * @param message The message to send.
-     */
-    private fun sendMessage(message: String): Boolean = try {
-        Log.d(TAG, "Sending message to ${deviceState.device.address}: $message")
-        webSocket?.send(message) ?: false
-    } catch (e: Exception) {
-        Log.e(TAG, "Failed to send message to ${deviceState.device.address}", e)
-        reconnect()
-        false
-    }
-
-    /**
-     * Sends a State object to the device.
-     * @param state The State object to send.
-     */
-    fun sendState(state: State) {
-        // Trying to update the state when the device is offline should trigger a reconnection.
-        // This is so that a user playing with the UI causes the device to reconnect if it
-        // isn't trying to reconnect automatically for some reason.
-        if (deviceState.websocketStatus.value != WebsocketStatus.CONNECTED) {
-            Log.w(TAG, "Not connected to ${deviceState.device.address}")
-            connect()
-        }
-        val jsonString = json.encodeToString(state)
-        sendMessage(jsonString)
+    fun updateDevice(newDevice: Device) {
+        this.device = newDevice
     }
 
     fun destroy() {
-        Log.d(TAG, "Websocket client is destroyed for ${deviceState.device.address}")
+        Log.d(TAG, "Destroying WebsocketClient for ${device.address}")
+        isDestroyed.set(true)
         disconnect()
-        coroutineScope.cancel()
+        clientJob.cancel()
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun runConnectionLoop() {
+        var retryCount = 0
+        while (coroutineContext.isActive && !isManuallyDisconnected.get()) {
+            val wasConnected = connectAndConsumeFrames(retryCount)
+            if (wasConnected) {
+                retryCount = 0
+            }
+
+            if (coroutineContext.isActive && !isManuallyDisconnected.get()) {
+                val backoffMs = calculateBackoffWithJitter(retryCount, random = random)
+                Log.d(TAG, "Reconnecting to ${device.address} in ${backoffMs}ms (retry $retryCount)")
+                retryCount++
+                try {
+                    delay(backoffMs)
+                } catch (e: CancellationException) {
+                    Log.d(TAG, "Backoff delay cancelled for ${device.address}")
+                    throw e
+                }
+            }
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught", "ThrowsCount")
+    private suspend fun connectAndConsumeFrames(retryCount: Int): Boolean {
+        val myJob = coroutineContext[Job]
+        val shouldProceed = synchronized(this) {
+            if (coroutineContext.isActive && connectionJob === myJob && !isManuallyDisconnected.get()) {
+                _status.value = WebsocketStatus.CONNECTING
+                true
+            } else {
+                false
+            }
+        }
+        if (!shouldProceed) {
+            throw CancellationException("Connection superseded or manually cancelled before attempt")
+        }
+        var session: DefaultClientWebSocketSession? = null
+        var wasConnected = false
+
+        try {
+            val url = buildWebsocketUrl(device.address)
+            Log.d(TAG, "Connecting to $url (attempt $retryCount)")
+
+            session = sessionOpener(httpClient, url)
+
+            val sessionBound = synchronized(this) {
+                if (coroutineContext.isActive && connectionJob === myJob && !isManuallyDisconnected.get()) {
+                    currentSession = session
+                    _status.value = WebsocketStatus.CONNECTED
+                    wasConnected = true
+                    true
+                } else {
+                    false
+                }
+            }
+
+            if (!sessionBound) {
+                throw CancellationException("Connection superseded or cancelled during handshake")
+            }
+
+            consumeIncomingFrames(session)
+            Log.d(TAG, "WebSocket incoming channel completed for ${device.address}")
+        } catch (e: CancellationException) {
+            Log.d(TAG, "Connection loop cancelled for ${device.address}: ${e.message}")
+            throw e
+        } catch (e: ClosedReceiveChannelException) {
+            Log.w(TAG, "WebSocket channel closed for ${device.address}: ${e.message}")
+        } catch (e: IOException) {
+            Log.w(TAG, "WebSocket IO exception for ${device.address}: ${e.message}")
+        } catch (e: Exception) {
+            Log.w(TAG, "Unexpected WebSocket error for ${device.address}: ${e.message}", e)
+        } finally {
+            cleanupSession(session, myJob)
+        }
+        return wasConnected
+    }
+
+    private suspend fun cleanupSession(session: DefaultClientWebSocketSession?, myJob: Job?) {
+        synchronized(this) {
+            if (currentSession === session) {
+                currentSession = null
+            }
+            if (!isManuallyDisconnected.get() && connectionJob === myJob) {
+                _status.value = WebsocketStatus.DISCONNECTED
+            }
+        }
+        withContext(NonCancellable) {
+            try {
+                val closedGracefully = withTimeoutOrNull(CLOSE_TIMEOUT_MS) {
+                    session?.close(CloseReason(CloseReason.Codes.NORMAL, "Session ended"))
+                    true
+                }
+                if (closedGracefully != true) {
+                    session?.cancel(CancellationException("Session close timed out"))
+                }
+            } catch (e: Exception) {
+                session?.cancel(CancellationException("Session close failed", e))
+            }
+        }
+    }
+
+    private suspend fun consumeIncomingFrames(session: DefaultClientWebSocketSession) {
+        for (frame in session.incoming) {
+            when (frame) {
+                is Frame.Text -> handleTextFrame(frame.readText())
+
+                is Frame.Binary -> {
+                    Log.d(TAG, "Received binary frame from ${device.address}")
+                }
+
+                is Frame.Close -> {
+                    val reason = frame.readReason()
+                    Log.d(TAG, "Received Close frame from ${device.address}: $reason")
+                    break
+                }
+
+                is Frame.Ping, is Frame.Pong -> {
+                    // Handled automatically by Ktor WebSockets ping plugin
+                }
+            }
+        }
+    }
+
+    internal suspend fun handleTextFrame(text: String) {
+        Log.d(TAG, "Received frame from ${device.address}: $text")
+        try {
+            val decodedStateInfo = json.decodeFromString<DeviceStateInfo>(text)
+            _incomingStateInfo.emit(decodedStateInfo)
+        } catch (e: SerializationException) {
+            Log.e(TAG, "Failed to parse JSON frame from ${device.address}: $text", e)
+        } catch (e: IllegalArgumentException) {
+            Log.e(TAG, "Illegal argument parsing JSON frame from ${device.address}: $text", e)
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    suspend fun sendState(state: State): Boolean {
+        if (isDestroyed.get()) {
+            Log.w(TAG, "Cannot send state: WebsocketClient for ${device.address} has been destroyed")
+            return false
+        }
+        var session = currentSession
+        if (session == null || !session.isActive) {
+            if (_status.value == WebsocketStatus.DISCONNECTED && !isManuallyDisconnected.get()) {
+                connect()
+            }
+            if (_status.value == WebsocketStatus.CONNECTING) {
+                withTimeoutOrNull(AWAIT_CONNECT_TIMEOUT_MS) {
+                    _status.first { it != WebsocketStatus.CONNECTING }
+                }
+                session = currentSession
+            }
+        }
+
+        if (session == null || !session.isActive) {
+            Log.w(TAG, "Cannot send state: WebSocket not connected to ${device.address}")
+            return false
+        }
+
+        return try {
+            val jsonString = json.encodeToString(state)
+            Log.d(TAG, "Sending state to ${device.address}: $jsonString")
+            session.send(Frame.Text(jsonString))
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send state to ${device.address}", e)
+            false
+        }
+    }
+
+    internal fun buildWebsocketUrl(address: String): String {
+        val trimmedAddress = address.trim()
+        val isSecure = trimmedAddress.startsWith("https://", ignoreCase = true) ||
+            trimmedAddress.startsWith("wss://", ignoreCase = true)
+        val scheme = if (isSecure) "wss://" else "ws://"
+
+        val cleanAddress = trimmedAddress
+            .replace(PROTOCOL_REGEX, "")
+            .trimEnd('/')
+
+        val hostAndPort = if (cleanAddress.endsWith("/$WEBSOCKET_PATH", ignoreCase = true)) {
+            cleanAddress.substring(0, cleanAddress.length - WEBSOCKET_PATH.length - 1).trimEnd('/')
+        } else {
+            cleanAddress
+        }
+
+        return "$scheme$hostAndPort/$WEBSOCKET_PATH"
+    }
+
+    companion object {
+        internal const val TAG = "WebsocketClient"
+        internal const val WEBSOCKET_PATH = "ws"
+        internal const val USER_AGENT = "WLED-Android"
+        private val PROTOCOL_REGEX = Regex("^(https?|wss?)://", RegexOption.IGNORE_CASE)
+        private const val BASE_BACKOFF_MS = 2000L
+        private const val MAX_BACKOFF_MS = 60000L
+        private const val CLOSE_TIMEOUT_MS = 1000L
+        private const val AWAIT_CONNECT_TIMEOUT_MS = 2000L
+        private const val JITTER_RATIO = 0.25
+        private const val MAX_RETRY_EXPONENT = 30
+        private const val BUFFER_CAPACITY = 64
+
+        fun calculateBackoffWithJitter(
+            retryCount: Int,
+            baseDelayMs: Long = BASE_BACKOFF_MS,
+            maxDelayMs: Long = MAX_BACKOFF_MS,
+            jitterRatio: Double = JITTER_RATIO,
+            random: Random = Random.Default,
+        ): Long {
+            require(retryCount >= 0) { "retryCount must be non-negative" }
+            val effectiveExponent = retryCount.coerceAtMost(MAX_RETRY_EXPONENT)
+            val rawExponential = baseDelayMs * (1L shl effectiveExponent)
+
+            val minDelay = (rawExponential * (1.0 - jitterRatio)).toLong()
+                .coerceAtMost((maxDelayMs * (1.0 - jitterRatio)).toLong())
+                .coerceAtLeast(0L)
+            val maxDelay = (rawExponential * (1.0 + jitterRatio)).toLong()
+                .coerceAtMost(maxDelayMs)
+                .coerceAtLeast(minDelay)
+
+            if (minDelay >= maxDelay) return maxDelay
+
+            val factor = random.nextDouble(0.0, 1.0)
+            return minDelay + ((maxDelay - minDelay) * factor).toLong()
+        }
     }
 }

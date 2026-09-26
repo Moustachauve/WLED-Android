@@ -11,27 +11,35 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.model.wledapi.Wifi
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 
 /**
  * Unit tests for [DeviceEditViewModel].
- *
- * These tests exercise the synchronous methods of the ViewModel.
- * The combined [DeviceEditViewModel.uiState] flow is backed by
- * [SharingStarted.WhileSubscribed], so its [StateFlow.value] is
- * not reliably updated without an active collector—tests therefore
- * assert against direct side-effects (e.g. [DeviceWithState.stateInfo])
- * rather than [uiState.value].
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class DeviceEditViewModelTest {
 
+    private val testDispatcher = StandardTestDispatcher()
     private lateinit var viewModel: DeviceEditViewModel
 
     @BeforeEach
     fun setup() {
+        Dispatchers.setMain(testDispatcher)
         viewModel = DeviceEditViewModel(
             deviceRepository = mockk(relaxed = true),
             repositoryDao = mockk(relaxed = true),
@@ -43,12 +51,18 @@ class DeviceEditViewModelTest {
         )
     }
 
+    @AfterEach
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
     // -- Helpers ---------------------------------------------------------------
 
-    private fun makeDeviceWithState(version: String = "0.13.0"): DeviceWithState {
+    private fun makeDeviceWithState(version: String = "16.0.0"): DeviceWithState {
         val device = Device(macAddress = "mac1", address = "192.168.0.1")
-        return DeviceWithState(device).apply {
-            stateInfo.value = DeviceStateInfo(
+        return DeviceWithState(
+            device = device,
+            stateInfo = DeviceStateInfo(
                 state = State(isOn = true, brightness = 200, transition = 7),
                 info = Info(
                     leds = Leds(count = 30, fps = 30, maxPower = 0, maxSegment = 1),
@@ -56,78 +70,73 @@ class DeviceEditViewModelTest {
                     name = "WLED",
                     version = version,
                 ),
-            )
-        }
+            ),
+        )
     }
 
-    private fun makeVersion(tagName: String = "v0.14.0"): VersionWithAssets = VersionWithAssets(
+    private fun makeVersion(tagName: String = "16.0.1"): VersionWithAssets = VersionWithAssets(
         version = Version.getPreviewVersion().copy(tagName = tagName),
         assets = emptyList(),
     )
 
     // -- stopUpdateInstall: version patching -----------------------------------
 
-    @Test
-    fun `stopUpdateInstall patches stateInfo version on success`() {
-        val deviceWithState = makeDeviceWithState("0.13.0")
-        val version = makeVersion("v0.14.0")
+    @ParameterizedTest
+    @CsvSource(
+        "v16.0.1, true, 16.0.1",
+        "v16.0.1, false, 16.0.0",
+        "v16.0.1-b1, true, 16.0.1-b1",
+        "16.0.1, true, 16.0.1",
+    )
+    fun `stopUpdateInstall updates stateInfo version according to success and tag formatting`(
+        tagName: String,
+        wasSuccessful: Boolean,
+        expectedVersion: String,
+    ) {
+        val deviceWithState = makeDeviceWithState("16.0.0")
+        val version = makeVersion(tagName)
 
         viewModel.startUpdateInstall(version)
-        viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
+        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = wasSuccessful)
 
-        assertEquals("0.14.0", deviceWithState.stateInfo.value?.info?.version)
+        if (wasSuccessful) {
+            assertEquals(expectedVersion, result?.stateInfo?.info?.version)
+            assertNull(result?.updateVersionTag)
+        } else {
+            assertNull(result)
+        }
     }
 
     @Test
-    fun `stopUpdateInstall does not change stateInfo on failure`() {
-        val deviceWithState = makeDeviceWithState("0.13.0")
-        val version = makeVersion("v0.14.0")
-
-        viewModel.startUpdateInstall(version)
-        viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = false)
-
-        assertEquals("0.13.0", deviceWithState.stateInfo.value?.info?.version)
-    }
-
-    @Test
-    fun `stopUpdateInstall strips v prefix from tag name`() {
-        val deviceWithState = makeDeviceWithState("0.13.0")
-        val version = makeVersion("v0.14.0-b3")
-
-        viewModel.startUpdateInstall(version)
-        viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
-
-        assertEquals("0.14.0-b3", deviceWithState.stateInfo.value?.info?.version)
-    }
-
-    @Test
-    fun `stopUpdateInstall handles tag without v prefix gracefully`() {
-        val deviceWithState = makeDeviceWithState("0.13.0")
-        val version = makeVersion("0.14.0")
-
-        viewModel.startUpdateInstall(version)
-        viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
-
-        assertEquals("0.14.0", deviceWithState.stateInfo.value?.info?.version)
-    }
-
-    @Test
-    fun `stopUpdateInstall does not crash when stateInfo is null`() {
+    fun `stopUpdateInstall returns null when stateInfo is null`() {
         val device = Device(macAddress = "mac2", address = "192.168.0.2")
         val deviceWithState = DeviceWithState(device)
-        val version = makeVersion("v0.14.0")
+        val version = makeVersion("v16.0.1")
 
         viewModel.startUpdateInstall(version)
-        viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
+        val result = viewModel.stopUpdateInstall(deviceWithState, version, wasSuccessful = true)
 
-        assertNull(deviceWithState.stateInfo.value)
+        assertNull(result)
     }
 
+    // -- Dialog lifecycle methods ---------------------------------------------
+
     @Test
-    fun `stopUpdateInstall without arguments does not crash`() {
-        viewModel.startUpdateInstall(makeVersion())
+    fun `startUpdateInstall sets install version and stopUpdateInstall clears it`() = runTest(testDispatcher) {
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.uiState.collect {}
+        }
+        val version = makeVersion("16.0.1")
+
+        viewModel.startUpdateInstall(version)
+        advanceUntilIdle()
+        assertEquals(version, viewModel.uiState.value.updateInstallVersion)
+
         viewModel.stopUpdateInstall()
-        // No exception = pass
+        advanceUntilIdle()
+        assertNull(viewModel.uiState.value.updateInstallVersion)
+
+        job.cancel()
     }
 
     // -- Dialog lifecycle methods (smoke tests) --------------------------------
