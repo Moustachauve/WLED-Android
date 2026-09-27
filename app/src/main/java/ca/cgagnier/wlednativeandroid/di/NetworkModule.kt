@@ -48,6 +48,7 @@ object NetworkModule {
             .connectTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .pingInterval(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .cache(Cache(appContext.cacheDir, CACHE_SIZE_BYTES))
             .build()
     }

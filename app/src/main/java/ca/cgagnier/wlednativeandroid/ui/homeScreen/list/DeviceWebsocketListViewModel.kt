@@ -314,15 +314,14 @@ class DeviceWebsocketListViewModel @Inject constructor(
         updateTag: String?,
         stateInfo: DeviceStateInfo,
     ): Pair<DeviceWithState?, DeviceWithState?> {
-        var previousForWidget: DeviceWithState? = null
-        var updatedForWidget: DeviceWithState? = null
+        val previous = _allDevicesWithState.value.firstOrNull { it.device.macAddress == mac }
+            ?: return Pair(null, null)
 
         _allDevicesWithState.update { currentList ->
             var changed = false
             val nextList = currentList.map { current ->
                 if (current.device.macAddress == mac) {
                     changed = true
-                    previousForWidget = current
                     val finalDevice = if (updatedDevice != null) {
                         current.device.copy(
                             originalName = updatedDevice.originalName,
@@ -342,13 +341,11 @@ class DeviceWebsocketListViewModel @Inject constructor(
                         updateTag
                     }
 
-                    val updated = current.copy(
+                    current.copy(
                         device = finalDevice,
                         stateInfo = stateInfo,
                         updateVersionTag = finalTag,
                     )
-                    updatedForWidget = updated
-                    updated
                 } else {
                     current
                 }
@@ -356,7 +353,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
             if (changed) nextList else currentList
         }
 
-        return Pair(previousForWidget, updatedForWidget)
+        val updated = _allDevicesWithState.value.firstOrNull { it.device.macAddress == mac }
+        return Pair(previous, updated)
     }
 
     private fun hasWidgetVisibleChanges(previous: DeviceWithState?, next: DeviceWithState): Boolean {

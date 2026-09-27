@@ -295,6 +295,25 @@ class SaveDeviceStateUseCaseTest {
         assertEquals("Original Device Name", resultExceeding?.originalName)
     }
 
+    @Test
+    fun `invoke handles deviceRepository update exception gracefully and returns null`() = runTest(testDispatcher) {
+        val currentDevice = Device(
+            macAddress = "AABBCCDDEEFF",
+            address = "192.168.1.100",
+            originalName = "Old Name",
+            branch = Branch.STABLE,
+            lastSeen = 10000L,
+            repositoryId = Repository.DEFAULT_ID,
+        )
+        val stateInfo = createDeviceStateInfo(name = "New Name", version = "0.14.0")
+        coEvery { deviceRepository.update(any()) } throws RuntimeException("SQLite disk error")
+
+        val result = useCase(currentDevice, stateInfo, currentTimeMillis = 11000L)
+
+        assertNull(result, "When DB persistence throws an exception, invoke must return null instead of crashing")
+        coVerify(exactly = 1) { deviceRepository.update(any()) }
+    }
+
     private fun createDeviceStateInfo(
         name: String = "Test Device",
         version: String? = "0.14.0",

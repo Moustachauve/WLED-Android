@@ -10,6 +10,7 @@ import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,6 +20,7 @@ import javax.inject.Inject
  * Domain use case to persist updated device metadata to the database when changes
  * are detected from an inbound DeviceStateInfo update or when the lastSeen threshold expires.
  */
+@Suppress("TooGenericExceptionCaught")
 class SaveDeviceStateUseCase @Inject constructor(
     private val deviceRepository: DeviceRepository,
     private val repositoryDao: RepositoryDao,
@@ -77,9 +79,16 @@ class SaveDeviceStateUseCase @Inject constructor(
                 branch = branch,
                 repositoryId = repoIdToSave,
             )
-            deviceRepository.update(newDevice)
-            Log.d(TAG, "Device persisted to DB: ${newDevice.address}")
-            newDevice
+            try {
+                deviceRepository.update(newDevice)
+                Log.d(TAG, "Device persisted to DB: ${newDevice.address}")
+                newDevice
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to persist device to DB: ${newDevice.address}", e)
+                null
+            }
         } else {
             null
         }
@@ -94,8 +103,15 @@ class SaveDeviceStateUseCase @Inject constructor(
 
     private suspend fun resolveRepositoryId(repositoryStr: String, isDefaultRepo: Boolean): Long {
         if (isDefaultRepo) return Repository.DEFAULT_ID
-        return repositoryIdCache[repositoryStr] ?: repositoryDao.getOrCreateRepositoryId(repositoryStr).also {
-            repositoryIdCache[repositoryStr] = it
+        return repositoryIdCache[repositoryStr] ?: try {
+            repositoryDao.getOrCreateRepositoryId(repositoryStr).also {
+                repositoryIdCache[repositoryStr] = it
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to resolve repository ID for $repositoryStr, falling back to default", e)
+            Repository.DEFAULT_ID
         }
     }
 }
