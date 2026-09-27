@@ -448,6 +448,121 @@ class WebsocketClientTest {
         localScope.runCurrent()
     }
 
+    @Test
+    fun `disconnect keeps manual disconnect sticky across resume`() = runTest {
+        val localDispatcher = StandardTestDispatcher(testScheduler)
+        val localScope = TestScope(localDispatcher)
+
+        val sessionIncoming = Channel<Frame>(Channel.UNLIMITED)
+        val session = mockk<DefaultClientWebSocketSession>()
+        every { session.incoming } returns sessionIncoming
+        every { session.coroutineContext } returns SupervisorJob() + Dispatchers.Default
+        coEvery { session.send(any()) } returns Unit
+
+        val client = WebsocketClient(
+            device = device,
+            httpClient = httpClient,
+            json = json,
+            coroutineDispatcher = localDispatcher,
+            coroutineScope = localScope,
+            sessionOpener = { _, _ -> session },
+        )
+
+        client.connect()
+        localScope.runCurrent()
+        assertEquals(WebsocketStatus.CONNECTED, client.status.value)
+
+        // Explicit manual disconnect
+        client.disconnect()
+        assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
+
+        // Lifecycle resume must NOT re-open a manually disconnected client
+        client.resume()
+        localScope.runCurrent()
+        assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
+
+        // Explicit connect() overrides manual disconnect and reconnects
+        client.connect()
+        localScope.runCurrent()
+        assertEquals(WebsocketStatus.CONNECTED, client.status.value)
+
+        sessionIncoming.close()
+        client.destroy()
+        localScope.runCurrent()
+    }
+
+    @Test
+    fun `pause followed by resume reconnects without manual disconnect`() = runTest {
+        val localDispatcher = StandardTestDispatcher(testScheduler)
+        val localScope = TestScope(localDispatcher)
+
+        val sessionIncoming = Channel<Frame>(Channel.UNLIMITED)
+        val session = mockk<DefaultClientWebSocketSession>()
+        every { session.incoming } returns sessionIncoming
+        every { session.coroutineContext } returns SupervisorJob() + Dispatchers.Default
+
+        val client = WebsocketClient(
+            device = device,
+            httpClient = httpClient,
+            json = json,
+            coroutineDispatcher = localDispatcher,
+            coroutineScope = localScope,
+            sessionOpener = { _, _ -> session },
+        )
+
+        client.connect()
+        localScope.runCurrent()
+        assertEquals(WebsocketStatus.CONNECTED, client.status.value)
+
+        // App backgrounded: pause()
+        client.pause()
+        assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
+
+        // App foregrounded: resume() successfully reconnects
+        client.resume()
+        localScope.runCurrent()
+        assertEquals(WebsocketStatus.CONNECTED, client.status.value)
+
+        sessionIncoming.close()
+        client.destroy()
+        localScope.runCurrent()
+    }
+
+    @Test
+    fun `disconnect synchronously cancels underlying session`() = runTest {
+        val localDispatcher = StandardTestDispatcher(testScheduler)
+        val localScope = TestScope(localDispatcher)
+
+        val sessionIncoming = Channel<Frame>(Channel.UNLIMITED)
+        val sessionJob = SupervisorJob()
+        val session = mockk<DefaultClientWebSocketSession>()
+        every { session.incoming } returns sessionIncoming
+        every { session.coroutineContext } returns sessionJob + Dispatchers.Default
+
+        val client = WebsocketClient(
+            device = device,
+            httpClient = httpClient,
+            json = json,
+            coroutineDispatcher = localDispatcher,
+            coroutineScope = localScope,
+            sessionOpener = { _, _ -> session },
+        )
+
+        client.connect()
+        localScope.runCurrent()
+        assertEquals(WebsocketStatus.CONNECTED, client.status.value)
+        assertTrue(sessionJob.isActive)
+
+        // Disconnecting must cancel the session job synchronously
+        client.disconnect()
+        assertTrue(sessionJob.isCancelled, "Session job must be cancelled immediately on disconnect")
+        assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
+
+        sessionIncoming.close()
+        client.destroy()
+        localScope.runCurrent()
+    }
+
     private fun deterministicRandom(fixedValue: Double): Random = object : Random() {
         override fun nextBits(bitCount: Int): Int = 0
         override fun nextDouble(from: Double, until: Double): Double = fixedValue.coerceIn(from, until)

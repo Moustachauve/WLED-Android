@@ -457,7 +457,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
         super.onPause(owner)
         Log.d(TAG, "onPause: App is in the background. Pausing all connections.")
         isPaused.value = true
-        activeClients.values.forEach { it.disconnect() }
+        activeClients.values.forEach { it.pause() }
     }
 
     /**
@@ -468,7 +468,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
         super.onResume(owner)
         Log.d(TAG, "onResume: App is in the foreground. Resuming all connections.")
         isPaused.value = false
-        activeClients.values.forEach { it.connect() }
+        activeClients.values.forEach { it.resume() }
     }
 
     override fun onCleared() {
