@@ -26,6 +26,7 @@ import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -757,6 +758,46 @@ class DeviceWebsocketListViewModelTest {
         // Rolled back to false on failure
         val deviceAfter = viewModel.allDevicesWithState.value.first()
         assertEquals(false, deviceAfter.stateInfo?.state?.isOn)
+
+        job.cancel()
+    }
+
+    @Test
+    fun `rapid setDevicePower cancels previous power job`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        val stateInfo = DeviceStateInfo(
+            state = State(isOn = false),
+            info = Info(
+                version = "16.0.1",
+                name = "Device 1",
+                leds = Leds(count = 60),
+                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+            ),
+        )
+        holder.incomingFlow.emit(stateInfo)
+        advanceUntilIdle()
+
+        val deviceBefore = viewModel.allDevicesWithState.value.first()
+        coEvery { holder.client.sendState(State(isOn = true)) } coAnswers {
+            delay(1000)
+            false
+        }
+        coEvery { holder.client.sendState(State(isOn = false)) } returns true
+
+        viewModel.setDevicePower(deviceBefore, true)
+        viewModel.setDevicePower(deviceBefore, false)
+        advanceUntilIdle()
+
+        val deviceFinal = viewModel.allDevicesWithState.value.first()
+        assertEquals(false, deviceFinal.stateInfo?.state?.isOn)
 
         job.cancel()
     }

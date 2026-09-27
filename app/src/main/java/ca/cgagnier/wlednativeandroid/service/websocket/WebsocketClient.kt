@@ -337,7 +337,7 @@ class WebsocketClient(
         }
         var session = currentSession
         if (session == null || !session.isActive) {
-            if (_status.value == WebsocketStatus.DISCONNECTED && !isManuallyDisconnected.get()) {
+            if (_status.value == WebsocketStatus.DISCONNECTED && canConnect()) {
                 connect()
             }
             if (_status.value == WebsocketStatus.CONNECTING) {
