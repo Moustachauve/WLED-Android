@@ -842,4 +842,26 @@ class DeviceWebsocketListViewModelTest {
 
             job.cancel()
         }
+
+    @Test
+    fun `onPause pauses clients and onResume resumes clients`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        val lifecycleOwner = mockk<androidx.lifecycle.LifecycleOwner>(relaxed = true)
+
+        viewModel.onPause(lifecycleOwner)
+        verify(exactly = 1) { holder.client.pause() }
+
+        viewModel.onResume(lifecycleOwner)
+        verify(exactly = 1) { holder.client.resume() }
+
+        job.cancel()
+    }
 }

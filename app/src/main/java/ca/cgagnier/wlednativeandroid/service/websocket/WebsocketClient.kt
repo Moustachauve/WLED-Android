@@ -85,6 +85,7 @@ class WebsocketClient(
 
     private val stateLock = Any()
     private val isManuallyDisconnected = AtomicBoolean(false)
+    private val isPaused = AtomicBoolean(false)
     private val isDestroyed = AtomicBoolean(false)
 
     @Volatile
@@ -102,6 +103,7 @@ class WebsocketClient(
                 return
             }
             isManuallyDisconnected.set(false)
+            isPaused.set(false)
             val currentJob = connectionJob
             if (currentJob?.isActive == true) {
                 if (_status.value == WebsocketStatus.DISCONNECTED) {
@@ -129,12 +131,40 @@ class WebsocketClient(
     fun disconnect() {
         Log.d(TAG, "Manually disconnecting from ${device.address}")
         var jobToCancel: Job? = null
+        var sessionToCancel: DefaultClientWebSocketSession? = null
         synchronized(stateLock) {
             isManuallyDisconnected.set(true)
             jobToCancel = connectionJob
+            sessionToCancel = currentSession
+            currentSession = null
         }
+        sessionToCancel?.cancel(CancellationException("Manual disconnect"))
         jobToCancel?.cancel(CancellationException("Manual disconnect"))
         _status.value = WebsocketStatus.DISCONNECTED
+    }
+
+    fun pause() {
+        Log.d(TAG, "Pausing connection for ${device.address}")
+        var jobToCancel: Job? = null
+        var sessionToCancel: DefaultClientWebSocketSession? = null
+        synchronized(stateLock) {
+            isPaused.set(true)
+            jobToCancel = connectionJob
+            sessionToCancel = currentSession
+            currentSession = null
+        }
+        sessionToCancel?.cancel(CancellationException("App paused"))
+        jobToCancel?.cancel(CancellationException("App paused"))
+        _status.value = WebsocketStatus.DISCONNECTED
+    }
+
+    fun resume() {
+        if (isManuallyDisconnected.get() || isDestroyed.get()) {
+            Log.d(TAG, "Not resuming ${device.address}: manually disconnected or destroyed")
+            return
+        }
+        isPaused.set(false)
+        connect()
     }
 
     fun updateDevice(newDevice: Device) {
@@ -148,16 +178,21 @@ class WebsocketClient(
         clientJob.cancel()
     }
 
+    private fun canConnect(): Boolean = !isManuallyDisconnected.get() && !isPaused.get()
+
+    private fun isConnectionActive(isContextActive: Boolean, myJob: Job?): Boolean =
+        isContextActive && connectionJob === myJob && canConnect()
+
     @Suppress("TooGenericExceptionCaught")
     private suspend fun runConnectionLoop() {
         var retryCount = 0
-        while (coroutineContext.isActive && !isManuallyDisconnected.get()) {
+        while (coroutineContext.isActive && canConnect()) {
             val wasConnected = connectAndConsumeFrames(retryCount)
             if (wasConnected) {
                 retryCount = 0
             }
 
-            if (coroutineContext.isActive && !isManuallyDisconnected.get()) {
+            if (coroutineContext.isActive && canConnect()) {
                 val backoffMs = calculateBackoffWithJitter(retryCount, random = random)
                 Log.d(TAG, "Reconnecting to ${device.address} in ${backoffMs}ms (retry $retryCount)")
                 retryCount++
@@ -174,8 +209,9 @@ class WebsocketClient(
     @Suppress("TooGenericExceptionCaught", "ThrowsCount")
     private suspend fun connectAndConsumeFrames(retryCount: Int): Boolean {
         val myJob = coroutineContext[Job]
+        val isCurrentActive = coroutineContext.isActive
         val shouldProceed = synchronized(stateLock) {
-            coroutineContext.isActive && connectionJob === myJob && !isManuallyDisconnected.get()
+            isConnectionActive(isCurrentActive, myJob)
         }
         if (!shouldProceed) {
             throw CancellationException("Connection superseded or manually cancelled before attempt")
@@ -190,8 +226,9 @@ class WebsocketClient(
 
             session = sessionOpener(httpClient, url)
 
+            val isBoundActive = coroutineContext.isActive
             val sessionBound = synchronized(stateLock) {
-                if (coroutineContext.isActive && connectionJob === myJob && !isManuallyDisconnected.get()) {
+                if (isConnectionActive(isBoundActive, myJob)) {
                     currentSession = session
                     wasConnected = true
                     true
@@ -228,7 +265,7 @@ class WebsocketClient(
             if (currentSession === session) {
                 currentSession = null
             }
-            if (!isManuallyDisconnected.get() && connectionJob === myJob) {
+            if (canConnect() && connectionJob === myJob) {
                 shouldSetDisconnected = true
             }
         }
