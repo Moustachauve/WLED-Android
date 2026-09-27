@@ -6,6 +6,7 @@ import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -23,20 +24,11 @@ class WebsocketClientFactory @Inject constructor(
     /**
      * Creates a new WebsocketClient for the given device.
      */
-    fun create(device: Device, coroutineScope: CoroutineScope? = null): WebsocketClient = if (coroutineScope != null) {
-        WebsocketClient(
-            device = device,
-            httpClient = httpClient,
-            json = json,
-            coroutineDispatcher = ioDispatcher,
-            coroutineScope = coroutineScope,
-        )
-    } else {
-        WebsocketClient(
-            device = device,
-            httpClient = httpClient,
-            json = json,
-            coroutineDispatcher = ioDispatcher,
-        )
-    }
+    fun create(device: Device, coroutineScope: CoroutineScope? = null): WebsocketClient = WebsocketClient(
+        device = device,
+        httpClient = httpClient,
+        json = json,
+        coroutineDispatcher = ioDispatcher,
+        coroutineScope = coroutineScope ?: CoroutineScope(SupervisorJob() + ioDispatcher),
+    )
 }

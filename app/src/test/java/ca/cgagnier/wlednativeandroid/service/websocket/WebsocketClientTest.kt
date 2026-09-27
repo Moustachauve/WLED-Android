@@ -5,14 +5,18 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -26,12 +30,14 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -365,6 +371,81 @@ class WebsocketClientTest {
         client.destroy()
         val result = client.sendState(State(isOn = true))
         assertFalse(result)
+    }
+
+    @Test
+    fun `sendState sends JSON text frame over active session`() = runTest {
+        val localDispatcher = StandardTestDispatcher(testScheduler)
+        val localScope = TestScope(localDispatcher)
+
+        val sessionIncoming = Channel<Frame>(Channel.UNLIMITED)
+        val sessionOutgoing = Channel<Frame>(Channel.UNLIMITED)
+        val session = mockk<DefaultClientWebSocketSession>()
+        every { session.incoming } returns sessionIncoming
+        every { session.outgoing } returns sessionOutgoing
+        every { session.coroutineContext } returns SupervisorJob() + Dispatchers.Default
+        coEvery { session.send(any()) } coAnswers {
+            sessionOutgoing.send(firstArg())
+        }
+
+        val client = WebsocketClient(
+            device = device,
+            httpClient = httpClient,
+            json = json,
+            coroutineDispatcher = localDispatcher,
+            coroutineScope = localScope,
+            sessionOpener = { _, _ -> session },
+        )
+
+        client.connect()
+        localScope.runCurrent()
+        assertEquals(WebsocketStatus.CONNECTED, client.status.value)
+
+        val sendResult = client.sendState(State(isOn = true, brightness = 128))
+        assertTrue(sendResult)
+
+        val sentFrame = sessionOutgoing.receive()
+        assertTrue(sentFrame is Frame.Text)
+        val sentText = (sentFrame as Frame.Text).readText()
+        assertTrue(sentText.contains("\"bri\":128"))
+        assertTrue(sentText.contains("\"on\":true"))
+
+        sessionIncoming.close()
+        client.destroy()
+        localScope.runCurrent()
+    }
+
+    @Test
+    fun `sendState returns false when session channel is closed without cancelling caller coroutine`() = runTest {
+        val localDispatcher = StandardTestDispatcher(testScheduler)
+        val localScope = TestScope(localDispatcher)
+
+        val sessionIncoming = Channel<Frame>(Channel.UNLIMITED)
+        val session = mockk<DefaultClientWebSocketSession>()
+        every { session.incoming } returns sessionIncoming
+        every { session.coroutineContext } returns SupervisorJob() + Dispatchers.Default
+        coEvery { session.send(any()) } throws CancellationException("Channel was closed")
+
+        val client = WebsocketClient(
+            device = device,
+            httpClient = httpClient,
+            json = json,
+            coroutineDispatcher = localDispatcher,
+            coroutineScope = localScope,
+            sessionOpener = { _, _ -> session },
+        )
+
+        client.connect()
+        localScope.runCurrent()
+        assertEquals(WebsocketStatus.CONNECTED, client.status.value)
+
+        val sendResult = client.sendState(State(isOn = true))
+        assertFalse(sendResult)
+        assertTrue(coroutineContext.isActive, "Caller coroutine must remain active after sendState failure")
+
+        sessionIncoming.close()
+        client.destroy()
+        localScope.runCurrent()
     }
 
     private fun deterministicRandom(fixedValue: Double): Random = object : Random() {

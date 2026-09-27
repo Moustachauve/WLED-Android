@@ -45,6 +45,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LargeClass")
 class DeviceWebsocketListViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
@@ -798,4 +799,47 @@ class DeviceWebsocketListViewModelTest {
 
         job.cancel()
     }
+
+    @Test
+    fun `incoming frames for removed device do not resurrect device in allDevicesWithState`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel()
+            val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.allDevicesWithState.collect {}
+            }
+
+            allDevicesDbFlow.value = listOf(device1)
+            advanceUntilIdle()
+
+            val holder = createdClients[device1.macAddress]!!
+            val stateInfo = DeviceStateInfo(
+                state = State(isOn = true),
+                info = Info(
+                    version = "16.0.1",
+                    name = "Device 1",
+                    leds = Leds(count = 60),
+                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+                ),
+            )
+            holder.incomingFlow.emit(stateInfo)
+            advanceUntilIdle()
+            assertEquals(1, viewModel.allDevicesWithState.value.size)
+
+            // Device is deleted/removed from Room DB
+            allDevicesDbFlow.value = emptyList()
+            advanceUntilIdle()
+            assertTrue(viewModel.allDevicesWithState.value.isEmpty())
+
+            // A delayed frame arrives after removal
+            holder.incomingFlow.emit(stateInfo)
+            advanceUntilIdle()
+
+            // Device must remain removed, never resurrected
+            assertTrue(
+                viewModel.allDevicesWithState.value.isEmpty(),
+                "Removed device must not be resurrected in allDevicesWithState by delayed frames",
+            )
+
+            job.cancel()
+        }
 }
