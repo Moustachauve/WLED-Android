@@ -529,6 +529,15 @@ class WebsocketClientTest {
     }
 
     @Test
+    fun `sendState returns false and does not reconnect when paused`() = runTest {
+        val client = WebsocketClient(device, httpClient, json)
+        client.pause()
+        val result = client.sendState(State(isOn = true))
+        assertFalse(result, "sendState must return false when paused")
+        assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
+    }
+
+    @Test
     fun `disconnect synchronously cancels underlying session`() = runTest {
         val localDispatcher = StandardTestDispatcher(testScheduler)
         val localScope = TestScope(localDispatcher)

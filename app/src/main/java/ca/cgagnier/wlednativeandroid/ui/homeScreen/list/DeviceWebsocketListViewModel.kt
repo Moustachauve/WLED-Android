@@ -64,6 +64,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
     private val activeClients = ConcurrentHashMap<String, WebsocketClient>()
     private val clientJobs = ConcurrentHashMap<String, Job>()
     private val brightnessJobs = ConcurrentHashMap<String, Job>()
+    private val powerJobs = ConcurrentHashMap<String, Job>()
     private val updateCheckJobs = ConcurrentHashMap<String, Job>()
     private val lastSuccessfulUpdateCheck = ConcurrentHashMap<String, Long>()
     private val lastUpdateCheckAttempt = ConcurrentHashMap<String, Long>()
@@ -186,6 +187,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
             Log.d(TAG, "[Sync] Device removed: $macAddress. Cancelling job and destroying client.")
             clientJobs.remove(macAddress)?.cancel()
             brightnessJobs.remove(macAddress)?.cancel()
+            powerJobs.remove(macAddress)?.cancel()
             updateCheckJobs.remove(macAddress)?.cancel()
             activeClients.remove(macAddress)?.destroy()
             lastSuccessfulUpdateCheck.remove(macAddress)
@@ -483,6 +485,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
         clientJobs.clear()
         brightnessJobs.values.forEach { it.cancel() }
         brightnessJobs.clear()
+        powerJobs.values.forEach { it.cancel() }
+        powerJobs.clear()
         updateCheckJobs.values.forEach { it.cancel() }
         updateCheckJobs.clear()
         activeClients.values.forEach { it.destroy() }
@@ -580,7 +584,8 @@ class DeviceWebsocketListViewModel @Inject constructor(
      */
     fun setDevicePower(device: DeviceWithState, isOn: Boolean) {
         val mac = device.device.macAddress
-        viewModelScope.launch {
+        powerJobs[mac]?.cancel()
+        powerJobs[mac] = viewModelScope.launch {
             val client = activeClients[mac]
             if (client == null) {
                 Log.w(
