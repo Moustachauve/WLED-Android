@@ -13,14 +13,13 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class DbMigration9To10Test {
 
     private val testDb = "migration-test-9-10"
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
-    private val dbFile = File(context.getDatabasePath(testDb).absolutePath)
+    private val dbFile = context.getDatabasePath(testDb)
 
     @get:Rule
     val helper: MigrationTestHelper = MigrationTestHelper(
@@ -42,34 +41,31 @@ class DbMigration9To10Test {
 
     @Test
     fun migrate9To10() {
-        val db = helper.createDatabase(9)
+        helper.createDatabase(9).use { db ->
+            // Insert Device2
+            db.execSQL(
+                """
+                INSERT INTO Device2 (macAddress, address, isHidden, originalName, customName, skipUpdateTag, branch, lastSeen)
+                VALUES ('11:22:33:44:55:66', '192.168.1.100', 0, 'Original Name', 'Custom Name', '', 'UNKNOWN', 0)
+                """.trimIndent(),
+            )
 
-        // Insert Device2
-        db.execSQL(
-            """
-            INSERT INTO Device2 (macAddress, address, isHidden, originalName, customName, skipUpdateTag, branch, lastSeen)
-            VALUES ('11:22:33:44:55:66', '192.168.1.100', 0, 'Original Name', 'Custom Name', '', 'UNKNOWN', 0)
-            """.trimIndent(),
-        )
+            // Insert Version
+            db.execSQL(
+                """
+                INSERT INTO Version (tagName, name, description, isPrerelease, publishedDate, htmlUrl)
+                VALUES ('v1.0.0', 'Release 1', 'Test Description', 0, '2023-01-01', 'http://example.com')
+                """.trimIndent(),
+            )
 
-        // Insert Version
-        db.execSQL(
-            """
-            INSERT INTO Version (tagName, name, description, isPrerelease, publishedDate, htmlUrl)
-            VALUES ('v1.0.0', 'Release 1', 'Test Description', 0, '2023-01-01', 'http://example.com')
-            """.trimIndent(),
-        )
-
-        // Insert Asset
-        db.execSQL(
-            """
-            INSERT INTO Asset (versionTagName, name, size, downloadUrl, assetId)
-            VALUES ('v1.0.0', 'asset.bin', 1048576, 'http://example.com/asset.bin', 123)
-            """.trimIndent(),
-        )
-
-        // Close db before migration run
-        db.close()
+            // Insert Asset
+            db.execSQL(
+                """
+                INSERT INTO Asset (versionTagName, name, size, downloadUrl, assetId)
+                VALUES ('v1.0.0', 'asset.bin', 1048576, 'http://example.com/asset.bin', 123)
+                """.trimIndent(),
+            )
+        }
 
         // Run migration
         helper.runMigrationsAndValidate(10, listOf(MIGRATION_9_10)).use { migratedDb ->

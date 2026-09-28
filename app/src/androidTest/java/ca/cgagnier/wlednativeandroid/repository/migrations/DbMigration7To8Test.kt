@@ -14,14 +14,13 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class DbMigration7To8Test {
 
     private val testDb = "migration-test-7-8"
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
-    private val dbFile = File(context.getDatabasePath(testDb).absolutePath)
+    private val dbFile = context.getDatabasePath(testDb)
 
     @get:Rule
     val helper: MigrationTestHelper = MigrationTestHelper(
@@ -43,63 +42,61 @@ class DbMigration7To8Test {
 
     @Test
     fun migrate7To8_migratesDevicesAndFiltersUnknownMacs() {
-        val db = helper.createDatabase(7)
+        helper.createDatabase(7).use { db ->
+            // Insert device with custom name
+            db.execSQL(
+                """
+                INSERT INTO Device (
+                    address, name, isCustomName, isHidden, macAddress, brightness, color,
+                    isPoweredOn, isOnline, isRefreshing, networkBssid, networkRssi, networkSignal,
+                    networkChannel, isEthernet, platformName, version, newUpdateVersionTagAvailable,
+                    skipUpdateTag, branch, brand, productName, release, batteryPercentage, hasBattery
+                )
+                VALUES (
+                    '192.168.1.100', 'Living Room', 1, 0, '11:22:33:44:55:66', 128, 0,
+                    1, 1, 0, '__unknown__', 0, 0,
+                    0, 0, '__unknown__', '__unknown__', '',
+                    '', 'UNKNOWN', '__unknown__', '__unknown__', '__unknown__', 0.0, 0
+                )
+                """.trimIndent(),
+            )
 
-        // Insert device with custom name
-        db.execSQL(
-            """
-            INSERT INTO Device (
-                address, name, isCustomName, isHidden, macAddress, brightness, color,
-                isPoweredOn, isOnline, isRefreshing, networkBssid, networkRssi, networkSignal,
-                networkChannel, isEthernet, platformName, version, newUpdateVersionTagAvailable,
-                skipUpdateTag, branch, brand, productName, release, batteryPercentage, hasBattery
+            // Insert device with default/original name
+            db.execSQL(
+                """
+                INSERT INTO Device (
+                    address, name, isCustomName, isHidden, macAddress, brightness, color,
+                    isPoweredOn, isOnline, isRefreshing, networkBssid, networkRssi, networkSignal,
+                    networkChannel, isEthernet, platformName, version, newUpdateVersionTagAvailable,
+                    skipUpdateTag, branch, brand, productName, release, batteryPercentage, hasBattery
+                )
+                VALUES (
+                    '192.168.1.101', 'WLED-Bedroom', 0, 1, 'AA:BB:CC:DD:EE:FF', 255, 0,
+                    0, 0, 0, '__unknown__', 0, 0,
+                    0, 0, '__unknown__', '__unknown__', '',
+                    '', 'UNKNOWN', '__unknown__', '__unknown__', '__unknown__', 0.0, 0
+                )
+                """.trimIndent(),
             )
-            VALUES (
-                '192.168.1.100', 'Living Room', 1, 0, '11:22:33:44:55:66', 128, 0,
-                1, 1, 0, '__unknown__', 0, 0,
-                0, 0, '__unknown__', '__unknown__', '',
-                '', 'UNKNOWN', '__unknown__', '__unknown__', '__unknown__', 0.0, 0
-            )
-            """.trimIndent(),
-        )
 
-        // Insert device with default/original name
-        db.execSQL(
-            """
-            INSERT INTO Device (
-                address, name, isCustomName, isHidden, macAddress, brightness, color,
-                isPoweredOn, isOnline, isRefreshing, networkBssid, networkRssi, networkSignal,
-                networkChannel, isEthernet, platformName, version, newUpdateVersionTagAvailable,
-                skipUpdateTag, branch, brand, productName, release, batteryPercentage, hasBattery
+            // Insert device with unknown MAC address (should NOT be migrated)
+            db.execSQL(
+                """
+                INSERT INTO Device (
+                    address, name, isCustomName, isHidden, macAddress, brightness, color,
+                    isPoweredOn, isOnline, isRefreshing, networkBssid, networkRssi, networkSignal,
+                    networkChannel, isEthernet, platformName, version, newUpdateVersionTagAvailable,
+                    skipUpdateTag, branch, brand, productName, release, batteryPercentage, hasBattery
+                )
+                VALUES (
+                    '192.168.1.102', 'WLED-Unknown', 0, 0, '__unknown__', 0, 0,
+                    0, 0, 0, '__unknown__', 0, 0,
+                    0, 0, '__unknown__', '__unknown__', '',
+                    '', 'UNKNOWN', '__unknown__', '__unknown__', '__unknown__', 0.0, 0
+                )
+                """.trimIndent(),
             )
-            VALUES (
-                '192.168.1.101', 'WLED-Bedroom', 0, 1, 'AA:BB:CC:DD:EE:FF', 255, 0,
-                0, 0, 0, '__unknown__', 0, 0,
-                0, 0, '__unknown__', '__unknown__', '',
-                '', 'UNKNOWN', '__unknown__', '__unknown__', '__unknown__', 0.0, 0
-            )
-            """.trimIndent(),
-        )
-
-        // Insert device with unknown MAC address (should NOT be migrated)
-        db.execSQL(
-            """
-            INSERT INTO Device (
-                address, name, isCustomName, isHidden, macAddress, brightness, color,
-                isPoweredOn, isOnline, isRefreshing, networkBssid, networkRssi, networkSignal,
-                networkChannel, isEthernet, platformName, version, newUpdateVersionTagAvailable,
-                skipUpdateTag, branch, brand, productName, release, batteryPercentage, hasBattery
-            )
-            VALUES (
-                '192.168.1.102', 'WLED-Unknown', 0, 0, '__unknown__', 0, 0,
-                0, 0, 0, '__unknown__', 0, 0,
-                0, 0, '__unknown__', '__unknown__', '',
-                '', 'UNKNOWN', '__unknown__', '__unknown__', '__unknown__', 0.0, 0
-            )
-            """.trimIndent(),
-        )
-
-        db.close()
+        }
 
         helper.runMigrationsAndValidate(8).use { migratedDb ->
             // Validate Device2 has exactly 2 migrated devices
