@@ -184,4 +184,59 @@ class DbMigration7To8Test {
 
         migratedDb.close()
     }
+
+    @Test
+    fun migrate1To10_allMigrationsPass() {
+        val db = helper.createDatabase(1)
+
+        db.execSQL(
+            """
+            INSERT INTO Device (address, name, isCustomName, isHidden, brightness, color, isPoweredOn, isOnline, isRefreshing, networkRssi)
+            VALUES ('192.168.1.50', 'Original Device', 0, 0, 128, 0, 1, 1, 0, -65)
+            """.trimIndent(),
+        )
+
+        db.close()
+
+        val migratedDb = helper.runMigrationsAndValidate(10, listOf(MIGRATION_9_10))
+
+        // Validate Repository table exists with default WLED repository
+        migratedDb.prepare("SELECT * FROM Repository WHERE id = 1").use { stmt ->
+            assertTrue(stmt.step())
+            val colNames = stmt.getColumnNames()
+            assertEquals("WLED", stmt.getText(colNames.indexOf("name")))
+            assertEquals("wled/WLED", stmt.getText(colNames.indexOf("ownerAndRepo")))
+        }
+
+        // Validate old Device table was dropped in migration 8->9
+        migratedDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='Device'").use { stmt ->
+            assertFalse(stmt.step())
+        }
+
+        migratedDb.close()
+    }
+
+    @Test
+    fun migrateEachStepFrom1To7() {
+        for (version in 1..6) {
+            val stepDb = "migration-step-$version"
+            val stepDbFile = File(
+                InstrumentationRegistry.getInstrumentation().targetContext.getDatabasePath(stepDb).absolutePath,
+            )
+            if (stepDbFile.exists()) {
+                stepDbFile.delete()
+            }
+            val stepHelper = MigrationTestHelper(
+                instrumentation = InstrumentationRegistry.getInstrumentation(),
+                file = stepDbFile,
+                driver = BundledSQLiteDriver(),
+                databaseClass = DevicesDatabase::class,
+            )
+            val db = stepHelper.createDatabase(version)
+            db.close()
+            val migrated = stepHelper.runMigrationsAndValidate(version + 1)
+            migrated.close()
+            stepDbFile.delete()
+        }
+    }
 }
