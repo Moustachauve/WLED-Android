@@ -139,6 +139,22 @@ class DeviceWebsocketListViewModelTest {
         this.currentTimeProvider = currentTimeProvider
     }
 
+    private fun createDeviceStateInfo(
+        isOn: Boolean = true,
+        brightness: Int = 128,
+        version: String = "16.0.1",
+        name: String = "Device 1",
+        wifiRssi: Int = -50,
+    ): DeviceStateInfo = DeviceStateInfo(
+        state = State(isOn = isOn, brightness = brightness),
+        info = Info(
+            version = version,
+            name = name,
+            leds = Leds(count = 60),
+            wifi = Wifi(bssid = "mac", rssi = wifiRssi, signal = 100, channel = 1),
+        ),
+    )
+
     @Test
     fun `initial device emission creates clients and updates allDevicesWithState`() = runTest(testDispatcher) {
         val viewModel = createViewModel()
@@ -196,14 +212,11 @@ class DeviceWebsocketListViewModelTest {
         advanceUntilIdle()
 
         val holder = createdClients[device1.macAddress]!!
-        val stateInfo = DeviceStateInfo(
-            state = State(isOn = true, brightness = 200),
-            info = Info(
-                version = "0.14.0",
-                name = "Living Room WLED",
-                leds = Leds(count = 60),
-                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-            ),
+        val stateInfo = createDeviceStateInfo(
+            isOn = true,
+            brightness = 200,
+            version = "0.14.0",
+            name = "Living Room WLED",
         )
 
         holder.incomingFlow.emit(stateInfo)
@@ -231,15 +244,7 @@ class DeviceWebsocketListViewModelTest {
             advanceUntilIdle()
 
             val holder = createdClients[device1.macAddress]!!
-            val stateInfo1 = DeviceStateInfo(
-                state = State(isOn = true, brightness = 128),
-                info = Info(
-                    version = "16.0.1",
-                    name = "Device 1",
-                    leds = Leds(count = 60),
-                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-                ),
-            )
+            val stateInfo1 = createDeviceStateInfo(isOn = true, brightness = 128)
 
             holder.incomingFlow.emit(stateInfo1)
             advanceUntilIdle()
@@ -247,11 +252,7 @@ class DeviceWebsocketListViewModelTest {
             coVerify(exactly = 1) { widgetManager.updateWidgetsFromDeviceWithState(applicationContext, any()) }
 
             // Second frame only changes wifi rssi / signal, which is not widget-visible
-            val stateInfo2 = stateInfo1.copy(
-                info = stateInfo1.info.copy(
-                    wifi = Wifi(bssid = "mac", rssi = -70, signal = 60, channel = 1),
-                ),
-            )
+            val stateInfo2 = createDeviceStateInfo(isOn = true, brightness = 128, wifiRssi = -70)
             holder.incomingFlow.emit(stateInfo2)
             advanceUntilIdle()
 
@@ -380,14 +381,11 @@ class DeviceWebsocketListViewModelTest {
             advanceUntilIdle()
 
             val holder = createdClients[device1.macAddress]!!
-            val stateInfo = DeviceStateInfo(
-                state = State(isOn = true, brightness = 100),
-                info = Info(
-                    version = "0.14.0",
-                    name = "Living Room WLED",
-                    leds = Leds(count = 60),
-                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-                ),
+            val stateInfo = createDeviceStateInfo(
+                isOn = true,
+                brightness = 100,
+                version = "0.14.0",
+                name = "Living Room WLED",
             )
 
             // Initial frame: stateInfo was null, so checkForUpdate must be called once
@@ -420,14 +418,11 @@ class DeviceWebsocketListViewModelTest {
         advanceUntilIdle()
 
         val holder = createdClients[device1.macAddress]!!
-        val baseStateInfo = DeviceStateInfo(
-            state = State(isOn = true, brightness = 100),
-            info = Info(
-                version = "0.14.0",
-                name = "Living Room WLED",
-                leds = Leds(count = 60),
-                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-            ),
+        val baseStateInfo = createDeviceStateInfo(
+            isOn = true,
+            brightness = 100,
+            version = "0.14.0",
+            name = "Living Room WLED",
         )
 
         holder.incomingFlow.emit(baseStateInfo)
@@ -463,14 +458,11 @@ class DeviceWebsocketListViewModelTest {
                 saveDeviceStateUseCase.invoke(any(), any(), any())
             } throws CancellationException("Test cancellation")
 
-            val stateInfo = DeviceStateInfo(
-                state = State(isOn = true, brightness = 100),
-                info = Info(
-                    version = "0.14.0",
-                    name = "Living Room WLED",
-                    leds = Leds(count = 60),
-                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-                ),
+            val stateInfo = createDeviceStateInfo(
+                isOn = true,
+                brightness = 100,
+                version = "0.14.0",
+                name = "Living Room WLED",
             )
 
             holder.incomingFlow.emit(stateInfo)
@@ -530,15 +522,7 @@ class DeviceWebsocketListViewModelTest {
 
         val updatedState = DeviceWithState(
             device = device1.copy(originalName = "Updated Name"),
-            stateInfo = DeviceStateInfo(
-                state = State(isOn = true),
-                info = Info(
-                    version = "16.0.1",
-                    name = "Updated Name",
-                    leds = Leds(count = 60),
-                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-                ),
-            ),
+            stateInfo = createDeviceStateInfo(name = "Updated Name"),
             websocketStatus = WebsocketStatus.CONNECTED,
             updateVersionTag = null,
         )
@@ -565,15 +549,7 @@ class DeviceWebsocketListViewModelTest {
         advanceUntilIdle()
 
         val holder = createdClients[device1.macAddress]!!
-        val stateInfo = DeviceStateInfo(
-            state = State(isOn = true),
-            info = Info(
-                version = "0.14.0",
-                name = "Device 1",
-                leds = Leds(count = 60),
-                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-            ),
-        )
+        val stateInfo = createDeviceStateInfo(version = "0.14.0")
         coEvery { deviceUpdateManager.checkForUpdate(any(), any()) } returns "0.15.0"
 
         holder.incomingFlow.emit(stateInfo)
@@ -602,15 +578,7 @@ class DeviceWebsocketListViewModelTest {
         advanceUntilIdle()
 
         val holder = createdClients[device1.macAddress]!!
-        val stateInfo = DeviceStateInfo(
-            state = State(isOn = true),
-            info = Info(
-                version = "0.14.0",
-                name = "Device 1",
-                leds = Leds(count = 60),
-                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-            ),
-        )
+        val stateInfo = createDeviceStateInfo(version = "0.14.0")
         coEvery { deviceUpdateManager.checkForUpdate(match { it.branch == Branch.STABLE }, any()) } returns "0.14.1"
         coEvery { deviceUpdateManager.checkForUpdate(match { it.branch == Branch.BETA }, any()) } returns "0.15.0-b1"
 
@@ -642,15 +610,7 @@ class DeviceWebsocketListViewModelTest {
         advanceUntilIdle()
 
         val holder = createdClients[device1.macAddress]!!
-        val stateInfo = DeviceStateInfo(
-            state = State(isOn = true),
-            info = Info(
-                version = "0.14.0",
-                name = "Device 1",
-                leds = Leds(count = 60),
-                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-            ),
-        )
+        val stateInfo = createDeviceStateInfo(version = "0.14.0")
 
         // 1st attempt fails with exception
         coEvery { deviceUpdateManager.checkForUpdate(any(), any()) } throws java.io.IOException("Network down")
@@ -692,15 +652,7 @@ class DeviceWebsocketListViewModelTest {
             advanceUntilIdle()
 
             val holder = createdClients[device1.macAddress]!!
-            val stateInfoOld = DeviceStateInfo(
-                state = State(isOn = true),
-                info = Info(
-                    version = "16.0.0",
-                    name = "Device 1",
-                    leds = Leds(count = 60),
-                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-                ),
-            )
+            val stateInfoOld = createDeviceStateInfo(version = "16.0.0")
             // Update available
             coEvery {
                 deviceUpdateManager.checkForUpdate(any(), match { it.info.version == "16.0.0" })
@@ -734,15 +686,7 @@ class DeviceWebsocketListViewModelTest {
         advanceUntilIdle()
 
         val holder = createdClients[device1.macAddress]!!
-        val stateInfo = DeviceStateInfo(
-            state = State(isOn = false),
-            info = Info(
-                version = "16.0.1",
-                name = "Device 1",
-                leds = Leds(count = 60),
-                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-            ),
-        )
+        val stateInfo = createDeviceStateInfo(isOn = false)
         holder.incomingFlow.emit(stateInfo)
         advanceUntilIdle()
 
@@ -773,15 +717,7 @@ class DeviceWebsocketListViewModelTest {
         advanceUntilIdle()
 
         val holder = createdClients[device1.macAddress]!!
-        val stateInfo = DeviceStateInfo(
-            state = State(isOn = false),
-            info = Info(
-                version = "16.0.1",
-                name = "Device 1",
-                leds = Leds(count = 60),
-                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-            ),
-        )
+        val stateInfo = createDeviceStateInfo(isOn = false)
         holder.incomingFlow.emit(stateInfo)
         advanceUntilIdle()
 
@@ -813,15 +749,7 @@ class DeviceWebsocketListViewModelTest {
         advanceUntilIdle()
 
         val holder = createdClients[device1.macAddress]!!
-        val stateInfo = DeviceStateInfo(
-            state = State(isOn = true, brightness = 50),
-            info = Info(
-                version = "16.0.1",
-                name = "Device 1",
-                leds = Leds(count = 60),
-                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-            ),
-        )
+        val stateInfo = createDeviceStateInfo(isOn = true, brightness = 50)
         holder.incomingFlow.emit(stateInfo)
         advanceUntilIdle()
 
@@ -853,15 +781,7 @@ class DeviceWebsocketListViewModelTest {
             advanceUntilIdle()
 
             val holder = createdClients[device1.macAddress]!!
-            val stateInfo = DeviceStateInfo(
-                state = State(isOn = true),
-                info = Info(
-                    version = "16.0.1",
-                    name = "Device 1",
-                    leds = Leds(count = 60),
-                    wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-                ),
-            )
+            val stateInfo = createDeviceStateInfo()
             holder.incomingFlow.emit(stateInfo)
             advanceUntilIdle()
             assertEquals(1, viewModel.allDevicesWithState.value.size)
@@ -899,15 +819,7 @@ class DeviceWebsocketListViewModelTest {
             saveDeviceStateUseCase.invoke(any(), any(), any())
         } throws RuntimeException("Database error")
 
-        val stateInfo = DeviceStateInfo(
-            state = State(isOn = true, brightness = 100),
-            info = Info(
-                version = "16.0.1",
-                name = "Device 1",
-                leds = Leds(count = 60),
-                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
-            ),
-        )
+        val stateInfo = createDeviceStateInfo(brightness = 100)
 
         holder.incomingFlow.emit(stateInfo)
         advanceUntilIdle()
