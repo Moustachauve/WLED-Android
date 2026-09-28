@@ -7,8 +7,6 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.sqlite.SQLiteConnection
-import androidx.sqlite.db.SupportSQLiteDatabase
-import androidx.sqlite.driver.SupportSQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import ca.cgagnier.wlednativeandroid.model.Asset
@@ -62,18 +60,12 @@ abstract class DevicesDatabase : RoomDatabase() {
                 .addMigrations(MIGRATION_9_10)
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(connection: SQLiteConnection) {
-                        super.onCreate(connection)
                         connection.execSQL(
                             """
                             INSERT INTO Repository (id, name, ownerAndRepo, description, htmlUrl, isDefault, isEnabled, isUpdateEnabled)
                             VALUES (1, 'WLED', 'wled/WLED', 'Official WLED Repository', 'https://github.com/wled/WLED', 1, 1, 1)
                             """.trimIndent(),
                         )
-                    }
-
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        onCreate(SupportSQLiteConnection(db))
                     }
                 })
                 .build()

@@ -3,8 +3,6 @@ package ca.cgagnier.wlednativeandroid.repository.migrations
 import android.util.Log
 import androidx.room.migration.AutoMigrationSpec
 import androidx.sqlite.SQLiteConnection
-import androidx.sqlite.db.SupportSQLiteDatabase
-import androidx.sqlite.driver.SupportSQLiteConnection
 import androidx.sqlite.execSQL
 
 private const val TAG = "DbMigration7To8"
@@ -62,9 +60,5 @@ class DbMigration7To8 : AutoMigrationSpec {
         Log.i(TAG, "Number of devices successfully inserted into 'Device2': $insertedCount")
 
         Log.i(TAG, "onPostMigrate done! Migration is complete.")
-    }
-
-    override fun onPostMigrate(db: SupportSQLiteDatabase) {
-        onPostMigrate(SupportSQLiteConnection(db))
     }
 }

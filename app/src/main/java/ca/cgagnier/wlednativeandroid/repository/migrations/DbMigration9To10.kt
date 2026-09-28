@@ -3,8 +3,6 @@ package ca.cgagnier.wlednativeandroid.repository.migrations
 import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.SQLiteConnection
-import androidx.sqlite.db.SupportSQLiteDatabase
-import androidx.sqlite.driver.SupportSQLiteConnection
 import androidx.sqlite.execSQL
 
 private const val TAG = "DbMigration9To10"
@@ -35,10 +33,6 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
         createIndices(connection)
 
         Log.i(TAG, "Migration from 9 to 10 complete!")
-    }
-
-    override fun migrate(db: SupportSQLiteDatabase) {
-        migrate(SupportSQLiteConnection(db))
     }
 
     private fun createRepositoryTable(connection: SQLiteConnection) {
