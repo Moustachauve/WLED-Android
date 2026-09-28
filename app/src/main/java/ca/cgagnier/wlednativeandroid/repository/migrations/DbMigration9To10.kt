@@ -2,7 +2,10 @@ package ca.cgagnier.wlednativeandroid.repository.migrations
 
 import android.util.Log
 import androidx.room.migration.Migration
+import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.driver.SupportSQLiteConnection
+import androidx.sqlite.execSQL
 
 private const val TAG = "DbMigration9To10"
 private const val FROM_VERSION = 9
@@ -18,24 +21,28 @@ private const val TO_VERSION = 10
  * copies existing data linking back to Repository ID 1, then drops old tables.
  */
 val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
-    override fun migrate(db: SupportSQLiteDatabase) {
+    override fun migrate(connection: SQLiteConnection) {
         Log.i(TAG, "Starting migration from 9 to 10")
 
-        createRepositoryTable(db)
-        insertDefaultRepositories(db)
-        addRepositoryToDevice(db)
-        renameOldTables(db)
-        createNewTables(db)
-        migrateVersionData(db)
-        migrateAssetData(db)
-        dropOldTables(db)
-        createIndices(db)
+        createRepositoryTable(connection)
+        insertDefaultRepositories(connection)
+        addRepositoryToDevice(connection)
+        renameOldTables(connection)
+        createNewTables(connection)
+        migrateVersionData(connection)
+        migrateAssetData(connection)
+        dropOldTables(connection)
+        createIndices(connection)
 
         Log.i(TAG, "Migration from 9 to 10 complete!")
     }
 
-    private fun createRepositoryTable(db: SupportSQLiteDatabase) {
-        db.execSQL(
+    override fun migrate(db: SupportSQLiteDatabase) {
+        migrate(SupportSQLiteConnection(db))
+    }
+
+    private fun createRepositoryTable(connection: SQLiteConnection) {
+        connection.execSQL(
             """
             CREATE TABLE IF NOT EXISTS `Repository` (
                 `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -49,12 +56,14 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
             )
             """.trimIndent(),
         )
-        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_Repository_ownerAndRepo` ON `Repository` (`ownerAndRepo`)")
+        connection.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_Repository_ownerAndRepo` ON `Repository` (`ownerAndRepo`)",
+        )
     }
 
-    private fun insertDefaultRepositories(db: SupportSQLiteDatabase) {
+    private fun insertDefaultRepositories(connection: SQLiteConnection) {
         // Insert wled/WLED as ID 1 to match default values
-        db.execSQL(
+        connection.execSQL(
             """
             INSERT OR IGNORE INTO Repository (id, name, ownerAndRepo, description, htmlUrl, isDefault, isEnabled, isUpdateEnabled)
             VALUES (1, 'WLED', 'wled/WLED', 'WLED Firmware', 'https://github.com/wled/WLED', 1, 1, 1)
@@ -62,20 +71,20 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
         )
     }
 
-    private fun addRepositoryToDevice(db: SupportSQLiteDatabase) {
+    private fun addRepositoryToDevice(connection: SQLiteConnection) {
         // Add repositoryId column to Device2 table with default value 1
-        db.execSQL("ALTER TABLE `Device2` ADD COLUMN `repositoryId` INTEGER NOT NULL DEFAULT 1")
+        connection.execSQL("ALTER TABLE `Device2` ADD COLUMN `repositoryId` INTEGER NOT NULL DEFAULT 1")
         Log.i(TAG, "Added repositoryId column to Device2 table")
     }
 
-    private fun renameOldTables(db: SupportSQLiteDatabase) {
-        db.execSQL("ALTER TABLE `Version` RENAME TO `Version_old`")
-        db.execSQL("ALTER TABLE `Asset` RENAME TO `Asset_old`")
+    private fun renameOldTables(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `Version` RENAME TO `Version_old`")
+        connection.execSQL("ALTER TABLE `Asset` RENAME TO `Asset_old`")
     }
 
-    private fun createNewTables(db: SupportSQLiteDatabase) {
+    private fun createNewTables(connection: SQLiteConnection) {
         // Create new Version table with repositoryId foreign key
-        db.execSQL(
+        connection.execSQL(
             """
             CREATE TABLE IF NOT EXISTS `Version` (
                 `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -92,7 +101,7 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
         )
 
         // Create new Asset table with versionId foreign key
-        db.execSQL(
+        connection.execSQL(
             """
             CREATE TABLE IF NOT EXISTS `Asset` (
                 `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -107,12 +116,12 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
         )
     }
 
-    private fun migrateVersionData(db: SupportSQLiteDatabase) {
-        val originalCount = getRowCount(db, "Version_old")
+    private fun migrateVersionData(connection: SQLiteConnection) {
+        val originalCount = getRowCount(connection, "Version_old")
         Log.i(TAG, "Total versions in old 'Version' table: $originalCount")
 
         // Copy data from Version_old to Version with default repositoryId 1
-        db.execSQL(
+        connection.execSQL(
             """
             INSERT INTO Version (
                 repositoryId,
@@ -135,16 +144,16 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
             """.trimIndent(),
         )
 
-        val migratedCount = getRowCount(db, "Version")
+        val migratedCount = getRowCount(connection, "Version")
         Log.i(TAG, "Versions migrated to new table: $migratedCount")
     }
 
-    private fun migrateAssetData(db: SupportSQLiteDatabase) {
-        val originalCount = getRowCount(db, "Asset_old")
+    private fun migrateAssetData(connection: SQLiteConnection) {
+        val originalCount = getRowCount(connection, "Asset_old")
         Log.i(TAG, "Total assets in old 'Asset' table: $originalCount")
 
         // Copy data from Asset_old to Asset joining on Version to get the new versionId
-        db.execSQL(
+        connection.execSQL(
             """
             INSERT INTO Asset (
                 versionId,
@@ -164,34 +173,29 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
             """.trimIndent(),
         )
 
-        val migratedCount = getRowCount(db, "Asset")
+        val migratedCount = getRowCount(connection, "Asset")
         Log.i(TAG, "Assets migrated to new table: $migratedCount")
     }
 
-    private fun dropOldTables(db: SupportSQLiteDatabase) {
-        db.execSQL("DROP TABLE IF EXISTS `Version_old`")
-        db.execSQL("DROP TABLE IF EXISTS `Asset_old`")
+    private fun dropOldTables(connection: SQLiteConnection) {
+        connection.execSQL("DROP TABLE IF EXISTS `Version_old`")
+        connection.execSQL("DROP TABLE IF EXISTS `Asset_old`")
     }
 
-    private fun createIndices(db: SupportSQLiteDatabase) {
-        db.execSQL(
+    private fun createIndices(connection: SQLiteConnection) {
+        connection.execSQL(
             "CREATE UNIQUE INDEX IF NOT EXISTS " +
                 "`index_Version_repositoryId_tagName` ON `Version` (`repositoryId`, `tagName`)",
         )
-        db.execSQL(
+        connection.execSQL(
             "CREATE UNIQUE INDEX IF NOT EXISTS " +
                 "`index_Asset_versionId_name` ON `Asset` (`versionId`, `name`)",
         )
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_versionId` ON `Asset` (`versionId`)")
+        connection.execSQL("CREATE INDEX IF NOT EXISTS `index_Asset_versionId` ON `Asset` (`versionId`)")
     }
 
-    private fun getRowCount(db: SupportSQLiteDatabase, tableName: String): Int {
-        val cursor = db.query("SELECT COUNT(*) FROM $tableName")
-        var count = 0
-        if (cursor.moveToFirst()) {
-            count = cursor.getInt(0)
+    private fun getRowCount(connection: SQLiteConnection, tableName: String): Int =
+        connection.prepare("SELECT COUNT(*) FROM $tableName").use { stmt ->
+            if (stmt.step()) stmt.getInt(0) else 0
         }
-        cursor.close()
-        return count
-    }
 }

@@ -128,6 +128,7 @@ dependencies {
     implementation(libs.androidx.preference.ktx)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.sqlite.bundled)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)

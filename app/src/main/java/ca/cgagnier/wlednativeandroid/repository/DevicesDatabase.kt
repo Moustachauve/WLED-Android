@@ -6,7 +6,11 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.driver.SupportSQLiteConnection
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import androidx.sqlite.execSQL
 import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.Repository
@@ -14,6 +18,7 @@ import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration7To8
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
 import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_9_10
+import kotlinx.coroutines.Dispatchers
 
 @Database(
     entities = [
@@ -52,16 +57,23 @@ abstract class DevicesDatabase : RoomDatabase() {
                 DevicesDatabase::class.java,
                 "devices_database",
             )
+                .setDriver(BundledSQLiteDriver())
+                .setQueryCoroutineContext(Dispatchers.IO)
                 .addMigrations(MIGRATION_9_10)
                 .addCallback(object : RoomDatabase.Callback() {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        db.execSQL(
+                    override fun onCreate(connection: SQLiteConnection) {
+                        super.onCreate(connection)
+                        connection.execSQL(
                             """
                             INSERT INTO Repository (id, name, ownerAndRepo, description, htmlUrl, isDefault, isEnabled, isUpdateEnabled)
                             VALUES (1, 'WLED', 'wled/WLED', 'Official WLED Repository', 'https://github.com/wled/WLED', 1, 1, 1)
                             """.trimIndent(),
                         )
+                    }
+
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        super.onCreate(db)
+                        onCreate(SupportSQLiteConnection(db))
                     }
                 })
                 .build()
