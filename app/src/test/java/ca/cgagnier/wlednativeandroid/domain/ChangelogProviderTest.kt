@@ -2,11 +2,11 @@ package ca.cgagnier.wlednativeandroid.domain
 
 import android.content.Context
 import android.content.res.AssetManager
+import com.diffplug.selfie.Selfie.expectSelfie
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
@@ -55,10 +55,7 @@ class ChangelogProviderTest {
         val result = changelogProvider.getChangelog("0.13.0", "0.14.1")
 
         assertNotNull(result)
-        assertTrue(result!!.contains("Version 0.14.1"))
-        assertTrue(result.contains("Fixed bug Y"))
-        assertTrue(result.contains("Version 0.14.0"))
-        assertTrue(result.contains("Added new feature X"))
+        expectSelfie(result!!).toMatchDisk()
     }
 
     @Test
@@ -77,7 +74,22 @@ class ChangelogProviderTest {
         val result = changelogProvider.getChangelog("0.13.0", "0.15.0-beta1")
 
         assertNotNull(result)
-        assertTrue(result!!.contains("Version Dev"))
-        assertTrue(result.contains("Bleeding edge updates"))
+        expectSelfie(result!!).toMatchDisk()
+    }
+
+    @Test
+    fun `getChangelog ignores non-version files such as README md`() {
+        every { assetManager.list("changelog") } returns arrayOf(
+            "README.md",
+            "0.14.0.md",
+        )
+        every { assetManager.open("changelog/0.14.0.md") } returns ByteArrayInputStream(
+            "Added new feature X".toByteArray(),
+        )
+
+        val result = changelogProvider.getChangelog("0.13.0", "0.14.0")
+
+        assertNotNull(result)
+        expectSelfie(result!!).toMatchDisk()
     }
 }

@@ -26,10 +26,9 @@ class ChangelogProvider @Inject constructor(@param:ApplicationContext private va
     }
 
     private fun parseSemverSafe(versionStr: String): SemVersion? {
-        val clean = versionStr.removePrefix(VERSION_PREFIX_LOWER).removePrefix(VERSION_PREFIX_UPPER)
-        val parsed = clean.toVersionOrNull(strict = false)
+        val parsed = versionStr.toVersionOrNull(strict = false)
         if (parsed == null) {
-            logger.e { "Invalid version string: $versionStr" }
+            logger.d { "Invalid version string: $versionStr" }
         }
         return parsed
     }
@@ -42,8 +41,7 @@ class ChangelogProvider @Inject constructor(@param:ApplicationContext private va
             return emptyList()
         }
 
-        val hasBeta = currentVersion.preRelease?.contains("beta", ignoreCase = true) == true ||
-            currentVersion.toString().contains("beta", ignoreCase = true)
+        val hasBeta = currentVersion.preRelease?.contains("beta", ignoreCase = true) == true
         val validFiles = mutableListOf<ChangelogFile>()
 
         if (hasBeta && files.contains("dev.md")) {
@@ -52,7 +50,12 @@ class ChangelogProvider @Inject constructor(@param:ApplicationContext private va
 
         validFiles.addAll(
             files.mapNotNull { filename ->
-                if (!filename.endsWith(MARKDOWN_EXTENSION) || filename == "dev.md") return@mapNotNull null
+                if (!filename.endsWith(MARKDOWN_EXTENSION) ||
+                    filename == "dev.md" ||
+                    filename.equals("README.md", ignoreCase = true)
+                ) {
+                    return@mapNotNull null
+                }
 
                 val versionPart = filename.removeSuffix(MARKDOWN_EXTENSION)
                 val fileVersion = parseSemverSafe(versionPart)
@@ -106,8 +109,6 @@ class ChangelogProvider @Inject constructor(@param:ApplicationContext private va
     companion object {
         private const val CHANGELOG_DIR = "changelog"
         private const val MARKDOWN_EXTENSION = ".md"
-        private const val VERSION_PREFIX_LOWER = "v"
-        private const val VERSION_PREFIX_UPPER = "V"
         private val DEFAULT_VERSION = "0.0.0".toVersion(strict = false)
     }
 }

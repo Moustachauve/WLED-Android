@@ -35,6 +35,17 @@ class VersionWithAssetsRepositoryTest {
         assertEquals("16.0.0", latest?.tagName)
     }
 
+    @Test
+    fun semVerComparator_breaksTieUsingPublishedDateWhenSemverIsEqual() {
+        val v1 = createVersion("0.14.0", "2023-01-01T00:00:00Z")
+        val v2 = createVersion("0.14.0", "2023-02-01T00:00:00Z")
+        val pair1 = v1 to v1.tagName.toVersionOrNull(strict = false)
+        val pair2 = v2 to v2.tagName.toVersionOrNull(strict = false)
+
+        val cmp = VersionWithAssetsRepository.semVerComparator.compare(pair1, pair2)
+        org.junit.jupiter.api.Assertions.assertTrue(cmp < 0)
+    }
+
     private fun createVersion(tagName: String, publishedDate: String): Version = Version(
         id = 0,
         repositoryId = 0,

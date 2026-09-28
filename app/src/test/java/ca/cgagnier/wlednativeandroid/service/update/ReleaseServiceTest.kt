@@ -109,7 +109,40 @@ class ReleaseServiceTest {
         assertEquals("0.15.0-b2", result)
     }
 
-    private fun createInfo(version: String, options: Int = 0x01): Info = Info(
+    @Test
+    fun `getNewerReleaseTag returns null when device has a newer version than repo`() = runTest {
+        val deviceInfo = createInfo(version = "0.15.0")
+        coEvery {
+            versionWithAssetsRepository.getLatestStableVersionWithAssets(1L)
+        } returns createVersionWithAssets("0.14.1")
+
+        val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "")
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `getNewerReleaseTag offers update when latest release has non-semver tag`() = runTest {
+        val deviceInfo = createInfo(version = "0.14.0")
+        coEvery {
+            versionWithAssetsRepository.getLatestStableVersionWithAssets(1L)
+        } returns createVersionWithAssets("custom-build-2024")
+
+        val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "")
+
+        assertEquals("custom-build-2024", result)
+    }
+
+    @Test
+    fun `getNewerReleaseTag returns null when deviceInfo version is null`() = runTest {
+        val deviceInfo = createInfo(version = null)
+
+        val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "")
+
+        assertNull(result)
+    }
+
+    private fun createInfo(version: String?, options: Int = 0x01): Info = Info(
         leds = Leds(count = 30, fps = 30, maxPower = 0, maxSegment = 1),
         wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
         name = "Test Device",

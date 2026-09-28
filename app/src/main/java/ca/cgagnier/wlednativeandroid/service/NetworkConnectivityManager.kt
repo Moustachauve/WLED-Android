@@ -45,7 +45,7 @@ class NetworkConnectivityManager(context: Context, externalScope: CoroutineScope
             //    network: Network,
             //    networkCapabilities: NetworkCapabilities
             // ) {
-            //    Log.d(TAG, "onCapabilitiesChanged: $network, $networkCapabilities")
+            //    logger.d { "onCapabilitiesChanged: $network, $networkCapabilities" }
             //    trySend(NetworkProperties(network, networkCapabilities, null))
             // }
         }
