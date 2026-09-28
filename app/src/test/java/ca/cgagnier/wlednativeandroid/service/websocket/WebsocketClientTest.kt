@@ -11,6 +11,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableJob
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
@@ -236,19 +237,31 @@ class WebsocketClientTest {
         assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
     }
 
+    private class MockSessionHolder(
+        val session: DefaultClientWebSocketSession,
+        val incoming: Channel<Frame>,
+        val outgoing: Channel<Frame>,
+        val job: CompletableJob,
+    )
+
+    private fun createMockSession(relaxed: Boolean = false): MockSessionHolder {
+        val incoming = Channel<Frame>(Channel.UNLIMITED)
+        val outgoing = Channel<Frame>(Channel.UNLIMITED)
+        val sessionJob = SupervisorJob()
+        val session = mockk<DefaultClientWebSocketSession>(relaxed = relaxed)
+        every { session.incoming } returns incoming
+        every { session.outgoing } returns outgoing
+        every { session.coroutineContext } returns sessionJob + Dispatchers.Default
+        coEvery { session.send(any()) } coAnswers { outgoing.send(firstArg()) }
+        return MockSessionHolder(session, incoming, outgoing, sessionJob)
+    }
+
     @Test
     fun `retryCount resets to 0 after successful connection drops`() = runTest {
         val localDispatcher = StandardTestDispatcher(testScheduler)
         val localScope = TestScope(localDispatcher)
 
-        val session1Incoming = Channel<Frame>(Channel.UNLIMITED)
-        val session1Outgoing = Channel<Frame>(Channel.UNLIMITED)
-        val session1 = mockk<DefaultClientWebSocketSession>(relaxed = true)
-        every { session1.incoming } returns session1Incoming
-        every { session1.outgoing } returns session1Outgoing
-        every { session1.coroutineContext } returns
-            SupervisorJob() + Dispatchers.Default
-
+        val session1 = createMockSession(relaxed = true)
         val connectionAttempts = AtomicInteger(0)
 
         val client = WebsocketClient(
@@ -260,7 +273,7 @@ class WebsocketClientTest {
             sessionOpener = { _, _ ->
                 val attempt = connectionAttempts.incrementAndGet()
                 when (attempt) {
-                    1 -> session1
+                    1 -> session1.session
                     else -> throw IOException("Subsequent reconnect failed")
                 }
             },
@@ -273,7 +286,7 @@ class WebsocketClientTest {
         assertEquals(1, connectionAttempts.get())
 
         // Drop session 1
-        session1Incoming.close()
+        session1.incoming.close()
         localScope.runCurrent()
 
         assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
@@ -292,20 +305,8 @@ class WebsocketClientTest {
         val localDispatcher = StandardTestDispatcher(testScheduler)
         val localScope = TestScope(localDispatcher)
 
-        val session1Incoming = Channel<Frame>(Channel.UNLIMITED)
-        val session1Outgoing = Channel<Frame>(Channel.UNLIMITED)
-        val session1 = mockk<DefaultClientWebSocketSession>(relaxed = true)
-        every { session1.incoming } returns session1Incoming
-        every { session1.outgoing } returns session1Outgoing
-        every { session1.coroutineContext } returns SupervisorJob() + Dispatchers.Default
-
-        val session2Incoming = Channel<Frame>(Channel.UNLIMITED)
-        val session2Outgoing = Channel<Frame>(Channel.UNLIMITED)
-        val session2 = mockk<DefaultClientWebSocketSession>(relaxed = true)
-        every { session2.incoming } returns session2Incoming
-        every { session2.outgoing } returns session2Outgoing
-        every { session2.coroutineContext } returns SupervisorJob() + Dispatchers.Default
-
+        val session1 = createMockSession(relaxed = true)
+        val session2 = createMockSession(relaxed = true)
         val connectionAttempts = AtomicInteger(0)
 
         val client = WebsocketClient(
@@ -317,8 +318,8 @@ class WebsocketClientTest {
             sessionOpener = { _, _ ->
                 val attempt = connectionAttempts.incrementAndGet()
                 when (attempt) {
-                    1 -> session1
-                    else -> session2
+                    1 -> session1.session
+                    else -> session2.session
                 }
             },
         )
@@ -330,7 +331,7 @@ class WebsocketClientTest {
         assertEquals(1, connectionAttempts.get())
 
         // Drop session 1 -> triggers reconnection loop with backoff delay
-        session1Incoming.close()
+        session1.incoming.close()
         localScope.runCurrent()
 
         assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
@@ -378,15 +379,7 @@ class WebsocketClientTest {
         val localDispatcher = StandardTestDispatcher(testScheduler)
         val localScope = TestScope(localDispatcher)
 
-        val sessionIncoming = Channel<Frame>(Channel.UNLIMITED)
-        val sessionOutgoing = Channel<Frame>(Channel.UNLIMITED)
-        val session = mockk<DefaultClientWebSocketSession>()
-        every { session.incoming } returns sessionIncoming
-        every { session.outgoing } returns sessionOutgoing
-        every { session.coroutineContext } returns SupervisorJob() + Dispatchers.Default
-        coEvery { session.send(any()) } coAnswers {
-            sessionOutgoing.send(firstArg())
-        }
+        val sessionHolder = createMockSession()
 
         val client = WebsocketClient(
             device = device,
@@ -394,7 +387,7 @@ class WebsocketClientTest {
             json = json,
             coroutineDispatcher = localDispatcher,
             coroutineScope = localScope,
-            sessionOpener = { _, _ -> session },
+            sessionOpener = { _, _ -> sessionHolder.session },
         )
 
         client.connect()
@@ -404,13 +397,13 @@ class WebsocketClientTest {
         val sendResult = client.sendState(State(isOn = true, brightness = 128))
         assertTrue(sendResult)
 
-        val sentFrame = sessionOutgoing.receive()
+        val sentFrame = sessionHolder.outgoing.receive()
         assertTrue(sentFrame is Frame.Text)
         val sentText = (sentFrame as Frame.Text).readText()
         assertTrue(sentText.contains("\"bri\":128"))
         assertTrue(sentText.contains("\"on\":true"))
 
-        sessionIncoming.close()
+        sessionHolder.incoming.close()
         client.destroy()
         localScope.runCurrent()
     }
@@ -420,11 +413,8 @@ class WebsocketClientTest {
         val localDispatcher = StandardTestDispatcher(testScheduler)
         val localScope = TestScope(localDispatcher)
 
-        val sessionIncoming = Channel<Frame>(Channel.UNLIMITED)
-        val session = mockk<DefaultClientWebSocketSession>()
-        every { session.incoming } returns sessionIncoming
-        every { session.coroutineContext } returns SupervisorJob() + Dispatchers.Default
-        coEvery { session.send(any()) } throws CancellationException("Channel was closed")
+        val sessionHolder = createMockSession()
+        coEvery { sessionHolder.session.send(any()) } throws CancellationException("Channel was closed")
 
         val client = WebsocketClient(
             device = device,
@@ -432,7 +422,7 @@ class WebsocketClientTest {
             json = json,
             coroutineDispatcher = localDispatcher,
             coroutineScope = localScope,
-            sessionOpener = { _, _ -> session },
+            sessionOpener = { _, _ -> sessionHolder.session },
         )
 
         client.connect()
@@ -443,7 +433,7 @@ class WebsocketClientTest {
         assertFalse(sendResult)
         assertTrue(coroutineContext.isActive, "Caller coroutine must remain active after sendState failure")
 
-        sessionIncoming.close()
+        sessionHolder.incoming.close()
         client.destroy()
         localScope.runCurrent()
     }
@@ -453,11 +443,7 @@ class WebsocketClientTest {
         val localDispatcher = StandardTestDispatcher(testScheduler)
         val localScope = TestScope(localDispatcher)
 
-        val sessionIncoming = Channel<Frame>(Channel.UNLIMITED)
-        val session = mockk<DefaultClientWebSocketSession>()
-        every { session.incoming } returns sessionIncoming
-        every { session.coroutineContext } returns SupervisorJob() + Dispatchers.Default
-        coEvery { session.send(any()) } returns Unit
+        val sessionHolder = createMockSession()
 
         val client = WebsocketClient(
             device = device,
@@ -465,7 +451,7 @@ class WebsocketClientTest {
             json = json,
             coroutineDispatcher = localDispatcher,
             coroutineScope = localScope,
-            sessionOpener = { _, _ -> session },
+            sessionOpener = { _, _ -> sessionHolder.session },
         )
 
         client.connect()
@@ -486,7 +472,7 @@ class WebsocketClientTest {
         localScope.runCurrent()
         assertEquals(WebsocketStatus.CONNECTED, client.status.value)
 
-        sessionIncoming.close()
+        sessionHolder.incoming.close()
         client.destroy()
         localScope.runCurrent()
     }
@@ -496,10 +482,7 @@ class WebsocketClientTest {
         val localDispatcher = StandardTestDispatcher(testScheduler)
         val localScope = TestScope(localDispatcher)
 
-        val sessionIncoming = Channel<Frame>(Channel.UNLIMITED)
-        val session = mockk<DefaultClientWebSocketSession>()
-        every { session.incoming } returns sessionIncoming
-        every { session.coroutineContext } returns SupervisorJob() + Dispatchers.Default
+        val sessionHolder = createMockSession()
 
         val client = WebsocketClient(
             device = device,
@@ -507,7 +490,7 @@ class WebsocketClientTest {
             json = json,
             coroutineDispatcher = localDispatcher,
             coroutineScope = localScope,
-            sessionOpener = { _, _ -> session },
+            sessionOpener = { _, _ -> sessionHolder.session },
         )
 
         client.connect()
@@ -523,7 +506,7 @@ class WebsocketClientTest {
         localScope.runCurrent()
         assertEquals(WebsocketStatus.CONNECTED, client.status.value)
 
-        sessionIncoming.close()
+        sessionHolder.incoming.close()
         client.destroy()
         localScope.runCurrent()
     }
@@ -542,11 +525,7 @@ class WebsocketClientTest {
         val localDispatcher = StandardTestDispatcher(testScheduler)
         val localScope = TestScope(localDispatcher)
 
-        val sessionIncoming = Channel<Frame>(Channel.UNLIMITED)
-        val sessionJob = SupervisorJob()
-        val session = mockk<DefaultClientWebSocketSession>()
-        every { session.incoming } returns sessionIncoming
-        every { session.coroutineContext } returns sessionJob + Dispatchers.Default
+        val sessionHolder = createMockSession()
 
         val client = WebsocketClient(
             device = device,
@@ -554,20 +533,20 @@ class WebsocketClientTest {
             json = json,
             coroutineDispatcher = localDispatcher,
             coroutineScope = localScope,
-            sessionOpener = { _, _ -> session },
+            sessionOpener = { _, _ -> sessionHolder.session },
         )
 
         client.connect()
         localScope.runCurrent()
         assertEquals(WebsocketStatus.CONNECTED, client.status.value)
-        assertTrue(sessionJob.isActive)
+        assertTrue(sessionHolder.job.isActive)
 
         // Disconnecting must cancel the session job synchronously
         client.disconnect()
-        assertTrue(sessionJob.isCancelled, "Session job must be cancelled immediately on disconnect")
+        assertTrue(sessionHolder.job.isCancelled, "Session job must be cancelled immediately on disconnect")
         assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
 
-        sessionIncoming.close()
+        sessionHolder.incoming.close()
         client.destroy()
         localScope.runCurrent()
     }
@@ -583,68 +562,13 @@ private val VALID_DEVICE_STATE_INFO_JSON = """
       "state": {
         "on": true,
         "bri": 195,
-        "transition": 7,
-        "ps": -1,
-        "pl": -1,
-        "nl": {
-          "on": false,
-          "dur": 60,
-          "mode": 1,
-          "tbri": 0,
-          "rem": -1
-        },
-        "lor": 0,
-        "mainseg": 0,
-        "seg": []
+        "transition": 7
       },
       "info": {
         "ver": "16.0.1",
-        "vid": 2606300,
-        "cn": "Niji",
-        "release": "ESP32",
-        "repo": "wled/WLED",
         "name": "WLED Desk",
-        "udpport": 21324,
-        "simplifiedui": false,
-        "live": false,
-        "liveseg": -1,
-        "ws": 3,
-        "fxcount": 220,
-        "palcount": 73,
-        "cpalcount": 1,
-        "arch": "esp32",
-        "core": "4.4.8.240628",
-        "clock": 240,
-        "flash": 4,
-        "freeheap": 120932,
-        "uptime": 2252733,
-        "time": "2026-9-22, 23:30:48",
-        "opt": 79,
-        "brand": "WLED",
-        "product": "FOSS",
-        "mac": "aabbccddeeff",
-        "ip": "192.168.1.100",
-        "leds": {
-          "count": 277,
-          "pwr": 2171,
-          "fps": 43,
-          "maxpwr": 10002,
-          "maxseg": 32,
-          "actseg": 1,
-          "seglc": [277],
-          "lc": 1,
-          "rgbw": false,
-          "wv": 0,
-          "cct": 0
-        },
-        "wifi": {
-          "bssid": "aa:bb:cc:dd:ee:ff",
-          "rssi": -65,
-          "signal": 70,
-          "channel": 1,
-          "ap": false
-        },
-        "str": false
+        "leds": { "count": 60 },
+        "wifi": { "bssid": "aa:bb:cc:dd:ee:ff", "rssi": -65, "signal": 70, "channel": 1 }
       }
     }
 """.trimIndent()
