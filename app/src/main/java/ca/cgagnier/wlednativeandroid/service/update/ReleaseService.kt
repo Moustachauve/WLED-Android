@@ -139,25 +139,28 @@ class ReleaseService @Inject constructor(
         ignoreVersion: String,
         branch: Branch,
     ): Boolean {
+        val currentVersion = deviceInfo.version ?: return false
+
         // Don't offer ignored versions or already-installed versions
-        if (latestTagName == ignoreVersion || latestTagName == deviceInfo.version) {
+        if (latestTagName == ignoreVersion || latestTagName == currentVersion) {
             return false
         }
 
         val betaSuffixes = listOf("-a", "-b", "-rc")
         val isDeviceOnBeta = betaSuffixes.any {
-            deviceInfo.version!!.contains(it, ignoreCase = true)
+            currentVersion.contains(it, ignoreCase = true)
         }
 
-        logger.w {
-            "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $latestTagName"
+        logger.d {
+            "Checking update eligibility for device ${deviceInfo.ipAddress}: " +
+                "current $currentVersion -> latest $latestTagName"
         }
 
         // Check branch transition first, then SemVer comparison
         // If we're on a beta branch but looking for a stable branch, always offer to "update" to
         // the stable branch.
         return isBranchTransition(branch, isDeviceOnBeta) ||
-            isNewerVersion(deviceInfo.version!!, latestTagName)
+            isNewerVersion(currentVersion, latestTagName)
     }
 
     // Same if we are on a stable branch but looking for a beta branch, we should offer to
@@ -172,7 +175,10 @@ class ReleaseService @Inject constructor(
         return if (latestSemver != null && currentSemver != null) {
             latestSemver > currentSemver
         } else {
-            logger.i { "Non-SemVer version detected ($latestTagName), offering update as it differs from current." }
+            logger.i {
+                "Non-SemVer version detected (current: '$currentVersion', latest: '$latestTagName'), " +
+                    "offering update as it differs from current."
+            }
             true
         }
     }

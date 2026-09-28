@@ -30,7 +30,7 @@ class DeviceDiscovery(val context: Context, val onDeviceDiscovered: (address: St
                 } catch (e: Exception) {
                     // Do nothing, exceptions here usually means we were not actually listening for
                     // discovery. This is likely since we are stopping it just before.
-                    logger.e(e) { "Failed to stop discovery: ${e.message}" }
+                    logger.e(e) { "Failed to stop discovery" }
                 }
             }
 
@@ -41,7 +41,7 @@ class DeviceDiscovery(val context: Context, val onDeviceDiscovered: (address: St
                 } catch (e: Exception) {
                     // Do nothing, exceptions here usually means we were not actually listening for
                     // discovery.
-                    logger.e(e) { "Failed to stop: ${e.message}" }
+                    logger.e(e) { "Failed to stop discovery" }
                 }
             }
 
@@ -104,7 +104,7 @@ class DeviceDiscovery(val context: Context, val onDeviceDiscovered: (address: St
             try {
                 nsdManager.stopServiceDiscovery(discoveryListener)
             } catch (e: Exception) {
-                logger.e(e) { "Failed to stop: ${e.message}" }
+                logger.e(e) { "Failed to stop discovery" }
             }
 
             discoveryListener = null

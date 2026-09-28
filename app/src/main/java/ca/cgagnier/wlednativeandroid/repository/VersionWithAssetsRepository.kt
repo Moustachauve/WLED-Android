@@ -103,15 +103,21 @@ class VersionWithAssetsRepository @Inject constructor(
         versionDao.getVersionByTagName(repositoryId, tagName)
 
     companion object {
-        val semVerComparator =
+        internal val semVerComparator =
             Comparator<Pair<Version, SemVersion?>> { v1, v2 ->
                 val semver1 = v1.second
                 val semver2 = v2.second
 
                 when {
-                    semver1 != null && semver2 != null -> semver1.compareTo(semver2)
+                    semver1 != null && semver2 != null -> {
+                        val cmp = semver1.compareTo(semver2)
+                        if (cmp != 0) cmp else v1.first.publishedDate.compareTo(v2.first.publishedDate)
+                    }
+
                     semver1 != null -> 1
+
                     semver2 != null -> -1
+
                     else -> v1.first.publishedDate.compareTo(v2.first.publishedDate)
                 }
             }

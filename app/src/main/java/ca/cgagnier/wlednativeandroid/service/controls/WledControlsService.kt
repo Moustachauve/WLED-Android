@@ -43,6 +43,9 @@ import java.util.concurrent.Flow
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Consumer
 
+private const val TAG = "WledControlsService"
+private val logger = Logger.withTag(TAG)
+
 /**
  * Android Device Controls (Quick Access) service for WLED devices.
  *
@@ -53,8 +56,6 @@ import java.util.function.Consumer
 class WledControlsService : ControlsProviderService() {
 
     companion object {
-        private const val TAG = "WledControlsService"
-        private val logger = Logger.withTag(TAG)
         private const val BRIGHTNESS_STEP = 1f
         private const val BRIGHTNESS_FORMAT = "%.0f%%"
         private const val CLEANUP_DELAY_MS = 5000L

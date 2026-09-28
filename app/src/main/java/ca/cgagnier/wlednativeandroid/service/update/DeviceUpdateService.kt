@@ -95,16 +95,15 @@ class DeviceUpdateService(
 
     private fun getReleaseOverride(rawRelease: String): String {
         val targetVersion = versionWithAssets.version.tagName.toVersionOrNull(strict = false)
-        return if (targetVersion != null) {
-            if (targetVersion >= RELEASE_OVERRIDES_MIN_VERSION) {
-                RELEASE_NAME_OVERRIDES.getOrDefault(rawRelease, rawRelease)
-            } else {
-                rawRelease
-            }
-        } else {
+        if (targetVersion == null) {
             logger.w {
                 "Could not parse target version '${versionWithAssets.version.tagName}', skipping release name overrides"
             }
+            return rawRelease
+        }
+        return if (targetVersion >= RELEASE_OVERRIDES_MIN_VERSION) {
+            RELEASE_NAME_OVERRIDES.getOrDefault(rawRelease, rawRelease)
+        } else {
             rawRelease
         }
     }

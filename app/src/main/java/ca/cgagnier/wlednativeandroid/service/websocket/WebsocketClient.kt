@@ -45,6 +45,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 
+private const val TAG = "WebsocketClient"
+private val logger = Logger.withTag(TAG)
+
 /**
  * Pure Ktor WebSocket client for WLED devices.
  *
@@ -250,9 +253,9 @@ class WebsocketClient(
         } catch (e: ClosedReceiveChannelException) {
             logger.w { "WebSocket channel closed for ${device.address}: ${e.message}" }
         } catch (e: IOException) {
-            logger.w { "WebSocket IO exception for ${device.address}: ${e.message}" }
+            logger.w(e) { "WebSocket IO exception for ${device.address}" }
         } catch (e: Exception) {
-            logger.w(e) { "Unexpected WebSocket error for ${device.address}: ${e.message}" }
+            logger.w(e) { "Unexpected WebSocket error for ${device.address}" }
         } finally {
             cleanupSession(session, myJob)
         }
@@ -388,8 +391,6 @@ class WebsocketClient(
     }
 
     companion object {
-        internal const val TAG = "WebsocketClient"
-        private val logger = Logger.withTag(TAG)
         internal const val WEBSOCKET_PATH = "ws"
         internal const val USER_AGENT = "WLED-Android"
         private val PROTOCOL_REGEX = Regex("^(https?|wss?)://", RegexOption.IGNORE_CASE)

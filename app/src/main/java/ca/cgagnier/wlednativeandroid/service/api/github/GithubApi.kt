@@ -20,7 +20,7 @@ class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints
         return try {
             Result.success(apiEndpoints.getAllReleases(repoOwner, repoName))
         } catch (e: Exception) {
-            logger.w(e) { "Error retrieving releases from $repoOwner/$repoName: ${e.message}" }
+            logger.w(e) { "Error retrieving releases from $repoOwner/$repoName" }
             Result.failure(e)
         }
     }
