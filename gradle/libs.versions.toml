@@ -35,6 +35,7 @@ preferenceKtx = "1.2.1"
 protobuf = "0.10.0"
 protobufJavalite = "4.36.2"
 roomVersion = "2.8.5"
+sqlite = "2.6.2"
 semver4j = "3.1.0"
 selfie = "3.1.1"
 webkit = "1.17.0"
@@ -66,6 +67,7 @@ androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref =
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomVersion" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomVersion" }
 androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "roomVersion" }
+androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
 androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
