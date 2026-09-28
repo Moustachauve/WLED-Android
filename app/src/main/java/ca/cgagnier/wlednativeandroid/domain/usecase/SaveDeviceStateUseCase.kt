@@ -1,6 +1,5 @@
 package ca.cgagnier.wlednativeandroid.domain.usecase
 
-import android.util.Log
 import ca.cgagnier.wlednativeandroid.di.IoDispatcher
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
@@ -10,10 +9,14 @@ import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
+import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+
+private const val TAG = "SaveDeviceStateUseCase"
+private val logger = Logger.withTag(TAG)
 
 /**
  * Domain use case to persist updated device metadata to the database when changes
@@ -25,7 +28,6 @@ class SaveDeviceStateUseCase @Inject constructor(
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     companion object {
-        private const val TAG = "SaveDeviceStateUseCase"
         const val LAST_SEEN_UPDATE_THRESHOLD = 15 * 60 * 1000L // 15 minutes
     }
 
@@ -78,7 +80,7 @@ class SaveDeviceStateUseCase @Inject constructor(
                 repositoryId = repoIdToSave,
             )
             deviceRepository.update(newDevice)
-            Log.d(TAG, "Device persisted to DB: ${newDevice.address}")
+            logger.d { "Device persisted to DB: ${newDevice.address}" }
             newDevice
         } else {
             null

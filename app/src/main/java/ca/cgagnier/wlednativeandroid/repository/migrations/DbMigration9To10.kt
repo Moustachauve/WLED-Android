@@ -1,11 +1,12 @@
 package ca.cgagnier.wlednativeandroid.repository.migrations
 
-import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
+import co.touchlab.kermit.Logger
 
 private const val TAG = "DbMigration9To10"
+private val logger = Logger.withTag(TAG)
 private const val FROM_VERSION = 9
 private const val TO_VERSION = 10
 
@@ -20,7 +21,7 @@ private const val TO_VERSION = 10
  */
 val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
     override fun migrate(connection: SQLiteConnection) {
-        Log.i(TAG, "Starting migration from 9 to 10")
+        logger.i { "Starting migration from 9 to 10" }
 
         createRepositoryTable(connection)
         insertDefaultRepositories(connection)
@@ -32,7 +33,7 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
         dropOldTables(connection)
         createIndices(connection)
 
-        Log.i(TAG, "Migration from 9 to 10 complete!")
+        logger.i { "Migration from 9 to 10 complete!" }
     }
 
     private fun createRepositoryTable(connection: SQLiteConnection) {
@@ -68,7 +69,7 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
     private fun addRepositoryToDevice(connection: SQLiteConnection) {
         // Add repositoryId column to Device2 table with default value 1
         connection.execSQL("ALTER TABLE `Device2` ADD COLUMN `repositoryId` INTEGER NOT NULL DEFAULT 1")
-        Log.i(TAG, "Added repositoryId column to Device2 table")
+        logger.i { "Added repositoryId column to Device2 table" }
     }
 
     private fun renameOldTables(connection: SQLiteConnection) {
@@ -112,7 +113,7 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
 
     private fun migrateVersionData(connection: SQLiteConnection) {
         val originalCount = getRowCount(connection, "Version_old")
-        Log.i(TAG, "Total versions in old 'Version' table: $originalCount")
+        logger.i { "Total versions in old 'Version' table: $originalCount" }
 
         // Copy data from Version_old to Version with default repositoryId 1
         connection.execSQL(
@@ -139,12 +140,12 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
         )
 
         val migratedCount = getRowCount(connection, "Version")
-        Log.i(TAG, "Versions migrated to new table: $migratedCount")
+        logger.i { "Versions migrated to new table: $migratedCount" }
     }
 
     private fun migrateAssetData(connection: SQLiteConnection) {
         val originalCount = getRowCount(connection, "Asset_old")
-        Log.i(TAG, "Total assets in old 'Asset' table: $originalCount")
+        logger.i { "Total assets in old 'Asset' table: $originalCount" }
 
         // Copy data from Asset_old to Asset joining on Version to get the new versionId
         connection.execSQL(
@@ -168,7 +169,7 @@ val MIGRATION_9_10 = object : Migration(FROM_VERSION, TO_VERSION) {
         )
 
         val migratedCount = getRowCount(connection, "Asset")
-        Log.i(TAG, "Assets migrated to new table: $migratedCount")
+        logger.i { "Assets migrated to new table: $migratedCount" }
     }
 
     private fun dropOldTables(connection: SQLiteConnection) {

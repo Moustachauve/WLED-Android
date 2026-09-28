@@ -1,6 +1,5 @@
 package ca.cgagnier.wlednativeandroid.service.update
 
-import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
@@ -9,17 +8,20 @@ import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
-import com.vdurmont.semver4j.Semver
+import co.touchlab.kermit.Logger
+import io.github.z4kn4fein.semver.toVersion
+import io.github.z4kn4fein.semver.toVersionOrNull
 import kotlinx.coroutines.flow.Flow
 import java.io.File
 
 private const val TAG = "DeviceUpdateService"
+private val logger = Logger.withTag(TAG)
 
 /**
  * The minimum target version from which [RELEASE_NAME_OVERRIDES] are applied.
  * Overrides only take effect when upgrading to this version or later.
  */
-private val RELEASE_OVERRIDES_MIN_VERSION = Semver("0.16.0", Semver.SemverType.LOOSE)
+private val RELEASE_OVERRIDES_MIN_VERSION = "0.16.0".toVersion(strict = false)
 
 /**
  * Maps deprecated or transitional release names to the release name that should be used
@@ -91,20 +93,20 @@ class DeviceUpdateService(
         return findAsset(versionWithRelease)
     }
 
-    private fun getReleaseOverride(rawRelease: String): String = try {
-        val targetVersion = Semver(versionWithAssets.version.tagName, Semver.SemverType.LOOSE)
-        if (!targetVersion.isLowerThan(RELEASE_OVERRIDES_MIN_VERSION)) {
-            RELEASE_NAME_OVERRIDES.getOrDefault(rawRelease, rawRelease)
+    private fun getReleaseOverride(rawRelease: String): String {
+        val targetVersion = versionWithAssets.version.tagName.toVersionOrNull(strict = false)
+        return if (targetVersion != null) {
+            if (targetVersion >= RELEASE_OVERRIDES_MIN_VERSION) {
+                RELEASE_NAME_OVERRIDES.getOrDefault(rawRelease, rawRelease)
+            } else {
+                rawRelease
+            }
         } else {
+            logger.w {
+                "Could not parse target version '${versionWithAssets.version.tagName}', skipping release name overrides"
+            }
             rawRelease
         }
-    } catch (e: Exception) {
-        Log.w(
-            TAG,
-            "Could not parse target version '${versionWithAssets.version.tagName}', skipping release name overrides",
-            e,
-        )
-        rawRelease
     }
 
     /**
@@ -168,7 +170,7 @@ class DeviceUpdateService(
         callback: ((ApiResponse<String>) -> Unit)? = null,
         errorCallback: ((Exception) -> Unit)? = null,
     ) {
-        Log.d(TAG, "Installing software update: ${device.macAddress}")
+        logger.d { "Installing software update: ${device.macAddress}" }
         try {
             // Longer TTL because updates can take a bit of time to fully install
             val response = deviceApiFactory.create(device, 120L).updateDevice(binaryFile)

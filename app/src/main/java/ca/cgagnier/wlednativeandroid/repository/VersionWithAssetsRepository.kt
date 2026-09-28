@@ -6,8 +6,9 @@ import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
-import com.vdurmont.semver4j.Semver
+import io.github.z4kn4fein.semver.toVersionOrNull
 import javax.inject.Inject
+import io.github.z4kn4fein.semver.Version as SemVersion
 
 /**
  * nightly tag is not supported at the moment. Exclude it from results.
@@ -103,7 +104,7 @@ class VersionWithAssetsRepository @Inject constructor(
 
     companion object {
         val semVerComparator =
-            Comparator<Pair<Version, Semver?>> { v1, v2 ->
+            Comparator<Pair<Version, SemVersion?>> { v1, v2 ->
                 val semver1 = v1.second
                 val semver2 = v2.second
 
@@ -116,9 +117,7 @@ class VersionWithAssetsRepository @Inject constructor(
             }
 
         fun getLatestVersion(versions: List<Version>): Version? = versions.map {
-            it to runCatching {
-                Semver(it.tagName, Semver.SemverType.LOOSE)
-            }.getOrNull()
+            it to it.tagName.toVersionOrNull(strict = false)
         }.maxWithOrNull(semVerComparator)?.first
     }
 }

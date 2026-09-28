@@ -1,8 +1,11 @@
 package ca.cgagnier.wlednativeandroid.repository
 
-import android.util.Log
 import androidx.datastore.core.DataStore
+import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.map
+
+private const val TAG: String = "UserPreferencesRepo"
+private val logger = Logger.withTag(TAG)
 
 class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences>) {
 
@@ -14,7 +17,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     val lastChangelogVersionSeen get() = dataStore.data.map { it.lastChangelogVersionSeen }
 
     suspend fun updateThemeMode(themeSettings: ThemeSettings) {
-        Log.d(TAG, "updateThemeMode")
+        logger.d { "updateThemeMode" }
         dataStore.updateData {
             it.copy(
                 theme = themeSettings,
@@ -24,7 +27,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     }
 
     suspend fun updateAutoDiscovery(autoDiscover: Boolean) {
-        Log.d(TAG, "updateAutoDiscovery")
+        logger.d { "updateAutoDiscovery" }
         dataStore.updateData {
             it.copy(
                 automaticDiscovery = autoDiscover,
@@ -34,7 +37,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     }
 
     suspend fun updateShowOfflineDeviceLast(showOfflineDeviceLast: Boolean) {
-        Log.d(TAG, "updateShowOfflineDeviceLast")
+        logger.d { "updateShowOfflineDeviceLast" }
         dataStore.updateData {
             it.copy(
                 showOfflineLast = showOfflineDeviceLast,
@@ -44,7 +47,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     }
 
     suspend fun updateShowHiddenDevices(showHiddenDevices: Boolean) {
-        Log.d(TAG, "updateShowHiddenDevices")
+        logger.d { "updateShowHiddenDevices" }
         dataStore.updateData {
             it.copy(
                 showHiddenDevices = showHiddenDevices,
@@ -54,7 +57,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     }
 
     suspend fun updateLastUpdateCheckDate(lastUpdateCheckDate: Long) {
-        Log.d(TAG, "updateLastUpdateCheckDate")
+        logger.d { "updateLastUpdateCheckDate" }
         dataStore.updateData {
             it.copy(
                 lastUpdateCheckDate = lastUpdateCheckDate,
@@ -64,16 +67,12 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     }
 
     suspend fun updateLastChangelogVersionSeen(version: String) {
-        Log.d(TAG, "updateLastChangelogVersionSeen")
+        logger.d { "updateLastChangelogVersionSeen" }
         dataStore.updateData {
             it.copy(
                 lastChangelogVersionSeen = version,
                 dateLastWritten = System.currentTimeMillis(),
             )
         }
-    }
-
-    companion object {
-        private const val TAG: String = "UserPreferencesRepo"
     }
 }

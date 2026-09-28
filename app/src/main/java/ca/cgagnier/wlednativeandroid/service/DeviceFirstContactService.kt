@@ -1,7 +1,6 @@
 package ca.cgagnier.wlednativeandroid.service
 
 import android.content.Context
-import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
@@ -11,11 +10,13 @@ import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.util.isIpAddress
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
+import co.touchlab.kermit.Logger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
 
 private const val TAG = "DeviceFirstContactService"
+private val logger = Logger.withTag(TAG)
 
 /**
  * Service class responsible for handling the first contact with a device.
@@ -36,7 +37,7 @@ class DeviceFirstContactService @Inject constructor(
      * @return The newly created device object.
      */
     private suspend fun createDevice(macAddress: String, address: String, info: Info): Device {
-        Log.d(TAG, "Creating new device entry for MAC: $macAddress at address: $address")
+        logger.d { "Creating new device entry for MAC: $macAddress at address: $address" }
         val deviceRepositoryStr = getRepositoryFromInfo(info)
         val repoId = repositoryDao.getOrCreateRepositoryId(deviceRepositoryStr)
 
@@ -58,7 +59,7 @@ class DeviceFirstContactService @Inject constructor(
      * @return The updated device object.
      */
     private suspend fun updateDeviceAddress(device: Device, newAddress: String, info: Info?): Device {
-        Log.d(TAG, "Updating address for device MAC: ${device.macAddress} to: $newAddress")
+        logger.d { "Updating address for device MAC: ${device.macAddress} to: $newAddress" }
         // Keep user-defined hostnames (e.g. "wled.local") and only update if the existing address
         // is an IP. This is to avoid overriding a device being added by an url which could be on a
         // different network (and couldn't be reached by IP address directly).
@@ -101,28 +102,27 @@ class DeviceFirstContactService @Inject constructor(
      * @throws Exception if device info cannot be fetched or lacks a MAC address.
      */
     suspend fun fetchAndUpsertDevice(address: String): Device {
-        Log.d(TAG, "Trying to create a new device: $address")
+        logger.d { "Trying to create a new device: $address" }
         val info = getDeviceInfo(address)
 
         if (info.macAddress.isNullOrEmpty()) {
-            Log.e(TAG, "Could not retrieve MAC address for device at $address. Response: $info")
+            logger.e { "Could not retrieve MAC address for device at $address. Response: $info" }
             throw Exception("Could not retrieve MAC address for device at $address")
         }
 
         val existingDevice = repository.findDeviceByMacAddress(info.macAddress)
 
         if (existingDevice == null) {
-            Log.d(TAG, "No existing device found for MAC: ${info.macAddress}. Creating new entry.")
+            logger.d { "No existing device found for MAC: ${info.macAddress}. Creating new entry." }
             return createDevice(info.macAddress, address, info)
         }
         if (existingDevice.address == address && existingDevice.originalName == info.name) {
-            Log.d(TAG, "Device already exists for MAC and is unchanged: ${info.macAddress}")
+            logger.d { "Device already exists for MAC and is unchanged: ${info.macAddress}" }
             return existingDevice
         }
-        Log.d(
-            TAG,
-            "Device already exists for MAC but is different: ${existingDevice.macAddress}",
-        )
+        logger.d {
+            "Device already exists for MAC but is different: ${existingDevice.macAddress}"
+        }
         return updateDeviceAddress(existingDevice, address, info)
     }
 
@@ -142,10 +142,10 @@ class DeviceFirstContactService @Inject constructor(
 
         // Device is already up to date
         if (existingDevice.address != address) {
-            Log.i(TAG, "Fast update: IP changed for ${existingDevice.originalName} ($macAddress)")
+            logger.i { "Fast update: IP changed for ${existingDevice.originalName} ($macAddress)" }
             updateDeviceAddress(existingDevice, address, null)
         } else {
-            Log.d(TAG, "Fast update: Device IP unchanged for $macAddress")
+            logger.d { "Fast update: Device IP unchanged for $macAddress" }
         }
         return true
     }

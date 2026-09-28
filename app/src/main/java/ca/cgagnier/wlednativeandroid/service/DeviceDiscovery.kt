@@ -5,7 +5,10 @@ import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiManager.MulticastLock
-import android.util.Log
+import co.touchlab.kermit.Logger
+
+private const val TAG = "DEVICE_DISCOVERY"
+private val logger = Logger.withTag(TAG)
 
 class DeviceDiscovery(val context: Context, val onDeviceDiscovered: (address: String, macAddress: String?) -> Unit) {
 
@@ -20,41 +23,41 @@ class DeviceDiscovery(val context: Context, val onDeviceDiscovered: (address: St
         discoveryListener = object : NsdManager.DiscoveryListener {
 
             override fun onStartDiscoveryFailed(serviceType: String?, errorCode: Int) {
-                Log.e(TAG, "Discovery start failed: Error code:$errorCode")
+                logger.e { "Discovery start failed: Error code:$errorCode" }
                 stop()
                 try {
                     nsdManager.stopServiceDiscovery(this)
                 } catch (e: Exception) {
                     // Do nothing, exceptions here usually means we were not actually listening for
                     // discovery. This is likely since we are stopping it just before.
-                    Log.e(TAG, "Failed to stop discovery: ${e.message}", e)
+                    logger.e(e) { "Failed to stop discovery: ${e.message}" }
                 }
             }
 
             override fun onStopDiscoveryFailed(serviceType: String?, errorCode: Int) {
-                Log.e(TAG, "Discovery stop failed: Error code:$errorCode")
+                logger.e { "Discovery stop failed: Error code:$errorCode" }
                 try {
                     nsdManager.stopServiceDiscovery(this)
                 } catch (e: Exception) {
                     // Do nothing, exceptions here usually means we were not actually listening for
                     // discovery.
-                    Log.e(TAG, "Failed to stop: ${e.message}", e)
+                    logger.e(e) { "Failed to stop: ${e.message}" }
                 }
             }
 
             override fun onDiscoveryStarted(serviceType: String?) {
-                Log.d(TAG, "Service discovery started: $serviceType")
+                logger.d { "Service discovery started: $serviceType" }
             }
 
             override fun onDiscoveryStopped(serviceType: String?) {
-                Log.i(TAG, "Discovery stopped: $serviceType")
+                logger.i { "Discovery stopped: $serviceType" }
             }
 
             override fun onServiceFound(service: NsdServiceInfo?) {
-                Log.d(TAG, "Service discovery success [$service]")
+                logger.d { "Service discovery success [$service]" }
                 if (service != null) {
                     if (service.serviceType != SERVICE_TYPE) {
-                        Log.d(TAG, "Unknown service type: ${service.serviceType}")
+                        logger.d { "Unknown service type: ${service.serviceType}" }
                         return
                     }
                     return nsdManager.resolveService(
@@ -65,7 +68,7 @@ class DeviceDiscovery(val context: Context, val onDeviceDiscovered: (address: St
             }
 
             override fun onServiceLost(service: NsdServiceInfo?) {
-                Log.e(TAG, "service lost: $service")
+                logger.e { "service lost: $service" }
             }
         }
     }
@@ -73,13 +76,13 @@ class DeviceDiscovery(val context: Context, val onDeviceDiscovered: (address: St
     private fun onServiceResolved(serviceInfo: NsdServiceInfo) {
         val deviceIp = serviceInfo.host.hostAddress
         if (deviceIp.isNullOrEmpty()) {
-            Log.w(TAG, "Device discovered, but did not have IP")
+            logger.w { "Device discovered, but did not have IP" }
             return
         }
         val macBytes = serviceInfo.attributes["mac"]
         val macAddress = if (macBytes != null) String(macBytes) else null
 
-        Log.i(TAG, "Device discovered: $deviceIp, MAC: $macAddress")
+        logger.i { "Device discovered: $deviceIp, MAC: $macAddress" }
         onDeviceDiscovered(deviceIp, macAddress)
     }
 
@@ -101,7 +104,7 @@ class DeviceDiscovery(val context: Context, val onDeviceDiscovered: (address: St
             try {
                 nsdManager.stopServiceDiscovery(discoveryListener)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to stop: ${e.message}", e)
+                logger.e(e) { "Failed to stop: ${e.message}" }
             }
 
             discoveryListener = null
@@ -112,10 +115,10 @@ class DeviceDiscovery(val context: Context, val onDeviceDiscovered: (address: St
         NsdManager.ResolveListener {
 
         override fun onResolveFailed(serviceInfo: NsdServiceInfo?, errorCode: Int) {
-            Log.e(TAG, "Resolve failed $errorCode")
+            logger.e { "Resolve failed $errorCode" }
             when (errorCode) {
                 NsdManager.FAILURE_ALREADY_ACTIVE -> {
-                    Log.e(TAG, "FAILURE ALREADY ACTIVE")
+                    logger.e { "FAILURE ALREADY ACTIVE" }
                     nsdManager.resolveService(
                         serviceInfo,
                         ResolveListener(nsdManager, serviceResolved),
@@ -123,29 +126,28 @@ class DeviceDiscovery(val context: Context, val onDeviceDiscovered: (address: St
                 }
 
                 NsdManager.FAILURE_INTERNAL_ERROR -> {
-                    Log.e(TAG, "FAILURE_INTERNAL_ERROR")
+                    logger.e { "FAILURE_INTERNAL_ERROR" }
                 }
 
                 NsdManager.FAILURE_MAX_LIMIT -> {
-                    Log.e(TAG, "FAILURE_MAX_LIMIT")
+                    logger.e { "FAILURE_MAX_LIMIT" }
                 }
 
-                else -> Log.e(TAG, "Resolve failed")
+                else -> logger.e { "Resolve failed" }
             }
         }
 
         override fun onServiceResolved(serviceInfo: NsdServiceInfo?) {
-            Log.i(TAG, "Resolve Succeeded. [$serviceInfo]")
+            logger.i { "Resolve Succeeded. [$serviceInfo]" }
             if (serviceInfo != null) {
                 serviceResolved(serviceInfo)
             } else {
-                Log.e(TAG, "Resolve Succeeded, but serviceInfo null.")
+                logger.e { "Resolve Succeeded, but serviceInfo null." }
             }
         }
     }
 
     companion object {
-        private const val TAG = "DEVICE_DISCOVERY"
         const val SERVICE_TYPE = "_wled._tcp."
     }
 }

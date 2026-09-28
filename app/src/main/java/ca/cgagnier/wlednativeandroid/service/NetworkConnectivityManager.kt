@@ -4,8 +4,8 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.net.Network
-import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.DEFAULT_WLED_AP_IP
+import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 
 private const val TAG = "service.NetworkConnectivityManager"
+private val logger = Logger.withTag(TAG)
 
 // Inspired from this medium article:
 // https://medium.com/@meytataliti/obtaining-network-connection-info-with-flow-in-android-af2e6b760dfd
@@ -25,15 +26,15 @@ class NetworkConnectivityManager(context: Context, externalScope: CoroutineScope
     private val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
 
     val networkEvents: StateFlow<NetworkProperties> = callbackFlow {
-        Log.d(TAG, "_connectionFlow")
+        logger.d { "_connectionFlow" }
         val networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onLost(network: Network) {
-                Log.d(TAG, "onLost: $network")
+                logger.d { "onLost: $network" }
                 trySend(NetworkProperties(network, null))
             }
 
             override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
-                Log.d(TAG, "onLinkPropertiesChanged: $network, $linkProperties")
+                logger.d { "onLinkPropertiesChanged: $network, $linkProperties" }
                 trySend(NetworkProperties(network, linkProperties))
             }
 
@@ -62,7 +63,7 @@ class NetworkConnectivityManager(context: Context, externalScope: CoroutineScope
     val isWLEDCaptivePortal = networkEvents.mapLatest { networkProperties ->
         for (dnsServer in networkProperties.linkProperties?.dnsServers ?: emptyList()) {
             if (dnsServer.hostAddress == DEFAULT_WLED_AP_IP) {
-                Log.d(TAG, "This is a WLED captive portal")
+                logger.d { "This is a WLED captive portal" }
                 return@mapLatest true
             }
         }

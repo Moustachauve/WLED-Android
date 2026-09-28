@@ -1,6 +1,5 @@
 package ca.cgagnier.wlednativeandroid.repository
 
-import android.util.Log
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
@@ -8,7 +7,10 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import ca.cgagnier.wlednativeandroid.model.Repository
+import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.Flow
+
+private val logger = Logger.withTag("RepositoryDao")
 
 @Dao
 interface RepositoryDao {
@@ -57,6 +59,6 @@ suspend fun RepositoryDao.getOrCreateRepositoryId(ownerAndRepo: String): Long {
         isUpdateEnabled = false,
     )
     val newId = insert(autoDiscoveredRepo)
-    Log.d("RepositoryDao", "Auto-discovered and inserted new repository: $ownerAndRepo (id=$newId)")
+    logger.d { "Auto-discovered and inserted new repository: $ownerAndRepo (id=$newId)" }
     return newId
 }

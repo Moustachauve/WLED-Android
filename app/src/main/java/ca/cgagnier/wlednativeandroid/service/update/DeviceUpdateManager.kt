@@ -1,12 +1,13 @@
 package ca.cgagnier.wlednativeandroid.service.update
 
-import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
+import co.touchlab.kermit.Logger
 import javax.inject.Inject
 
 private const val TAG = "DeviceUpdateManager"
+private val logger = Logger.withTag(TAG)
 
 class DeviceUpdateManager @Inject constructor(private val releaseService: ReleaseService) {
 
@@ -19,10 +20,9 @@ class DeviceUpdateManager @Inject constructor(private val releaseService: Releas
     suspend fun checkForUpdate(device: Device, stateInfo: DeviceStateInfo?): String? {
         val info = stateInfo?.info ?: return null
         val repository = getRepositoryFromInfo(info)
-        Log.d(
-            TAG,
-            "Checking for software update for ${device.macAddress} on $repository",
-        )
+        logger.d {
+            "Checking for software update for ${device.macAddress} on $repository"
+        }
         return releaseService.getNewerReleaseTag(
             deviceInfo = info,
             branch = device.branch,

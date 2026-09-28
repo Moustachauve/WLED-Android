@@ -1,20 +1,21 @@
 package ca.cgagnier.wlednativeandroid.repository.migrations
 
-import android.util.Log
 import androidx.room.migration.AutoMigrationSpec
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
+import co.touchlab.kermit.Logger
 
 private const val TAG = "DbMigration7To8"
+private val logger = Logger.withTag(TAG)
 
 class DbMigration7To8 : AutoMigrationSpec {
     override fun onPostMigrate(connection: SQLiteConnection) {
-        Log.i(TAG, "onPostMigrate starting")
+        logger.i { "onPostMigrate starting" }
 
         val originalDeviceCount = connection.prepare("SELECT COUNT(*) FROM device").use { stmt ->
             if (stmt.step()) stmt.getInt(0) else 0
         }
-        Log.i(TAG, "Total devices in old 'device' table: $originalDeviceCount")
+        logger.i { "Total devices in old 'device' table: $originalDeviceCount" }
 
         // Log the count of devices that can be migrated
         val devicesToMigrateCount = connection.prepare(
@@ -22,7 +23,7 @@ class DbMigration7To8 : AutoMigrationSpec {
         ).use { stmt ->
             if (stmt.step()) stmt.getInt(0) else 0
         }
-        Log.i(TAG, "Number of devices to be migrated: $devicesToMigrateCount")
+        logger.i { "Number of devices to be migrated: $devicesToMigrateCount" }
 
         // Copy data from legacy Device to Device2
         // We filter out devices with unknown MAC addresses because 'macAddress'
@@ -57,8 +58,8 @@ class DbMigration7To8 : AutoMigrationSpec {
         val insertedCount = connection.prepare("SELECT COUNT(*) FROM Device2").use { stmt ->
             if (stmt.step()) stmt.getInt(0) else 0
         }
-        Log.i(TAG, "Number of devices successfully inserted into 'Device2': $insertedCount")
+        logger.i { "Number of devices successfully inserted into 'Device2': $insertedCount" }
 
-        Log.i(TAG, "onPostMigrate done! Migration is complete.")
+        logger.i { "onPostMigrate done! Migration is complete." }
     }
 }
