@@ -2,7 +2,7 @@ package ca.cgagnier.wlednativeandroid.repository
 
 import ca.cgagnier.wlednativeandroid.model.Version
 import com.diffplug.selfie.Selfie.expectSelfie
-import com.vdurmont.semver4j.Semver
+import io.github.z4kn4fein.semver.toVersionOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -20,9 +20,7 @@ class VersionWithAssetsRepositoryTest {
         ).shuffled()
 
         val parsedVersions = versions.map {
-            it to runCatching {
-                Semver(it.tagName, Semver.SemverType.LOOSE)
-            }.getOrNull()
+            it to it.tagName.toVersionOrNull(strict = false)
         }
         val sorted = parsedVersions.sortedWith(VersionWithAssetsRepository.semVerComparator).map { it.first }
 

@@ -1,9 +1,9 @@
 package ca.cgagnier.wlednativeandroid.service.websocket
 
-import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
+import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.webSocketSession
@@ -99,7 +99,7 @@ class WebsocketClient(
         var shouldLaunch = false
         synchronized(stateLock) {
             if (isDestroyed.get()) {
-                Log.w(TAG, "Cannot connect: WebsocketClient for ${device.address} has been destroyed")
+                logger.w { "Cannot connect: WebsocketClient for ${device.address} has been destroyed" }
                 return
             }
             isManuallyDisconnected.set(false)
@@ -107,11 +107,11 @@ class WebsocketClient(
             val currentJob = connectionJob
             if (currentJob?.isActive == true) {
                 if (_status.value == WebsocketStatus.DISCONNECTED) {
-                    Log.d(TAG, "Expediting reconnection for ${device.address}: cancelling backoff delay")
+                    logger.d { "Expediting reconnection for ${device.address}: cancelling backoff delay" }
                     currentJob.cancel(CancellationException("Manual connect during backoff delay"))
                     oldJob = currentJob
                 } else {
-                    Log.d(TAG, "Connection already active or connecting for ${device.address}")
+                    logger.d { "Connection already active or connecting for ${device.address}" }
                     return
                 }
             } else {
@@ -129,7 +129,7 @@ class WebsocketClient(
     }
 
     fun disconnect() {
-        Log.d(TAG, "Manually disconnecting from ${device.address}")
+        logger.d { "Manually disconnecting from ${device.address}" }
         var jobToCancel: Job? = null
         var sessionToCancel: DefaultClientWebSocketSession? = null
         synchronized(stateLock) {
@@ -144,7 +144,7 @@ class WebsocketClient(
     }
 
     fun pause() {
-        Log.d(TAG, "Pausing connection for ${device.address}")
+        logger.d { "Pausing connection for ${device.address}" }
         var jobToCancel: Job? = null
         var sessionToCancel: DefaultClientWebSocketSession? = null
         synchronized(stateLock) {
@@ -160,7 +160,7 @@ class WebsocketClient(
 
     fun resume() {
         if (isManuallyDisconnected.get() || isDestroyed.get()) {
-            Log.d(TAG, "Not resuming ${device.address}: manually disconnected or destroyed")
+            logger.d { "Not resuming ${device.address}: manually disconnected or destroyed" }
             return
         }
         isPaused.set(false)
@@ -172,7 +172,7 @@ class WebsocketClient(
     }
 
     fun destroy() {
-        Log.d(TAG, "Destroying WebsocketClient for ${device.address}")
+        logger.d { "Destroying WebsocketClient for ${device.address}" }
         isDestroyed.set(true)
         disconnect()
         clientJob.cancel()
@@ -194,12 +194,12 @@ class WebsocketClient(
 
             if (coroutineContext.isActive && canConnect()) {
                 val backoffMs = calculateBackoffWithJitter(retryCount, random = random)
-                Log.d(TAG, "Reconnecting to ${device.address} in ${backoffMs}ms (retry $retryCount)")
+                logger.d { "Reconnecting to ${device.address} in ${backoffMs}ms (retry $retryCount)" }
                 retryCount++
                 try {
                     delay(backoffMs)
                 } catch (e: CancellationException) {
-                    Log.d(TAG, "Backoff delay cancelled for ${device.address}")
+                    logger.d { "Backoff delay cancelled for ${device.address}" }
                     throw e
                 }
             }
@@ -222,7 +222,7 @@ class WebsocketClient(
 
         try {
             val url = buildWebsocketUrl(device.address)
-            Log.d(TAG, "Connecting to $url (attempt $retryCount)")
+            logger.d { "Connecting to $url (attempt $retryCount)" }
 
             session = sessionOpener(httpClient, url)
 
@@ -243,16 +243,16 @@ class WebsocketClient(
             _status.value = WebsocketStatus.CONNECTED
 
             consumeIncomingFrames(session)
-            Log.d(TAG, "WebSocket incoming channel completed for ${device.address}")
+            logger.d { "WebSocket incoming channel completed for ${device.address}" }
         } catch (e: CancellationException) {
-            Log.d(TAG, "Connection loop cancelled for ${device.address}: ${e.message}")
+            logger.d { "Connection loop cancelled for ${device.address}: ${e.message}" }
             throw e
         } catch (e: ClosedReceiveChannelException) {
-            Log.w(TAG, "WebSocket channel closed for ${device.address}: ${e.message}")
+            logger.w { "WebSocket channel closed for ${device.address}: ${e.message}" }
         } catch (e: IOException) {
-            Log.w(TAG, "WebSocket IO exception for ${device.address}: ${e.message}")
+            logger.w { "WebSocket IO exception for ${device.address}: ${e.message}" }
         } catch (e: Exception) {
-            Log.w(TAG, "Unexpected WebSocket error for ${device.address}: ${e.message}", e)
+            logger.w(e) { "Unexpected WebSocket error for ${device.address}: ${e.message}" }
         } finally {
             cleanupSession(session, myJob)
         }
@@ -293,12 +293,12 @@ class WebsocketClient(
                 is Frame.Text -> handleTextFrame(frame.readText())
 
                 is Frame.Binary -> {
-                    Log.d(TAG, "Received binary frame from ${device.address}")
+                    logger.d { "Received binary frame from ${device.address}" }
                 }
 
                 is Frame.Close -> {
                     val reason = frame.readReason()
-                    Log.d(TAG, "Received Close frame from ${device.address}: $reason")
+                    logger.d { "Received Close frame from ${device.address}: $reason" }
                     break
                 }
 
@@ -310,14 +310,14 @@ class WebsocketClient(
     }
 
     internal suspend fun handleTextFrame(text: String) {
-        Log.d(TAG, "Received frame from ${device.address}: ${truncatePayload(text)}")
+        logger.d { "Received frame from ${device.address}: ${truncatePayload(text)}" }
         try {
             val decodedStateInfo = json.decodeFromString<DeviceStateInfo>(text)
             _incomingStateInfo.emit(decodedStateInfo)
         } catch (e: SerializationException) {
-            Log.e(TAG, "Failed to parse JSON frame from ${device.address}: ${truncatePayload(text)}", e)
+            logger.e(e) { "Failed to parse JSON frame from ${device.address}: ${truncatePayload(text)}" }
         } catch (e: IllegalArgumentException) {
-            Log.e(TAG, "Illegal argument parsing JSON frame from ${device.address}: ${truncatePayload(text)}", e)
+            logger.e(e) { "Illegal argument parsing JSON frame from ${device.address}: ${truncatePayload(text)}" }
         }
     }
 
@@ -332,7 +332,7 @@ class WebsocketClient(
     @Suppress("TooGenericExceptionCaught")
     suspend fun sendState(state: State): Boolean {
         if (isDestroyed.get()) {
-            Log.w(TAG, "Cannot send state: WebsocketClient for ${device.address} has been destroyed")
+            logger.w { "Cannot send state: WebsocketClient for ${device.address} has been destroyed" }
             return false
         }
         var session = currentSession
@@ -349,21 +349,21 @@ class WebsocketClient(
         }
 
         if (session == null || !session.isActive) {
-            Log.w(TAG, "Cannot send state: WebSocket not connected to ${device.address}")
+            logger.w { "Cannot send state: WebSocket not connected to ${device.address}" }
             return false
         }
 
         return try {
             val jsonString = json.encodeToString(state)
-            Log.d(TAG, "Sending state to ${device.address}: ${truncatePayload(jsonString)}")
+            logger.d { "Sending state to ${device.address}: ${truncatePayload(jsonString)}" }
             session.send(Frame.Text(jsonString))
             true
         } catch (e: CancellationException) {
             if (!coroutineContext.isActive) throw e
-            Log.w(TAG, "WebSocket session was cancelled while sending state to ${device.address}: ${e.message}")
+            logger.w { "WebSocket session was cancelled while sending state to ${device.address}: ${e.message}" }
             false
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send state to ${device.address}", e)
+            logger.e(e) { "Failed to send state to ${device.address}" }
             false
         }
     }
@@ -389,6 +389,7 @@ class WebsocketClient(
 
     companion object {
         internal const val TAG = "WebsocketClient"
+        private val logger = Logger.withTag(TAG)
         internal const val WEBSOCKET_PATH = "ws"
         internal const val USER_AGENT = "WLED-Android"
         private val PROTOCOL_REGEX = Regex("^(https?|wss?)://", RegexOption.IGNORE_CASE)

@@ -1,16 +1,20 @@
 package ca.cgagnier.wlednativeandroid.domain
 
 import android.content.Context
-import android.util.Log
-import com.vdurmont.semver4j.Semver
-import com.vdurmont.semver4j.SemverException
+import co.touchlab.kermit.Logger
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.z4kn4fein.semver.toVersion
+import io.github.z4kn4fein.semver.toVersionOrNull
 import java.io.IOException
 import javax.inject.Inject
+import io.github.z4kn4fein.semver.Version as SemVersion
+
+private const val TAG = "ChangelogProvider"
+private val logger = Logger.withTag(TAG)
 
 class ChangelogProvider @Inject constructor(@param:ApplicationContext private val context: Context) {
     fun getChangelog(lastSeenVersionStr: String, currentVersionStr: String): String? {
-        val lastSeenVersion = parseSemverSafe(lastSeenVersionStr) ?: Semver(DEFAULT_VERSION)
+        val lastSeenVersion = parseSemverSafe(lastSeenVersionStr) ?: DEFAULT_VERSION
         val currentVersion = parseSemverSafe(currentVersionStr) ?: return null
 
         val validChangelogs = getValidChangelogs(lastSeenVersion, currentVersion)
@@ -21,26 +25,29 @@ class ChangelogProvider @Inject constructor(@param:ApplicationContext private va
         return buildChangelogContent(validChangelogs)
     }
 
-    private fun parseSemverSafe(versionStr: String): Semver? = try {
-        Semver(versionStr.removePrefix(VERSION_PREFIX_LOWER).removePrefix(VERSION_PREFIX_UPPER))
-    } catch (e: SemverException) {
-        Log.e(TAG, "Invalid version string: $versionStr", e)
-        null
+    private fun parseSemverSafe(versionStr: String): SemVersion? {
+        val clean = versionStr.removePrefix(VERSION_PREFIX_LOWER).removePrefix(VERSION_PREFIX_UPPER)
+        val parsed = clean.toVersionOrNull(strict = false)
+        if (parsed == null) {
+            logger.e { "Invalid version string: $versionStr" }
+        }
+        return parsed
     }
 
-    private fun getValidChangelogs(lastSeenVersion: Semver, currentVersion: Semver): List<ChangelogFile> {
+    private fun getValidChangelogs(lastSeenVersion: SemVersion, currentVersion: SemVersion): List<ChangelogFile> {
         val files = try {
             context.assets.list(CHANGELOG_DIR) ?: emptyArray()
         } catch (e: IOException) {
-            Log.e(TAG, "Failed to list changelog assets", e)
+            logger.e(e) { "Failed to list changelog assets" }
             return emptyList()
         }
 
-        val hasBeta = currentVersion.value.contains("beta", ignoreCase = true)
+        val hasBeta = currentVersion.preRelease?.contains("beta", ignoreCase = true) == true ||
+            currentVersion.toString().contains("beta", ignoreCase = true)
         val validFiles = mutableListOf<ChangelogFile>()
 
         if (hasBeta && files.contains("dev.md")) {
-            validFiles.add(ChangelogFile(Semver("999.0.0"), "dev.md", "Dev"))
+            validFiles.add(ChangelogFile("999.0.0".toVersion(strict = false), "dev.md", "Dev"))
         }
 
         validFiles.addAll(
@@ -51,8 +58,8 @@ class ChangelogProvider @Inject constructor(@param:ApplicationContext private va
                 val fileVersion = parseSemverSafe(versionPart)
 
                 if (fileVersion != null &&
-                    fileVersion.isGreaterThan(lastSeenVersion) &&
-                    fileVersion.isLowerThanOrEqualTo(currentVersion)
+                    fileVersion > lastSeenVersion &&
+                    fileVersion <= currentVersion
                 ) {
                     ChangelogFile(fileVersion, filename)
                 } else {
@@ -83,7 +90,7 @@ class ChangelogProvider @Inject constructor(@param:ApplicationContext private va
                     stringBuilder.append("<br/>\n\n---\n\n<br/>\n\n")
                 }
             } catch (e: IOException) {
-                Log.e(TAG, "Failed to read ${changelogFile.filename}", e)
+                logger.e(e) { "Failed to read ${changelogFile.filename}" }
             }
         }
 
@@ -91,17 +98,16 @@ class ChangelogProvider @Inject constructor(@param:ApplicationContext private va
     }
 
     private data class ChangelogFile(
-        val fileVersion: Semver,
+        val fileVersion: SemVersion,
         val filename: String,
-        val displayVersion: String = fileVersion.value,
+        val displayVersion: String = fileVersion.toString(),
     )
 
     companion object {
-        private const val TAG = "ChangelogProvider"
         private const val CHANGELOG_DIR = "changelog"
         private const val MARKDOWN_EXTENSION = ".md"
         private const val VERSION_PREFIX_LOWER = "v"
         private const val VERSION_PREFIX_UPPER = "V"
-        private const val DEFAULT_VERSION = "0.0.0"
+        private val DEFAULT_VERSION = "0.0.0".toVersion(strict = false)
     }
 }

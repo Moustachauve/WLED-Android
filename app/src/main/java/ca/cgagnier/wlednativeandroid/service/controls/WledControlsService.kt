@@ -12,7 +12,6 @@ import android.service.controls.actions.ControlAction
 import android.service.controls.actions.FloatAction
 import android.service.controls.templates.ControlButton
 import android.service.controls.templates.ToggleRangeTemplate
-import android.util.Log
 import androidx.annotation.RequiresApi
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.domain.DeepLinkHandler
@@ -25,6 +24,7 @@ import ca.cgagnier.wlednativeandroid.ui.theme.getColorFromDeviceState
 import ca.cgagnier.wlednativeandroid.util.MAX_BRIGHTNESS_PERCENT
 import ca.cgagnier.wlednativeandroid.util.brightnessToPercent
 import ca.cgagnier.wlednativeandroid.util.percentToBrightness
+import co.touchlab.kermit.Logger
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -54,6 +54,7 @@ class WledControlsService : ControlsProviderService() {
 
     companion object {
         private const val TAG = "WledControlsService"
+        private val logger = Logger.withTag(TAG)
         private const val BRIGHTNESS_STEP = 1f
         private const val BRIGHTNESS_FORMAT = "%.0f%%"
         private const val CLEANUP_DELAY_MS = 5000L
@@ -90,14 +91,14 @@ class WledControlsService : ControlsProviderService() {
 
     override fun createPublisherForAllAvailable(): Flow.Publisher<Control> = kotlinx.coroutines.flow.flow {
         val devices = deviceRepository.getAllDevices()
-        Log.d(TAG, "createPublisherForAllAvailable: Found ${devices.size} devices")
+        logger.d { "createPublisherForAllAvailable: Found ${devices.size} devices" }
         devices.forEach { device ->
             emit(createStatelessControl(device))
         }
     }.flowOn(Dispatchers.IO).asPublisher()
 
     override fun createPublisherFor(controlIds: List<String>): Flow.Publisher<Control> {
-        Log.d(TAG, "createPublisherFor: ${controlIds.size} controls")
+        logger.d { "createPublisherFor: ${controlIds.size} controls" }
 
         val flows = controlIds.map { getOrCreateFlow(it) }
 
@@ -110,7 +111,7 @@ class WledControlsService : ControlsProviderService() {
                         fetchAndEmitDeviceState(device, flow)
                     }
                 } else {
-                    Log.w(TAG, "Device not found for control: $controlId")
+                    logger.w { "Device not found for control: $controlId" }
                 }
             }
         }
@@ -140,7 +141,7 @@ class WledControlsService : ControlsProviderService() {
                     // Double-check subscription count after delay
                     if (flow.subscriptionCount.value == 0) {
                         controlFlows.remove(controlId, flow)
-                        Log.d(TAG, "Removed inactive flow for control: $controlId")
+                        logger.d { "Removed inactive flow for control: $controlId" }
                     }
                 }
             }
@@ -148,11 +149,11 @@ class WledControlsService : ControlsProviderService() {
     }
 
     override fun performControlAction(controlId: String, action: ControlAction, consumer: Consumer<Int>) {
-        Log.d(TAG, "performControlAction: $controlId, action type: ${action::class.simpleName}")
+        logger.d { "performControlAction: $controlId, action type: ${action::class.simpleName}" }
 
         val flow = controlFlows[controlId]
         if (flow == null) {
-            Log.e(TAG, "No flow found for control: $controlId")
+            logger.e { "No flow found for control: $controlId" }
             consumer.accept(ControlAction.RESPONSE_FAIL)
             return
         }
@@ -160,7 +161,7 @@ class WledControlsService : ControlsProviderService() {
         scope.launch {
             val device = deviceRepository.findDeviceByMacAddress(controlId)
             if (device == null) {
-                Log.e(TAG, "Device not found: $controlId")
+                logger.e { "Device not found: $controlId" }
                 consumer.accept(ControlAction.RESPONSE_FAIL)
                 return@launch
             }
@@ -172,12 +173,12 @@ class WledControlsService : ControlsProviderService() {
                     is FloatAction -> handleBrightnessAction(device, action.newValue, flow, consumer)
 
                     else -> {
-                        Log.w(TAG, "Unknown action type: ${action::class.simpleName}")
+                        logger.w { "Unknown action type: ${action::class.simpleName}" }
                         consumer.accept(ControlAction.RESPONSE_FAIL)
                     }
                 }
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                Log.e(TAG, "Error performing action on ${device.address}", e)
+                logger.e(e) { "Error performing action on ${device.address}" }
                 consumer.accept(ControlAction.RESPONSE_FAIL)
                 emitUnavailableControl(device, flow)
             }
@@ -197,20 +198,19 @@ class WledControlsService : ControlsProviderService() {
             if (response.isSuccessful) {
                 response.body?.let { state ->
                     updateStateAndEmit(device, state, flow)
-                    Log.d(
-                        TAG,
-                        "Emitted state for ${device.address}: on=${state.isOn}, bri=${state.brightness}",
-                    )
+                    logger.d {
+                        "Emitted state for ${device.address}: on=${state.isOn}, bri=${state.brightness}"
+                    }
                 } ?: run {
-                    Log.w(TAG, "Body is missing for ${device.address}: ${response.code}")
+                    logger.w { "Body is missing for ${device.address}: ${response.code}" }
                     emitUnavailableControl(device, flow)
                 }
             } else {
-                Log.w(TAG, "Failed to fetch state for ${device.address}: ${response.code}")
+                logger.w { "Failed to fetch state for ${device.address}: ${response.code}" }
                 emitUnavailableControl(device, flow)
             }
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            Log.e(TAG, "Error fetching state for ${device.address}", e)
+            logger.e(e) { "Error fetching state for ${device.address}" }
             emitUnavailableControl(device, flow)
         }
     }

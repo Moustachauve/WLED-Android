@@ -1,6 +1,5 @@
 package ca.cgagnier.wlednativeandroid.service.update
 
-import android.util.Log
 import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Repository
@@ -12,12 +11,14 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.isOtaEnabled
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
-import com.vdurmont.semver4j.Semver
+import co.touchlab.kermit.Logger
+import io.github.z4kn4fein.semver.toVersionOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 private const val TAG = "updateService"
+private val logger = Logger.withTag(TAG)
 const val DEFAULT_REPO = ca.cgagnier.wlednativeandroid.model.Repository.DEFAULT_OWNER_REPO
 
 enum class UpdateSourceType {
@@ -91,7 +92,7 @@ fun splitRepository(repository: String): Pair<String, String> {
     if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) {
         return Pair(parts[0], parts[1])
     } else {
-        Log.w(TAG, "Invalid repo format: $repository, using default")
+        logger.w { "Invalid repo format: $repository, using default" }
         val defaultParts = DEFAULT_REPO.split("/")
         return Pair(defaultParts[0], defaultParts[1])
     }
@@ -148,10 +149,9 @@ class ReleaseService @Inject constructor(
             deviceInfo.version!!.contains(it, ignoreCase = true)
         }
 
-        Log.w(
-            TAG,
-            "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $latestTagName",
-        )
+        logger.w {
+            "Device ${deviceInfo.ipAddress}: ${deviceInfo.version} to $latestTagName"
+        }
 
         // Check branch transition first, then SemVer comparison
         // If we're on a beta branch but looking for a stable branch, always offer to "update" to
@@ -165,14 +165,16 @@ class ReleaseService @Inject constructor(
     private fun isBranchTransition(branch: Branch, isDeviceOnBeta: Boolean): Boolean =
         (branch == Branch.STABLE && isDeviceOnBeta) || (branch == Branch.BETA && !isDeviceOnBeta)
 
-    private fun isNewerVersion(currentVersion: String, latestTagName: String): Boolean = try {
-        // Attempt strict SemVer comparison
-        val versionSemver = Semver(latestTagName, Semver.SemverType.LOOSE)
-        // If the version is mathematically greater, return it
-        versionSemver.isGreaterThan(currentVersion)
-    } catch (e: Exception) {
-        Log.i(TAG, "Non-SemVer version detected ($latestTagName), offering update as it differs from current.")
-        true
+    private fun isNewerVersion(currentVersion: String, latestTagName: String): Boolean {
+        val latestSemver = latestTagName.toVersionOrNull(strict = false)
+        val currentSemver = currentVersion.toVersionOrNull(strict = false)
+
+        return if (latestSemver != null && currentSemver != null) {
+            latestSemver > currentSemver
+        } else {
+            logger.i { "Non-SemVer version detected ($latestTagName), offering update as it differs from current." }
+            true
+        }
     }
 
     private suspend fun getLatestVersionWithAssets(repositoryId: Long, branch: Branch): VersionWithAssets? {
@@ -190,12 +192,12 @@ class ReleaseService @Inject constructor(
     suspend fun refreshVersions(githubApi: GithubApi, repositories: Set<String>) = withContext(Dispatchers.IO) {
         for (repository in repositories) {
             val (repoOwner, repoName) = splitRepository(repository)
-            Log.i(TAG, "Fetching releases from $repository")
+            logger.i { "Fetching releases from $repository" }
             githubApi.getAllReleases(repoOwner, repoName).onFailure { exception ->
-                Log.w(TAG, "Failed to refresh versions from $repository", exception)
+                logger.w(exception) { "Failed to refresh versions from $repository" }
             }.onSuccess { releases ->
                 if (releases.isEmpty()) {
-                    Log.w(TAG, "GitHub returned 0 releases for $repository.")
+                    logger.w { "GitHub returned 0 releases for $repository." }
                 } else {
                     val repoModel = Repository(
                         name = repoName,
@@ -209,7 +211,7 @@ class ReleaseService @Inject constructor(
                     val versionAndAssetsMap = releases.associate { release ->
                         createVersion(release, 0L) to createAssetsForVersion(release, 0L)
                     }
-                    Log.i(TAG, "Updating ${versionAndAssetsMap.size} versions and assets for $repository")
+                    logger.i { "Updating ${versionAndAssetsMap.size} versions and assets for $repository" }
                     versionWithAssetsRepository.updateRepository(repoModel, versionAndAssetsMap)
                 }
             }
