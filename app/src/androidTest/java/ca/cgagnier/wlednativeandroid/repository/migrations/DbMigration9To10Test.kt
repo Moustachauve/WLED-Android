@@ -6,6 +6,7 @@ import androidx.sqlite.execSQL
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -18,9 +19,8 @@ import java.io.File
 class DbMigration9To10Test {
 
     private val testDb = "migration-test-9-10"
-    private val dbFile = File(
-        InstrumentationRegistry.getInstrumentation().targetContext.getDatabasePath(testDb).absolutePath,
-    )
+    private val context = InstrumentationRegistry.getInstrumentation().targetContext
+    private val dbFile = File(context.getDatabasePath(testDb).absolutePath)
 
     @get:Rule
     val helper: MigrationTestHelper = MigrationTestHelper(
@@ -32,9 +32,12 @@ class DbMigration9To10Test {
 
     @Before
     fun setUp() {
-        if (dbFile.exists()) {
-            dbFile.delete()
-        }
+        context.deleteDatabase(testDb)
+    }
+
+    @After
+    fun tearDown() {
+        context.deleteDatabase(testDb)
     }
 
     @Test
@@ -69,42 +72,40 @@ class DbMigration9To10Test {
         db.close()
 
         // Run migration
-        val migratedDb = helper.runMigrationsAndValidate(10, listOf(MIGRATION_9_10))
+        helper.runMigrationsAndValidate(10, listOf(MIGRATION_9_10)).use { migratedDb ->
+            // Validate Device2
+            migratedDb.prepare("SELECT * FROM Device2 WHERE macAddress = '11:22:33:44:55:66'").use { stmt ->
+                assertTrue(stmt.step())
+                val repoIdIndex = stmt.getColumnNames().indexOf("repositoryId")
+                assertEquals(1, stmt.getInt(repoIdIndex))
+            }
 
-        // Validate Device2
-        migratedDb.prepare("SELECT * FROM Device2 WHERE macAddress = '11:22:33:44:55:66'").use { stmt ->
-            assertTrue(stmt.step())
-            val repoIdIndex = stmt.getColumnNames().indexOf("repositoryId")
-            assertEquals(1, stmt.getInt(repoIdIndex))
+            // Validate Repository 1 (WLED)
+            migratedDb.prepare("SELECT * FROM Repository WHERE id = 1").use { stmt ->
+                assertTrue(stmt.step())
+                val colNames = stmt.getColumnNames()
+                assertEquals("WLED", stmt.getText(colNames.indexOf("name")))
+                assertEquals("wled/WLED", stmt.getText(colNames.indexOf("ownerAndRepo")))
+                assertEquals(1, stmt.getInt(colNames.indexOf("isDefault")))
+                assertEquals(1, stmt.getInt(colNames.indexOf("isEnabled")))
+                assertEquals(1, stmt.getInt(colNames.indexOf("isUpdateEnabled")))
+            }
+
+            // Validate Version
+            var versionId = 0
+            migratedDb.prepare("SELECT * FROM Version WHERE tagName = 'v1.0.0'").use { stmt ->
+                assertTrue(stmt.step())
+                val colNames = stmt.getColumnNames()
+                assertEquals(1, stmt.getInt(colNames.indexOf("repositoryId")))
+                versionId = stmt.getInt(colNames.indexOf("id"))
+            }
+
+            // Validate Asset
+            migratedDb.prepare("SELECT * FROM Asset WHERE name = 'asset.bin'").use { stmt ->
+                assertTrue(stmt.step())
+                val colNames = stmt.getColumnNames()
+                assertEquals(versionId, stmt.getInt(colNames.indexOf("versionId")))
+            }
         }
-
-        // Validate Repository 1 (WLED)
-        migratedDb.prepare("SELECT * FROM Repository WHERE id = 1").use { stmt ->
-            assertTrue(stmt.step())
-            val colNames = stmt.getColumnNames()
-            assertEquals("WLED", stmt.getText(colNames.indexOf("name")))
-            assertEquals("wled/WLED", stmt.getText(colNames.indexOf("ownerAndRepo")))
-            assertEquals(1, stmt.getInt(colNames.indexOf("isDefault")))
-            assertEquals(1, stmt.getInt(colNames.indexOf("isEnabled")))
-            assertEquals(1, stmt.getInt(colNames.indexOf("isUpdateEnabled")))
-        }
-
-        // Validate Version
-        var versionId = 0
-        migratedDb.prepare("SELECT * FROM Version WHERE tagName = 'v1.0.0'").use { stmt ->
-            assertTrue(stmt.step())
-            val colNames = stmt.getColumnNames()
-            assertEquals(1, stmt.getInt(colNames.indexOf("repositoryId")))
-            versionId = stmt.getInt(colNames.indexOf("id"))
-        }
-
-        // Validate Asset
-        migratedDb.prepare("SELECT * FROM Asset WHERE name = 'asset.bin'").use { stmt ->
-            assertTrue(stmt.step())
-            val colNames = stmt.getColumnNames()
-            assertEquals(versionId, stmt.getInt(colNames.indexOf("versionId")))
-        }
-
-        migratedDb.close()
     }
 }
