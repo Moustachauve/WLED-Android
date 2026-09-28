@@ -14,14 +14,13 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class DevicesDatabaseHistoricalMigrationsTest {
 
     private val testDb = "historical-migration-test"
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
-    private val dbFile = File(context.getDatabasePath(testDb).absolutePath)
+    private val dbFile = context.getDatabasePath(testDb)
 
     @get:Rule
     val helper: MigrationTestHelper = MigrationTestHelper(
@@ -43,26 +42,24 @@ class DevicesDatabaseHistoricalMigrationsTest {
 
     @Test
     fun migrate7To10_fullMigrationPath() {
-        val db = helper.createDatabase(7)
-
-        db.execSQL(
-            """
-            INSERT INTO Device (
-                address, name, isCustomName, isHidden, macAddress, brightness, color,
-                isPoweredOn, isOnline, isRefreshing, networkBssid, networkRssi, networkSignal,
-                networkChannel, isEthernet, platformName, version, newUpdateVersionTagAvailable,
-                skipUpdateTag, branch, brand, productName, release, batteryPercentage, hasBattery
+        helper.createDatabase(7).use { db ->
+            db.execSQL(
+                """
+                INSERT INTO Device (
+                    address, name, isCustomName, isHidden, macAddress, brightness, color,
+                    isPoweredOn, isOnline, isRefreshing, networkBssid, networkRssi, networkSignal,
+                    networkChannel, isEthernet, platformName, version, newUpdateVersionTagAvailable,
+                    skipUpdateTag, branch, brand, productName, release, batteryPercentage, hasBattery
+                )
+                VALUES (
+                    '192.168.1.100', 'Living Room', 1, 0, '11:22:33:44:55:66', 128, 0,
+                    1, 1, 0, '__unknown__', 0, 0,
+                    0, 0, '__unknown__', '__unknown__', '',
+                    '', 'UNKNOWN', '__unknown__', '__unknown__', '__unknown__', 0.0, 0
+                )
+                """.trimIndent(),
             )
-            VALUES (
-                '192.168.1.100', 'Living Room', 1, 0, '11:22:33:44:55:66', 128, 0,
-                1, 1, 0, '__unknown__', 0, 0,
-                0, 0, '__unknown__', '__unknown__', '',
-                '', 'UNKNOWN', '__unknown__', '__unknown__', '__unknown__', 0.0, 0
-            )
-            """.trimIndent(),
-        )
-
-        db.close()
+        }
 
         helper.runMigrationsAndValidate(10, listOf(MIGRATION_9_10)).use { migratedDb ->
             // Validate Device2 is present and has repositoryId 1
@@ -90,16 +87,14 @@ class DevicesDatabaseHistoricalMigrationsTest {
 
     @Test
     fun migrate1To10_allMigrationsPass() {
-        val db = helper.createDatabase(1)
-
-        db.execSQL(
-            """
-            INSERT INTO Device (address, name, isCustomName, isHidden, brightness, color, isPoweredOn, isOnline, isRefreshing, networkRssi)
-            VALUES ('192.168.1.50', 'Original Device', 0, 0, 128, 0, 1, 1, 0, -65)
-            """.trimIndent(),
-        )
-
-        db.close()
+        helper.createDatabase(1).use { db ->
+            db.execSQL(
+                """
+                INSERT INTO Device (address, name, isCustomName, isHidden, brightness, color, isPoweredOn, isOnline, isRefreshing, networkRssi)
+                VALUES ('192.168.1.50', 'Original Device', 0, 0, 128, 0, 1, 1, 0, -65)
+                """.trimIndent(),
+            )
+        }
 
         helper.runMigrationsAndValidate(10, listOf(MIGRATION_9_10)).use { migratedDb ->
             // Validate Repository table exists with default WLED repository
@@ -131,7 +126,7 @@ class DevicesDatabaseHistoricalMigrationsTest {
     fun migrateEachStepFrom1To7() {
         for (version in 1..6) {
             val stepDb = "migration-step-$version"
-            val stepDbFile = File(context.getDatabasePath(stepDb).absolutePath)
+            val stepDbFile = context.getDatabasePath(stepDb)
             context.deleteDatabase(stepDb)
 
             try {
@@ -141,8 +136,8 @@ class DevicesDatabaseHistoricalMigrationsTest {
                     driver = BundledSQLiteDriver(),
                     databaseClass = DevicesDatabase::class,
                 )
-                stepHelper.createDatabase(version).close()
-                stepHelper.runMigrationsAndValidate(version + 1).close()
+                stepHelper.createDatabase(version).use { }
+                stepHelper.runMigrationsAndValidate(version + 1).use { }
             } finally {
                 context.deleteDatabase(stepDb)
             }
