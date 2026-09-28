@@ -90,6 +90,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
     init {
         // Observe ProcessLifecycle (App level) instead of Activity so onPause is
+        // called only when the whole app enters the background.
         try {
             ProcessLifecycleOwner.get().lifecycle.addObserver(this)
         } catch (e: Exception) {
