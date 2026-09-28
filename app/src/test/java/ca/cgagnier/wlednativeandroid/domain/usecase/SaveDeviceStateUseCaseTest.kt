@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -296,7 +297,7 @@ class SaveDeviceStateUseCaseTest {
     }
 
     @Test
-    fun `invoke handles deviceRepository update exception gracefully and returns null`() = runTest(testDispatcher) {
+    fun `invoke propagates deviceRepository update exception to caller`() = runTest(testDispatcher) {
         val currentDevice = Device(
             macAddress = "AABBCCDDEEFF",
             address = "192.168.1.100",
@@ -308,9 +309,14 @@ class SaveDeviceStateUseCaseTest {
         val stateInfo = createDeviceStateInfo(name = "New Name", version = "0.14.0")
         coEvery { deviceRepository.update(any()) } throws RuntimeException("SQLite disk error")
 
-        val result = useCase(currentDevice, stateInfo, currentTimeMillis = 11000L)
-
-        assertNull(result, "When DB persistence throws an exception, invoke must return null instead of crashing")
+        var thrown = false
+        try {
+            useCase(currentDevice, stateInfo, currentTimeMillis = 11000L)
+        } catch (e: RuntimeException) {
+            thrown = true
+            assertEquals("SQLite disk error", e.message)
+        }
+        assertTrue(thrown, "Expected RuntimeException to be thrown")
         coVerify(exactly = 1) { deviceRepository.update(any()) }
     }
 

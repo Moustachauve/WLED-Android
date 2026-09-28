@@ -885,6 +885,40 @@ class DeviceWebsocketListViewModelTest {
         }
 
     @Test
+    fun `exception in persistDeviceState is caught and does not cancel frame observation`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.allDevicesWithState.collect {}
+        }
+
+        allDevicesDbFlow.value = listOf(device1)
+        advanceUntilIdle()
+
+        val holder = createdClients[device1.macAddress]!!
+        coEvery {
+            saveDeviceStateUseCase.invoke(any(), any(), any())
+        } throws RuntimeException("Database error")
+
+        val stateInfo = DeviceStateInfo(
+            state = State(isOn = true, brightness = 100),
+            info = Info(
+                version = "16.0.1",
+                name = "Device 1",
+                leds = Leds(count = 60),
+                wifi = Wifi(bssid = "mac", rssi = -50, signal = 100, channel = 1),
+            ),
+        )
+
+        holder.incomingFlow.emit(stateInfo)
+        advanceUntilIdle()
+
+        // State was still updated in in-memory state despite DB save failure
+        assertEquals(100, viewModel.allDevicesWithState.value.first().stateInfo?.state?.brightness)
+
+        job.cancel()
+    }
+
+    @Test
     fun `onPause pauses clients and onResume resumes clients`() = runTest(testDispatcher) {
         val viewModel = createViewModel()
         val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
