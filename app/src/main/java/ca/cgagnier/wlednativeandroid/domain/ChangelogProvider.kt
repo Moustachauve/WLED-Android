@@ -44,14 +44,15 @@ class ChangelogProvider @Inject constructor(@param:ApplicationContext private va
         val hasBeta = currentVersion.preRelease?.contains("beta", ignoreCase = true) == true
         val validFiles = mutableListOf<ChangelogFile>()
 
-        if (hasBeta && files.contains("dev.md")) {
-            validFiles.add(ChangelogFile("999.0.0".toVersion(strict = false), "dev.md", "Dev"))
+        val devFilename = files.firstOrNull { it.equals("dev.md", ignoreCase = true) }
+        if (hasBeta && devFilename != null) {
+            validFiles.add(ChangelogFile("999.0.0".toVersion(strict = false), devFilename, "Dev"))
         }
 
         validFiles.addAll(
             files.mapNotNull { filename ->
-                if (!filename.endsWith(MARKDOWN_EXTENSION) ||
-                    filename == "dev.md" ||
+                if (!filename.endsWith(MARKDOWN_EXTENSION, ignoreCase = true) ||
+                    filename.equals("dev.md", ignoreCase = true) ||
                     filename.equals("README.md", ignoreCase = true)
                 ) {
                     return@mapNotNull null
