@@ -94,6 +94,7 @@ ksp {
 }
 
 dependencies {
+    implementation(project(":shared"))
     implementation(libs.androidx.graphics.shapes)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.geometry)

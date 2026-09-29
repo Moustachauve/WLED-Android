@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "WLED-Android"
 include(":app")
+include(":shared")
