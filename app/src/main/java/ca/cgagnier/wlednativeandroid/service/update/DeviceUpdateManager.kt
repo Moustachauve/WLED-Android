@@ -4,12 +4,11 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import co.touchlab.kermit.Logger
-import javax.inject.Inject
 
 private const val TAG = "DeviceUpdateManager"
 private val logger = Logger.withTag(TAG)
 
-class DeviceUpdateManager @Inject constructor(private val releaseService: ReleaseService) {
+class DeviceUpdateManager(private val releaseService: ReleaseService) {
 
     /**
      * Checks if a software update is available for the given [device] and [stateInfo].

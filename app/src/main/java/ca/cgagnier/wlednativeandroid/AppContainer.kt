@@ -3,8 +3,14 @@ package ca.cgagnier.wlednativeandroid
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.dataStore
+import ca.cgagnier.wlednativeandroid.di.IoDispatcher
+import ca.cgagnier.wlednativeandroid.domain.ChangelogProvider
+import ca.cgagnier.wlednativeandroid.domain.DeepLinkHandler
+import ca.cgagnier.wlednativeandroid.domain.usecase.SaveDeviceStateUseCase
+import ca.cgagnier.wlednativeandroid.domain.usecase.ValidateAddress
 import ca.cgagnier.wlednativeandroid.repository.AssetDao
 import ca.cgagnier.wlednativeandroid.repository.DeviceDao
+import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
@@ -15,12 +21,14 @@ import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.repository.migrations.LegacyProtoToKotlinxPreferencesMigration
 import ca.cgagnier.wlednativeandroid.repository.migrations.UserPreferencesV0ToV1
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
+import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -99,4 +107,34 @@ object AppContainer {
         @ApplicationContext appContext: Context,
         coroutineScope: CoroutineScope,
     ): NetworkConnectivityManager = NetworkConnectivityManager(appContext, coroutineScope)
+
+    @Provides
+    @Singleton
+    fun provideDeviceRepository(deviceDao: DeviceDao): DeviceRepository = DeviceRepository(deviceDao)
+
+    @Provides
+    @Singleton
+    fun provideDeviceUpdateManager(releaseService: ReleaseService): DeviceUpdateManager =
+        DeviceUpdateManager(releaseService)
+
+    @Provides
+    @Singleton
+    fun provideSaveDeviceStateUseCase(
+        deviceRepository: DeviceRepository,
+        repositoryDao: RepositoryDao,
+        @IoDispatcher ioDispatcher: CoroutineDispatcher,
+    ): SaveDeviceStateUseCase = SaveDeviceStateUseCase(deviceRepository, repositoryDao, ioDispatcher)
+
+    @Provides
+    @Singleton
+    fun provideValidateAddress(): ValidateAddress = ValidateAddress()
+
+    @Provides
+    @Singleton
+    fun provideDeepLinkHandler(): DeepLinkHandler = DeepLinkHandler()
+
+    @Provides
+    @Singleton
+    fun provideChangelogProvider(@ApplicationContext appContext: Context): ChangelogProvider =
+        ChangelogProvider(appContext)
 }

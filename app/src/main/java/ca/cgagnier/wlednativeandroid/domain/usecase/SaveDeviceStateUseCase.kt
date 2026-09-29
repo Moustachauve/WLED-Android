@@ -1,6 +1,5 @@
 package ca.cgagnier.wlednativeandroid.domain.usecase
 
-import ca.cgagnier.wlednativeandroid.di.IoDispatcher
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.Repository
@@ -13,7 +12,6 @@ import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 private const val TAG = "SaveDeviceStateUseCase"
 private val logger = Logger.withTag(TAG)
@@ -22,10 +20,10 @@ private val logger = Logger.withTag(TAG)
  * Domain use case to persist updated device metadata to the database when changes
  * are detected from an inbound DeviceStateInfo update or when the lastSeen threshold expires.
  */
-class SaveDeviceStateUseCase @Inject constructor(
+class SaveDeviceStateUseCase(
     private val deviceRepository: DeviceRepository,
     private val repositoryDao: RepositoryDao,
-    @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     companion object {
         const val LAST_SEEN_UPDATE_THRESHOLD = 15 * 60 * 1000L // 15 minutes

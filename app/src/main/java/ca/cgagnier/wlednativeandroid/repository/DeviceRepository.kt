@@ -3,9 +3,8 @@ package ca.cgagnier.wlednativeandroid.repository
 import androidx.annotation.WorkerThread
 import ca.cgagnier.wlednativeandroid.model.Device
 import kotlinx.coroutines.flow.Flow
-import javax.inject.Inject
 
-class DeviceRepository @Inject constructor(private val deviceDao: DeviceDao) {
+class DeviceRepository(private val deviceDao: DeviceDao) {
     val allDevices: Flow<List<Device>> = deviceDao.getAlphabetizedDevices()
 
     @WorkerThread
