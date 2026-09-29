@@ -1,10 +1,10 @@
 package ca.cgagnier.wlednativeandroid.repository
 
-import android.content.Context
 import androidx.room.AutoMigration
+import androidx.room.ConstructedBy
 import androidx.room.Database
-import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.RoomDatabaseConstructor
 import androidx.room.TypeConverters
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
@@ -17,6 +17,7 @@ import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration7To8
 import ca.cgagnier.wlednativeandroid.repository.migrations.DbMigration8To9
 import ca.cgagnier.wlednativeandroid.repository.migrations.MIGRATION_9_10
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 
 @Database(
     entities = [
@@ -39,38 +40,32 @@ import kotlinx.coroutines.Dispatchers
     ],
 )
 @TypeConverters(Converters::class)
+@ConstructedBy(DevicesDatabaseConstructor::class)
 abstract class DevicesDatabase : RoomDatabase() {
     abstract fun deviceDao(): DeviceDao
     abstract fun repositoryDao(): RepositoryDao
     abstract fun versionDao(): VersionDao
     abstract fun assetDao(): AssetDao
 
-    companion object {
-        @Volatile
-        private var instance: DevicesDatabase? = null
-
-        fun getDatabase(context: Context): DevicesDatabase = instance ?: synchronized(this) {
-            val instance = Room.databaseBuilder(
-                context.applicationContext,
-                DevicesDatabase::class.java,
-                "devices_database",
-            )
-                .setDriver(BundledSQLiteDriver())
-                .setQueryCoroutineContext(Dispatchers.IO)
-                .addMigrations(MIGRATION_9_10)
-                .addCallback(object : RoomDatabase.Callback() {
-                    override fun onCreate(connection: SQLiteConnection) {
-                        connection.execSQL(
-                            """
-                            INSERT INTO Repository (id, name, ownerAndRepo, description, htmlUrl, isDefault, isEnabled, isUpdateEnabled)
-                            VALUES (1, 'WLED', 'wled/WLED', 'Official WLED Repository', 'https://github.com/wled/WLED', 1, 1, 1)
-                            """.trimIndent(),
-                        )
-                    }
-                })
-                .build()
-            this.instance = instance
-            instance
-        }
-    }
+    companion object
 }
+
+@Suppress("NO_ACTUAL_FOR_EXPECT", "KotlinRedundantDiagnosticSuppress")
+expect object DevicesDatabaseConstructor : RoomDatabaseConstructor<DevicesDatabase> {
+    override fun initialize(): DevicesDatabase
+}
+
+fun <T : DevicesDatabase> RoomDatabase.Builder<T>.configureDevicesDatabase(): RoomDatabase.Builder<T> = this
+    .setDriver(BundledSQLiteDriver())
+    .setQueryCoroutineContext(Dispatchers.IO)
+    .addMigrations(MIGRATION_9_10)
+    .addCallback(object : RoomDatabase.Callback() {
+        override fun onCreate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                    INSERT INTO Repository (id, name, ownerAndRepo, description, htmlUrl, isDefault, isEnabled, isUpdateEnabled)
+                    VALUES (1, 'WLED', 'wled/WLED', 'Official WLED Repository', 'https://github.com/wled/WLED', 1, 1, 1)
+                """.trimIndent(),
+            )
+        }
+    })
