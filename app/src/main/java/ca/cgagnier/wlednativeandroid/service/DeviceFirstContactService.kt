@@ -105,19 +105,20 @@ class DeviceFirstContactService @Inject constructor(
         logger.d { "Trying to create a new device: $address" }
         val info = getDeviceInfo(address)
 
-        if (info.macAddress.isNullOrEmpty()) {
+        val macAddress = info.macAddress
+        if (macAddress.isNullOrEmpty()) {
             logger.e { "Could not retrieve MAC address for device at $address. Response: $info" }
             throw Exception("Could not retrieve MAC address for device at $address")
         }
 
-        val existingDevice = repository.findDeviceByMacAddress(info.macAddress)
+        val existingDevice = repository.findDeviceByMacAddress(macAddress)
 
         if (existingDevice == null) {
-            logger.d { "No existing device found for MAC: ${info.macAddress}. Creating new entry." }
-            return createDevice(info.macAddress, address, info)
+            logger.d { "No existing device found for MAC: $macAddress. Creating new entry." }
+            return createDevice(macAddress, address, info)
         }
         if (existingDevice.address == address && existingDevice.originalName == info.name) {
-            logger.d { "Device already exists for MAC and is unchanged: ${info.macAddress}" }
+            logger.d { "Device already exists for MAC and is unchanged: $macAddress" }
             return existingDevice
         }
         logger.d {
