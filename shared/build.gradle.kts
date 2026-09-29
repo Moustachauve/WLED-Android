@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.skie)
 }
 
 kotlin {
@@ -27,6 +28,7 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
+            binaryOption("bundleId", "ca.cgagnier.wlednativeandroid.shared")
         }
     }
 
@@ -40,5 +42,11 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+    }
+}
+
+skie {
+    analytics {
+        enabled.set(false)
     }
 }
