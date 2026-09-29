@@ -6,14 +6,11 @@ import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.Flow
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private const val TAG = "github-release"
 private val logger = Logger.withTag(TAG)
 
-@Singleton
-class GithubApi @Inject constructor(private val apiEndpoints: GithubApiEndpoints) {
+class GithubApi(private val apiEndpoints: GithubApiEndpoints) {
 
     suspend fun getAllReleases(repoOwner: String, repoName: String): Result<List<Release>> {
         logger.d { "retrieving latest releases from $repoOwner/$repoName" }

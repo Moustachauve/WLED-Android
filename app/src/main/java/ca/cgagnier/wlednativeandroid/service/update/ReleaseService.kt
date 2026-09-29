@@ -15,7 +15,6 @@ import co.touchlab.kermit.Logger
 import io.github.z4kn4fein.semver.toVersionOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 private const val TAG = "updateService"
 private val logger = Logger.withTag(TAG)
@@ -98,7 +97,7 @@ fun splitRepository(repository: String): Pair<String, String> {
     }
 }
 
-class ReleaseService @Inject constructor(
+class ReleaseService(
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val repositoryDao: RepositoryDao,
 ) {

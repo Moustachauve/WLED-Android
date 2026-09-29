@@ -7,7 +7,6 @@ import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import io.github.z4kn4fein.semver.toVersionOrNull
-import javax.inject.Inject
 import io.github.z4kn4fein.semver.Version as SemVersion
 
 /**
@@ -17,7 +16,7 @@ import io.github.z4kn4fein.semver.Version as SemVersion
  */
 private const val IGNORED_TAG = "nightly"
 
-class VersionWithAssetsRepository @Inject constructor(
+class VersionWithAssetsRepository(
     private val database: DevicesDatabase,
     private val repositoryDao: RepositoryDao,
     private val versionDao: VersionDao,

@@ -2,17 +2,15 @@ package ca.cgagnier.wlednativeandroid.domain
 
 import android.content.Context
 import co.touchlab.kermit.Logger
-import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.z4kn4fein.semver.toVersion
 import io.github.z4kn4fein.semver.toVersionOrNull
 import java.io.IOException
-import javax.inject.Inject
 import io.github.z4kn4fein.semver.Version as SemVersion
 
 private const val TAG = "ChangelogProvider"
 private val logger = Logger.withTag(TAG)
 
-class ChangelogProvider @Inject constructor(@param:ApplicationContext private val context: Context) {
+class ChangelogProvider(private val context: Context) {
     fun getChangelog(lastSeenVersionStr: String, currentVersionStr: String): String? {
         val lastSeenVersion = parseSemverSafe(lastSeenVersionStr) ?: DEFAULT_VERSION
         val currentVersion = parseSemverSafe(currentVersionStr) ?: return null

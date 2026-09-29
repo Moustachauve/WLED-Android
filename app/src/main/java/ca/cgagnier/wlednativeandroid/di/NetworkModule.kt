@@ -2,14 +2,17 @@ package ca.cgagnier.wlednativeandroid.di
 
 import android.content.Context
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
+import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApiEndpoints
 import ca.cgagnier.wlednativeandroid.service.api.github.KtorGithubApiEndpoints
+import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.serialization.json.Json
 import okhttp3.Cache
 import okhttp3.OkHttpClient
@@ -64,5 +67,17 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideGithubApi(apiEndpoints: GithubApiEndpoints): GithubApi = GithubApi(apiEndpoints)
+
+    @Provides
+    @Singleton
     fun provideDeviceApiFactory(httpClient: HttpClient): DeviceApiFactory = DeviceApiFactory(httpClient)
+
+    @Provides
+    @Singleton
+    fun provideWebsocketClientFactory(
+        httpClient: HttpClient,
+        json: Json,
+        @IoDispatcher ioDispatcher: CoroutineDispatcher,
+    ): WebsocketClientFactory = WebsocketClientFactory(httpClient, json, ioDispatcher)
 }

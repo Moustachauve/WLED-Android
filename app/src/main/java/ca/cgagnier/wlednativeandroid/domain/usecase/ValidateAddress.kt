@@ -1,9 +1,8 @@
 package ca.cgagnier.wlednativeandroid.domain.usecase
 
 import ca.cgagnier.wlednativeandroid.R
-import javax.inject.Inject
 
-class ValidateAddress @Inject constructor() {
+class ValidateAddress {
     fun execute(address: String): ValidationResult {
         if (address.isEmpty()) {
             return ValidationResult(
