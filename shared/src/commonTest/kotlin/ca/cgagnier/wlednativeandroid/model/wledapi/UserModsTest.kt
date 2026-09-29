@@ -2,9 +2,9 @@ package ca.cgagnier.wlednativeandroid.model.wledapi
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class UserModsTest {
 
@@ -15,7 +15,7 @@ class UserModsTest {
     }
 
     @Test
-    fun `test UserMods battery deserialization with mixed array`() {
+    fun userMods_batteryDeserializationWithMixedArray() {
         val rawJson = """
             {
                 "Battery level": [85, "%"],
@@ -29,7 +29,7 @@ class UserModsTest {
     }
 
     @Test
-    fun `test UserMods battery deserialization with single numeric value`() {
+    fun userMods_batteryDeserializationWithSingleNumericValue() {
         val rawJson = """
             {
                 "Battery level": [72.5]
@@ -42,7 +42,7 @@ class UserModsTest {
     }
 
     @Test
-    fun `test UserMods null values`() {
+    fun userMods_nullValues() {
         val userMods = UserMods()
         assertNull(userMods.batteryLevel)
         assertNull(userMods.batteryVoltage)
@@ -51,7 +51,7 @@ class UserModsTest {
     }
 
     @Test
-    fun `test UserMods manual construction with JsonPrimitive`() {
+    fun userMods_manualConstructionWithJsonPrimitive() {
         val userMods = UserMods(
             batteryLevel = listOf(JsonPrimitive(90)),
             batteryVoltage = listOf(JsonPrimitive(4.1)),

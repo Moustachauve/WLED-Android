@@ -3,6 +3,7 @@ package ca.cgagnier.wlednativeandroid.service.update
 import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Repository
+import ca.cgagnier.wlednativeandroid.model.UpdateSourceRegistry
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.model.githubapi.Release
@@ -20,51 +21,6 @@ private const val TAG = "updateService"
 private val logger = Logger.withTag(TAG)
 const val DEFAULT_REPO = ca.cgagnier.wlednativeandroid.model.Repository.DEFAULT_OWNER_REPO
 
-enum class UpdateSourceType {
-    OFFICIAL_WLED,
-    QUINLED,
-    CUSTOM,
-    MOONMODULES,
-}
-
-data class UpdateSourceDefinition(
-    val type: UpdateSourceType,
-    val brandPattern: String,
-    val githubOwner: String,
-    val githubRepo: String,
-    val product: String? = null,
-)
-
-object UpdateSourceRegistry {
-    val sources = listOf(
-        UpdateSourceDefinition(
-            type = UpdateSourceType.OFFICIAL_WLED,
-            brandPattern = "WLED",
-            githubOwner = "wled",
-            githubRepo = "WLED",
-        ),
-        UpdateSourceDefinition(
-            type = UpdateSourceType.QUINLED,
-            brandPattern = "QuinLED",
-            githubOwner = "intermittech",
-            githubRepo = "QuinLED-Firmware",
-        ),
-        UpdateSourceDefinition(
-            type = UpdateSourceType.MOONMODULES,
-            brandPattern = "WLED",
-            product = "MoonModules",
-            githubOwner = "MoonModules",
-            githubRepo = "WLED-MM",
-        ),
-    )
-
-    fun getSource(info: Info): UpdateSourceDefinition? {
-        val brandMatches = sources.filter { it.brandPattern == info.brand }
-        return brandMatches.find { it.product == info.product }
-            ?: brandMatches.find { it.product == null }
-    }
-}
-
 /**
  * Extracts repository from device info using a three-tier fallback strategy:
  * 1. First: Use the repo field if available (format: "owner/name") - added in WLED 0.15.2
@@ -73,8 +29,9 @@ object UpdateSourceRegistry {
  */
 fun getRepositoryFromInfo(info: Info): String {
     // First priority: Use original repo, if supplied and not 'unknown'
-    if (!info.repository.isNullOrBlank() && !info.repository.equals("unknown", ignoreCase = true)) {
-        return info.repository
+    val repository = info.repository
+    if (!repository.isNullOrBlank() && !repository.equals("unknown", ignoreCase = true)) {
+        return repository
     }
 
     // Second priority: Use brand-based registry lookup
