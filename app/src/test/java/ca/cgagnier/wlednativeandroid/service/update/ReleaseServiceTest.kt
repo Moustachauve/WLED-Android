@@ -39,22 +39,22 @@ class ReleaseServiceTest {
 
     @Test
     fun `getNewerReleaseTag offers newer stable release`() = runTest {
-        val deviceInfo = createInfo(version = "0.14.0")
+        val deviceInfo = createInfo(version = "0.15.2")
         coEvery {
             versionWithAssetsRepository.getLatestStableVersionWithAssets(1L)
-        } returns createVersionWithAssets("0.14.1")
+        } returns createVersionWithAssets("0.15.3")
 
         val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "")
 
-        assertEquals("0.14.1", result)
+        assertEquals("0.15.3", result)
     }
 
     @Test
     fun `getNewerReleaseTag returns null when device is already up to date`() = runTest {
-        val deviceInfo = createInfo(version = "0.14.1")
+        val deviceInfo = createInfo(version = "0.15.3")
         coEvery {
             versionWithAssetsRepository.getLatestStableVersionWithAssets(1L)
-        } returns createVersionWithAssets("0.14.1")
+        } returns createVersionWithAssets("0.15.3")
 
         val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "")
 
@@ -63,22 +63,22 @@ class ReleaseServiceTest {
 
     @Test
     fun `getNewerReleaseTag returns null when newer release matches ignored version`() = runTest {
-        val deviceInfo = createInfo(version = "0.14.0")
+        val deviceInfo = createInfo(version = "0.15.2")
         coEvery {
             versionWithAssetsRepository.getLatestStableVersionWithAssets(1L)
-        } returns createVersionWithAssets("0.14.1")
+        } returns createVersionWithAssets("0.15.3")
 
-        val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "0.14.1")
+        val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "0.15.3")
 
         assertNull(result)
     }
 
     @Test
     fun `getNewerReleaseTag returns null when OTA is disabled`() = runTest {
-        val deviceInfo = createInfo(version = "0.14.0", options = 0x00) // OTA disabled
+        val deviceInfo = createInfo(version = "0.15.2", options = 0x00) // OTA disabled
         coEvery {
             versionWithAssetsRepository.getLatestStableVersionWithAssets(1L)
-        } returns createVersionWithAssets("0.14.1")
+        } returns createVersionWithAssets("0.15.3")
 
         val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "")
 
@@ -87,34 +87,34 @@ class ReleaseServiceTest {
 
     @Test
     fun `getNewerReleaseTag offers transition from beta to stable branch`() = runTest {
-        val deviceInfo = createInfo(version = "0.15.0-b1")
+        val deviceInfo = createInfo(version = "0.16.0-b1")
         coEvery {
             versionWithAssetsRepository.getLatestStableVersionWithAssets(1L)
-        } returns createVersionWithAssets("0.14.4")
+        } returns createVersionWithAssets("0.15.3")
 
         val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "")
 
-        assertEquals("0.14.4", result)
+        assertEquals("0.15.3", result)
     }
 
     @Test
     fun `getNewerReleaseTag offers newer beta release`() = runTest {
-        val deviceInfo = createInfo(version = "0.15.0-b1")
+        val deviceInfo = createInfo(version = "0.16.0-b1")
         coEvery {
             versionWithAssetsRepository.getLatestBetaVersionWithAssets(1L)
-        } returns createVersionWithAssets("0.15.0-b2")
+        } returns createVersionWithAssets("0.16.0-b2")
 
         val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.BETA, ignoreVersion = "")
 
-        assertEquals("0.15.0-b2", result)
+        assertEquals("0.16.0-b2", result)
     }
 
     @Test
     fun `getNewerReleaseTag returns null when device has a newer version than repo`() = runTest {
-        val deviceInfo = createInfo(version = "0.15.0")
+        val deviceInfo = createInfo(version = "0.16.0")
         coEvery {
             versionWithAssetsRepository.getLatestStableVersionWithAssets(1L)
-        } returns createVersionWithAssets("0.14.1")
+        } returns createVersionWithAssets("0.15.3")
 
         val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "")
 
@@ -123,14 +123,14 @@ class ReleaseServiceTest {
 
     @Test
     fun `getNewerReleaseTag offers update when latest release has non-semver tag`() = runTest {
-        val deviceInfo = createInfo(version = "0.14.0")
+        val deviceInfo = createInfo(version = "0.15.2")
         coEvery {
             versionWithAssetsRepository.getLatestStableVersionWithAssets(1L)
-        } returns createVersionWithAssets("custom-build-2024")
+        } returns createVersionWithAssets("custom-build-2026")
 
         val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "")
 
-        assertEquals("custom-build-2024", result)
+        assertEquals("custom-build-2026", result)
     }
 
     @Test
@@ -159,7 +159,7 @@ class ReleaseServiceTest {
             name = "Release $tagName",
             description = "Notes",
             isPrerelease = tagName.contains("-"),
-            publishedDate = "2024-01-01T00:00:00Z",
+            publishedDate = "2026-01-15T00:00:00Z",
             htmlUrl = "https://github.com/wled/WLED/releases/tag/$tagName",
         ),
         assets = emptyList(),
