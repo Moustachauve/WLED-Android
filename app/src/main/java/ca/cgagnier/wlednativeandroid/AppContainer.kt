@@ -18,6 +18,7 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesSerializer
 import ca.cgagnier.wlednativeandroid.repository.VersionDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
+import ca.cgagnier.wlednativeandroid.repository.getDatabase
 import ca.cgagnier.wlednativeandroid.repository.migrations.LegacyProtoToKotlinxPreferencesMigration
 import ca.cgagnier.wlednativeandroid.repository.migrations.UserPreferencesV0ToV1
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager

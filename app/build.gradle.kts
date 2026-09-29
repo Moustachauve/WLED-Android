@@ -88,11 +88,6 @@ android {
     }
 }
 
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
-    arg("room.incremental", "true")
-}
-
 dependencies {
     implementation(project(":shared"))
     implementation(libs.androidx.graphics.shapes)
@@ -161,7 +156,6 @@ dependencies {
     implementation(libs.kermit)
     implementation(libs.compose.material.icons)
     ksp(libs.hilt.compiler)
-    ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.selfie.runner.junit5)
     testImplementation(libs.mockk)

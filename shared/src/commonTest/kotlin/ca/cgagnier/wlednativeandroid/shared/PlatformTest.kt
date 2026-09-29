@@ -8,4 +8,9 @@ class PlatformTest {
     fun testPlatformNameIsNotEmpty() {
         assertTrue(getPlatformName().isNotEmpty())
     }
+
+    @Test
+    fun testCurrentTimeMillisIsPositive() {
+        assertTrue(currentTimeMillis() > 0)
+    }
 }

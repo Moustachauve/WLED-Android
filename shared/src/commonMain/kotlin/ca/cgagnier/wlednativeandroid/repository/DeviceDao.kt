@@ -5,9 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.RawQuery
 import androidx.room.Update
-import androidx.sqlite.db.SupportSQLiteQuery
 import ca.cgagnier.wlednativeandroid.model.Device
 import kotlinx.coroutines.flow.Flow
 
@@ -34,17 +32,14 @@ interface DeviceDao {
     @Query("SELECT * FROM Device2 WHERE macAddress != '' AND LOWER(macAddress) = LOWER(:address)")
     suspend fun findDeviceByMacAddress(address: String): Device?
 
-    @Query("SELECT COUNT() FROM Device2 WHERE address = :address")
-    fun count(address: String): Int
-
-    @RawQuery
-    suspend fun insert(query: SupportSQLiteQuery): Device
+    @Query("SELECT COUNT(*) FROM Device2 WHERE address = :address")
+    suspend fun count(address: String): Int
 
     @Query("SELECT * FROM Device2")
-    fun getAllDevices(): List<Device>
+    suspend fun getAllDevices(): List<Device>
 
     @Query("SELECT DISTINCT repositoryId FROM Device2")
-    fun getUsedRepositoryIds(): List<Long>
+    suspend fun getUsedRepositoryIds(): List<Long>
 
     @Query("SELECT * FROM Device2 ORDER BY LOWER(COALESCE(customName, originalName)) ASC, LOWER(address) ASC")
     fun getAlphabetizedDevices(): Flow<List<Device>>
