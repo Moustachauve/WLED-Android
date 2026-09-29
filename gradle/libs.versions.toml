@@ -45,6 +45,7 @@ truth = "1.4.5"
 detekt = "1.23.8"
 spotless = "8.10.3"
 mockk = "1.14.11"
+skie = "0.10.15"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose" }
@@ -137,3 +138,4 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+skie = { id = "co.touchlab.skie", version.ref = "skie" }
