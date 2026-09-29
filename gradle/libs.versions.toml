@@ -43,7 +43,7 @@ webkit = "1.17.0"
 graphicsShapes = "1.1.0"
 truth = "1.4.5"
 detekt = "1.23.8"
-spotless = "8.10.2"
+spotless = "8.10.3"
 mockk = "1.14.11"
 
 [libraries]
