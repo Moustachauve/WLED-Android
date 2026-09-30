@@ -20,10 +20,8 @@ class UserPreferencesSerializerTest {
         expectSelfie(TestJson.preferences.encodeToString(defaultPrefs)).toMatchDisk()
     }
 
-    // Explicit Unit return types in = runBlocking tests prevent DiskSelfie return type
-    // inference from failing JUnit 4's void method check.
     @Test
-    fun roundTrip_serializesAndDeserializesCorrectly(): Unit = runTest {
+    fun roundTrip_serializesAndDeserializesCorrectly() = runTest {
         val original = UserPreferences(
             selectedDeviceAddress = "192.168.1.50",
             hasMigratedSharedPref = true,
@@ -78,7 +76,7 @@ class UserPreferencesSerializerTest {
     }
 
     @Test
-    fun readFrom_unknownKeys_ignoresThemGracefully(): Unit = runTest {
+    fun readFrom_unknownKeys_ignoresThemGracefully() = runTest {
         val json = """{"theme":"Light","unknown_field":123,"future_setting":true}"""
         val buffer = Buffer().writeUtf8(json)
         val deserialized = serializer.readFrom(buffer)
@@ -87,7 +85,7 @@ class UserPreferencesSerializerTest {
     }
 
     @Test
-    fun readFrom_partialJson_usesDefaultValuesForMissingFields(): Unit = runTest {
+    fun readFrom_partialJson_usesDefaultValuesForMissingFields() = runTest {
         val json = """{"theme":"Dark"}"""
         val buffer = Buffer().writeUtf8(json)
         val deserialized = serializer.readFrom(buffer)
