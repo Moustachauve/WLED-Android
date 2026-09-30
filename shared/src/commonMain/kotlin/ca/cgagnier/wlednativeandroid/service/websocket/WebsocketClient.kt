@@ -302,7 +302,6 @@ class WebsocketClient(
         }
     }
 
-    @Suppress("RedundantElseInWhen")
     private suspend fun consumeIncomingFrames(session: DefaultClientWebSocketSession) {
         for (frame in session.incoming) {
             when (frame) {
@@ -321,8 +320,6 @@ class WebsocketClient(
                 is Frame.Ping, is Frame.Pong -> {
                     // Handled automatically by Ktor WebSockets ping plugin
                 }
-
-                else -> Unit
             }
         }
     }
