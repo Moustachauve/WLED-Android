@@ -2,7 +2,6 @@ package ca.cgagnier.wlednativeandroid.service.api.github
 
 import ca.cgagnier.wlednativeandroid.model.githubapi.Release
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
-import ca.cgagnier.wlednativeandroid.shared.ioDispatcher
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -14,6 +13,9 @@ import io.ktor.http.contentLength
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
@@ -68,6 +70,12 @@ class KtorGithubApiEndpoints(
                 val totalBytes = response.contentLength() ?: -1L
                 emitAll(channel.saveFile(destinationPath, totalBytes))
             }
+        } catch (e: CancellationException) {
+            try {
+                fs.delete(destinationPath)
+            } catch (_: Exception) {
+            }
+            throw e
         } catch (e: Exception) {
             try {
                 fs.delete(destinationPath)
@@ -75,7 +83,7 @@ class KtorGithubApiEndpoints(
             }
             emit(DownloadState.Failed(e))
         }
-    }.flowOn(ioDispatcher)
+    }.flowOn(Dispatchers.IO)
 
     @Suppress("TooGenericExceptionCaught")
     private fun ByteReadChannel.saveFile(destinationPath: Path, totalBytes: Long): Flow<DownloadState> =
@@ -98,6 +106,12 @@ class KtorGithubApiEndpoints(
                     }
                 }
                 emit(DownloadState.Finished)
+            } catch (e: CancellationException) {
+                try {
+                    fs.delete(destinationPath)
+                } catch (_: Exception) {
+                }
+                throw e
             } catch (e: Exception) {
                 try {
                     fs.delete(destinationPath)
@@ -105,7 +119,7 @@ class KtorGithubApiEndpoints(
                 }
                 emit(DownloadState.Failed(e))
             }
-        }.flowOn(ioDispatcher).distinctUntilChanged()
+        }.flowOn(Dispatchers.IO).distinctUntilChanged()
 
     companion object {
         const val GITHUB_BASE_URL = "https://api.github.com"

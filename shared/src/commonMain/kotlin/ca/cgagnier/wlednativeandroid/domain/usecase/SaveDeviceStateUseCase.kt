@@ -8,12 +8,13 @@ import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
 import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
-import ca.cgagnier.wlednativeandroid.shared.SynchronizedObject
 import ca.cgagnier.wlednativeandroid.shared.currentTimeMillis
-import ca.cgagnier.wlednativeandroid.shared.ioDispatcher
-import ca.cgagnier.wlednativeandroid.shared.synchronized
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 private const val TAG = "SaveDeviceStateUseCase"
@@ -26,13 +27,13 @@ private val logger = Logger.withTag(TAG)
 class SaveDeviceStateUseCase(
     private val deviceRepository: DeviceRepository,
     private val repositoryDao: RepositoryDao,
-    private val dispatcher: CoroutineDispatcher = ioDispatcher,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     companion object {
         const val LAST_SEEN_UPDATE_THRESHOLD = 15 * 60 * 1000L // 15 minutes
     }
 
-    private val cacheLock = SynchronizedObject()
+    private val cacheMutex = Mutex()
     private val repositoryIdCache = mutableMapOf<String, Long>(
         Repository.DEFAULT_OWNER_REPO to Repository.DEFAULT_ID,
     )
@@ -60,7 +61,7 @@ class SaveDeviceStateUseCase(
         val repositoryStr = getRepositoryFromInfo(stateInfo.info)
         val isDefaultRepo = repositoryStr == Repository.DEFAULT_OWNER_REPO &&
             currentDevice.repositoryId == Repository.DEFAULT_ID
-        val cachedRepoId = synchronized(cacheLock) { repositoryIdCache[repositoryStr] }
+        val cachedRepoId = cacheMutex.withLock { repositoryIdCache[repositoryStr] }
         val isRepoUnchanged = isDefaultRepo || (cachedRepoId != null && cachedRepoId == currentDevice.repositoryId)
 
         val needsPersistence = nameChanged || branchChanged || timeThresholdExceeded
@@ -98,11 +99,10 @@ class SaveDeviceStateUseCase(
 
     private suspend fun resolveRepositoryId(repositoryStr: String, isDefaultRepo: Boolean): Long {
         if (isDefaultRepo) return Repository.DEFAULT_ID
-        val cached = synchronized(cacheLock) { repositoryIdCache[repositoryStr] }
-        if (cached != null) return cached
+        cacheMutex.withLock { repositoryIdCache[repositoryStr] }?.let { return it }
 
         val id = repositoryDao.getOrCreateRepositoryId(repositoryStr)
-        synchronized(cacheLock) {
+        cacheMutex.withLock {
             repositoryIdCache[repositoryStr] = id
         }
         return id

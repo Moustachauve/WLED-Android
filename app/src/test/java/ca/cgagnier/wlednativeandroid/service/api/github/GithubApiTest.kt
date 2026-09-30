@@ -232,4 +232,45 @@ class GithubApiTest {
         assertTrue(states.last() is DownloadState.Failed)
         assertFalse(targetFile.exists())
     }
+
+    @Test
+    fun `downloadReleaseBinary cleans up file and rethrows CancellationException on cancellation`() = runTest {
+        val binaryData = ByteArray(1024) { (it % 256).toByte() }
+        val mockEngine = MockEngine {
+            respond(
+                content = binaryData,
+                status = HttpStatusCode.OK,
+                headers = headersOf(
+                    HttpHeaders.ContentType to listOf("application/octet-stream"),
+                    HttpHeaders.ContentLength to listOf("1024"),
+                ),
+            )
+        }
+        val httpClient = HttpClient(mockEngine)
+        val endpoints = KtorGithubApiEndpoints(httpClient)
+        val githubApi = GithubApi(endpoints)
+
+        val targetFile = File.createTempFile("github_test_download_cancel", ".bin")
+
+        val asset = Asset(
+            versionId = 1L,
+            name = "WLED_16.0.1_ESP32.bin",
+            size = 1729440L,
+            downloadUrl = "https://github.com/wled/WLED/releases/download/v16.0.1/WLED_16.0.1_ESP32.bin",
+            assetId = 462495760,
+        )
+
+        org.junit.jupiter.api.assertThrows<kotlinx.coroutines.CancellationException> {
+            githubApi.downloadReleaseBinary(
+                asset = asset,
+                repoOwner = "wled",
+                repoName = "WLED",
+                targetFile = targetFile,
+            ).collect {
+                throw kotlinx.coroutines.CancellationException("User cancelled download")
+            }
+        }
+
+        assertFalse(targetFile.exists())
+    }
 }

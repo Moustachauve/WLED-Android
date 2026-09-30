@@ -7,12 +7,13 @@ import ca.cgagnier.wlednativeandroid.service.api.ApiResponse
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
+import ca.cgagnier.wlednativeandroid.service.api.github.downloadReleaseBinary
+import ca.cgagnier.wlednativeandroid.service.api.updateDevice
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import co.touchlab.kermit.Logger
 import io.github.z4kn4fein.semver.toVersion
 import io.github.z4kn4fein.semver.toVersionOrNull
 import kotlinx.coroutines.flow.Flow
-import okio.Path.Companion.toOkioPath
 import java.io.File
 
 private const val TAG = "DeviceUpdateService"
@@ -155,7 +156,7 @@ class DeviceUpdateService(
         if (!::asset.isInitialized) {
             throw Exception("Asset could not be determined for ${device.device.macAddress}.")
         }
-        return githubApi.downloadReleaseBinary(asset, repoOwner, repoName, getPathForAsset().toOkioPath())
+        return githubApi.downloadReleaseBinary(asset, repoOwner, repoName, getPathForAsset())
     }
 
     fun getPathForAsset(): File {
@@ -173,7 +174,7 @@ class DeviceUpdateService(
         logger.d { "Installing software update: ${device.macAddress}" }
         try {
             // Longer TTL because updates can take a bit of time to fully install
-            val response = deviceApiFactory.create(device, 120L).updateDevice(binaryFile.readBytes(), binaryFile.name)
+            val response = deviceApiFactory.create(device, 120L).updateDevice(binaryFile)
             callback?.invoke(response)
         } catch (e: Exception) {
             errorCallback?.invoke(e)
