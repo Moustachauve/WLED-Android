@@ -4,8 +4,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import okio.FileSystem
 import okio.Path
@@ -25,7 +28,8 @@ class UserPreferencesRepositoryTest {
         return UserPreferencesRepository(dataStore)
     }
 
-    private fun newTestDir(): Path = FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "datastore_test_${Random.nextLong()}"
+    private fun newTestDir(): Path =
+        FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "datastore_test_${Random.nextLong(0, Long.MAX_VALUE)}"
 
     private fun withTestDir(block: suspend TestScope.(testFile: Path) -> Unit) = runTest {
         val testDir = newTestDir()
@@ -103,6 +107,32 @@ class UserPreferencesRepositoryTest {
     fun updateLastChangelogVersionSeen_updatesFlow() = withRepository { repo ->
         repo.updateLastChangelogVersionSeen("v2.5.0")
         assertEquals("v2.5.0", repo.lastChangelogVersionSeen.first())
+    }
+
+    @Test
+    fun updatesToOtherPreferences_doNotEmitDuplicateValuesOnUnrelatedFlows() = withRepository { repo ->
+        val emissions = mutableListOf<ThemeSettings>()
+        val collectJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+            repo.themeMode.toList(emissions)
+        }
+
+        repo.updateAutoDiscovery(false)
+        repo.updateLastUpdateCheckDate(123456L)
+        repo.updateLastChangelogVersionSeen("v2.5.0")
+
+        assertEquals(listOf(ThemeSettings.Auto), emissions)
+        collectJob.cancel()
+    }
+
+    @Test
+    fun corruptedFile_fallsBackToDefaultPreferencesViaCorruptionHandler() = withTestDir { testFile ->
+        FileSystem.SYSTEM.write(testFile) {
+            writeUtf8("corrupted invalid json contents")
+        }
+
+        val repo = createRepository(testFile, backgroundScope)
+        assertEquals(ThemeSettings.Auto, repo.themeMode.first())
+        assertTrue(repo.autoDiscovery.first())
     }
 
     @Test
