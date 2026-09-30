@@ -2,7 +2,7 @@ package ca.cgagnier.wlednativeandroid
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.dataStore
+import androidx.datastore.dataStoreFile
 import ca.cgagnier.wlednativeandroid.di.IoDispatcher
 import ca.cgagnier.wlednativeandroid.domain.ChangelogProvider
 import ca.cgagnier.wlednativeandroid.domain.DeepLinkHandler
@@ -13,11 +13,12 @@ import ca.cgagnier.wlednativeandroid.repository.DeviceDao
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
+import ca.cgagnier.wlednativeandroid.repository.USER_PREFERENCES_DATA_STORE_FILE_NAME
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
-import ca.cgagnier.wlednativeandroid.repository.UserPreferencesSerializer
 import ca.cgagnier.wlednativeandroid.repository.VersionDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
+import ca.cgagnier.wlednativeandroid.repository.createUserPreferencesDataStore
 import ca.cgagnier.wlednativeandroid.repository.getDatabase
 import ca.cgagnier.wlednativeandroid.repository.migrations.LegacyProtoToKotlinxPreferencesMigration
 import ca.cgagnier.wlednativeandroid.repository.migrations.UserPreferencesV0ToV1
@@ -33,20 +34,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import okio.Path.Companion.toPath
 import javax.inject.Singleton
-
-private const val DATA_STORE_FILE_NAME = "user_preferences.json"
-
-private val Context.userPreferencesStore: DataStore<UserPreferences> by dataStore(
-    fileName = DATA_STORE_FILE_NAME,
-    serializer = UserPreferencesSerializer(),
-    produceMigrations = { context ->
-        listOf(
-            LegacyProtoToKotlinxPreferencesMigration(context),
-            UserPreferencesV0ToV1(),
-        )
-    },
-)
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -91,12 +80,18 @@ object AppContainer {
     @Provides
     @Singleton
     fun provideUserPreferencesStore(@ApplicationContext appContext: Context): DataStore<UserPreferences> =
-        appContext.userPreferencesStore
+        createUserPreferencesDataStore(
+            producePath = { appContext.dataStoreFile(USER_PREFERENCES_DATA_STORE_FILE_NAME).absolutePath.toPath() },
+            migrations = listOf(
+                LegacyProtoToKotlinxPreferencesMigration(appContext),
+                UserPreferencesV0ToV1(),
+            ),
+        )
 
     @Provides
     @Singleton
-    fun provideUserPreferencesRepository(@ApplicationContext appContext: Context): UserPreferencesRepository =
-        UserPreferencesRepository(appContext.userPreferencesStore)
+    fun provideUserPreferencesRepository(dataStore: DataStore<UserPreferences>): UserPreferencesRepository =
+        UserPreferencesRepository(dataStore)
 
     @Provides
     @Singleton

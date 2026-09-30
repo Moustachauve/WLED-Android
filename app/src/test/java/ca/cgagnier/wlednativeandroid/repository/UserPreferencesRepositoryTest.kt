@@ -1,8 +1,8 @@
 package ca.cgagnier.wlednativeandroid.repository
 
-import androidx.datastore.core.DataStoreFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import okio.Path.Companion.toPath
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -17,9 +17,8 @@ class UserPreferencesRepositoryTest {
 
     private fun createRepository(): UserPreferencesRepository {
         val testFile = File(tempFolder, "test_user_preferences.json")
-        val dataStore = DataStoreFactory.create(
-            serializer = UserPreferencesSerializer(),
-            produceFile = { testFile },
+        val dataStore = createUserPreferencesDataStore(
+            producePath = { testFile.absolutePath.toPath() },
         )
         return UserPreferencesRepository(dataStore)
     }

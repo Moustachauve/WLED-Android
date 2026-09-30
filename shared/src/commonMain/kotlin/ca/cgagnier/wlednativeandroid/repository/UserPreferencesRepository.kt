@@ -1,6 +1,7 @@
 package ca.cgagnier.wlednativeandroid.repository
 
 import androidx.datastore.core.DataStore
+import ca.cgagnier.wlednativeandroid.shared.currentTimeMillis
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.map
 
@@ -21,7 +22,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         dataStore.updateData {
             it.copy(
                 theme = themeSettings,
-                dateLastWritten = System.currentTimeMillis(),
+                dateLastWritten = currentTimeMillis(),
             )
         }
     }
@@ -31,7 +32,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         dataStore.updateData {
             it.copy(
                 automaticDiscovery = autoDiscover,
-                dateLastWritten = System.currentTimeMillis(),
+                dateLastWritten = currentTimeMillis(),
             )
         }
     }
@@ -41,7 +42,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         dataStore.updateData {
             it.copy(
                 showOfflineLast = showOfflineDeviceLast,
-                dateLastWritten = System.currentTimeMillis(),
+                dateLastWritten = currentTimeMillis(),
             )
         }
     }
@@ -51,7 +52,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         dataStore.updateData {
             it.copy(
                 showHiddenDevices = showHiddenDevices,
-                dateLastWritten = System.currentTimeMillis(),
+                dateLastWritten = currentTimeMillis(),
             )
         }
     }
@@ -61,7 +62,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         dataStore.updateData {
             it.copy(
                 lastUpdateCheckDate = lastUpdateCheckDate,
-                dateLastWritten = System.currentTimeMillis(),
+                dateLastWritten = currentTimeMillis(),
             )
         }
     }
@@ -71,7 +72,7 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         dataStore.updateData {
             it.copy(
                 lastChangelogVersionSeen = version,
-                dateLastWritten = System.currentTimeMillis(),
+                dateLastWritten = currentTimeMillis(),
             )
         }
     }
