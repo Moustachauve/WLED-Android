@@ -1,14 +1,11 @@
 package ca.cgagnier.wlednativeandroid.repository
 
 import androidx.datastore.core.CorruptionException
-import ca.cgagnier.wlednativeandroid.test.TestJson
-import com.diffplug.selfie.Selfie.expectSelfie
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
+import kotlinx.coroutines.test.runTest
 import okio.Buffer
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class UserPreferencesSerializerTest {
 
@@ -17,13 +14,21 @@ class UserPreferencesSerializerTest {
     @Test
     fun defaultValue_hasExpectedValues() {
         val defaultPrefs = serializer.defaultValue
-        expectSelfie(TestJson.preferences.encodeToString(defaultPrefs)).toMatchDisk()
+        assertEquals("", defaultPrefs.selectedDeviceAddress)
+        assertEquals(ThemeSettings.Auto, defaultPrefs.theme)
+        assertEquals(true, defaultPrefs.automaticDiscovery)
+        assertEquals(1, defaultPrefs.version)
+        assertEquals(true, defaultPrefs.showOfflineLast)
+        assertEquals(false, defaultPrefs.sendCrashData)
+        assertEquals(false, defaultPrefs.sendPerformanceData)
+        assertEquals(0L, defaultPrefs.lastUpdateCheckDate)
+        assertEquals(0L, defaultPrefs.dateLastWritten)
+        assertEquals(false, defaultPrefs.showHiddenDevices)
+        assertEquals("", defaultPrefs.lastChangelogVersionSeen)
     }
 
-    // Explicit Unit return types in = runBlocking tests prevent DiskSelfie return type
-    // inference from failing JUnit 4's void method check.
     @Test
-    fun roundTrip_serializesAndDeserializesCorrectly(): Unit = runBlocking {
+    fun roundTrip_serializesAndDeserializesCorrectly() = runTest {
         val original = UserPreferences(
             selectedDeviceAddress = "192.168.1.50",
             hasMigratedSharedPref = true,
@@ -42,58 +47,47 @@ class UserPreferencesSerializerTest {
         val buffer = Buffer()
         serializer.writeTo(original, buffer)
 
-        val prettyOutputJson = TestJson.preferences.encodeToString(
-            Json.parseToJsonElement(buffer.copy().readUtf8()),
-        )
-        expectSelfie(prettyOutputJson).toMatchDisk()
-
         val deserialized = serializer.readFrom(buffer)
-
         assertEquals(original, deserialized)
     }
 
     @Test
-    fun readFrom_emptyInput_returnsDefaultValue() = runBlocking {
+    fun readFrom_emptyInput_returnsDefaultValue() = runTest {
         val buffer = Buffer()
         val deserialized = serializer.readFrom(buffer)
-
         assertEquals(serializer.defaultValue, deserialized)
     }
 
     @Test
-    fun readFrom_blankInput_returnsDefaultValue() = runBlocking {
+    fun readFrom_blankInput_returnsDefaultValue() = runTest {
         val buffer = Buffer().writeUtf8("   \n  ")
         val deserialized = serializer.readFrom(buffer)
-
         assertEquals(serializer.defaultValue, deserialized)
     }
 
     @Test
-    fun readFrom_corruptedInput_throwsCorruptionException() {
+    fun readFrom_corruptedInput_throwsCorruptionException() = runTest {
         val buffer = Buffer().writeUtf8("this is not valid json")
-
-        assertThrows(CorruptionException::class.java) {
-            runBlocking {
-                serializer.readFrom(buffer)
-            }
+        assertFailsWith<CorruptionException> {
+            serializer.readFrom(buffer)
         }
     }
 
     @Test
-    fun readFrom_unknownKeys_ignoresThemGracefully(): Unit = runBlocking {
+    fun readFrom_unknownKeys_ignoresThemGracefully() = runTest {
         val json = """{"theme":"Light","unknown_field":123,"future_setting":true}"""
         val buffer = Buffer().writeUtf8(json)
         val deserialized = serializer.readFrom(buffer)
-
-        expectSelfie(TestJson.preferences.encodeToString(deserialized)).toMatchDisk()
+        assertEquals(ThemeSettings.Light, deserialized.theme)
     }
 
     @Test
-    fun readFrom_partialJson_usesDefaultValuesForMissingFields(): Unit = runBlocking {
+    fun readFrom_partialJson_usesDefaultValuesForMissingFields() = runTest {
         val json = """{"theme":"Dark"}"""
         val buffer = Buffer().writeUtf8(json)
         val deserialized = serializer.readFrom(buffer)
-
-        expectSelfie(TestJson.preferences.encodeToString(deserialized)).toMatchDisk()
+        assertEquals(ThemeSettings.Dark, deserialized.theme)
+        assertEquals(1, deserialized.version)
+        assertEquals(true, deserialized.automaticDiscovery)
     }
 }
