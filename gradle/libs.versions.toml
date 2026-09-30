@@ -85,6 +85,7 @@ core = { module = "io.noties.markwon:core", version.ref = "core" }
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 datastore = { module = "androidx.datastore:datastore", version.ref = "datastorePreferences" }
 datastore-core = { module = "androidx.datastore:datastore-core", version.ref = "datastorePreferences" }
+datastore-core-okio = { module = "androidx.datastore:datastore-core-okio", version.ref = "datastorePreferences" }
 datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hiltCompiler" }
