@@ -7,13 +7,13 @@ import kotlinx.serialization.json.Json
 import okio.BufferedSink
 import okio.BufferedSource
 
-class UserPreferencesSerializer(
-    private val json: Json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-        prettyPrint = false
-    },
-) : OkioSerializer<UserPreferences> {
+private val defaultJson = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+    prettyPrint = false
+}
+
+class UserPreferencesSerializer(private val json: Json = defaultJson) : OkioSerializer<UserPreferences> {
     override val defaultValue: UserPreferences
         get() = UserPreferences()
 
