@@ -79,14 +79,19 @@ object AppContainer {
 
     @Provides
     @Singleton
-    fun provideUserPreferencesStore(@ApplicationContext appContext: Context): DataStore<UserPreferences> =
-        createUserPreferencesDataStore(
-            producePath = { appContext.dataStoreFile(USER_PREFERENCES_DATA_STORE_FILE_NAME).absolutePath.toPath() },
+    fun provideUserPreferencesStore(@ApplicationContext appContext: Context): DataStore<UserPreferences> {
+        val preferencesPath = appContext
+            .dataStoreFile(USER_PREFERENCES_DATA_STORE_FILE_NAME)
+            .absolutePath
+            .toPath()
+        return createUserPreferencesDataStore(
+            producePath = { preferencesPath },
             migrations = listOf(
                 LegacyProtoToKotlinxPreferencesMigration(appContext),
                 UserPreferencesV0ToV1(),
             ),
         )
+    }
 
     @Provides
     @Singleton

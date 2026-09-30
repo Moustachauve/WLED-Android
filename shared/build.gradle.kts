@@ -47,7 +47,7 @@ kotlin {
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.okio)
             api(libs.datastore.core)
-            implementation(libs.datastore.core.okio)
+            api(libs.datastore.core.okio)
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
