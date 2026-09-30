@@ -148,12 +148,13 @@ class DeviceEditViewModel @Inject constructor(
         wasSuccessful: Boolean = false,
     ): DeviceWithState? {
         updateInstallVersion.value = null
-        if (!wasSuccessful || device?.stateInfo == null || version == null) {
+        val currentStateInfo = device?.stateInfo
+        if (!wasSuccessful || currentStateInfo == null || version == null) {
             return null
         }
         val installedTag = version.version.tagName.removePrefix("v")
-        val updatedStateInfo = device.stateInfo.copy(
-            info = device.stateInfo.info.copy(version = installedTag),
+        val updatedStateInfo = currentStateInfo.copy(
+            info = currentStateInfo.info.copy(version = installedTag),
         )
         return device.copy(
             stateInfo = updatedStateInfo,

@@ -12,9 +12,9 @@ import ca.cgagnier.wlednativeandroid.model.wledapi.isOtaEnabled
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
+import ca.cgagnier.wlednativeandroid.shared.ioDispatcher
 import co.touchlab.kermit.Logger
 import io.github.z4kn4fein.semver.toVersionOrNull
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val TAG = "updateService"
@@ -151,7 +151,7 @@ class ReleaseService(
      * Refreshes versions from multiple repositories.
      * Gets a list of unique repositories, then fetches releases for each.
      */
-    suspend fun refreshVersions(githubApi: GithubApi, repositories: Set<String>) = withContext(Dispatchers.IO) {
+    suspend fun refreshVersions(githubApi: GithubApi, repositories: Set<String>) = withContext(ioDispatcher) {
         for (repository in repositories) {
             val (repoOwner, repoName) = splitRepository(repository)
             logger.i { "Fetching releases from $repository" }

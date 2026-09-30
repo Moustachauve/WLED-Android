@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.di
 
 import android.content.Context
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
+import ca.cgagnier.wlednativeandroid.service.api.createHttpClient
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApiEndpoints
 import ca.cgagnier.wlednativeandroid.service.api.github.KtorGithubApiEndpoints
