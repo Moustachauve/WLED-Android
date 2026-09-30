@@ -3,6 +3,7 @@ package ca.cgagnier.wlednativeandroid.repository
 import androidx.datastore.core.DataStore
 import ca.cgagnier.wlednativeandroid.shared.currentTimeMillis
 import co.touchlab.kermit.Logger
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 private const val TAG: String = "UserPreferencesRepo"
@@ -10,12 +11,12 @@ private val logger = Logger.withTag(TAG)
 
 class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences>) {
 
-    val themeMode get() = dataStore.data.map { it.theme }
-    val autoDiscovery get() = dataStore.data.map { it.automaticDiscovery }
-    val showOfflineDevicesLast get() = dataStore.data.map { it.showOfflineLast }
-    val showHiddenDevices get() = dataStore.data.map { it.showHiddenDevices }
-    val lastUpdateCheckDate get() = dataStore.data.map { it.lastUpdateCheckDate }
-    val lastChangelogVersionSeen get() = dataStore.data.map { it.lastChangelogVersionSeen }
+    val themeMode: Flow<ThemeSettings> = dataStore.data.map { it.theme }
+    val autoDiscovery: Flow<Boolean> = dataStore.data.map { it.automaticDiscovery }
+    val showOfflineDevicesLast: Flow<Boolean> = dataStore.data.map { it.showOfflineLast }
+    val showHiddenDevices: Flow<Boolean> = dataStore.data.map { it.showHiddenDevices }
+    val lastUpdateCheckDate: Flow<Long> = dataStore.data.map { it.lastUpdateCheckDate }
+    val lastChangelogVersionSeen: Flow<String> = dataStore.data.map { it.lastChangelogVersionSeen }
 
     suspend fun updateThemeMode(themeSettings: ThemeSettings) {
         logger.d { "updateThemeMode" }
