@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import okio.FileSystem
@@ -29,7 +30,7 @@ class UserPreferencesRepositoryTest {
     private fun withTestDir(block: suspend TestScope.(testFile: Path) -> Unit) = runTest {
         val testDir = newTestDir()
         FileSystem.SYSTEM.createDirectories(testDir)
-        val testFile = testDir / "user_preferences.json"
+        val testFile = testDir / USER_PREFERENCES_DATA_STORE_FILE_NAME
         try {
             block(testFile)
         } finally {
@@ -106,17 +107,19 @@ class UserPreferencesRepositoryTest {
 
     @Test
     fun updates_persistAcrossRepositoryRecreation() = withTestDir { testFile ->
-        val scope1 = CoroutineScope(backgroundScope.coroutineContext + Job())
-        val repo1 = createRepository(testFile, scope1)
-        repo1.updateThemeMode(ThemeSettings.Dark)
-        repo1.updateAutoDiscovery(false)
-        repo1.updateShowOfflineDeviceLast(false)
-        repo1.updateShowHiddenDevices(true)
-        repo1.updateLastUpdateCheckDate(987654321L)
-        repo1.updateLastChangelogVersionSeen("v3.0.0")
-
-        // Cancel scope1 to simulate process termination
-        scope1.cancel()
+        val scope1 = CoroutineScope(backgroundScope.coroutineContext + Job(backgroundScope.coroutineContext.job))
+        try {
+            val repo1 = createRepository(testFile, scope1)
+            repo1.updateThemeMode(ThemeSettings.Dark)
+            repo1.updateAutoDiscovery(false)
+            repo1.updateShowOfflineDeviceLast(false)
+            repo1.updateShowHiddenDevices(true)
+            repo1.updateLastUpdateCheckDate(987654321L)
+            repo1.updateLastChangelogVersionSeen("v3.0.0")
+        } finally {
+            // Cancel scope1 to simulate process termination
+            scope1.cancel()
+        }
 
         // Create a new instance pointing to the exact same file path
         val repo2 = createRepository(testFile, backgroundScope)

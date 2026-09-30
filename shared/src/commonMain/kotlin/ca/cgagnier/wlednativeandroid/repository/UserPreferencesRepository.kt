@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import ca.cgagnier.wlednativeandroid.shared.currentTimeMillis
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 private const val TAG: String = "UserPreferencesRepo"
@@ -11,12 +12,14 @@ private val logger = Logger.withTag(TAG)
 
 class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences>) {
 
-    val themeMode: Flow<ThemeSettings> = dataStore.data.map { it.theme }
-    val autoDiscovery: Flow<Boolean> = dataStore.data.map { it.automaticDiscovery }
-    val showOfflineDevicesLast: Flow<Boolean> = dataStore.data.map { it.showOfflineLast }
-    val showHiddenDevices: Flow<Boolean> = dataStore.data.map { it.showHiddenDevices }
-    val lastUpdateCheckDate: Flow<Long> = dataStore.data.map { it.lastUpdateCheckDate }
-    val lastChangelogVersionSeen: Flow<String> = dataStore.data.map { it.lastChangelogVersionSeen }
+    val themeMode: Flow<ThemeSettings> = dataStore.data.map { it.theme }.distinctUntilChanged()
+    val autoDiscovery: Flow<Boolean> = dataStore.data.map { it.automaticDiscovery }.distinctUntilChanged()
+    val showOfflineDevicesLast: Flow<Boolean> = dataStore.data.map { it.showOfflineLast }.distinctUntilChanged()
+    val showHiddenDevices: Flow<Boolean> = dataStore.data.map { it.showHiddenDevices }.distinctUntilChanged()
+    val lastUpdateCheckDate: Flow<Long> = dataStore.data.map { it.lastUpdateCheckDate }.distinctUntilChanged()
+    val lastChangelogVersionSeen: Flow<String> = dataStore.data.map {
+        it.lastChangelogVersionSeen
+    }.distinctUntilChanged()
 
     suspend fun updateThemeMode(themeSettings: ThemeSettings) {
         logger.d { "updateThemeMode" }
