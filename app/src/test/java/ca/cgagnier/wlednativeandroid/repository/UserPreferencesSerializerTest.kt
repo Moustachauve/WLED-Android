@@ -3,12 +3,12 @@ package ca.cgagnier.wlednativeandroid.repository
 import androidx.datastore.core.CorruptionException
 import ca.cgagnier.wlednativeandroid.test.TestJson
 import com.diffplug.selfie.Selfie.expectSelfie
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import okio.Buffer
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class UserPreferencesSerializerTest {
 
@@ -23,7 +23,7 @@ class UserPreferencesSerializerTest {
     // Explicit Unit return types in = runBlocking tests prevent DiskSelfie return type
     // inference from failing JUnit 4's void method check.
     @Test
-    fun roundTrip_serializesAndDeserializesCorrectly(): Unit = runBlocking {
+    fun roundTrip_serializesAndDeserializesCorrectly(): Unit = runTest {
         val original = UserPreferences(
             selectedDeviceAddress = "192.168.1.50",
             hasMigratedSharedPref = true,
@@ -53,7 +53,7 @@ class UserPreferencesSerializerTest {
     }
 
     @Test
-    fun readFrom_emptyInput_returnsDefaultValue() = runBlocking {
+    fun readFrom_emptyInput_returnsDefaultValue() = runTest {
         val buffer = Buffer()
         val deserialized = serializer.readFrom(buffer)
 
@@ -61,7 +61,7 @@ class UserPreferencesSerializerTest {
     }
 
     @Test
-    fun readFrom_blankInput_returnsDefaultValue() = runBlocking {
+    fun readFrom_blankInput_returnsDefaultValue() = runTest {
         val buffer = Buffer().writeUtf8("   \n  ")
         val deserialized = serializer.readFrom(buffer)
 
@@ -69,18 +69,16 @@ class UserPreferencesSerializerTest {
     }
 
     @Test
-    fun readFrom_corruptedInput_throwsCorruptionException() {
+    fun readFrom_corruptedInput_throwsCorruptionException() = runTest {
         val buffer = Buffer().writeUtf8("this is not valid json")
 
-        assertThrows(CorruptionException::class.java) {
-            runBlocking {
-                serializer.readFrom(buffer)
-            }
+        assertThrows<CorruptionException> {
+            serializer.readFrom(buffer)
         }
     }
 
     @Test
-    fun readFrom_unknownKeys_ignoresThemGracefully(): Unit = runBlocking {
+    fun readFrom_unknownKeys_ignoresThemGracefully(): Unit = runTest {
         val json = """{"theme":"Light","unknown_field":123,"future_setting":true}"""
         val buffer = Buffer().writeUtf8(json)
         val deserialized = serializer.readFrom(buffer)
@@ -89,7 +87,7 @@ class UserPreferencesSerializerTest {
     }
 
     @Test
-    fun readFrom_partialJson_usesDefaultValuesForMissingFields(): Unit = runBlocking {
+    fun readFrom_partialJson_usesDefaultValuesForMissingFields(): Unit = runTest {
         val json = """{"theme":"Dark"}"""
         val buffer = Buffer().writeUtf8(json)
         val deserialized = serializer.readFrom(buffer)

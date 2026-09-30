@@ -1,7 +1,10 @@
 package ca.cgagnier.wlednativeandroid.repository
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import okio.FileSystem
 import okio.Path
@@ -21,134 +24,107 @@ class UserPreferencesRepositoryTest {
         return UserPreferencesRepository(dataStore)
     }
 
-    private fun newTestPath(): Path =
-        FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "test_user_prefs_${Random.nextLong()}.json"
+    private fun newTestDir(): Path = FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "datastore_test_${Random.nextLong()}"
 
-    @Test
-    fun defaultPreferences_emitExpectedValues() = runTest {
-        val testFile = newTestPath()
+    private fun withTestDir(block: suspend TestScope.(testFile: Path) -> Unit) = runTest {
+        val testDir = newTestDir()
+        FileSystem.SYSTEM.createDirectories(testDir)
+        val testFile = testDir / "user_preferences.json"
         try {
-            val repo = createRepository(testFile, backgroundScope)
-
-            assertEquals(ThemeSettings.Auto, repo.themeMode.first())
-            assertTrue(repo.autoDiscovery.first())
-            assertTrue(repo.showOfflineDevicesLast.first())
-            assertFalse(repo.showHiddenDevices.first())
-            assertEquals(0L, repo.lastUpdateCheckDate.first())
-            assertEquals("", repo.lastChangelogVersionSeen.first())
+            block(testFile)
         } finally {
             try {
-                FileSystem.SYSTEM.delete(testFile)
+                FileSystem.SYSTEM.deleteRecursively(testDir)
             } catch (_: Exception) {
             }
         }
     }
 
-    @Test
-    fun updateThemeMode_updatesFlow() = runTest {
-        val testFile = newTestPath()
-        try {
+    private fun withRepository(block: suspend TestScope.(repo: UserPreferencesRepository) -> Unit) =
+        withTestDir { testFile ->
             val repo = createRepository(testFile, backgroundScope)
-
-            repo.updateThemeMode(ThemeSettings.Dark)
-            assertEquals(ThemeSettings.Dark, repo.themeMode.first())
-
-            repo.updateThemeMode(ThemeSettings.Light)
-            assertEquals(ThemeSettings.Light, repo.themeMode.first())
-        } finally {
-            try {
-                FileSystem.SYSTEM.delete(testFile)
-            } catch (_: Exception) {
-            }
+            block(repo)
         }
+
+    @Test
+    fun defaultPreferences_emitExpectedValues() = withRepository { repo ->
+        assertEquals(ThemeSettings.Auto, repo.themeMode.first())
+        assertTrue(repo.autoDiscovery.first())
+        assertTrue(repo.showOfflineDevicesLast.first())
+        assertFalse(repo.showHiddenDevices.first())
+        assertEquals(0L, repo.lastUpdateCheckDate.first())
+        assertEquals("", repo.lastChangelogVersionSeen.first())
     }
 
     @Test
-    fun updateAutoDiscovery_updatesFlow() = runTest {
-        val testFile = newTestPath()
-        try {
-            val repo = createRepository(testFile, backgroundScope)
+    fun updateThemeMode_updatesFlow() = withRepository { repo ->
+        repo.updateThemeMode(ThemeSettings.Dark)
+        assertEquals(ThemeSettings.Dark, repo.themeMode.first())
 
-            repo.updateAutoDiscovery(false)
-            assertFalse(repo.autoDiscovery.first())
-
-            repo.updateAutoDiscovery(true)
-            assertTrue(repo.autoDiscovery.first())
-        } finally {
-            try {
-                FileSystem.SYSTEM.delete(testFile)
-            } catch (_: Exception) {
-            }
-        }
+        repo.updateThemeMode(ThemeSettings.Light)
+        assertEquals(ThemeSettings.Light, repo.themeMode.first())
     }
 
     @Test
-    fun updateShowOfflineDeviceLast_updatesFlow() = runTest {
-        val testFile = newTestPath()
-        try {
-            val repo = createRepository(testFile, backgroundScope)
+    fun updateAutoDiscovery_updatesFlow() = withRepository { repo ->
+        repo.updateAutoDiscovery(false)
+        assertFalse(repo.autoDiscovery.first())
 
-            repo.updateShowOfflineDeviceLast(false)
-            assertFalse(repo.showOfflineDevicesLast.first())
-
-            repo.updateShowOfflineDeviceLast(true)
-            assertTrue(repo.showOfflineDevicesLast.first())
-        } finally {
-            try {
-                FileSystem.SYSTEM.delete(testFile)
-            } catch (_: Exception) {
-            }
-        }
+        repo.updateAutoDiscovery(true)
+        assertTrue(repo.autoDiscovery.first())
     }
 
     @Test
-    fun updateShowHiddenDevices_updatesFlow() = runTest {
-        val testFile = newTestPath()
-        try {
-            val repo = createRepository(testFile, backgroundScope)
+    fun updateShowOfflineDeviceLast_updatesFlow() = withRepository { repo ->
+        repo.updateShowOfflineDeviceLast(false)
+        assertFalse(repo.showOfflineDevicesLast.first())
 
-            repo.updateShowHiddenDevices(true)
-            assertTrue(repo.showHiddenDevices.first())
-
-            repo.updateShowHiddenDevices(false)
-            assertFalse(repo.showHiddenDevices.first())
-        } finally {
-            try {
-                FileSystem.SYSTEM.delete(testFile)
-            } catch (_: Exception) {
-            }
-        }
+        repo.updateShowOfflineDeviceLast(true)
+        assertTrue(repo.showOfflineDevicesLast.first())
     }
 
     @Test
-    fun updateLastUpdateCheckDate_updatesFlow() = runTest {
-        val testFile = newTestPath()
-        try {
-            val repo = createRepository(testFile, backgroundScope)
+    fun updateShowHiddenDevices_updatesFlow() = withRepository { repo ->
+        repo.updateShowHiddenDevices(true)
+        assertTrue(repo.showHiddenDevices.first())
 
-            repo.updateLastUpdateCheckDate(123456789L)
-            assertEquals(123456789L, repo.lastUpdateCheckDate.first())
-        } finally {
-            try {
-                FileSystem.SYSTEM.delete(testFile)
-            } catch (_: Exception) {
-            }
-        }
+        repo.updateShowHiddenDevices(false)
+        assertFalse(repo.showHiddenDevices.first())
     }
 
     @Test
-    fun updateLastChangelogVersionSeen_updatesFlow() = runTest {
-        val testFile = newTestPath()
-        try {
-            val repo = createRepository(testFile, backgroundScope)
+    fun updateLastUpdateCheckDate_updatesFlow() = withRepository { repo ->
+        repo.updateLastUpdateCheckDate(123456789L)
+        assertEquals(123456789L, repo.lastUpdateCheckDate.first())
+    }
 
-            repo.updateLastChangelogVersionSeen("v2.5.0")
-            assertEquals("v2.5.0", repo.lastChangelogVersionSeen.first())
-        } finally {
-            try {
-                FileSystem.SYSTEM.delete(testFile)
-            } catch (_: Exception) {
-            }
-        }
+    @Test
+    fun updateLastChangelogVersionSeen_updatesFlow() = withRepository { repo ->
+        repo.updateLastChangelogVersionSeen("v2.5.0")
+        assertEquals("v2.5.0", repo.lastChangelogVersionSeen.first())
+    }
+
+    @Test
+    fun updates_persistAcrossRepositoryRecreation() = withTestDir { testFile ->
+        val scope1 = CoroutineScope(backgroundScope.coroutineContext + Job())
+        val repo1 = createRepository(testFile, scope1)
+        repo1.updateThemeMode(ThemeSettings.Dark)
+        repo1.updateAutoDiscovery(false)
+        repo1.updateShowOfflineDeviceLast(false)
+        repo1.updateShowHiddenDevices(true)
+        repo1.updateLastUpdateCheckDate(987654321L)
+        repo1.updateLastChangelogVersionSeen("v3.0.0")
+
+        // Cancel scope1 to simulate process termination
+        scope1.cancel()
+
+        // Create a new instance pointing to the exact same file path
+        val repo2 = createRepository(testFile, backgroundScope)
+        assertEquals(ThemeSettings.Dark, repo2.themeMode.first())
+        assertFalse(repo2.autoDiscovery.first())
+        assertFalse(repo2.showOfflineDevicesLast.first())
+        assertTrue(repo2.showHiddenDevices.first())
+        assertEquals(987654321L, repo2.lastUpdateCheckDate.first())
+        assertEquals("v3.0.0", repo2.lastChangelogVersionSeen.first())
     }
 }

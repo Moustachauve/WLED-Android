@@ -4,7 +4,7 @@ import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
 import ca.cgagnier.wlednativeandroid.test.TestJson
 import com.diffplug.selfie.Selfie.expectSelfie
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -14,21 +14,19 @@ class UserPreferencesV0ToV1Test {
     private val migration = UserPreferencesV0ToV1()
 
     @Test
-    fun shouldMigrate_whenVersionZeroOrNegative_returnsTrue() = runBlocking {
+    fun shouldMigrate_whenVersionZeroOrNegative_returnsTrue() = runTest {
         assertTrue(migration.shouldMigrate(UserPreferences(version = 0)))
         assertTrue(migration.shouldMigrate(UserPreferences(version = -1)))
     }
 
     @Test
-    fun shouldMigrate_whenVersionPositive_returnsFalse() = runBlocking {
+    fun shouldMigrate_whenVersionPositive_returnsFalse() = runTest {
         assertFalse(migration.shouldMigrate(UserPreferences(version = 1)))
         assertFalse(migration.shouldMigrate(UserPreferences(version = 2)))
     }
 
-    // Explicit Unit return types in = runBlocking tests prevent DiskSelfie return type
-    // inference from failing JUnit 4's void method check.
     @Test
-    fun migrate_setsExpectedDefaultsAndVersion1(): Unit = runBlocking {
+    fun migrate_setsExpectedDefaultsAndVersion1(): Unit = runTest {
         val oldPrefs = UserPreferences(
             version = 0,
             theme = ThemeSettings.Dark,
