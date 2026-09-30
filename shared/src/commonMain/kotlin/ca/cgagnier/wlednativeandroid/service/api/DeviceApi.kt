@@ -4,14 +4,11 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
+import ca.cgagnier.wlednativeandroid.shared.SynchronizedObject
+import ca.cgagnier.wlednativeandroid.shared.synchronized
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.plugins.websocket.pingInterval
-import io.ktor.client.request.forms.InputProvider
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
@@ -23,19 +20,14 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.utils.io.streams.asInput
 import kotlinx.serialization.json.Json
-import okhttp3.OkHttpClient
-import java.io.File
-import kotlin.time.Duration.Companion.seconds
 
 interface DeviceApi {
     suspend fun getInfo(): ApiResponse<Info>
 
     suspend fun postJson(state: JsonPost): ApiResponse<State>
 
-    suspend fun updateDevice(binaryFile: File): ApiResponse<String>
+    suspend fun updateDevice(fileData: ByteArray, fileName: String): ApiResponse<String>
 }
 
 class KtorDeviceApi(private val baseUrl: String, private val httpClient: HttpClient) : DeviceApi {
@@ -67,18 +59,16 @@ class KtorDeviceApi(private val baseUrl: String, private val httpClient: HttpCli
         }
     }
 
-    override suspend fun updateDevice(binaryFile: File): ApiResponse<String> {
+    override suspend fun updateDevice(fileData: ByteArray, fileName: String): ApiResponse<String> {
         val response = httpClient.submitFormWithBinaryData(
             url = normalizeUrl("update"),
             formData = formData {
                 append(
                     key = "file",
-                    value = InputProvider(size = binaryFile.length()) {
-                        binaryFile.inputStream().asInput()
-                    },
+                    value = fileData,
                     headers = Headers.build {
                         append(HttpHeaders.ContentType, "application/octet-stream")
-                        append(HttpHeaders.ContentDisposition, "filename=\"${binaryFile.name}\"")
+                        append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
                     },
                 )
             },
@@ -92,7 +82,7 @@ class KtorDeviceApi(private val baseUrl: String, private val httpClient: HttpCli
     }
 }
 
-private val defaultJson = Json {
+val defaultJson = Json {
     ignoreUnknownKeys = true
     isLenient = true
     explicitNulls = false
@@ -106,11 +96,9 @@ private val defaultJson = Json {
  * Since the base URL is dynamic per device, we can't provide a singleton instance.
  * Instead, we provide this factory to create a new DeviceApi on-demand.
  *
- * @param client The OkHttpClient engine to use for the underlying HTTP transport.
- * @param json The Json instance to use for serialization/deserialization.
+ * @param defaultHttpClient The HttpClient instance to use for underlying HTTP transport.
  */
 class DeviceApiFactory(private val defaultHttpClient: HttpClient) {
-    constructor(client: OkHttpClient, json: Json = defaultJson) : this(createHttpClient(client, json))
 
     /**
      * Create a new DeviceApi instance from a device address.
@@ -129,12 +117,13 @@ class DeviceApiFactory(private val defaultHttpClient: HttpClient) {
      */
     fun create(device: Device): DeviceApi = create(device.getDeviceUrl())
 
-    private val timeoutClients = java.util.concurrent.ConcurrentHashMap<Long, HttpClient>()
+    private val timeoutClientsLock = SynchronizedObject()
+    private val timeoutClients = mutableMapOf<Long, HttpClient>()
 
     /**
      * Create a new DeviceApi instance with a custom timeout.
      *
-     * HttpClient.config shares the parent client's OkHttp engine, connection pool, and threads
+     * HttpClient.config shares the parent client's engine, connection pool, and threads
      * while applying custom timeout configuration. Configured clients are cached per timeout
      * to avoid redundant allocations.
      *
@@ -143,12 +132,14 @@ class DeviceApiFactory(private val defaultHttpClient: HttpClient) {
      */
     fun create(device: Device, timeout: Long): DeviceApi {
         val timeoutMillis = timeout * MILLIS_PER_SECOND
-        val customHttpClient = timeoutClients.computeIfAbsent(timeoutMillis) { ms ->
-            defaultHttpClient.config {
-                install(HttpTimeout) {
-                    requestTimeoutMillis = ms
-                    connectTimeoutMillis = ms
-                    socketTimeoutMillis = ms
+        val customHttpClient = synchronized(timeoutClientsLock) {
+            timeoutClients.getOrPut(timeoutMillis) {
+                defaultHttpClient.config {
+                    install(HttpTimeout) {
+                        requestTimeoutMillis = timeoutMillis
+                        connectTimeoutMillis = timeoutMillis
+                        socketTimeoutMillis = timeoutMillis
+                    }
                 }
             }
         }
@@ -163,19 +154,7 @@ class DeviceApiFactory(private val defaultHttpClient: HttpClient) {
         }
 
     companion object {
-        private const val MILLIS_PER_SECOND = 1000L
-        private const val PING_INTERVAL_SECONDS = 30
-
-        fun createHttpClient(okHttpClient: OkHttpClient, json: Json = defaultJson): HttpClient = HttpClient(OkHttp) {
-            engine {
-                preconfigured = okHttpClient
-            }
-            install(ContentNegotiation) {
-                json(json)
-            }
-            install(WebSockets) {
-                pingInterval = PING_INTERVAL_SECONDS.seconds
-            }
-        }
+        const val MILLIS_PER_SECOND = 1000L
+        const val PING_INTERVAL_SECONDS = 30
     }
 }

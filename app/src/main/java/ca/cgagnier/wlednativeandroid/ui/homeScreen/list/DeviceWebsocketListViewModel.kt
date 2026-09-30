@@ -361,8 +361,7 @@ class DeviceWebsocketListViewModel @Inject constructor(
     }
 
     private fun hasWidgetVisibleChanges(previous: DeviceWithState?, next: DeviceWithState): Boolean {
-        if (previous == null || previous.stateInfo == null) return true
-        val prevInfo = previous.stateInfo
+        val prevInfo = previous?.stateInfo ?: return true
         val nextInfo = next.stateInfo ?: return false
         val prevDevice = previous.device
         val nextDevice = next.device
@@ -546,10 +545,11 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
             _allDevicesWithState.update { list ->
                 list.map { current ->
-                    if (current.device.macAddress == mac && current.stateInfo != null) {
+                    val currentStateInfo = current.stateInfo
+                    if (current.device.macAddress == mac && currentStateInfo != null) {
                         current.copy(
-                            stateInfo = current.stateInfo.copy(
-                                state = current.stateInfo.state.copy(brightness = brightness),
+                            stateInfo = currentStateInfo.copy(
+                                state = currentStateInfo.state.copy(brightness = brightness),
                             ),
                         )
                     } else {
@@ -562,10 +562,11 @@ class DeviceWebsocketListViewModel @Inject constructor(
             if (!success && previousBrightness != null) {
                 _allDevicesWithState.update { list ->
                     list.map { current ->
-                        if (current.device.macAddress == mac && current.stateInfo != null) {
+                        val currentStateInfo = current.stateInfo
+                        if (current.device.macAddress == mac && currentStateInfo != null) {
                             current.copy(
-                                stateInfo = current.stateInfo.copy(
-                                    state = current.stateInfo.state.copy(brightness = previousBrightness),
+                                stateInfo = currentStateInfo.copy(
+                                    state = currentStateInfo.state.copy(brightness = previousBrightness),
                                 ),
                             )
                         } else {
@@ -601,10 +602,11 @@ class DeviceWebsocketListViewModel @Inject constructor(
 
             _allDevicesWithState.update { list ->
                 list.map { current ->
-                    if (current.device.macAddress == mac && current.stateInfo != null) {
+                    val currentStateInfo = current.stateInfo
+                    if (current.device.macAddress == mac && currentStateInfo != null) {
                         current.copy(
-                            stateInfo = current.stateInfo.copy(
-                                state = current.stateInfo.state.copy(isOn = isOn),
+                            stateInfo = currentStateInfo.copy(
+                                state = currentStateInfo.state.copy(isOn = isOn),
                             ),
                         )
                     } else {
@@ -617,10 +619,11 @@ class DeviceWebsocketListViewModel @Inject constructor(
             if (!success && previousIsOn != null) {
                 _allDevicesWithState.update { list ->
                     list.map { current ->
-                        if (current.device.macAddress == mac && current.stateInfo != null) {
+                        val currentStateInfo = current.stateInfo
+                        if (current.device.macAddress == mac && currentStateInfo != null) {
                             current.copy(
-                                stateInfo = current.stateInfo.copy(
-                                    state = current.stateInfo.state.copy(isOn = previousIsOn),
+                                stateInfo = currentStateInfo.copy(
+                                    state = currentStateInfo.state.copy(isOn = previousIsOn),
                                 ),
                             )
                         } else {

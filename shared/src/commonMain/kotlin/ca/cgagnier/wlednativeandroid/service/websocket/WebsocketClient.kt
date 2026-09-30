@@ -3,6 +3,9 @@ package ca.cgagnier.wlednativeandroid.service.websocket
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
+import ca.cgagnier.wlednativeandroid.shared.SynchronizedObject
+import ca.cgagnier.wlednativeandroid.shared.ioDispatcher
+import ca.cgagnier.wlednativeandroid.shared.synchronized
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
@@ -18,7 +21,6 @@ import io.ktor.websocket.send
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
@@ -40,8 +42,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.IOException
-import java.util.concurrent.atomic.AtomicBoolean
+import okio.IOException
+import kotlin.concurrent.Volatile
 import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 
@@ -59,7 +61,7 @@ class WebsocketClient(
     device: Device,
     private val httpClient: HttpClient,
     private val json: Json,
-    private val coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val coroutineDispatcher: CoroutineDispatcher = ioDispatcher,
     coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + coroutineDispatcher),
     private val random: Random = Random.Default,
     private val sessionOpener: suspend (HttpClient, String) -> DefaultClientWebSocketSession = { client, url ->
@@ -86,10 +88,10 @@ class WebsocketClient(
     )
     val incomingStateInfo: SharedFlow<DeviceStateInfo> = _incomingStateInfo.asSharedFlow()
 
-    private val stateLock = Any()
-    private val isManuallyDisconnected = AtomicBoolean(false)
-    private val isPaused = AtomicBoolean(false)
-    private val isDestroyed = AtomicBoolean(false)
+    private val stateLock = SynchronizedObject()
+    private var isManuallyDisconnected = false
+    private var isPaused = false
+    private var isDestroyed = false
 
     @Volatile
     private var connectionJob: Job? = null
@@ -98,15 +100,15 @@ class WebsocketClient(
     private var currentSession: DefaultClientWebSocketSession? = null
 
     fun connect() {
-        val oldJob: Job?
+        var oldJob: Job? = null
         var shouldLaunch = false
         synchronized(stateLock) {
-            if (isDestroyed.get()) {
+            if (isDestroyed) {
                 logger.w { "Cannot connect: WebsocketClient for ${device.address} has been destroyed" }
                 return
             }
-            isManuallyDisconnected.set(false)
-            isPaused.set(false)
+            isManuallyDisconnected = false
+            isPaused = false
             val currentJob = connectionJob
             if (currentJob?.isActive == true) {
                 if (_status.value == WebsocketStatus.DISCONNECTED) {
@@ -136,7 +138,7 @@ class WebsocketClient(
         var jobToCancel: Job? = null
         var sessionToCancel: DefaultClientWebSocketSession? = null
         synchronized(stateLock) {
-            isManuallyDisconnected.set(true)
+            isManuallyDisconnected = true
             jobToCancel = connectionJob
             sessionToCancel = currentSession
             currentSession = null
@@ -151,7 +153,7 @@ class WebsocketClient(
         var jobToCancel: Job? = null
         var sessionToCancel: DefaultClientWebSocketSession? = null
         synchronized(stateLock) {
-            isPaused.set(true)
+            isPaused = true
             jobToCancel = connectionJob
             sessionToCancel = currentSession
             currentSession = null
@@ -162,11 +164,18 @@ class WebsocketClient(
     }
 
     fun resume() {
-        if (isManuallyDisconnected.get() || isDestroyed.get()) {
+        val shouldReturn = synchronized(stateLock) {
+            if (isManuallyDisconnected || isDestroyed) {
+                true
+            } else {
+                isPaused = false
+                false
+            }
+        }
+        if (shouldReturn) {
             logger.d { "Not resuming ${device.address}: manually disconnected or destroyed" }
             return
         }
-        isPaused.set(false)
         connect()
     }
 
@@ -176,12 +185,14 @@ class WebsocketClient(
 
     fun destroy() {
         logger.d { "Destroying WebsocketClient for ${device.address}" }
-        isDestroyed.set(true)
+        synchronized(stateLock) { isDestroyed = true }
         disconnect()
         clientJob.cancel()
     }
 
-    private fun canConnect(): Boolean = !isManuallyDisconnected.get() && !isPaused.get()
+    private fun canConnect(): Boolean = synchronized(stateLock) {
+        !isManuallyDisconnected && !isPaused
+    }
 
     private fun isConnectionActive(isContextActive: Boolean, myJob: Job?): Boolean =
         isContextActive && connectionJob === myJob && canConnect()
@@ -292,6 +303,7 @@ class WebsocketClient(
 
     private suspend fun consumeIncomingFrames(session: DefaultClientWebSocketSession) {
         for (frame in session.incoming) {
+            @Suppress("RedundantElseInWhen")
             when (frame) {
                 is Frame.Text -> handleTextFrame(frame.readText())
 
@@ -308,11 +320,13 @@ class WebsocketClient(
                 is Frame.Ping, is Frame.Pong -> {
                     // Handled automatically by Ktor WebSockets ping plugin
                 }
+
+                else -> Unit
             }
         }
     }
 
-    internal suspend fun handleTextFrame(text: String) {
+    suspend fun handleTextFrame(text: String) {
         logger.d { "Received frame from ${device.address}: ${truncatePayload(text)}" }
         try {
             val decodedStateInfo = json.decodeFromString<DeviceStateInfo>(text)
@@ -334,7 +348,8 @@ class WebsocketClient(
 
     @Suppress("TooGenericExceptionCaught")
     suspend fun sendState(state: State): Boolean {
-        if (isDestroyed.get()) {
+        val destroyed = synchronized(stateLock) { isDestroyed }
+        if (destroyed) {
             logger.w { "Cannot send state: WebsocketClient for ${device.address} has been destroyed" }
             return false
         }
@@ -371,7 +386,7 @@ class WebsocketClient(
         }
     }
 
-    internal fun buildWebsocketUrl(address: String): String {
+    fun buildWebsocketUrl(address: String): String {
         val trimmedAddress = address.trim()
         val isSecure = trimmedAddress.startsWith("https://", ignoreCase = true) ||
             trimmedAddress.startsWith("wss://", ignoreCase = true)
@@ -391,8 +406,8 @@ class WebsocketClient(
     }
 
     companion object {
-        internal const val WEBSOCKET_PATH = "ws"
-        internal const val USER_AGENT = "WLED-Android"
+        const val WEBSOCKET_PATH = "ws"
+        const val USER_AGENT = "WLED-Android"
         private val PROTOCOL_REGEX = Regex("^(https?|wss?)://", RegexOption.IGNORE_CASE)
         const val BASE_BACKOFF_MS = 2000L
         const val MAX_BACKOFF_MS = 60000L

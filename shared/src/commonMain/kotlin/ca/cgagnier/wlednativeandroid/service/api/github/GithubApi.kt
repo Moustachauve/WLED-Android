@@ -5,7 +5,7 @@ import ca.cgagnier.wlednativeandroid.model.githubapi.Release
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.Flow
-import java.io.File
+import okio.Path
 
 private const val TAG = "github-release"
 private val logger = Logger.withTag(TAG)
@@ -26,9 +26,9 @@ class GithubApi(private val apiEndpoints: GithubApiEndpoints) {
         asset: Asset,
         repoOwner: String,
         repoName: String,
-        targetFile: File,
+        targetPath: Path,
     ): Flow<DownloadState> {
         logger.d { "downloading release binary asset ${asset.name} (id: ${asset.assetId})" }
-        return apiEndpoints.downloadReleaseBinary(repoOwner, repoName, asset.assetId, targetFile)
+        return apiEndpoints.downloadReleaseBinary(repoOwner, repoName, asset.assetId, targetPath)
     }
 }
