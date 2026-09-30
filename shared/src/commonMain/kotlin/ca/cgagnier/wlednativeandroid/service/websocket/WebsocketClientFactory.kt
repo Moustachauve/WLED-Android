@@ -1,10 +1,11 @@
 package ca.cgagnier.wlednativeandroid.service.websocket
 
 import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.shared.ioDispatcher
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 
@@ -15,7 +16,7 @@ import kotlinx.serialization.json.Json
 class WebsocketClientFactory(
     private val httpClient: HttpClient,
     private val json: Json,
-    private val dispatcher: CoroutineDispatcher = ioDispatcher,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     /**
      * Creates a new WebsocketClient for the given device.

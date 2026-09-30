@@ -4,8 +4,6 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
-import ca.cgagnier.wlednativeandroid.shared.SynchronizedObject
-import ca.cgagnier.wlednativeandroid.shared.synchronized
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
@@ -117,30 +115,22 @@ class DeviceApiFactory(private val defaultHttpClient: HttpClient) {
      */
     fun create(device: Device): DeviceApi = create(device.getDeviceUrl())
 
-    private val timeoutClientsLock = SynchronizedObject()
-    private val timeoutClients = mutableMapOf<Long, HttpClient>()
-
     /**
      * Create a new DeviceApi instance with a custom timeout.
      *
      * HttpClient.config shares the parent client's engine, connection pool, and threads
-     * while applying custom timeout configuration. Configured clients are cached per timeout
-     * to avoid redundant allocations.
+     * while applying custom timeout configuration.
      *
      * @param device The device to create the API for.
      * @param timeout The custom timeout in seconds.
      */
     fun create(device: Device, timeout: Long): DeviceApi {
         val timeoutMillis = timeout * MILLIS_PER_SECOND
-        val customHttpClient = synchronized(timeoutClientsLock) {
-            timeoutClients.getOrPut(timeoutMillis) {
-                defaultHttpClient.config {
-                    install(HttpTimeout) {
-                        requestTimeoutMillis = timeoutMillis
-                        connectTimeoutMillis = timeoutMillis
-                        socketTimeoutMillis = timeoutMillis
-                    }
-                }
+        val customHttpClient = defaultHttpClient.config {
+            install(HttpTimeout) {
+                requestTimeoutMillis = timeoutMillis
+                connectTimeoutMillis = timeoutMillis
+                socketTimeoutMillis = timeoutMillis
             }
         }
         return KtorDeviceApi(normalizeAddress(device.getDeviceUrl()), customHttpClient)

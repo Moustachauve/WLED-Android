@@ -4,7 +4,6 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.shared.SynchronizedObject
-import ca.cgagnier.wlednativeandroid.shared.ioDispatcher
 import ca.cgagnier.wlednativeandroid.shared.synchronized
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
@@ -21,6 +20,8 @@ import io.ktor.websocket.send
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
@@ -61,7 +62,7 @@ class WebsocketClient(
     device: Device,
     private val httpClient: HttpClient,
     private val json: Json,
-    private val coroutineDispatcher: CoroutineDispatcher = ioDispatcher,
+    private val coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
     coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + coroutineDispatcher),
     private val random: Random = Random.Default,
     private val sessionOpener: suspend (HttpClient, String) -> DefaultClientWebSocketSession = { client, url ->
@@ -303,7 +304,6 @@ class WebsocketClient(
 
     private suspend fun consumeIncomingFrames(session: DefaultClientWebSocketSession) {
         for (frame in session.incoming) {
-            @Suppress("RedundantElseInWhen")
             when (frame) {
                 is Frame.Text -> handleTextFrame(frame.readText())
 
@@ -320,8 +320,6 @@ class WebsocketClient(
                 is Frame.Ping, is Frame.Pong -> {
                     // Handled automatically by Ktor WebSockets ping plugin
                 }
-
-                else -> Unit
             }
         }
     }
