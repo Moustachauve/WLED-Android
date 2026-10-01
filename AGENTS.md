@@ -17,6 +17,8 @@ WLED-Android is a native Android application for controlling WLED devices (WiFi-
 *   **DataStore:** Core + kotlinx.serialization (JSON) (with migration from legacy `user_prefs.proto`)
     *   *Instruction:* Manage preferences via `UserPreferences.kt` using `@Serializable`. Do not use standard SharedPreferences.
 *   **Testing:** JUnit 5 (JUnit Jupiter), MockK, **Selfie** snapshot testing (`selfie.dev`)
+    *   *Instruction (Single Behavior):* Each unit test must test exactly one behavior, state transition, or scenario. Never combine multiple sequential state transitions or events into a single monolithic test method.
+    *   *Instruction (Ergonomics & DRY):* Keep tests short and readable. Create concise helper functions, factories, or test fixtures to eliminate boilerplate and avoid code duplication across tests when it simplifies setup. Avoid test theater and redundant assertions on derived flows or framework internals.
     *   *Instruction:* When testing models, serialization/deserialization, DTOs, migrations, or complex state structures, use **Selfie** snapshot testing (`expectSelfie(...)`) instead of writing repetitive `assertEquals` blocks.
         *   Use disk snapshots (`.toMatchDisk()`) for multiline JSON, DTOs, or complex objects to keep test files clean and avoid `MaxLineLength` issues. Corresponding `.ss` snapshot files are co-located with test files and must be committed.
         *   Use inline snapshots (`.toBe(...)`) for short, single-line values.

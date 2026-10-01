@@ -8,7 +8,9 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import java.net.InetAddress
@@ -22,56 +24,33 @@ class AndroidNetworkConnectivityManagerTest {
 
     @Test
     fun isWLEDCaptivePortalDetectsMatchingDnsServer() {
-        val matchingDns = mockk<InetAddress> {
-            every { hostAddress } returns DEFAULT_WLED_AP_IP
-        }
-        val regularDns = mockk<InetAddress> {
-            every { hostAddress } returns "1.1.1.1"
-        }
-
-        val matchingLinkProperties = mockk<LinkProperties> {
-            every { dnsServers } returns listOf(regularDns, matchingDns)
-        }
-        val nonMatchingLinkProperties = mockk<LinkProperties> {
-            every { dnsServers } returns listOf(regularDns)
-        }
-
-        assertTrue(matchingLinkProperties.isWLEDCaptivePortal())
-        assertFalse(nonMatchingLinkProperties.isWLEDCaptivePortal())
+        assertTrue(mockLinkProperties("1.1.1.1", DEFAULT_WLED_AP_IP).isWLEDCaptivePortal())
+        assertFalse(mockLinkProperties("1.1.1.1").isWLEDCaptivePortal())
         assertFalse((null as LinkProperties?).isWLEDCaptivePortal())
     }
 
     @Test
     fun initialStatusReflectsActiveNetwork() = runTest {
-        val connectivityManager = mockk<ConnectivityManager>(relaxed = true)
         val activeNetwork = mockk<Network>()
-        val regularDns = mockk<InetAddress> {
-            every { hostAddress } returns "8.8.8.8"
+        val connectivityManager = mockk<ConnectivityManager>(relaxed = true) {
+            every { this@mockk.activeNetwork } returns activeNetwork
+            every { getLinkProperties(activeNetwork) } returns mockLinkProperties("8.8.8.8")
         }
-        val linkProperties = mockk<LinkProperties> {
-            every { dnsServers } returns listOf(regularDns)
-        }
-
-        every { connectivityManager.activeNetwork } returns activeNetwork
-        every { connectivityManager.getLinkProperties(activeNetwork) } returns linkProperties
 
         val manager = AndroidNetworkConnectivityManager(connectivityManager, backgroundScope)
 
         assertEquals(NetworkStatus(isConnected = true, isWLEDCaptivePortal = false), manager.networkStatus.value)
-        assertTrue(manager.isConnected.value)
-        assertFalse(manager.isWLEDCaptivePortal.value)
     }
 
     @Test
     fun initialStatusIsDisconnectedWhenActiveNetworkIsNull() = runTest {
-        val connectivityManager = mockk<ConnectivityManager>(relaxed = true)
-        every { connectivityManager.activeNetwork } returns null
+        val connectivityManager = mockk<ConnectivityManager>(relaxed = true) {
+            every { activeNetwork } returns null
+        }
 
         val manager = AndroidNetworkConnectivityManager(connectivityManager, backgroundScope)
 
         assertEquals(NetworkStatus(isConnected = false, isWLEDCaptivePortal = false), manager.networkStatus.value)
-        assertFalse(manager.isConnected.value)
-        assertFalse(manager.isWLEDCaptivePortal.value)
     }
 
     @Test
@@ -79,59 +58,110 @@ class AndroidNetworkConnectivityManagerTest {
         val manager = AndroidNetworkConnectivityManager(null, backgroundScope)
 
         assertEquals(NetworkStatus(isConnected = false, isWLEDCaptivePortal = false), manager.networkStatus.value)
-        assertFalse(manager.isConnected.value)
-        assertFalse(manager.isWLEDCaptivePortal.value)
     }
 
     @Test
-    fun networkCallbackEventsUpdateStateFlows() = runTest {
-        val connectivityManager = mockk<ConnectivityManager>(relaxed = true)
-        every { connectivityManager.activeNetwork } returns null
+    fun onAvailableEmitsConnectedWithCaptivePortalStatus() = runTest {
+        val fixture = CallbackTestFixture(this)
+        fixture.onAvailable(mockLinkProperties(DEFAULT_WLED_AP_IP))
 
-        val callbackSlot = slot<ConnectivityManager.NetworkCallback>()
-        every { connectivityManager.registerDefaultNetworkCallback(capture(callbackSlot)) } answers { }
+        assertEquals(
+            NetworkStatus(isConnected = true, isWLEDCaptivePortal = true),
+            fixture.manager.networkStatus.value,
+        )
+    }
 
-        val testDispatcher = UnconfinedTestDispatcher(testScheduler)
+    @Test
+    fun onLinkPropertiesChangedUpdatesCaptivePortalStatus() = runTest {
+        val fixture = CallbackTestFixture(this)
+        fixture.onLinkPropertiesChanged(mockLinkProperties("8.8.8.8"))
+
+        assertEquals(
+            NetworkStatus(isConnected = true, isWLEDCaptivePortal = false),
+            fixture.manager.networkStatus.value,
+        )
+    }
+
+    @Test
+    fun onLostEmitsDisconnectedStatusWhenNetworkLost() = runTest {
+        val fixture = CallbackTestFixture(this)
+        fixture.onLost()
+
+        assertEquals(
+            NetworkStatus(isConnected = false, isWLEDCaptivePortal = false),
+            fixture.manager.networkStatus.value,
+        )
+    }
+
+    @Test
+    fun onLostRetainsConnectedStatusWhenDifferentNetworkRemainsActive() = runTest {
+        val fixture = CallbackTestFixture(this)
+        val remainingActiveNetwork = mockk<Network>()
+        every { fixture.connectivityManager.activeNetwork } returns remainingActiveNetwork
+        every { fixture.connectivityManager.getLinkProperties(remainingActiveNetwork) } returns
+            mockLinkProperties("1.1.1.1")
+
+        fixture.onLost()
+
+        assertEquals(
+            NetworkStatus(isConnected = true, isWLEDCaptivePortal = false),
+            fixture.manager.networkStatus.value,
+        )
+    }
+
+    @Test
+    fun convenienceFlowsReflectNetworkStatus() = runTest {
+        val activeNetwork = mockk<Network>()
+        val connectivityManager = mockk<ConnectivityManager>(relaxed = true) {
+            every { this@mockk.activeNetwork } returns activeNetwork
+            every { getLinkProperties(activeNetwork) } returns mockLinkProperties(DEFAULT_WLED_AP_IP)
+        }
+
         val manager = AndroidNetworkConnectivityManager(connectivityManager, backgroundScope)
 
-        val network = mockk<Network>()
-        val wledDns = mockk<InetAddress> {
-            every { hostAddress } returns DEFAULT_WLED_AP_IP
-        }
-        val wledLinkProperties = mockk<LinkProperties> {
-            every { dnsServers } returns listOf(wledDns)
-        }
-        every { connectivityManager.getLinkProperties(network) } returns wledLinkProperties
-
-        backgroundScope.launch(testDispatcher) { manager.networkStatus.collect {} }
-        backgroundScope.launch(testDispatcher) { manager.isConnected.collect {} }
-        backgroundScope.launch(testDispatcher) { manager.isWLEDCaptivePortal.collect {} }
-        testScheduler.runCurrent()
-
-        val callback = callbackSlot.captured
-
-        // onAvailable with WLED captive portal
-        callback.onAvailable(network)
-        testScheduler.runCurrent()
         assertEquals(NetworkStatus(isConnected = true, isWLEDCaptivePortal = true), manager.networkStatus.value)
         assertTrue(manager.isConnected.value)
         assertTrue(manager.isWLEDCaptivePortal.value)
+    }
 
-        // onLinkPropertiesChanged updates captive portal state
-        val regularLinkProperties = mockk<LinkProperties> {
-            every { dnsServers } returns listOf(mockk { every { hostAddress } returns "8.8.8.8" })
+    private fun mockLinkProperties(vararg dnsIps: String): LinkProperties = mockk {
+        every { dnsServers } returns dnsIps.map { ip ->
+            mockk<InetAddress> { every { hostAddress } returns ip }
         }
-        callback.onLinkPropertiesChanged(network, regularLinkProperties)
-        testScheduler.runCurrent()
-        assertEquals(NetworkStatus(isConnected = true, isWLEDCaptivePortal = false), manager.networkStatus.value)
-        assertTrue(manager.isConnected.value)
-        assertFalse(manager.isWLEDCaptivePortal.value)
+    }
 
-        // onLost
-        callback.onLost(network)
-        testScheduler.runCurrent()
-        assertEquals(NetworkStatus(isConnected = false, isWLEDCaptivePortal = false), manager.networkStatus.value)
-        assertFalse(manager.isConnected.value)
-        assertFalse(manager.isWLEDCaptivePortal.value)
+    private class CallbackTestFixture(private val testScope: TestScope) {
+        val callbackSlot = slot<ConnectivityManager.NetworkCallback>()
+        val network = mockk<Network>()
+        val connectivityManager = mockk<ConnectivityManager>(relaxed = true) {
+            every { activeNetwork } returns null
+            every { registerDefaultNetworkCallback(capture(callbackSlot)) } answers {}
+        }
+        val manager = AndroidNetworkConnectivityManager(connectivityManager, testScope.backgroundScope)
+
+        init {
+            testScope.backgroundScope.launch(UnconfinedTestDispatcher(testScope.testScheduler)) {
+                manager.networkStatus.collect()
+            }
+            testScope.testScheduler.runCurrent()
+        }
+
+        private val callback: ConnectivityManager.NetworkCallback get() = callbackSlot.captured
+
+        fun onAvailable(linkProperties: LinkProperties) {
+            every { connectivityManager.getLinkProperties(network) } returns linkProperties
+            callback.onAvailable(network)
+            testScope.testScheduler.runCurrent()
+        }
+
+        fun onLinkPropertiesChanged(linkProperties: LinkProperties) {
+            callback.onLinkPropertiesChanged(network, linkProperties)
+            testScope.testScheduler.runCurrent()
+        }
+
+        fun onLost() {
+            callback.onLost(network)
+            testScope.testScheduler.runCurrent()
+        }
     }
 }
