@@ -74,10 +74,10 @@ class AndroidNetworkConnectivityManagerTest {
     @Test
     fun onLinkPropertiesChangedUpdatesCaptivePortalStatus() = runTest {
         val fixture = CallbackTestFixture(this)
-        fixture.onLinkPropertiesChanged(mockLinkProperties("8.8.8.8"))
+        fixture.onLinkPropertiesChanged(mockLinkProperties(DEFAULT_WLED_AP_IP))
 
         assertEquals(
-            NetworkStatus(isConnected = true, isWLEDCaptivePortal = false),
+            NetworkStatus(isConnected = true, isWLEDCaptivePortal = true),
             fixture.manager.networkStatus.value,
         )
     }

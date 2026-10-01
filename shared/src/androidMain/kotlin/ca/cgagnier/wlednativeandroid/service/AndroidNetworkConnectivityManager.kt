@@ -43,7 +43,7 @@ class AndroidNetworkConnectivityManager(
         val networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 logger.d { "onAvailable: $network" }
-                val linkProperties = connectivityManager.getLinkProperties(network)
+                val linkProperties = getSafeLinkProperties(network)
                 trySend(
                     NetworkStatus(
                         isConnected = true,
@@ -54,11 +54,11 @@ class AndroidNetworkConnectivityManager(
 
             override fun onLost(network: Network) {
                 logger.d { "onLost: $network" }
-                val activeNetwork = connectivityManager.activeNetwork
+                val activeNetwork = getSafeActiveNetwork()
                 if (activeNetwork == null || activeNetwork == network) {
                     trySend(NetworkStatus(isConnected = false, isWLEDCaptivePortal = false))
                 } else {
-                    val linkProperties = connectivityManager.getLinkProperties(activeNetwork)
+                    val linkProperties = getSafeLinkProperties(activeNetwork)
                     trySend(
                         NetworkStatus(
                             isConnected = true,
@@ -114,7 +114,7 @@ class AndroidNetworkConnectivityManager(
         .distinctUntilChanged()
         .stateIn(
             scope = externalScope,
-            started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+            started = SharingStarted.WhileSubscribed(),
             initialValue = networkStatus.value.isConnected,
         )
 
@@ -123,26 +123,32 @@ class AndroidNetworkConnectivityManager(
         .distinctUntilChanged()
         .stateIn(
             scope = externalScope,
-            started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+            started = SharingStarted.WhileSubscribed(),
             initialValue = networkStatus.value.isWLEDCaptivePortal,
         )
 
     private fun currentNetworkStatus(): NetworkStatus {
-        if (connectivityManager == null) {
-            return NetworkStatus(isConnected = false, isWLEDCaptivePortal = false)
-        }
-        return try {
-            val activeNetwork = connectivityManager.activeNetwork
-                ?: return NetworkStatus(isConnected = false, isWLEDCaptivePortal = false)
-            val linkProperties = connectivityManager.getLinkProperties(activeNetwork)
-            NetworkStatus(
-                isConnected = true,
-                isWLEDCaptivePortal = linkProperties.isWLEDCaptivePortal(),
-            )
-        } catch (e: SecurityException) {
-            logger.e(e) { "SecurityException while querying initial network status" }
-            NetworkStatus(isConnected = false, isWLEDCaptivePortal = false)
-        }
+        val activeNetwork = getSafeActiveNetwork()
+            ?: return NetworkStatus(isConnected = false, isWLEDCaptivePortal = false)
+        val linkProperties = getSafeLinkProperties(activeNetwork)
+        return NetworkStatus(
+            isConnected = true,
+            isWLEDCaptivePortal = linkProperties.isWLEDCaptivePortal(),
+        )
+    }
+
+    private fun getSafeLinkProperties(network: Network): LinkProperties? = try {
+        connectivityManager?.getLinkProperties(network)
+    } catch (e: SecurityException) {
+        logger.e(e) { "SecurityException while querying LinkProperties for $network" }
+        null
+    }
+
+    private fun getSafeActiveNetwork(): Network? = try {
+        connectivityManager?.activeNetwork
+    } catch (e: SecurityException) {
+        logger.e(e) { "SecurityException while querying activeNetwork" }
+        null
     }
 }
 
@@ -155,6 +161,3 @@ internal fun LinkProperties?.isWLEDCaptivePortal(): Boolean {
     }
     return false
 }
-
-fun createNetworkConnectivityManager(context: Context, coroutineScope: CoroutineScope): NetworkConnectivityManager =
-    AndroidNetworkConnectivityManager(context, coroutineScope)
