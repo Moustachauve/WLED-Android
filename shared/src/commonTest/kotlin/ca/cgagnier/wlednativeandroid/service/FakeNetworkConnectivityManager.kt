@@ -8,7 +8,12 @@ import kotlinx.coroutines.flow.asStateFlow
  * A test double for [NetworkConnectivityManager] that enables multiplatform tests to control
  * and simulate network state transitions in memory.
  */
-class FakeNetworkConnectivityManager(initialStatus: NetworkStatus = NetworkStatus()) : NetworkConnectivityManager {
+class FakeNetworkConnectivityManager(initialStatus: NetworkStatus) : NetworkConnectivityManager {
+
+    constructor(
+        isConnected: Boolean = false,
+        isWLEDCaptivePortal: Boolean = false,
+    ) : this(NetworkStatus(isConnected = isConnected, isWLEDCaptivePortal = isWLEDCaptivePortal))
     private val _networkStatus = MutableStateFlow(initialStatus)
     override val networkStatus: StateFlow<NetworkStatus> = _networkStatus.asStateFlow()
 
