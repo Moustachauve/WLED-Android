@@ -22,6 +22,7 @@ import ca.cgagnier.wlednativeandroid.repository.createUserPreferencesDataStore
 import ca.cgagnier.wlednativeandroid.repository.getDatabase
 import ca.cgagnier.wlednativeandroid.repository.migrations.LegacyProtoToKotlinxPreferencesMigration
 import ca.cgagnier.wlednativeandroid.repository.migrations.UserPreferencesV0ToV1
+import ca.cgagnier.wlednativeandroid.service.AndroidNetworkConnectivityManager
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
@@ -107,7 +108,7 @@ object AppContainer {
     fun providesNetworkConnectivityManager(
         @ApplicationContext appContext: Context,
         coroutineScope: CoroutineScope,
-    ): NetworkConnectivityManager = NetworkConnectivityManager(appContext, coroutineScope)
+    ): NetworkConnectivityManager = AndroidNetworkConnectivityManager(appContext, coroutineScope)
 
     @Provides
     @Singleton
