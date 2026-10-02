@@ -289,22 +289,19 @@ class WebsocketClient(
             _status.value = WebsocketStatus.DISCONNECTED
         }
         withContext(NonCancellable) {
-            val closeResult = runCatching {
-                withTimeoutOrNull(CLOSE_TIMEOUT_MS) {
+            // Best-effort teardown: any transport or channel error cancels session
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                val closedGracefully = withTimeoutOrNull(CLOSE_TIMEOUT_MS) {
                     session?.close(CloseReason(CloseReason.Codes.NORMAL, "Session ended"))
                     true
                 }
+                if (closedGracefully != true) {
+                    session?.cancel(CancellationException("Session close timed out"))
+                }
+            } catch (e: Exception) {
+                session?.cancel(CancellationException("Session close failed", e))
             }
-            closeResult.fold(
-                onSuccess = { closedGracefully ->
-                    if (closedGracefully != true) {
-                        session?.cancel(CancellationException("Session close timed out"))
-                    }
-                },
-                onFailure = { e ->
-                    session?.cancel(CancellationException("Session close failed", e))
-                },
-            )
         }
     }
 
