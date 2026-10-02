@@ -28,6 +28,7 @@ class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wi
     private val lock = Any()
     private val resolveQueue = ArrayDeque<NsdServiceInfo>()
     private var isResolving = false
+    private var activeResolveListener: NsdManager.ResolveListener? = null
 
     private val _discoveredDevices = MutableSharedFlow<DiscoveredDevice>(extraBufferCapacity = 64)
     override val discoveredDevices: SharedFlow<DiscoveredDevice> = _discoveredDevices.asSharedFlow()
@@ -72,6 +73,7 @@ class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wi
     override fun stop() {
         synchronized(lock) {
             resolveQueue.clear()
+            activeResolveListener = null
             isResolving = false
 
             releaseMulticastLock()
@@ -123,44 +125,60 @@ class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wi
 
     private fun createDiscoveryListener(): NsdManager.DiscoveryListener = object : NsdManager.DiscoveryListener {
         override fun onStartDiscoveryFailed(serviceType: String?, errorCode: Int) {
-            logger.e { "Discovery start failed: Error code:$errorCode" }
-            stop()
+            synchronized(lock) {
+                if (discoveryListener !== this) return
+                logger.e { "Discovery start failed: Error code:$errorCode" }
+                stop()
+            }
         }
 
         override fun onStopDiscoveryFailed(serviceType: String?, errorCode: Int) {
-            logger.e { "Discovery stop failed: Error code:$errorCode" }
+            synchronized(lock) {
+                if (discoveryListener !== this) return
+                logger.e { "Discovery stop failed: Error code:$errorCode" }
+            }
         }
 
         override fun onDiscoveryStarted(serviceType: String?) {
-            logger.d { "Service discovery started: $serviceType" }
-            _isDiscovering.value = true
+            synchronized(lock) {
+                if (discoveryListener !== this) return
+                logger.d { "Service discovery started: $serviceType" }
+                _isDiscovering.value = true
+            }
         }
 
         override fun onDiscoveryStopped(serviceType: String?) {
-            logger.i { "Discovery stopped: $serviceType" }
-            _isDiscovering.value = false
+            synchronized(lock) {
+                if (discoveryListener !== this) return
+                logger.i { "Discovery stopped: $serviceType" }
+                _isDiscovering.value = false
+            }
         }
 
         override fun onServiceFound(service: NsdServiceInfo?) {
-            logger.d { "Service discovery success [$service]" }
-            if (service == null) return
-            if (service.serviceType?.contains(SERVICE_TYPE_MATCH) != true) {
-                logger.d { "Unknown service type: ${service.serviceType}" }
-                return
+            synchronized(lock) {
+                if (discoveryListener !== this) return
+                logger.d { "Service discovery success [$service]" }
+                if (service == null) return
+                if (service.serviceType?.contains(SERVICE_TYPE_MATCH) != true) {
+                    logger.d { "Unknown service type: ${service.serviceType}" }
+                    return
+                }
+                enqueueServiceResolveLocked(service)
             }
-            enqueueServiceResolve(service)
         }
 
         override fun onServiceLost(service: NsdServiceInfo?) {
-            logger.d { "Service lost: $service" }
+            synchronized(lock) {
+                if (discoveryListener !== this) return
+                logger.d { "Service lost: $service" }
+            }
         }
     }
 
-    private fun enqueueServiceResolve(service: NsdServiceInfo) {
-        synchronized(lock) {
-            resolveQueue.add(service)
-            processNextResolveLocked()
-        }
+    private fun enqueueServiceResolveLocked(service: NsdServiceInfo) {
+        resolveQueue.add(service)
+        processNextResolveLocked()
     }
 
     private fun processNextResolveLocked() {
@@ -170,8 +188,12 @@ class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wi
         resolveServiceInternal(nextService)
     }
 
-    private fun finishResolve() {
+    private fun finishResolve(listener: NsdManager.ResolveListener?) {
         synchronized(lock) {
+            if (listener != null && activeResolveListener !== listener) {
+                return
+            }
+            activeResolveListener = null
             isResolving = false
             processNextResolveLocked()
         }
@@ -179,30 +201,33 @@ class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wi
 
     private fun resolveServiceInternal(service: NsdServiceInfo) {
         val manager = nsdManager ?: run {
-            finishResolve()
+            finishResolve(null)
             return
         }
-        try {
-            manager.resolveService(
-                service,
-                object : NsdManager.ResolveListener {
-                    override fun onResolveFailed(serviceInfo: NsdServiceInfo?, errorCode: Int) {
-                        logger.w { "Resolve failed: code $errorCode" }
-                        finishResolve()
-                    }
+        val listener = object : NsdManager.ResolveListener {
+            override fun onResolveFailed(serviceInfo: NsdServiceInfo?, errorCode: Int) {
+                logger.w { "Resolve failed: code $errorCode" }
+                finishResolve(this)
+            }
 
-                    override fun onServiceResolved(serviceInfo: NsdServiceInfo?) {
+            override fun onServiceResolved(serviceInfo: NsdServiceInfo?) {
+                synchronized(lock) {
+                    if (activeResolveListener === this) {
                         handleServiceResolved(serviceInfo)
-                        finishResolve()
                     }
-                },
-            )
+                }
+                finishResolve(this)
+            }
+        }
+        activeResolveListener = listener
+        try {
+            manager.resolveService(service, listener)
         } catch (e: IllegalArgumentException) {
             logger.e(e) { "Failed to resolve service due to invalid argument" }
-            finishResolve()
+            finishResolve(listener)
         } catch (e: IllegalStateException) {
             logger.e(e) { "Failed to resolve service due to invalid state" }
-            finishResolve()
+            finishResolve(listener)
         }
     }
 
