@@ -12,13 +12,17 @@ private val logger = Logger.withTag(TAG)
 
 class GithubApi(private val apiEndpoints: GithubApiEndpoints) {
 
+    // Encapsulate all remote API, network, and deserialization errors into Result.failure
+    @Suppress("TooGenericExceptionCaught")
     suspend fun getAllReleases(repoOwner: String, repoName: String): Result<List<Release>> {
         logger.d { "retrieving latest releases from $repoOwner/$repoName" }
-        return runCatching {
-            apiEndpoints.getAllReleases(repoOwner, repoName)
-        }.onFailure { e ->
-            if (e is kotlinx.coroutines.CancellationException) throw e
+        return try {
+            Result.success(apiEndpoints.getAllReleases(repoOwner, repoName))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
             logger.w(e) { "Error retrieving releases from $repoOwner/$repoName" }
+            Result.failure(e)
         }
     }
 
