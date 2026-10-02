@@ -117,6 +117,56 @@ class AndroidDeviceDiscoveryTest {
     }
 
     @Test
+    fun staleResolveCallbackAfterStopDoesNotEmitOrCorruptQueue() = runTest {
+        val fixture = DiscoveryFixture()
+        fixture.discovery.start()
+
+        val collected = mutableListOf<DiscoveredDevice>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            fixture.discovery.discoveredDevices.toList(collected)
+        }
+
+        val service = mockk<NsdServiceInfo> {
+            every { serviceType } returns "_wled._tcp."
+        }
+        val resolveSlot = slot<NsdManager.ResolveListener>()
+        every { fixture.nsdManager.resolveService(service, capture(resolveSlot)) } answers {}
+
+        fixture.discoveryListener.onServiceFound(service)
+
+        // Stop discovery while resolve was in-flight
+        fixture.discovery.stop()
+
+        // Stale callback arrives from binder thread
+        val staleResolvedInfo = mockk<NsdServiceInfo> {
+            every { host } returns mockk<InetAddress> {
+                every { hostAddress } returns "192.168.1.199"
+            }
+            every { attributes } returns emptyMap()
+        }
+        resolveSlot.captured.onServiceResolved(staleResolvedInfo)
+
+        assertTrue(collected.isEmpty())
+    }
+
+    @Test
+    fun staleDiscoveryListenerCallbacksAfterStopDoNotCorruptState() {
+        val fixture = DiscoveryFixture()
+        fixture.discovery.start()
+        val oldListener = fixture.discoveryListener
+
+        fixture.discovery.stop()
+        fixture.discovery.start()
+        assertTrue(fixture.discovery.isDiscovering.value)
+
+        oldListener.onDiscoveryStopped("_wled._tcp.")
+        assertTrue(fixture.discovery.isDiscovering.value)
+
+        oldListener.onStartDiscoveryFailed("_wled._tcp.", 1)
+        assertTrue(fixture.discovery.isDiscovering.value)
+    }
+
+    @Test
     fun unknownServiceTypeIsNotResolved() {
         val fixture = DiscoveryFixture()
         fixture.discovery.start()
