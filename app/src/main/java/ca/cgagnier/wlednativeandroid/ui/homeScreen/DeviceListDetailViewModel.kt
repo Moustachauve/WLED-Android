@@ -46,7 +46,11 @@ class DeviceListDetailViewModel @Inject constructor(
     init {
         // This ensures onResume/onPause are called only when the APP goes background/foreground,
         // not when the screen rotates.
-        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+        try {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+        } catch (e: Exception) {
+            Log.w(TAG, "ProcessLifecycleOwner not available: ${e.message}")
+        }
         viewModelScope.launch {
             discoveryService.discoveredDevices.collect { device ->
                 deviceDiscovered(device.address, device.macAddress)
@@ -68,7 +72,11 @@ class DeviceListDetailViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
+        try {
+            ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
+        } catch (e: Exception) {
+            Log.w(TAG, "ProcessLifecycleOwner not available during onCleared: ${e.message}")
+        }
         stopDiscoveryService()
     }
 
