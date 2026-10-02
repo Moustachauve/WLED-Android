@@ -4,6 +4,7 @@ import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.githubapi.Release
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import co.touchlab.kermit.Logger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import okio.Path
 
@@ -18,7 +19,7 @@ class GithubApi(private val apiEndpoints: GithubApiEndpoints) {
         logger.d { "retrieving latest releases from $repoOwner/$repoName" }
         return try {
             Result.success(apiEndpoints.getAllReleases(repoOwner, repoName))
-        } catch (e: kotlinx.coroutines.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             logger.w(e) { "Error retrieving releases from $repoOwner/$repoName" }
