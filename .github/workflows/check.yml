@@ -38,7 +38,7 @@ jobs:
           cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest :shared:testAndroidHostTest
+        run: ./gradlew :app:testDebugUnitTest :shared:testAndroidHostTest
 
       - name: Upload Test Results
         if: always()
