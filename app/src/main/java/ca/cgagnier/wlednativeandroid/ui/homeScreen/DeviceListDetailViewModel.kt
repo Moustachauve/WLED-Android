@@ -1,11 +1,10 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen
 
-import android.app.Application
 import android.util.Log
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.DeviceDiscovery
@@ -26,11 +25,11 @@ private const val TAG = "DeviceListDetailViewModel"
 
 @HiltViewModel
 class DeviceListDetailViewModel @Inject constructor(
-    application: Application,
     private val preferencesRepository: UserPreferencesRepository,
     networkManager: NetworkConnectivityManager,
     private val deviceFirstContactService: DeviceFirstContactService,
-) : AndroidViewModel(application),
+    private val discoveryService: DeviceDiscovery,
+) : ViewModel(),
     DefaultLifecycleObserver {
     val isWLEDCaptivePortal = networkManager.isWLEDCaptivePortal
 
@@ -41,13 +40,6 @@ class DeviceListDetailViewModel @Inject constructor(
             initialValue = false,
         )
 
-    private val discoveryService = DeviceDiscovery(
-        context = getApplication<Application>().applicationContext,
-        onDeviceDiscovered = { address, macAddress ->
-            deviceDiscovered(address, macAddress)
-        },
-    )
-
     private val _isAddDeviceDialogVisible = MutableStateFlow(false)
     val isAddDeviceDialogVisible: StateFlow<Boolean> = _isAddDeviceDialogVisible
 
@@ -55,6 +47,11 @@ class DeviceListDetailViewModel @Inject constructor(
         // This ensures onResume/onPause are called only when the APP goes background/foreground,
         // not when the screen rotates.
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+        viewModelScope.launch {
+            discoveryService.discoveredDevices.collect { device ->
+                deviceDiscovered(device.address, device.macAddress)
+            }
+        }
     }
 
     override fun onResume(owner: LifecycleOwner) {

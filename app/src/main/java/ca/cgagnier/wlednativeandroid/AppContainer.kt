@@ -22,7 +22,9 @@ import ca.cgagnier.wlednativeandroid.repository.createUserPreferencesDataStore
 import ca.cgagnier.wlednativeandroid.repository.getDatabase
 import ca.cgagnier.wlednativeandroid.repository.migrations.LegacyProtoToKotlinxPreferencesMigration
 import ca.cgagnier.wlednativeandroid.repository.migrations.UserPreferencesV0ToV1
+import ca.cgagnier.wlednativeandroid.service.AndroidDeviceDiscovery
 import ca.cgagnier.wlednativeandroid.service.AndroidNetworkConnectivityManager
+import ca.cgagnier.wlednativeandroid.service.DeviceDiscovery
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
@@ -109,6 +111,11 @@ object AppContainer {
         @ApplicationContext appContext: Context,
         coroutineScope: CoroutineScope,
     ): NetworkConnectivityManager = AndroidNetworkConnectivityManager(appContext, coroutineScope)
+
+    @Provides
+    @Singleton
+    fun provideDeviceDiscovery(@ApplicationContext appContext: Context): DeviceDiscovery =
+        AndroidDeviceDiscovery(appContext)
 
     @Provides
     @Singleton
