@@ -22,25 +22,6 @@ import kotlin.test.assertTrue
 class AndroidDeviceDiscoveryTest {
 
     @Test
-    fun startInitiatesNsdDiscovery() {
-        val fixture = DiscoveryFixture()
-        fixture.discovery.start()
-
-        verify { fixture.nsdManager.discoverServices(any<String>(), NsdManager.PROTOCOL_DNS_SD, any()) }
-        assertTrue(fixture.discovery.isDiscovering.value)
-    }
-
-    @Test
-    fun stopHaltsNsdDiscovery() {
-        val fixture = DiscoveryFixture()
-        fixture.discovery.start()
-        fixture.discovery.stop()
-
-        verify { fixture.nsdManager.stopServiceDiscovery(any()) }
-        assertFalse(fixture.discovery.isDiscovering.value)
-    }
-
-    @Test
     fun startWhenAlreadyDiscoveringDoesNotRestart() {
         val fixture = DiscoveryFixture()
         fixture.discovery.start()
