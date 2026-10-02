@@ -24,7 +24,7 @@ private const val SERVICE_TYPE = "_wled._tcp"
 private const val DOMAIN = "local."
 
 interface IosBonjourBrowser {
-    fun start(onDeviceFound: (DiscoveredDevice) -> Unit)
+    fun start(onDeviceFound: (DiscoveredDevice) -> Unit): Boolean
     fun stop()
 }
 
@@ -34,19 +34,20 @@ internal class RealIosBonjourBrowser(
 ) : IosBonjourBrowser {
     private var browser: nw_browser_t = null
 
-    override fun start(onDeviceFound: (DiscoveredDevice) -> Unit) {
+    override fun start(onDeviceFound: (DiscoveredDevice) -> Unit): Boolean {
         stop()
         val descriptor = nw_browse_descriptor_create_bonjour_service(SERVICE_TYPE, DOMAIN)
         val parameters = nw_parameters_create()
         val b = nw_browser_create(descriptor, parameters)
         if (b == null) {
             logger.w { "nw_browser_create returned null" }
-            return
+            return false
         }
         browser = b
         nw_browser_set_queue(b, queue)
         nw_browser_start(b)
         logger.i { "nw_browser started for $SERVICE_TYPE.$DOMAIN (endpoint IP resolution deferred to iOS app target)" }
+        return true
     }
 
     override fun stop() {
@@ -58,7 +59,7 @@ internal class RealIosBonjourBrowser(
     }
 }
 
-class IosDeviceDiscovery internal constructor(private val browser: IosBonjourBrowser) : DeviceDiscovery {
+class IosDeviceDiscovery(private val browser: IosBonjourBrowser) : DeviceDiscovery {
 
     constructor() : this(RealIosBonjourBrowser())
 
@@ -70,10 +71,10 @@ class IosDeviceDiscovery internal constructor(private val browser: IosBonjourBro
 
     override fun start() {
         if (_isDiscovering.value) return
-        _isDiscovering.value = true
-        browser.start { device ->
+        val started = browser.start { device ->
             _discoveredDevices.tryEmit(device)
         }
+        _isDiscovering.value = started
     }
 
     override fun stop() {
