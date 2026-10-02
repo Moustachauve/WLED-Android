@@ -25,6 +25,17 @@ class IosDeviceDiscoveryTest {
     }
 
     @Test
+    fun startLeavesIsDiscoveringFalseWhenBrowserFails() {
+        val fakeBrowser = FakeIosBonjourBrowser().apply { shouldSucceed = false }
+        val discovery = IosDeviceDiscovery(fakeBrowser)
+
+        discovery.start()
+
+        assertFalse(discovery.isDiscovering.value)
+        assertTrue(fakeBrowser.isStarted)
+    }
+
+    @Test
     fun stopSetsIsDiscoveringToFalse() {
         val fakeBrowser = FakeIosBonjourBrowser()
         val discovery = IosDeviceDiscovery(fakeBrowser)
@@ -67,7 +78,8 @@ class IosDeviceDiscoveryTest {
     @Test
     fun realIosBonjourBrowserStartsAndStopsSafely() {
         val browser = RealIosBonjourBrowser()
-        browser.start { }
+        val started = browser.start { }
+        assertTrue(started)
         browser.stop()
     }
 
@@ -75,12 +87,14 @@ class IosDeviceDiscoveryTest {
         var isStarted = false
         var isStopped = false
         var startCount = 0
+        var shouldSucceed = true
         var onDeviceFound: ((DiscoveredDevice) -> Unit)? = null
 
-        override fun start(onDeviceFound: (DiscoveredDevice) -> Unit) {
+        override fun start(onDeviceFound: (DiscoveredDevice) -> Unit): Boolean {
             isStarted = true
             startCount++
             this.onDeviceFound = onDeviceFound
+            return shouldSucceed
         }
 
         override fun stop() {
