@@ -238,8 +238,6 @@
     <ID>SwallowedException:ReleaseService.kt$ReleaseService$e: Exception</ID>
     <ID>SwallowedException:StringExtensions.kt$e: Exception</ID>
     <ID>TooGenericExceptionCaught:DeviceAddViewModel.kt$DeviceAddViewModel$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:DeviceDiscovery.kt$DeviceDiscovery$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:DeviceDiscovery.kt$DeviceDiscovery.&lt;no name provided&gt;$e: Exception</ID>
     <ID>TooGenericExceptionCaught:DeviceListDetail.kt$e: Exception</ID>
     <ID>TooGenericExceptionCaught:DeviceListDetailViewModel.kt$DeviceListDetailViewModel$e: Exception</ID>
     <ID>TooGenericExceptionCaught:DeviceUpdateService.kt$DeviceUpdateService$e: Exception</ID>
