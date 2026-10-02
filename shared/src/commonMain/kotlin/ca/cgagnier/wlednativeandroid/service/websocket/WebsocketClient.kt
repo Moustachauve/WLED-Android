@@ -57,6 +57,7 @@ private val logger = Logger.withTag(TAG)
  * Manages connection lifecycle, frame encode/decode, exponential backoff with jitter,
  * and reactive state exposure via Kotlin Coroutines and Flows.
  */
+// Constructor requires DI parameters for dispatcher, scope, random, and testing hooks
 @Suppress("LongParameterList")
 class WebsocketClient(
     device: Device,
@@ -198,7 +199,6 @@ class WebsocketClient(
     private fun isConnectionActive(isContextActive: Boolean, myJob: Job?): Boolean =
         isContextActive && connectionJob === myJob && canConnect()
 
-    @Suppress("TooGenericExceptionCaught")
     private suspend fun runConnectionLoop() {
         var retryCount = 0
         while (coroutineContext.isActive && canConnect()) {
@@ -221,6 +221,7 @@ class WebsocketClient(
         }
     }
 
+    // Catches all network/protocol failures to trigger exponential backoff without cancelling the scope
     @Suppress("TooGenericExceptionCaught", "ThrowsCount")
     private suspend fun connectAndConsumeFrames(retryCount: Int): Boolean {
         val myJob = coroutineContext[Job]
@@ -288,17 +289,22 @@ class WebsocketClient(
             _status.value = WebsocketStatus.DISCONNECTED
         }
         withContext(NonCancellable) {
-            try {
-                val closedGracefully = withTimeoutOrNull(CLOSE_TIMEOUT_MS) {
+            val closeResult = runCatching {
+                withTimeoutOrNull(CLOSE_TIMEOUT_MS) {
                     session?.close(CloseReason(CloseReason.Codes.NORMAL, "Session ended"))
                     true
                 }
-                if (closedGracefully != true) {
-                    session?.cancel(CancellationException("Session close timed out"))
-                }
-            } catch (e: Exception) {
-                session?.cancel(CancellationException("Session close failed", e))
             }
+            closeResult.fold(
+                onSuccess = { closedGracefully ->
+                    if (closedGracefully != true) {
+                        session?.cancel(CancellationException("Session close timed out"))
+                    }
+                },
+                onFailure = { e ->
+                    session?.cancel(CancellationException("Session close failed", e))
+                },
+            )
         }
     }
 
@@ -344,6 +350,7 @@ class WebsocketClient(
         "${payload.take(MAX_LOG_PAYLOAD_LENGTH)}... (${payload.length} chars)"
     }
 
+    // Non-throwing API: any frame serialization or socket write failure returns false
     @Suppress("TooGenericExceptionCaught")
     suspend fun sendState(state: State): Boolean {
         val destroyed = synchronized(stateLock) { isDestroyed }

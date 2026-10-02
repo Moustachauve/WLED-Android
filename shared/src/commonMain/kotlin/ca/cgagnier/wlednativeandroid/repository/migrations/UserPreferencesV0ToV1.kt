@@ -6,6 +6,7 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferences
 
 class UserPreferencesV0ToV1 : DataMigration<UserPreferences> {
     override suspend fun cleanUp() {
+        // No cleanup required for V0 to V1 migration
     }
 
     override suspend fun migrate(currentData: UserPreferences): UserPreferences = currentData.copy(

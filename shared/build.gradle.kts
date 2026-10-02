@@ -80,3 +80,9 @@ skie {
         enabled.set(false)
     }
 }
+
+tasks.register("test") {
+    description = "Runs unit tests for the Android host (including commonTest)."
+    group = "verification"
+    dependsOn("testAndroidHostTest")
+}

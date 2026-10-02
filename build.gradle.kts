@@ -77,6 +77,20 @@ subprojects {
         config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
         baseline = file("$projectDir/detekt-baseline.xml")
         parallel = true
+        source.setFrom(
+            files(
+                "src/main/java",
+                "src/main/kotlin",
+                "src/commonMain/kotlin",
+                "src/androidMain/kotlin",
+                "src/iosMain/kotlin",
+                "src/commonTest/kotlin",
+                "src/androidHostTest/kotlin",
+                "src/iosTest/kotlin",
+                "src/test/java",
+                "src/test/kotlin",
+            ),
+        )
     }
 }
 

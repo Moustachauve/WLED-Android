@@ -14,11 +14,11 @@ class GithubApi(private val apiEndpoints: GithubApiEndpoints) {
 
     suspend fun getAllReleases(repoOwner: String, repoName: String): Result<List<Release>> {
         logger.d { "retrieving latest releases from $repoOwner/$repoName" }
-        return try {
-            Result.success(apiEndpoints.getAllReleases(repoOwner, repoName))
-        } catch (e: Exception) {
+        return runCatching {
+            apiEndpoints.getAllReleases(repoOwner, repoName)
+        }.onFailure { e ->
+            if (e is kotlinx.coroutines.CancellationException) throw e
             logger.w(e) { "Error retrieving releases from $repoOwner/$repoName" }
-            Result.failure(e)
         }
     }
 
