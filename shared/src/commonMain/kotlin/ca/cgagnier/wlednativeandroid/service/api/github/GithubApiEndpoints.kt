@@ -50,6 +50,7 @@ class KtorGithubApiEndpoints(
         return httpClient.get(url).body()
     }
 
+    // Emits DownloadState.Failed on any HTTP, network, or file I/O error
     @Suppress("TooGenericExceptionCaught")
     override fun downloadReleaseBinary(
         repoOwner: String,
@@ -85,6 +86,7 @@ class KtorGithubApiEndpoints(
         }
     }.flowOn(Dispatchers.IO)
 
+    // Emits DownloadState.Failed on any I/O or buffer write error
     @Suppress("TooGenericExceptionCaught")
     private fun ByteReadChannel.saveFile(destinationPath: Path, totalBytes: Long): Flow<DownloadState> =
         flow<DownloadState> {
