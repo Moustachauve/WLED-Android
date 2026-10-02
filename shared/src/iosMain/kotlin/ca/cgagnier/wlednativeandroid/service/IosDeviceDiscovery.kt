@@ -2,6 +2,8 @@ package ca.cgagnier.wlednativeandroid.service
 
 import co.touchlab.kermit.Logger
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.readBytes
+import kotlinx.cinterop.toKStringFromUtf8
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -11,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import platform.Network.nw_browse_descriptor_create_bonjour_service
 import platform.Network.nw_browser_cancel
 import platform.Network.nw_browser_create
+import platform.Network.nw_browser_set_browse_results_changed_handler
 import platform.Network.nw_browser_set_queue
 import platform.Network.nw_browser_start
 import platform.Network.nw_browser_t
@@ -45,6 +48,29 @@ internal class RealIosBonjourBrowser(
         }
         browser = b
         nw_browser_set_queue(b, queue)
+        nw_browser_set_browse_results_changed_handler(b) { oldResult, newResult, completed ->
+            if (newResult != null) {
+                val endpoint = platform.Network.nw_browse_result_copy_endpoint(newResult)
+                if (endpoint != null) {
+                    val serviceNamePtr = platform.Network.nw_endpoint_get_bonjour_service_name(endpoint)
+                    val serviceName = serviceNamePtr?.toKStringFromUtf8()
+                    if (!serviceName.isNullOrEmpty()) {
+                        val address = "$serviceName.local"
+                        var macAddress: String? = null
+                        val txtRecord = platform.Network.nw_browse_result_copy_txt_record_object(newResult)
+                        if (txtRecord != null) {
+                            platform.Network.nw_txt_record_access_key(txtRecord, "mac") { _, _, value, valueLen ->
+                                if (value != null && valueLen > 0u) {
+                                    macAddress = value.readBytes(valueLen.toInt()).decodeToString()
+                                }
+                                true
+                            }
+                        }
+                        onDeviceFound(DiscoveredDevice(address = address, macAddress = macAddress))
+                    }
+                }
+            }
+        }
         nw_browser_start(b)
         logger.d { "nw_browser started" }
     }
@@ -62,14 +88,14 @@ class IosDeviceDiscovery internal constructor(private val browser: IosBonjourBro
 
     constructor() : this(RealIosBonjourBrowser())
 
-    private val _discoveredDevices = MutableSharedFlow<DiscoveredDevice>(replay = 1, extraBufferCapacity = 64)
+    private val _discoveredDevices = MutableSharedFlow<DiscoveredDevice>(extraBufferCapacity = 64)
     override val discoveredDevices: SharedFlow<DiscoveredDevice> = _discoveredDevices.asSharedFlow()
 
     private val _isDiscovering = MutableStateFlow(false)
     override val isDiscovering: StateFlow<Boolean> = _isDiscovering.asStateFlow()
 
     override fun start() {
-        stop()
+        if (_isDiscovering.value) return
         _isDiscovering.value = true
         browser.start { device ->
             _discoveredDevices.tryEmit(device)

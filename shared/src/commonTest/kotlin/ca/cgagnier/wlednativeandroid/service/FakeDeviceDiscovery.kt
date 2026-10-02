@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class FakeDeviceDiscovery : DeviceDiscovery {
-    private val _discoveredDevices = MutableSharedFlow<DiscoveredDevice>(replay = 1, extraBufferCapacity = 64)
+    private val _discoveredDevices = MutableSharedFlow<DiscoveredDevice>(extraBufferCapacity = 64)
     override val discoveredDevices: SharedFlow<DiscoveredDevice> = _discoveredDevices.asSharedFlow()
 
     private val _isDiscovering = MutableStateFlow(false)

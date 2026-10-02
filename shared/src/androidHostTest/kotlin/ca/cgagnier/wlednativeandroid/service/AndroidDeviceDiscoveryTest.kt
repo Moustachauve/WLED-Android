@@ -8,7 +8,9 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import java.net.InetAddress
 import kotlin.test.Test
@@ -24,7 +26,7 @@ class AndroidDeviceDiscoveryTest {
         val fixture = DiscoveryFixture()
         fixture.discovery.start()
 
-        verify { fixture.nsdManager.discoverServices(any(), NsdManager.PROTOCOL_DNS_SD, any()) }
+        verify { fixture.nsdManager.discoverServices(any<String>(), NsdManager.PROTOCOL_DNS_SD, any()) }
         assertTrue(fixture.discovery.isDiscovering.value)
     }
 
@@ -39,6 +41,15 @@ class AndroidDeviceDiscoveryTest {
     }
 
     @Test
+    fun startWhenAlreadyDiscoveringDoesNotRestart() {
+        val fixture = DiscoveryFixture()
+        fixture.discovery.start()
+        fixture.discovery.start()
+
+        verify(exactly = 1) { fixture.nsdManager.discoverServices(any<String>(), any<Int>(), any()) }
+    }
+
+    @Test
     fun startSafelyHandlesNullNsdManager() {
         val discovery = AndroidDeviceDiscovery(nsdManager = null, wifiManager = null)
         discovery.start()
@@ -50,6 +61,11 @@ class AndroidDeviceDiscoveryTest {
     fun serviceResolvedEmitsDiscoveredDevice() = runTest {
         val fixture = DiscoveryFixture()
         fixture.discovery.start()
+
+        val collected = mutableListOf<DiscoveredDevice>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            fixture.discovery.discoveredDevices.toList(collected)
+        }
 
         val service = mockk<NsdServiceInfo> {
             every { serviceType } returns "_wled._tcp."
@@ -69,7 +85,48 @@ class AndroidDeviceDiscoveryTest {
         resolveSlot.captured.onServiceResolved(resolvedServiceInfo)
 
         val expected = DiscoveredDevice("192.168.1.100", "AABBCCDDEEFF")
-        assertEquals(expected, fixture.discovery.discoveredDevices.first())
+        assertEquals(listOf(expected), collected)
+    }
+
+    @Test
+    fun multipleServicesFoundAreResolvedSequentially() {
+        val fixture = DiscoveryFixture()
+        fixture.discovery.start()
+
+        val service1 = mockk<NsdServiceInfo> { every { serviceType } returns "._wled._tcp" }
+        val service2 = mockk<NsdServiceInfo> { every { serviceType } returns "_wled._tcp." }
+
+        val resolveSlot1 = slot<NsdManager.ResolveListener>()
+        val resolveSlot2 = slot<NsdManager.ResolveListener>()
+        every { fixture.nsdManager.resolveService(service1, capture(resolveSlot1)) } answers {}
+        every { fixture.nsdManager.resolveService(service2, capture(resolveSlot2)) } answers {}
+
+        fixture.discoveryListener.onServiceFound(service1)
+        fixture.discoveryListener.onServiceFound(service2)
+
+        verify(exactly = 1) { fixture.nsdManager.resolveService(service1, any()) }
+        verify(exactly = 0) { fixture.nsdManager.resolveService(service2, any()) }
+
+        val resolved1 = mockk<NsdServiceInfo> {
+            every { host } returns mockk<InetAddress> { every { hostAddress } returns "192.168.1.101" }
+            every { attributes } returns emptyMap()
+        }
+        resolveSlot1.captured.onServiceResolved(resolved1)
+
+        verify(exactly = 1) { fixture.nsdManager.resolveService(service2, any()) }
+    }
+
+    @Test
+    fun unknownServiceTypeIsNotResolved() {
+        val fixture = DiscoveryFixture()
+        fixture.discovery.start()
+
+        val unknownService = mockk<NsdServiceInfo> {
+            every { serviceType } returns "_printer._tcp"
+        }
+        fixture.discoveryListener.onServiceFound(unknownService)
+
+        verify(exactly = 0) { fixture.nsdManager.resolveService(any(), any()) }
     }
 
     private class DiscoveryFixture {

@@ -14,7 +14,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 private const val TAG = "service.AndroidDeviceDiscovery"
 private val logger = Logger.withTag(TAG)
-private const val SERVICE_TYPE = "_wled._tcp."
+private const val SERVICE_TYPE_REGISTRATION = "_wled._tcp."
+private const val SERVICE_TYPE_MATCH = "_wled._tcp"
 
 class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wifiManager: WifiManager?) :
     DeviceDiscovery {
@@ -24,7 +25,11 @@ class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wi
         wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager,
     )
 
-    private val _discoveredDevices = MutableSharedFlow<DiscoveredDevice>(replay = 1, extraBufferCapacity = 64)
+    private val lock = Any()
+    private val resolveQueue = ArrayDeque<NsdServiceInfo>()
+    private var isResolving = false
+
+    private val _discoveredDevices = MutableSharedFlow<DiscoveredDevice>(extraBufferCapacity = 64)
     override val discoveredDevices: SharedFlow<DiscoveredDevice> = _discoveredDevices.asSharedFlow()
 
     private val _isDiscovering = MutableStateFlow(false)
@@ -34,45 +39,55 @@ class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wi
     private var discoveryListener: NsdManager.DiscoveryListener? = null
 
     override fun start() {
-        stop()
+        synchronized(lock) {
+            if (_isDiscovering.value || discoveryListener != null) {
+                logger.d { "Service discovery already active" }
+                return
+            }
 
-        if (nsdManager == null) {
-            logger.w { "NsdManager not available" }
-            return
-        }
+            if (nsdManager == null) {
+                logger.w { "NsdManager not available" }
+                return
+            }
 
-        acquireMulticastLock()
+            acquireMulticastLock()
 
-        val listener = createDiscoveryListener()
-        discoveryListener = listener
-        try {
-            nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, listener)
-            _isDiscovering.value = true
-        } catch (e: IllegalArgumentException) {
-            logger.e(e) { "Failed to start service discovery due to invalid argument" }
-            releaseMulticastLock()
-            discoveryListener = null
-        } catch (e: IllegalStateException) {
-            logger.e(e) { "Failed to start service discovery due to invalid state" }
-            releaseMulticastLock()
-            discoveryListener = null
+            val listener = createDiscoveryListener()
+            discoveryListener = listener
+            try {
+                nsdManager.discoverServices(SERVICE_TYPE_REGISTRATION, NsdManager.PROTOCOL_DNS_SD, listener)
+                _isDiscovering.value = true
+            } catch (e: IllegalArgumentException) {
+                logger.e(e) { "Failed to start service discovery due to invalid argument" }
+                releaseMulticastLock()
+                discoveryListener = null
+            } catch (e: IllegalStateException) {
+                logger.e(e) { "Failed to start service discovery due to invalid state" }
+                releaseMulticastLock()
+                discoveryListener = null
+            }
         }
     }
 
     override fun stop() {
-        releaseMulticastLock()
+        synchronized(lock) {
+            resolveQueue.clear()
+            isResolving = false
 
-        discoveryListener?.let { listener ->
-            try {
-                nsdManager?.stopServiceDiscovery(listener)
-            } catch (e: IllegalArgumentException) {
-                logger.e(e) { "Failed to stop service discovery due to invalid argument" }
-            } catch (e: IllegalStateException) {
-                logger.e(e) { "Failed to stop service discovery due to invalid state" }
+            releaseMulticastLock()
+
+            discoveryListener?.let { listener ->
+                try {
+                    nsdManager?.stopServiceDiscovery(listener)
+                } catch (e: IllegalArgumentException) {
+                    logger.e(e) { "Failed to stop service discovery due to invalid argument" }
+                } catch (e: IllegalStateException) {
+                    logger.e(e) { "Failed to stop service discovery due to invalid state" }
+                }
+                discoveryListener = null
             }
-            discoveryListener = null
+            _isDiscovering.value = false
         }
-        _isDiscovering.value = false
     }
 
     private fun acquireMulticastLock() {
@@ -129,11 +144,11 @@ class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wi
         override fun onServiceFound(service: NsdServiceInfo?) {
             logger.d { "Service discovery success [$service]" }
             if (service == null) return
-            if (service.serviceType != SERVICE_TYPE) {
+            if (service.serviceType?.contains(SERVICE_TYPE_MATCH) != true) {
                 logger.d { "Unknown service type: ${service.serviceType}" }
                 return
             }
-            resolveService(service)
+            enqueueServiceResolve(service)
         }
 
         override fun onServiceLost(service: NsdServiceInfo?) {
@@ -141,41 +156,70 @@ class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wi
         }
     }
 
-    private fun resolveService(service: NsdServiceInfo) {
-        val manager = nsdManager ?: return
+    private fun enqueueServiceResolve(service: NsdServiceInfo) {
+        synchronized(lock) {
+            resolveQueue.add(service)
+            processNextResolveLocked()
+        }
+    }
+
+    private fun processNextResolveLocked() {
+        if (isResolving || resolveQueue.isEmpty()) return
+        val nextService = resolveQueue.removeFirst()
+        isResolving = true
+        resolveServiceInternal(nextService)
+    }
+
+    private fun finishResolve() {
+        synchronized(lock) {
+            isResolving = false
+            processNextResolveLocked()
+        }
+    }
+
+    private fun resolveServiceInternal(service: NsdServiceInfo) {
+        val manager = nsdManager ?: run {
+            finishResolve()
+            return
+        }
         try {
             manager.resolveService(
                 service,
                 object : NsdManager.ResolveListener {
                     override fun onResolveFailed(serviceInfo: NsdServiceInfo?, errorCode: Int) {
                         logger.w { "Resolve failed: code $errorCode" }
-                        if (errorCode == NsdManager.FAILURE_ALREADY_ACTIVE && serviceInfo != null) {
-                            resolveService(serviceInfo)
-                        }
+                        finishResolve()
                     }
 
                     override fun onServiceResolved(serviceInfo: NsdServiceInfo?) {
-                        if (serviceInfo == null) {
-                            logger.w { "Resolved serviceInfo is null" }
-                            return
-                        }
-                        val deviceIp = serviceInfo.host?.hostAddress
-                        if (deviceIp.isNullOrEmpty()) {
-                            logger.w { "Device discovered but host address is null/empty" }
-                            return
-                        }
-                        val macBytes = serviceInfo.attributes["mac"]
-                        val macAddress = macBytes?.let { String(it) }
-
-                        logger.i { "Device discovered: $deviceIp, MAC: $macAddress" }
-                        _discoveredDevices.tryEmit(DiscoveredDevice(address = deviceIp, macAddress = macAddress))
+                        handleServiceResolved(serviceInfo)
+                        finishResolve()
                     }
                 },
             )
         } catch (e: IllegalArgumentException) {
             logger.e(e) { "Failed to resolve service due to invalid argument" }
+            finishResolve()
         } catch (e: IllegalStateException) {
             logger.e(e) { "Failed to resolve service due to invalid state" }
+            finishResolve()
         }
+    }
+
+    private fun handleServiceResolved(serviceInfo: NsdServiceInfo?) {
+        if (serviceInfo == null) {
+            logger.w { "Resolved serviceInfo is null" }
+            return
+        }
+        val deviceIp = serviceInfo.host?.hostAddress
+        if (deviceIp.isNullOrEmpty()) {
+            logger.w { "Device discovered but host address is null/empty" }
+            return
+        }
+        val macBytes = serviceInfo.attributes["mac"]
+        val macAddress = macBytes?.let { String(it) }
+
+        logger.i { "Device discovered: $deviceIp, MAC: $macAddress" }
+        _discoveredDevices.tryEmit(DiscoveredDevice(address = deviceIp, macAddress = macAddress))
     }
 }
