@@ -4,6 +4,7 @@ app-versionCode = "52"
 app-versionName = "7.0.1"
 
 agp = "9.4.1"
+activityCompose = "1.13.0"
 composeBom = "2026.09.00"
 coil3 = "3.6.3"
 core = "4.6.2"
@@ -49,7 +50,7 @@ mockk = "1.14.11"
 skie = "0.10.15"
 
 [libraries]
-androidx-activity-compose = { module = "androidx.activity:activity-compose" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-adaptive = { module = "androidx.compose.material3.adaptive:adaptive" }
 androidx-adaptive-layout = { module = "androidx.compose.material3.adaptive:adaptive-layout" }
 androidx-adaptive-navigation = { module = "androidx.compose.material3.adaptive:adaptive-navigation" }
