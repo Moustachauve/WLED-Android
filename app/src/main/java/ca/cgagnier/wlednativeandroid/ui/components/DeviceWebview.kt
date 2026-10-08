@@ -389,13 +389,14 @@ class CustomWebChromeClient(private val context: Context) : WebChromeClient() {
 
     private fun getMimeType(acceptTypes: Array<String>): String {
         for (type in acceptTypes) {
-            return when (type) {
-                ".json" -> "application/json"
-                ".css" -> "text/css"
+            return when {
+                type == ".json" -> "application/json"
+                type == ".css" -> "text/css"
+                type.contains("/") -> type
                 else -> continue
             }
         }
-        return "application/octet-stream"
+        return "*/*"
     }
 }
 
