@@ -52,7 +52,7 @@ jobs:
           retention-days: 7
 
   test-ios:
-    name: Run iOS Unit Tests
+    name: Run iOS Unit Tests & Build
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -69,8 +69,8 @@ jobs:
         with:
           cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
 
-      - name: Run iOS unit tests
-        run: ./gradlew :shared:iosSimulatorArm64Test
+      - name: Run iOS unit tests & assemble XCFramework
+        run: ./gradlew :shared:iosSimulatorArm64Test :shared:assembleSharedReleaseXCFramework
 
       - name: Upload iOS Test Results
         if: always()
