@@ -1,0 +1,39 @@
+# SwiftLint Configuration
+
+# Directories to include during linting
+included:
+  - wled
+  - wledTests
+
+# Directories to exclude from linting
+excluded:
+  - Pods
+  - build
+  - .build
+  - DerivedData
+
+# Disabled rules
+disabled_rules:
+  - trailing_whitespace
+  - line_length
+  - identifier_name
+  - type_name
+  - function_body_length
+  - file_length
+  - todo
+
+# Opt-in rules
+opt_in_rules:
+  - empty_count
+  - force_unwrapping
+  - overridden_super_call
+  - redundant_nil_coalescing
+
+# Configurable rules
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+
+type_body_length:
+  warning: 300
+  error: 500

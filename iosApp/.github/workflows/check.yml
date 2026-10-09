@@ -1,0 +1,63 @@
+name: Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: macos-26
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+
+      - name: Build and Test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project wled.xcodeproj \
+            -scheme wled \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
+            2>&1 | xcbeautify --report junit --report-path . --junit-report-filename junit.xml
+
+  lint:
+    name: Run Lint
+    runs-on: macos-26
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # need history for git diff
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Run SwiftLint on changed files
+        run: |
+          # Get all changed .swift files compared to main (or dev)
+          BASE_BRANCH="${{ github.event.pull_request.base.ref || 'dev' }}"
+          git fetch origin $BASE_BRANCH
+          FILES=$(git diff --name-only origin/$BASE_BRANCH...HEAD | grep "\.swift$" || true)
+          
+          if [ -z "$FILES" ]; then
+            echo "No Swift files changed."
+            exit 0
+          fi
+          
+          # Run lint explicitly only on those files
+          echo "$FILES" | xargs swiftlint lint --reporter github-actions-logging

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24411" systemVersion="25B78" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="Asset" representedClassName="Asset" syncable="YES" codeGenerationType="class">
+        <attribute name="assetId" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="downloadUrl" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="size" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="versionTagName" attributeType="String"/>
+        <relationship name="version" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="Version" inverseName="assets" inverseEntity="Version">
+            <userInfo>
+                <entry key="key" value="value"/>
+            </userInfo>
+        </relationship>
+    </entity>
+    <entity name="Device" representedClassName="Device" syncable="YES" codeGenerationType="class">
+        <attribute name="address" attributeType="String"/>
+        <attribute name="branch" optional="YES" attributeType="String"/>
+        <attribute name="customName" optional="YES" attributeType="String"/>
+        <attribute name="isHidden" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="lastSeen" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="macAddress" attributeType="String"/>
+        <attribute name="originalName" optional="YES" attributeType="String"/>
+        <attribute name="skipUpdateTag" optional="YES" attributeType="String"/>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="macAddress"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+    <entity name="Version" representedClassName="Version" syncable="YES" codeGenerationType="class">
+        <attribute name="htmlUrl" optional="YES" attributeType="String"/>
+        <attribute name="isPrerelease" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="publishedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="tagName" attributeType="String"/>
+        <attribute name="versionDescription" optional="YES" attributeType="String"/>
+        <relationship name="assets" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Asset" inverseName="version" inverseEntity="Asset"/>
+    </entity>
+</model>
