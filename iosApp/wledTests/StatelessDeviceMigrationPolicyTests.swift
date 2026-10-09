@@ -2,6 +2,7 @@ import Testing
 import CoreData
 @testable import WLED
 
+@MainActor
 struct StatelessDeviceMigrationPolicyTests {
 
     let sourceModel: NSManagedObjectModel
@@ -108,7 +109,7 @@ struct StatelessDeviceMigrationPolicyTests {
 
     @Test
     func duplicateMacAddress() throws {
-        let mac = "00:11:22:33:44:55"
+        let mac = "00:11:22:33:44:99"
         let sourceEntity = try #require(sourceModel.entitiesByName["Device"])
 
         // First Object
