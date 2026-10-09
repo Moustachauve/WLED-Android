@@ -46,8 +46,10 @@ This project enforces strict code style, static analysis, and localization rules
     ```
 *   **RUN** tests to verify changes:
     ```bash
-    ./gradlew test                    # Unit tests
-    ./gradlew connectedAndroidTest    # Instrumented tests (requires emulator/device)
+    ./gradlew test                                    # Unit tests (Android & shared host)
+    ./gradlew :shared:iosSimulatorArm64Test            # iOS unit tests (macOS only)
+    ./gradlew :shared:assembleSharedReleaseXCFramework # Build iOS XCFramework with SKIE
+    ./gradlew connectedAndroidTest                    # Instrumented tests (requires emulator/device)
     ```
 *   **Note:** Git pre-commit hooks are installed that will **BLOCK** commits if `spotlessCheck` or `detekt` fail. You must ensure these pass before attempting to commit.
 
