@@ -90,3 +90,24 @@ tasks.register("test") {
     group = "verification"
     dependsOn("testAndroidHostTest")
 }
+
+val syncDebugXCFramework =
+    tasks.register<Sync>("syncSharedDebugXCFramework") {
+        dependsOn("assembleSharedDebugXCFramework")
+        from(layout.buildDirectory.dir("XCFrameworks/debug/Shared.xcframework"))
+        into(layout.buildDirectory.dir("XCFrameworks/Shared.xcframework"))
+    }
+
+val syncReleaseXCFramework =
+    tasks.register<Sync>("syncSharedReleaseXCFramework") {
+        dependsOn("assembleSharedReleaseXCFramework")
+        from(layout.buildDirectory.dir("XCFrameworks/release/Shared.xcframework"))
+        into(layout.buildDirectory.dir("XCFrameworks/Shared.xcframework"))
+    }
+
+tasks.named("assembleSharedDebugXCFramework") {
+    finalizedBy(syncDebugXCFramework)
+}
+tasks.named("assembleSharedReleaseXCFramework") {
+    finalizedBy(syncReleaseXCFramework)
+}

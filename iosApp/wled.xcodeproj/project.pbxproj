@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C9LOCAL000000000000000003 /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = C9LOCAL000000000000000002 /* Shared */; };
+
 		884FA9392F027B6100097D56 /* wled_native_data.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 884FA9082F027B6100097D56 /* wled_native_data.xcdatamodeld */; };
 		C946FB862B68C53600D5B00D /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = C946FB852B68C53600D5B00D /* Collections */; };
 		C946FB882B68C53600D5B00D /* DequeModule in Frameworks */ = {isa = PBXBuildFile; productRef = C946FB872B68C53600D5B00D /* DequeModule */; };
@@ -60,6 +62,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C9LOCAL000000000000000003 /* Shared in Frameworks */,
 				C946FB862B68C53600D5B00D /* Collections in Frameworks */,
 				C948F4982B3D2B330092C4B1 /* MarkdownUI in Frameworks */,
 				C946FB8A2B68C53600D5B00D /* OrderedCollections in Frameworks */,
@@ -142,6 +145,7 @@
 			);
 			name = WLED;
 			packageProductDependencies = (
+				C9LOCAL000000000000000002 /* Shared */,
 				C948F4972B3D2B330092C4B1 /* MarkdownUI */,
 				C946FB852B68C53600D5B00D /* Collections */,
 				C946FB872B68C53600D5B00D /* DequeModule */,
@@ -181,6 +185,7 @@
 			);
 			mainGroup = C9A9E5B42918D1C3005B5C22;
 			packageReferences = (
+				C9LOCAL000000000000000001 /* XCLocalSwiftPackageReference "SharedPackage" */,
 				C948F4962B3D2B320092C4B1 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				C946FB842B68C53600D5B00D /* XCRemoteSwiftPackageReference "swift-collections" */,
 				8849F9052F710909008ACEC3 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */,
@@ -513,6 +518,12 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		C9LOCAL000000000000000001 /* XCLocalSwiftPackageReference "SharedPackage" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "SharedPackage";
+		};
+/* End XCLocalSwiftPackageReference section */
 /* Begin XCRemoteSwiftPackageReference section */
 		8849F9052F710909008ACEC3 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -541,6 +552,12 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		C9LOCAL000000000000000002 /* Shared */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C9LOCAL000000000000000001 /* XCLocalSwiftPackageReference "SharedPackage" */;
+			productName = Shared;
+		};
+
 		8849FA222F710B1B008ACEC3 /* SwiftLintBuildToolPlugin */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 8849F9052F710909008ACEC3 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */;

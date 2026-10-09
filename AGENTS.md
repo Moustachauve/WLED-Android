@@ -47,8 +47,9 @@ This project enforces strict code style, static analysis, and localization rules
 *   **RUN** tests to verify changes:
     ```bash
     ./gradlew test                                    # Unit tests (Android & shared host)
-    ./gradlew :shared:iosSimulatorArm64Test            # iOS unit tests (macOS only)
+    ./gradlew :shared:iosSimulatorArm64Test            # iOS shared unit tests (macOS only)
     ./gradlew :shared:assembleSharedReleaseXCFramework # Build iOS XCFramework with SKIE
+    xcodebuild test -project iosApp/wled.xcodeproj -scheme wled -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO # iOS App tests
     ./gradlew connectedAndroidTest                    # Instrumented tests (requires emulator/device)
     ```
 *   **Note:** Git pre-commit hooks are installed that will **BLOCK** commits if `spotlessCheck` or `detekt` fail. You must ensure these pass before attempting to commit.
@@ -65,7 +66,11 @@ This project enforces strict code style, static analysis, and localization rules
     *   **Versioning:** `major` (breaking), `minor` (feature), `patch` (fix)
 
 ## 5. Project Structure
-The code is located in `app/src/main/java/ca/cgagnier/wlednativeandroid/`.
+*   `app/` - Native Android application (Jetpack Compose).
+*   `shared/` - Kotlin Multiplatform (KMP) shared business logic, database, models, and network.
+*   `iosApp/` - Native iOS application (SwiftUI & `wled.xcodeproj`), consuming `:shared` via `SharedPackage`.
+
+The Android code is located in `app/src/main/java/ca/cgagnier/wlednativeandroid/`.
 
 *   `di/` - Hilt dependency injection modules.
 *   `domain/` - Domain logic and use cases.
