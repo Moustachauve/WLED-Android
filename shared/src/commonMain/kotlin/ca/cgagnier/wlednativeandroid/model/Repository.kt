@@ -4,14 +4,18 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlin.experimental.ExperimentalObjCName
+import kotlin.native.ObjCName
 
 @Entity(indices = [Index(value = ["ownerAndRepo"], unique = true)])
+@OptIn(ExperimentalObjCName::class)
 data class Repository(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
     @ColumnInfo(collate = ColumnInfo.NOCASE)
     val ownerAndRepo: String,
+    @property:ObjCName("descriptionText")
     val description: String,
     val htmlUrl: String,
     @ColumnInfo(defaultValue = "0")

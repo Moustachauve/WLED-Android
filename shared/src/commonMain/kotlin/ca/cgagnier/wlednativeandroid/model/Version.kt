@@ -4,6 +4,8 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlin.experimental.ExperimentalObjCName
+import kotlin.native.ObjCName
 
 @Entity(
     indices = [Index(value = ["repositoryId", "tagName"], unique = true)],
@@ -16,12 +18,14 @@ import androidx.room.PrimaryKey
         ),
     ],
 )
+@OptIn(ExperimentalObjCName::class)
 data class Version(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val repositoryId: Long,
     val tagName: String,
     val name: String,
+    @property:ObjCName("descriptionText")
     val description: String,
     val isPrerelease: Boolean,
     val publishedDate: String,
