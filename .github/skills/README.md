@@ -17,7 +17,7 @@ These skills are licensed under the Apache License 2.0. See the `LICENSE` file i
 
 ### UI (`ui/`)
 * **[Jetpack Compose UI](ui/compose-ui/SKILL.md)**: Stateless composables, modifier chains, and slot APIs.
-* **[Navigation 3](ui/navigation3/SKILL.md)**: State-driven navigation keys, back stacks, and NavDisplay used in WLED-App.
+* **[Navigation 3](ui/navigation3/SKILL.md)**: State-driven navigation keys, back stacks, and NavDisplay used in the WLED app.
 * **[Coil for Jetpack Compose](ui/coil-compose/SKILL.md)**: Image loading with Coil 3 in Compose.
 * **[Accessibility](ui/android-accessibility/SKILL.md)**: Auditing touch targets, semantics, and content descriptions.
 

@@ -45,7 +45,7 @@ class DeviceUpdateService: ObservableObject {
      * These overrides are only applied when the target version is [RELEASE_OVERRIDES_MIN_VERSION]
      * or greater.
      *
-     * See: https://github.com/Moustachauve/WLED-App/issues/129
+     * See: https://github.com/Moustachauve/WLED-Android/issues/129
      */
     static let releaseNameOverrides: [String: String] = [
         "ESP32_V4": "ESP32"

@@ -3,7 +3,7 @@
 This file serves as the primary instruction set for AI agents working on the WLED-App codebase.
 
 ## 1. Project Overview
-WLED-App is a native multiplatform application for Android and iOS for controlling WLED devices (WiFi-controlled LED strips). It features automatic device discovery (mDNS), a unified device list, custom naming, and support for light/dark modes. It succeeds the legacy WLED app.
+WLED-App is the repository for the official native WLED application on Android and iOS for controlling WLED devices (WiFi-controlled LED strips). Across platforms, the application is named WLED. It features automatic device discovery (mDNS), a unified device list, custom naming, and support for light/dark modes. It succeeds the legacy WLED app.
 
 ## 2. Tech Stack & Architecture
 *   **Language:** Kotlin

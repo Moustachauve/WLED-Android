@@ -4,7 +4,7 @@
 
 # WLED-App
 
-Official native applications for Android and iOS for discovering and controlling your [WLED](https://github.com/Aircoookie/WLED) devices easily!  
+The official native application (named **WLED**) for Android and iOS for discovering and controlling your [WLED](https://github.com/Aircoookie/WLED) devices easily!  
 This succeeds the legacy WLED app [found here](https://github.com/Aircoookie/WLED-App).
 
 ### Features
