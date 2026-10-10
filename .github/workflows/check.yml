@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   test:
-    name: Run Unit Tests (Android)
+    name: Run Unit Tests (Android + Shared)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -110,7 +110,7 @@ jobs:
           retention-days: 7
 
   lint:
-    name: Run Lint (Android)
+    name: Run Lint (Android + Shared)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
