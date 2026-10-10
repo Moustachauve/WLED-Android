@@ -1,0 +1,42 @@
+@media (prefers-color-scheme: light) {
+    :root {
+        --text-color: #111;
+        --background-color: #fff;
+        --surface-color: #EEE;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --text-color: #DADADA;
+        --background-color: #000;
+        --surface-color: #181818;
+    }
+}
+
+body {
+    background-color: var(--background-color);
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+}
+div {
+    background-color: var(--surface-color);
+    border-radius: 20px;
+    padding: 15px;
+    margin: 30px 15px;
+    text-align: center;
+}
+div h1 {
+    font-size: 20px;
+    margin-bottom: 0;
+}
+div p {
+    margin-top: 4px;
+}
+div img {
+    display: block;
+    margin: auto;
+    max-height: 100px;
+}
