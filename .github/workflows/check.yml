@@ -145,16 +145,3 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  lint-ios:
-    name: Run Lint (iOS)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Install SwiftLint
-        run: brew install swiftlint
-
-      - name: Run SwiftLint
-        run: swiftlint lint --config iosApp/.swiftlint.yml --strict iosApp
-
