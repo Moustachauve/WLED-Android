@@ -125,7 +125,7 @@ struct DeviceUpdateAvailable: View {
         HStack {
             Image(systemName: getUpdateIconName())
                 .resizable()
-                .aspectRatio(contentMode: .fill)
+                .scaledToFill()
                 .frame(width: 30.0, height: 30.0)
                 .padding(.trailing)
             VStack(alignment: .leading) {
