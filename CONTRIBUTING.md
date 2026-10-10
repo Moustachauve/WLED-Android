@@ -1,4 +1,4 @@
-# Contributing to WLED-android
+# Contributing to WLED-App
 
 Thank you for contributing to the WLED monorepo! This repository contains the native Android application (`app/`), the native iOS application (`iosApp/`), and shared Kotlin Multiplatform business logic (`shared/`).
 

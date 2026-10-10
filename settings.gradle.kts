@@ -15,6 +15,6 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "WLED-Android"
+rootProject.name = "WLED-App"
 include(":app")
 include(":shared")

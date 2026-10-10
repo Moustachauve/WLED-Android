@@ -2,10 +2,10 @@
 <a href='https://apps.apple.com/us/app/wled-native/id6446207239'><img alt='Download on the App Store' src='https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg' height='80'/></a>
 <a href='https://apt.izzysoft.de/packages/ca.cgagnier.wlednativeandroid'><img alt='Get it at IzzyOnDroid' src='https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png' height='80'/></a>
 
-# WLED-android
+# WLED-App
 
-Native applications for Android and iOS for discovering and controlling your [WLED](https://github.com/Aircoookie/WLED) devices easily!  
-This aims to replace the previous WLED app [found here](https://github.com/Aircoookie/WLED-App).
+Official native applications for Android and iOS for discovering and controlling your [WLED](https://github.com/Aircoookie/WLED) devices easily!  
+This succeeds the legacy WLED app [found here](https://github.com/Aircoookie/WLED-App).
 
 ### Features
 - Automatic device detection (mDNS)

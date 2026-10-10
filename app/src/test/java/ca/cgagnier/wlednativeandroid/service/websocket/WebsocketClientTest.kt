@@ -159,7 +159,7 @@ class WebsocketClientTest {
     }
 
     @Test
-    fun `userAgent constant complies with WLED requirements`() {
+    fun `userAgent complies with WLED requirements`() {
         assertEquals("WLED-Android", WebsocketClient.USER_AGENT, "User-Agent must be exactly 'WLED-Android'")
     }
 

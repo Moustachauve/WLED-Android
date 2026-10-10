@@ -37,7 +37,7 @@ private val RELEASE_OVERRIDES_MIN_VERSION = "0.16.0".toVersion(strict = false)
  * These overrides are only applied when the target version is [RELEASE_OVERRIDES_MIN_VERSION]
  * or greater.
  *
- * See: https://github.com/Moustachauve/WLED-Android/issues/129
+ * See: https://github.com/Moustachauve/WLED-App/issues/129
  */
 private val RELEASE_NAME_OVERRIDES = mapOf(
     "ESP32_V4" to "ESP32",

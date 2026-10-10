@@ -2,7 +2,7 @@
 
 <a href='https://apps.apple.com/us/app/wled-native/id6446207239'><img alt='Download on the App Store' src='https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg' height='60'/></a>
 
-Native iOS application for discovering and controlling [WLED](https://github.com/Aircoookie/WLED) devices, built with SwiftUI as part of the [WLED-android](../README.md) monorepo.
+Native iOS application for discovering and controlling [WLED](https://github.com/Aircoookie/WLED) devices, built with SwiftUI as part of the [WLED-App](../README.md) monorepo.
 
 ## Architecture
 
