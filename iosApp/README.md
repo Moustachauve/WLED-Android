@@ -13,7 +13,7 @@ Native iOS application for discovering and controlling [WLED](https://github.com
 ## Building & Testing
 
 ### 1. Build Shared KMP Framework
-The iOS application depends on the shared Kotlin Multiplatform module (`:shared`). Assemble the XCFramework before building in Xcode:
+The iOS application depends on the shared Kotlin Multiplatform module (`:shared`). Building in Xcode automatically runs a build phase that compiles and synchronizes the framework. You can also assemble the XCFramework manually via Gradle:
 
 ```bash
 # Debug build (local development)
