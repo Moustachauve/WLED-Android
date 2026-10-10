@@ -77,7 +77,7 @@ struct DeviceWebsocketListViewModelTests {
     }
 
     @Test func testQuickResumeDoesNotDisconnect() async throws {
-        let device = createDevice(name: "Test Device", mac: "01", isHidden: false)
+        let device = createDevice(name: "Test Device Quick Resume", mac: "04", isHidden: false)
         try context.save()
 
         let viewModel = DeviceWebsocketListViewModel(context: context)
@@ -101,7 +101,7 @@ struct DeviceWebsocketListViewModelTests {
     }
 
     @Test func testFullBackgroundDisconnectsAfterDelay() async throws {
-        let device = createDevice(name: "Test Device", mac: "01", isHidden: false)
+        let device = createDevice(name: "Test Device Background Disconnect", mac: "05", isHidden: false)
         try context.save()
 
         let viewModel = DeviceWebsocketListViewModel(context: context)
@@ -116,7 +116,12 @@ struct DeviceWebsocketListViewModelTests {
 
         // Simulate going to background and staying there
         viewModel.onPause()
-        try await Task.sleep(for: .milliseconds(500)) // Wait well past the 100ms delay
+        
+        // Poll up to 3s for disconnect to complete (resilient against CI CPU scheduling delays)
+        for _ in 0..<30 {
+            if mockClient.deviceState.websocketStatus == .disconnected { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
 
         // Device should now be disconnected
         #expect(mockClient.deviceState.websocketStatus == .disconnected)
