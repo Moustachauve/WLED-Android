@@ -50,7 +50,7 @@ class StatelessDeviceMigrationPolicy: NSEntityMigrationPolicy {
         }
         
         // Set Defaults
-        dInstance.setValue(Branch.unknown.rawValue, forKey: "branch")
+        dInstance.setValue(Branch.unknown.legacyValue, forKey: "branch")
         dInstance.setValue(0, forKey: "lastSeen")
         
         // 6. Associate the source and destination (Required)

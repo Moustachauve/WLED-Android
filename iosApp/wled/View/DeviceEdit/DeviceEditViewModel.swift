@@ -54,9 +54,10 @@ class DeviceEditViewModel: ObservableObject {
                 // Check if the value actually changed from the saved value
                 // to prevent saving when the view first loads
                 if self.device.device.customName != newCustomName {
-                    let updatedDevice = self.device.device.copy(customName: newCustomName)
-                    self.device.device = updatedDevice
-                    self.saveDevice(updatedDevice)
+                    self.device.device = self.device.device.copy(customName: newCustomName)
+                    self.persist { repository, mac in
+                        try await repository.updateCustomName(macAddress: mac, customName: newCustomName)
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -70,9 +71,10 @@ class DeviceEditViewModel: ObservableObject {
 
                 // Check against the source of truth to prevent loops
                 if self.device.device.isHidden != isHidden {
-                    let updatedDevice = self.device.device.copy(isHidden: isHidden)
-                    self.device.device = updatedDevice
-                    self.saveDevice(updatedDevice)
+                    self.device.device = self.device.device.copy(isHidden: isHidden)
+                    self.persist { repository, mac in
+                        try await repository.updateIsHidden(macAddress: mac, isHidden: isHidden)
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -85,9 +87,11 @@ class DeviceEditViewModel: ObservableObject {
                 guard let self = self else { return }
 
                 if self.device.device.branch != newBranch {
-                    let updatedDevice = self.device.device.copy(skipUpdateTag: "", branch: newBranch)
-                    self.device.device = updatedDevice
-                    self.saveDevice(updatedDevice)
+                    // Changing branch also clears the skipped version (done atomically by updateBranch)
+                    self.device.device = self.device.device.copy(skipUpdateTag: "", branch: newBranch)
+                    self.persist { repository, mac in
+                        try await repository.updateBranch(macAddress: mac, branch: newBranch)
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -101,16 +105,20 @@ class DeviceEditViewModel: ObservableObject {
         await ReleaseService(context: context).refreshVersions()
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: WLEDNativeApp.dateLastUpdateKey)
 
-        let updatedDevice = device.device.copy(skipUpdateTag: "")
-        device.device = updatedDevice
-        saveDevice(updatedDevice)
+        device.device = device.device.copy(skipUpdateTag: "")
+        persist { repository, mac in
+            try await repository.updateSkipUpdateTag(macAddress: mac, skipUpdateTag: "")
+        }
         isCheckingForUpdates = false
     }
 
-    private func saveDevice(_ deviceToSave: Device) {
-        Task { [weak self] in
+    /// Persists a single field so concurrent writers (e.g. websocket updates) can't overwrite it with a stale copy.
+    private func persist(_ write: @escaping @Sendable (DeviceRepository, String) async throws -> Void) {
+        let repository = deviceRepository
+        let mac = device.device.macAddress
+        Task {
             do {
-                try await self?.deviceRepository.update(device: deviceToSave)
+                try await write(repository, mac)
             } catch {
                 print("Unresolved error saving device: \(error.localizedDescription)")
             }

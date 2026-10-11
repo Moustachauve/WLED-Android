@@ -31,3 +31,6 @@ fun DevicesDatabase.Companion.createInMemoryDatabase(): DevicesDatabase =
     Room.inMemoryDatabaseBuilder<DevicesDatabase>()
         .configureDevicesDatabase()
         .build()
+
+/** Creates a new [DeviceRepository] backed by this database. Callers should keep and reuse the instance. */
+fun DevicesDatabase.createDeviceRepository(): DeviceRepository = DeviceRepository(deviceDao())

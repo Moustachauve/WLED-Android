@@ -4,7 +4,7 @@ import Combine
 import CoreData
 import Shared
 
-let AP_MODE_MAC_ADDRESS = "00:00:00:00:00:00"
+// TODO: This probably shouldn't be in the Websocket folder?
 
 enum WebsocketStatus {
     case connected
@@ -31,9 +31,16 @@ class DeviceWithState: ObservableObject, Identifiable {
 
     nonisolated let id: String
 
-    init(initialDevice: Device) {
+    /// Core Data context holding the release cache used to compute `availableUpdateVersion`.
+    private let releaseContext: NSManagedObjectContext
+
+    init(
+        initialDevice: Device,
+        releaseContext: NSManagedObjectContext = PersistenceController.shared.container.viewContext
+    ) {
         self.device = initialDevice
         self.id = initialDevice.macAddress
+        self.releaseContext = releaseContext
 
         setupUpdatePipeline()
     }
@@ -45,7 +52,7 @@ class DeviceWithState: ObservableObject, Identifiable {
     }
 
     var isAPMode: Bool {
-        return device.macAddress == AP_MODE_MAC_ADDRESS
+        return device.macAddress == DeviceKt.AP_MODE_MAC_ADDRESS
     }
 
     var hasUpdateAvailable: Bool {
@@ -66,15 +73,14 @@ class DeviceWithState: ObservableObject, Identifiable {
                 prev.0.branch == curr.0.branch &&
                 prev.0.skipUpdateTag == curr.0.skipUpdateTag
             }
-            .receive(on: DispatchQueue.main)
-            .map { (device, stateInfo) -> String? in
+            .receive(on: DispatchQueue.main) // Perform logic on Main Thread (safe for Core Data)
+            .map { [releaseContext] (device, stateInfo) -> String? in
                 guard let info = stateInfo?.info,
                       let currentVersion = info.version else {
                     return nil
                 }
 
-                let context = PersistenceController.shared.container.viewContext
-                let releaseService = ReleaseService(context: context)
+                let releaseService = ReleaseService(context: releaseContext)
                 let newerTag = releaseService.getNewerReleaseTag(
                     versionName: currentVersion,
                     branch: device.branch,
@@ -92,10 +98,10 @@ class DeviceWithState: ObservableObject, Identifiable {
     /**
      * Get a DeviceWithState that can be used to represent a temporary WLED device in AP mode.
      */
-    static func getApModeDeviceWithState(context: NSManagedObjectContext? = nil) -> DeviceWithState {
+    static func getApModeDeviceWithState() -> DeviceWithState {
         let device = Device(
-            macAddress: AP_MODE_MAC_ADDRESS,
-            address: "4.3.2.1"
+            macAddress: DeviceKt.AP_MODE_MAC_ADDRESS,
+            address: DeviceKt.DEFAULT_WLED_AP_IP
         )
         let deviceWithState = DeviceWithState(initialDevice: device)
         deviceWithState.websocketStatus = .connected
@@ -123,6 +129,10 @@ class DeviceWithState: ObservableObject, Identifiable {
     }
 
     private func colorFromHex(rgbValue: Int, alpha: Double? = 1.0) -> Color {
+        // &  binary AND operator to zero out other color values
+        // >>  bitwise right shift operator
+        // Divide by 0xFF because UIColor takes CGFloats between 0.0 and 1.0
+
         let red =   CGFloat((rgbValue & 0xFF0000) >> 16) / 0xFF
         let green = CGFloat((rgbValue & 0x00FF00) >> 8) / 0xFF
         let blue =  CGFloat(rgbValue & 0x0000FF) / 0xFF
@@ -134,10 +144,12 @@ class DeviceWithState: ObservableObject, Identifiable {
 
 // MARK: - Hashable & Equatable Conformance
 extension DeviceWithState: Hashable {
+    // Two instances are equal if they represent the same device (same MAC address)
     nonisolated static func == (lhs: DeviceWithState, rhs: DeviceWithState) -> Bool {
         return lhs.id == rhs.id
     }
 
+    // Hash based on the device's MAC address
     nonisolated func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }

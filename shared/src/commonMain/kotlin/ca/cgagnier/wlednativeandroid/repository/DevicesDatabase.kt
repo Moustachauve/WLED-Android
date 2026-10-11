@@ -50,9 +50,6 @@ abstract class DevicesDatabase : RoomDatabase() {
     companion object
 }
 
-val DevicesDatabase.deviceRepository: DeviceRepository
-    get() = DeviceRepository(deviceDao())
-
 @Suppress("NO_ACTUAL_FOR_EXPECT", "KotlinRedundantDiagnosticSuppress")
 expect object DevicesDatabaseConstructor : RoomDatabaseConstructor<DevicesDatabase> {
     override fun initialize(): DevicesDatabase

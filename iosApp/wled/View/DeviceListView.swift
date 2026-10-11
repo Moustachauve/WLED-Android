@@ -25,12 +25,13 @@ struct DeviceListView: View {
 
     // MARK: - init
 
+    // Allow injecting a specific database (defaulting to shared for the actual app)
     init(
-        deviceRepository: DeviceRepository = AppDatabase.shared.deviceRepository,
+        database: AppDatabase = .shared,
         clientFactory: ((Device) -> WebsocketClient)? = nil
     ) {
         let viewModel = DeviceWebsocketListViewModel(
-            deviceRepository: deviceRepository,
+            database: database,
             clientFactory: clientFactory
         )
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -310,6 +311,7 @@ struct DeviceListView: View {
     // swiftlint:enable redundant_discardable_let
 
     DeviceListView(
+        database: PreviewData.database,
         clientFactory: { device in
             MockWebsocketClient(device: device)
         }

@@ -9,14 +9,14 @@ struct CoreDataToRoomMigratorTests {
 
     let container: NSPersistentContainer
     let context: NSManagedObjectContext
-    let database: DevicesDatabase
+    let database: AppDatabase
     let repository: DeviceRepository
     let testUserDefaults: UserDefaults
 
     init() {
         self.container = PersistenceController(inMemory: true).container
         self.context = container.viewContext
-        self.database = DevicesDatabase.companion.createInMemoryDatabase()
+        self.database = AppDatabase(inMemory: true)
         self.repository = database.deviceRepository
 
         let suiteName = "CoreDataToRoomMigratorTests.\(UUID().uuidString)"

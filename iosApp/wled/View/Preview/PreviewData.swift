@@ -17,6 +17,9 @@ struct PreviewData {
         return PersistenceController.preview.container.viewContext
     }
 
+    /// In-memory device database that preview devices are saved to, so list previews can observe them.
+    static let database = AppDatabase(inMemory: true)
+
     // MARK: - Devices
 
     static var onlineDevice: DeviceWithState {
@@ -24,11 +27,10 @@ struct PreviewData {
     }
 
     static var offlineDevice: DeviceWithState {
-        let device = createDevice(name: "WLED Strip", ip: "10.0.1.13")
-        device.websocketStatus = .disconnected
         // Set last seen to 2 hours ago
         let twoHoursAgo = Int64(Date().addingTimeInterval(-7200).timeIntervalSince1970 * 1000)
-        device.device = device.device.copy(lastSeen: twoHoursAgo)
+        let device = createDevice(name: "WLED Strip", ip: "10.0.1.13", lastSeen: twoHoursAgo)
+        device.websocketStatus = .disconnected
         return device
     }
 
@@ -52,15 +54,21 @@ struct PreviewData {
         ip: String,
         version: String = "0.14.0",
         isHidden: Bool = false,
-        color: [Int] = [255, 160, 0]
+        color: [Int] = [255, 160, 0],
+        lastSeen: Int64 = Int64(Date().timeIntervalSince1970 * 1000)
     ) -> DeviceWithState {
         let macAddress = "mock:mac:\(ip)"
         let device = Device(
             macAddress: macAddress,
             address: ip,
             isHidden: isHidden,
-            originalName: name
+            originalName: name,
+            lastSeen: lastSeen
         )
+        // Save so list previews observing the database pick it up (insert replaces on conflict)
+        Task {
+            try? await database.deviceRepository.insert(device: device)
+        }
 
         let deviceWithState = DeviceWithState(initialDevice: device)
         deviceWithState.websocketStatus = .connected

@@ -4,6 +4,8 @@ import Shared
 import MarkdownUI
 import OSLog
 
+private typealias State = SwiftUI.State
+
 struct DeviceUpdateDetails: View {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native", category: "DeviceUpdateDetails")
     // TODO: Pass the version to display instead of only showing the latest one
@@ -13,8 +15,8 @@ struct DeviceUpdateDetails: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var device: DeviceWithState
     
-    @SwiftUI.State var showWarningDialog = false
-    @SwiftUI.State var showInstallingDialog = false
+    @State var showWarningDialog = false
+    @State var showInstallingDialog = false
     
     @StateObject var versionViewModel = VersionViewModel()
     
@@ -71,11 +73,11 @@ struct DeviceUpdateDetails: View {
     
     func skipVersion() {
         let tag = device.availableUpdateVersion ?? ""
-        let updatedDevice = device.device.copy(skipUpdateTag: tag)
-        device.device = updatedDevice
+        let mac = device.device.macAddress
+        device.device = device.device.copy(skipUpdateTag: tag)
         Task {
             do {
-                try await AppDatabase.shared.deviceRepository.update(device: updatedDevice)
+                try await AppDatabase.shared.deviceRepository.updateSkipUpdateTag(macAddress: mac, skipUpdateTag: tag)
             } catch {
                 Self.logger.error("Unresolved error saving skip version: \(error.localizedDescription)")
             }
