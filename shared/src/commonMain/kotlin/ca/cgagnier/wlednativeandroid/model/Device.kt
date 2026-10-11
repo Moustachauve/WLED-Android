@@ -2,7 +2,6 @@ package ca.cgagnier.wlednativeandroid.model
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.Ignore
 import androidx.room.PrimaryKey
 import ca.cgagnier.wlednativeandroid.shared.currentTimeMillis
 
@@ -39,30 +38,6 @@ data class Device(
     @ColumnInfo(defaultValue = "1")
     val repositoryId: Long = Repository.DEFAULT_ID,
 ) {
-    @Ignore
-    constructor(
-        macAddress: String,
-        address: String,
-        isHidden: Boolean = false,
-        originalName: String = "",
-        customName: String = "",
-        skipUpdateTag: String = "",
-        branch: Branch = Branch.UNKNOWN,
-        lastSeen: Long = currentTimeMillis(),
-    ) : this(
-        macAddress = macAddress,
-        address = address,
-        isHidden = isHidden,
-        originalName = originalName,
-        customName = customName,
-        skipUpdateTag = skipUpdateTag,
-        branch = branch,
-        lastSeen = lastSeen,
-        repositoryId = Repository.DEFAULT_ID,
-    )
-
-    val displayName: String
-        get() = customName.ifBlank { originalName.ifBlank { address } }
 
     fun getDeviceUrl(): String = "http://$address"
 }

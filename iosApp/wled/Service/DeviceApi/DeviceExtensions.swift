@@ -2,6 +2,17 @@ import Foundation
 import Shared
 
 extension Device {
+    var displayName: String {
+        if !customName.isEmpty {
+            return customName
+        }
+        if !originalName.isEmpty {
+            return originalName
+        }
+        return String(localized: "(New Device)")
+    }
+
+    /// Swift-friendly initializer mirroring the Kotlin default arguments, which aren't exported to Swift.
     convenience init(
         macAddress: String,
         address: String,
@@ -10,7 +21,7 @@ extension Device {
         customName: String = "",
         skipUpdateTag: String = "",
         branch: Branch = .unknown,
-        lastSeen: Int64 = 0
+        lastSeen: Int64 = Int64(Date().timeIntervalSince1970 * 1000)
     ) {
         self.init(
             macAddress: macAddress,
@@ -21,7 +32,7 @@ extension Device {
             skipUpdateTag: skipUpdateTag,
             branch: branch,
             lastSeen: lastSeen,
-            repositoryId: 1
+            repositoryId: Repository.companion.DEFAULT_ID
         )
     }
 

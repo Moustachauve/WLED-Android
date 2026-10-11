@@ -52,7 +52,7 @@ struct StatelessDeviceMigrationPolicyTests {
         #expect(dInstance.value(forKey: "originalName") as? String == "My Light")
 
         // Verify Defaults
-        #expect(dInstance.value(forKey: "branch") as? String == Branch.unknown.rawValue)
+        #expect(dInstance.value(forKey: "branch") as? String == Branch.unknown.legacyValue)
         #expect(dInstance.value(forKey: "lastSeen") as? Int == 0)
 
         // Verify Association

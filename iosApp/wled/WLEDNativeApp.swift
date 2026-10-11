@@ -10,17 +10,9 @@ struct WLEDNativeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            DeviceListView(deviceRepository: appDatabase.deviceRepository)
+            DeviceListView(database: appDatabase)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .task {
-                    do {
-                        try await CoreDataToRoomMigrator.migrateIfNeeded(
-                            context: persistenceController.container.viewContext,
-                            repository: appDatabase.deviceRepository
-                        )
-                    } catch {
-                        print("Core Data to Room migration failed: \(error)")
-                    }
+                .onAppear {
                     refreshVersionsSync()
                 }
         }

@@ -20,6 +20,9 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject {
     @Published var showHiddenDevices: Bool = false {
         didSet {
             UserDefaults.standard.set(showHiddenDevices, forKey: "DeviceListView.showHiddenDevices")
+            // Refilter here rather than from `$showHiddenDevices`: @Published emits in willSet,
+            // so a subscriber would still read the old value.
+            updateFilteredDevices(currentTime: Date())
         }
     }
     @Published var showOfflineDevices: Bool = true {
@@ -35,9 +38,15 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject {
     // MARK: - Private Properties
 
     private var discoveryService: DiscoveryService?
+    private let database: AppDatabase
     private let deviceFirstContactService: DeviceFirstContactService
     private let deviceRepository: DeviceRepository
     private var observeDevicesTask: Task<Void, Never>?
+
+    /// Last `lastSeen` value written to (or read from) the database, per MAC address.
+    /// `lastSeen` changes on every websocket message, so it's kept in memory and only persisted periodically.
+    private var persistedLastSeen: [String: Int64] = [:]
+    private let lastSeenPersistInterval: Int64 = 30_000
 
     // Map of MacAddress -> Client Wrapper
     // We store the last known address to detect IP changes
@@ -61,11 +70,12 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject {
     // MARK: - Initialization
 
     init(
-        deviceRepository: DeviceRepository = AppDatabase.shared.deviceRepository,
+        database: AppDatabase = .shared,
         clientFactory: ((Device) -> WebsocketClient)? = nil
     ) {
-        self.deviceRepository = deviceRepository
-        self.deviceFirstContactService = DeviceFirstContactService(repository: deviceRepository)
+        self.database = database
+        self.deviceRepository = database.deviceRepository
+        self.deviceFirstContactService = DeviceFirstContactService(repository: database.deviceRepository)
         if let clientFactory = clientFactory {
             self.makeClient = clientFactory
         }
@@ -93,14 +103,6 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Reactively update when preferences change
-        Publishers.CombineLatest($showHiddenDevices, $showOfflineDevices)
-            .dropFirst()
-            .sink { [weak self] _ in
-                self?.updateFilteredDevices(currentTime: Date())
-            }
-            .store(in: &cancellables)
-
         // Reactively update when any device status changes or the list itself changes
         $allDevicesWithState
             .map { devices in
@@ -125,23 +127,25 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject {
             .store(in: &cancellables)
     }
 
-    deinit {
-        observeDevicesTask?.cancel()
-    }
-
     // MARK: - Setup and loading
 
     /// Call this when the view appears to initialize data and connections
     func load() {
+        // Prevent double loading if already set up
         guard observeDevicesTask == nil else { return }
 
-        observeDevicesTask = Task { [weak self] in
-            guard let self = self else { return }
-            for await devices in self.deviceRepository.allDevices {
-                guard !Task.isCancelled else { break }
+        let database = database
+        let task = Task { [weak self] in
+            await database.waitUntilReady()
+            for await devices in database.deviceRepository.allDevices {
+                // Only hold self for the duration of one emission so the view model can be deallocated
+                guard let self, !Task.isCancelled else { break }
                 self.updateClients(with: devices)
             }
         }
+        observeDevicesTask = task
+        // Cancels the observation when the view model is deallocated
+        AnyCancellable { task.cancel() }.store(in: &cancellables)
     }
 
     // MARK: - Client Management Logic
@@ -158,11 +162,13 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject {
             print("[ListVM] Device removed: \(mac). Destroying client.")
             activeClients[mac]?.client.destroy()
             activeClients[mac] = nil
+            persistedLastSeen[mac] = nil
         }
 
         // 2. Identify and create/update clients for new or changed devices
         for (mac, device) in newDeviceMap {
             let address = device.address
+            persistedLastSeen[mac] = max(persistedLastSeen[mac] ?? 0, device.lastSeen)
 
             if let existingWrapper = activeClients[mac] {
                 if existingWrapper.lastKnownAddress != address {
@@ -171,8 +177,13 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject {
                     existingWrapper.client.destroy()
                     createAndAddClient(for: device, mac: mac)
                 } else {
-                    // Update the device data model on the existing wrapper
-                    existingWrapper.client.deviceState.device = device
+                    // Just a regular update (e.g. name changed). The database copy can lag behind the
+                    // in-memory lastSeen, which is only persisted periodically, so keep the newest one.
+                    let current = existingWrapper.client.deviceState.device
+                    let merged = device.lastSeen >= current.lastSeen ? device : device.copy(lastSeen: current.lastSeen)
+                    if current != merged {
+                        existingWrapper.client.deviceState.device = merged
+                    }
                 }
             } else {
                 // New Device
@@ -201,44 +212,6 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject {
         )
     }
 
-    private func handleDeviceUpdate(macAddress: String, info: DeviceStateInfo) {
-        guard let wrapper = activeClients[macAddress] else { return }
-        let currentDevice = wrapper.client.deviceState.device
-
-        let newName = info.info.name
-        let newVersion = info.info.version ?? ""
-        var structuralChange = false
-
-        var currentBranch = currentDevice.branch
-        if currentBranch == .unknown {
-            if newVersion.contains("-b") {
-                currentBranch = .beta
-            } else {
-                currentBranch = .stable
-            }
-            structuralChange = true
-        }
-        if currentDevice.originalName != newName {
-            structuralChange = true
-        }
-
-        let newLastSeen = Int64(Date().timeIntervalSince1970 * 1000)
-
-        if structuralChange {
-            let updatedDevice = currentDevice.copy(
-                originalName: newName,
-                branch: currentBranch,
-                lastSeen: newLastSeen
-            )
-            Task { [weak self] in
-                try? await self?.deviceRepository.update(device: updatedDevice)
-            }
-        } else {
-            let updatedDevice = currentDevice.copy(lastSeen: newLastSeen)
-            wrapper.client.deviceState.device = updatedDevice
-        }
-    }
-
     private func publishState() {
         // Map the clients to the DeviceWithState list expected by the UI
         self.allDevicesWithState = self.activeClients.values.map { wrapper in
@@ -251,6 +224,7 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject {
 
     func onPause() {
         print("[ListVM] onPause: Scheduling disconnect.")
+        flushLastSeen()
         backgroundTask?.cancel()
         let delay = backgroundDisconnectDelay
         backgroundTask = Task { @MainActor [weak self] in
@@ -355,6 +329,8 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject {
 
     private func deviceDiscovered(at address: String, withMACAddress macAddress: String?) {
         Task {
+            // Don't upsert discovered devices until legacy devices have been imported
+            await database.waitUntilReady()
             do {
                 if await !deviceFirstContactService
                     .tryUpdateAddress(macAddress: macAddress, address: address) {
@@ -363,6 +339,83 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject {
                 }
             } catch {
                 print("deviceDiscovered: Failed to upsert device: \(error)")
+            }
+        }
+    }
+}
+
+// MARK: - Device persistence
+
+extension DeviceWebsocketListViewModel {
+    private func handleDeviceUpdate(macAddress: String, info: DeviceStateInfo) {
+        guard let wrapper = activeClients[macAddress] else { return }
+        let deviceState = wrapper.client.deviceState
+        let currentDevice = deviceState.device
+
+        let newName = info.info.name
+        let newVersion = info.info.version ?? ""
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+
+        var detectedBranch: Branch?
+        if currentDevice.branch == .unknown {
+            detectedBranch = newVersion.contains("-b") ? .beta : .stable
+        }
+        let nameChanged = currentDevice.originalName != newName
+
+        // Update in memory right away so the UI and the offline grace period reflect it
+        deviceState.device = currentDevice.copy(
+            originalName: newName,
+            branch: detectedBranch ?? currentDevice.branch,
+            lastSeen: now
+        )
+
+        // Only perform disk I/O if important data changed or the persisted lastSeen is getting stale
+        let structuralChange = nameChanged || detectedBranch != nil
+        let lastSeenIsStale = now - (persistedLastSeen[macAddress] ?? 0) >= lastSeenPersistInterval
+        persist(
+            macAddress: macAddress,
+            originalName: nameChanged ? newName : nil,
+            branch: detectedBranch,
+            lastSeen: structuralChange || lastSeenIsStale ? now : nil
+        )
+    }
+
+    /// Writes only the provided fields, so concurrent writers (e.g. the edit screen) can't be overwritten
+    /// with a stale copy of the device.
+    private func persist(
+        macAddress: String,
+        originalName: String? = nil,
+        branch: Branch? = nil,
+        lastSeen: Int64? = nil
+    ) {
+        guard originalName != nil || branch != nil || lastSeen != nil else { return }
+        if let lastSeen {
+            persistedLastSeen[macAddress] = lastSeen
+        }
+        let repository = deviceRepository
+        Task {
+            do {
+                if let originalName {
+                    try await repository.updateOriginalName(macAddress: macAddress, originalName: originalName)
+                }
+                if let branch {
+                    try await repository.updateBranch(macAddress: macAddress, branch: branch)
+                }
+                if let lastSeen {
+                    try await repository.updateLastSeen(macAddress: macAddress, lastSeen: lastSeen)
+                }
+            } catch {
+                print("[ListVM] Failed to persist device \(macAddress): \(error)")
+            }
+        }
+    }
+
+    /// Persists any in-memory lastSeen that is newer than what's in the database.
+    private func flushLastSeen() {
+        for (mac, wrapper) in activeClients {
+            let lastSeen = wrapper.client.deviceState.device.lastSeen
+            if lastSeen > (persistedLastSeen[mac] ?? 0) {
+                persist(macAddress: mac, lastSeen: lastSeen)
             }
         }
     }

@@ -77,6 +77,7 @@ actor DeviceFirstContactService {
     func tryUpdateAddress(macAddress: String?, address: String) async -> Bool {
         guard let macAddress, !macAddress.isEmpty else { return false }
 
+        // Ensure the address provided by mDNS is clean before saving
         let cleanAddress = sanitize(address: address)
         guard let existingDevice = try? await repository.findDeviceByMacAddress(address: macAddress) else {
             return false
@@ -84,9 +85,8 @@ actor DeviceFirstContactService {
 
         if existingDevice.address != cleanAddress {
             logger.info("Fast update: IP changed for \(existingDevice.originalName) (\(macAddress))")
-            let updatedDevice = existingDevice.copy(address: cleanAddress)
             do {
-                try await repository.update(device: updatedDevice)
+                try await repository.updateAddress(macAddress: existingDevice.macAddress, address: cleanAddress)
             } catch {
                 logger.error("Failed to save fast update: \(error.localizedDescription)")
             }
@@ -115,6 +115,7 @@ actor DeviceFirstContactService {
 
     /// Fetches device information from the specified address.
     private func fetchDeviceInfo(address: String) async throws -> Info {
+        // Construct URL, ensuring http scheme and json/info path
         let urlString = "http://\(address)/json/info"
 
         guard let url = URL(string: urlString) else {
@@ -135,34 +136,33 @@ actor DeviceFirstContactService {
 
     /// Handles the repository logic to find, update, or create the device.
     private func upsertDevice(macAddress: String, hostname: String, name: String?) async throws -> Device {
-        if let existingDevice = try? await repository.findDeviceByMacAddress(address: macAddress) {
-            let deviceName = name ?? existingDevice.originalName
-            if existingDevice.address == hostname && existingDevice.originalName == deviceName {
-                logger.debug("Device exists and is up to date: \(macAddress)")
-                return existingDevice
-            } else {
-                logger.debug("Updating existing device: \(macAddress)")
-                let updatedDevice = existingDevice.copy(
-                    address: hostname,
-                    originalName: deviceName
-                )
-                try await repository.update(device: updatedDevice)
-                return updatedDevice
-            }
-        } else {
+        guard let existingDevice = try await repository.findDeviceByMacAddress(address: macAddress) else {
             logger.info("Creating new device: \(macAddress)")
             let newDevice = Device(
                 macAddress: macAddress,
                 address: hostname,
-                isHidden: false,
                 originalName: name ?? "",
-                customName: "",
-                skipUpdateTag: "",
-                branch: .unknown,
                 lastSeen: 0
             )
             try await repository.insert(device: newDevice)
             return newDevice
         }
+
+        let deviceName = name ?? existingDevice.originalName
+        // Check if updates are actually needed to minimize database writes
+        if existingDevice.address == hostname && existingDevice.originalName == deviceName {
+            logger.debug("Device exists and is up to date: \(macAddress)")
+            return existingDevice
+        }
+
+        logger.debug("Updating existing device: \(macAddress)")
+        let storedMac = existingDevice.macAddress
+        if existingDevice.address != hostname {
+            try await repository.updateAddress(macAddress: storedMac, address: hostname)
+        }
+        if existingDevice.originalName != deviceName {
+            try await repository.updateOriginalName(macAddress: storedMac, originalName: deviceName)
+        }
+        return existingDevice.copy(address: hostname, originalName: deviceName)
     }
 }

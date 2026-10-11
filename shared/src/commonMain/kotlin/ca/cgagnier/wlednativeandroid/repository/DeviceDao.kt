@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
 import kotlinx.coroutines.flow.Flow
 
@@ -16,6 +17,28 @@ interface DeviceDao {
 
     @Update
     suspend fun update(device: Device)
+
+    @Query("UPDATE Device2 SET address = :address WHERE macAddress = :macAddress")
+    suspend fun updateAddress(macAddress: String, address: String)
+
+    @Query("UPDATE Device2 SET originalName = :originalName WHERE macAddress = :macAddress")
+    suspend fun updateOriginalName(macAddress: String, originalName: String)
+
+    @Query("UPDATE Device2 SET customName = :customName WHERE macAddress = :macAddress")
+    suspend fun updateCustomName(macAddress: String, customName: String)
+
+    @Query("UPDATE Device2 SET isHidden = :isHidden WHERE macAddress = :macAddress")
+    suspend fun updateIsHidden(macAddress: String, isHidden: Boolean)
+
+    @Query("UPDATE Device2 SET skipUpdateTag = :skipUpdateTag WHERE macAddress = :macAddress")
+    suspend fun updateSkipUpdateTag(macAddress: String, skipUpdateTag: String)
+
+    /** Changing branch also clears the skipped version, since it belongs to the previous branch. */
+    @Query("UPDATE Device2 SET branch = :branch, skipUpdateTag = '' WHERE macAddress = :macAddress")
+    suspend fun updateBranch(macAddress: String, branch: Branch)
+
+    @Query("UPDATE Device2 SET lastSeen = :lastSeen WHERE macAddress = :macAddress")
+    suspend fun updateLastSeen(macAddress: String, lastSeen: Long)
 
     @Delete
     suspend fun delete(device: Device)
