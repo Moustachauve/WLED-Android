@@ -20,11 +20,22 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
 
+/**
+ * HTTP API of a single WLED device.
+ *
+ * Non-2xx responses are reported through [ApiResponse]. Transport failures (timeouts, unreachable
+ * host, malformed JSON, ...) are thrown. Every member is annotated with `@Throws(Exception::class)`
+ * so that these failures surface as Swift errors on iOS instead of terminating the process, which
+ * is what Kotlin/Native does for undeclared exceptions crossing into Objective-C/Swift.
+ */
 interface DeviceApi {
+    @Throws(Exception::class)
     suspend fun getInfo(): ApiResponse<Info>
 
+    @Throws(Exception::class)
     suspend fun postJson(state: JsonPost): ApiResponse<State>
 
+    @Throws(Exception::class)
     suspend fun updateDevice(fileData: ByteArray, fileName: String): ApiResponse<String>
 }
 
@@ -36,6 +47,7 @@ class KtorDeviceApi(private val baseUrl: String, private val httpClient: HttpCli
         return "$base$relative"
     }
 
+    @Throws(Exception::class)
     override suspend fun getInfo(): ApiResponse<Info> {
         val response = httpClient.get(normalizeUrl("json/info"))
         return if (response.status.isSuccess()) {
@@ -45,6 +57,7 @@ class KtorDeviceApi(private val baseUrl: String, private val httpClient: HttpCli
         }
     }
 
+    @Throws(Exception::class)
     override suspend fun postJson(state: JsonPost): ApiResponse<State> {
         val response = httpClient.post(normalizeUrl("json/state")) {
             contentType(ContentType.Application.Json)
@@ -57,6 +70,7 @@ class KtorDeviceApi(private val baseUrl: String, private val httpClient: HttpCli
         }
     }
 
+    @Throws(Exception::class)
     override suspend fun updateDevice(fileData: ByteArray, fileName: String): ApiResponse<String> {
         val response = httpClient.submitFormWithBinaryData(
             url = normalizeUrl("update"),
