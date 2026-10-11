@@ -125,6 +125,8 @@ struct DeviceUpdateAvailable: View {
         HStack {
             Image(systemName: getUpdateIconName())
                 .resizable()
+                // TODO: Migrate legacy aspectRatio to scaledToFill in a dedicated follow-up PR
+                // swiftlint:disable:next all
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 30.0, height: 30.0)
                 .padding(.trailing)

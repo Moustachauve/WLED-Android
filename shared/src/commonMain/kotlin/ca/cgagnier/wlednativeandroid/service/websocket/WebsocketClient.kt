@@ -4,6 +4,7 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.shared.SynchronizedObject
+import ca.cgagnier.wlednativeandroid.shared.getPlatformName
 import ca.cgagnier.wlednativeandroid.shared.synchronized
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
@@ -409,7 +410,7 @@ class WebsocketClient(
 
     companion object {
         const val WEBSOCKET_PATH = "ws"
-        const val USER_AGENT = "WLED-Android"
+        val USER_AGENT = "WLED-${getPlatformName()}"
         private val PROTOCOL_REGEX = Regex("^(https?|wss?)://", RegexOption.IGNORE_CASE)
         const val BASE_BACKOFF_MS = 2000L
         const val MAX_BACKOFF_MS = 60000L

@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   test:
-    name: Run Unit Tests
+    name: Run Unit Tests (Android + Shared)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -52,7 +52,7 @@ jobs:
           retention-days: 7
 
   test-ios:
-    name: Run iOS Unit Tests & Build
+    name: Run Unit Tests & Build (iOS)
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -110,7 +110,7 @@ jobs:
           retention-days: 7
 
   lint:
-    name: Run Lint
+    name: Run Lint (Android + Shared)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -144,4 +144,17 @@ jobs:
             shared/build/reports/detekt/
           if-no-files-found: ignore
           retention-days: 7
+
+  lint-ios:
+    name: Run Lint (iOS)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Run SwiftLint
+        run: swiftlint lint --config iosApp/.swiftlint.yml --strict iosApp
 
