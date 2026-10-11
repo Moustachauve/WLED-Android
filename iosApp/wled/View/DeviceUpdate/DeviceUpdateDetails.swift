@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import Shared
 import MarkdownUI
 import OSLog
 
@@ -12,8 +13,8 @@ struct DeviceUpdateDetails: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var device: DeviceWithState
     
-    @State var showWarningDialog = false
-    @State var showInstallingDialog = false
+    @SwiftUI.State var showWarningDialog = false
+    @SwiftUI.State var showInstallingDialog = false
     
     @StateObject var versionViewModel = VersionViewModel()
     
@@ -69,12 +70,15 @@ struct DeviceUpdateDetails: View {
     }
     
     func skipVersion() {
-        device.device.skipUpdateTag = device.availableUpdateVersion
-        do {
-            try viewContext.save()
-        } catch {
-            let nsError = error as NSError
-            Self.logger.error("Unresolved error saving skip version: \(nsError), \(nsError.userInfo)")
+        let tag = device.availableUpdateVersion ?? ""
+        let updatedDevice = device.device.copy(skipUpdateTag: tag)
+        device.device = updatedDevice
+        Task {
+            do {
+                try await AppDatabase.shared.deviceRepository.update(device: updatedDevice)
+            } catch {
+                Self.logger.error("Unresolved error saving skip version: \(error.localizedDescription)")
+            }
         }
         dismiss()
     }

@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import CoreData
+import Shared
 
 @MainActor
 struct PreviewData {
@@ -26,7 +27,8 @@ struct PreviewData {
         let device = createDevice(name: "WLED Strip", ip: "10.0.1.13")
         device.websocketStatus = .disconnected
         // Set last seen to 2 hours ago
-        device.device.lastSeen = Int64(Date().addingTimeInterval(-7200).timeIntervalSince1970 * 1000)
+        let twoHoursAgo = Int64(Date().addingTimeInterval(-7200).timeIntervalSince1970 * 1000)
+        device.device = device.device.copy(lastSeen: twoHoursAgo)
         return device
     }
 
@@ -53,32 +55,16 @@ struct PreviewData {
         color: [Int] = [255, 160, 0]
     ) -> DeviceWithState {
         let macAddress = "mock:mac:\(ip)"
-        let request: NSFetchRequest<Device> = Device.fetchRequest()
-        request.predicate = NSPredicate(format: "macAddress == %@", macAddress)
-
-        var device: Device!
-
-        // 1. Try to find existing device
-        if let results = try? viewContext.fetch(request), let existing = results.first {
-            device = existing
-        } else {
-            device = Device(context: viewContext)
-            device.macAddress = macAddress
-        }
-
-        // Always update properties (so code changes reflect immediately in preview)
-        device.originalName = name
-        device.address = ip
-        device.isHidden = isHidden
+        let device = Device(
+            macAddress: macAddress,
+            address: ip,
+            isHidden: isHidden,
+            originalName: name
+        )
 
         let deviceWithState = DeviceWithState(initialDevice: device)
         deviceWithState.websocketStatus = .connected
         deviceWithState.stateInfo = .mock(name: name, version: version, color: color)
-
-        // Save to ensure ID is stable
-        if viewContext.hasChanges {
-            try? viewContext.save()
-        }
 
         return deviceWithState
     }

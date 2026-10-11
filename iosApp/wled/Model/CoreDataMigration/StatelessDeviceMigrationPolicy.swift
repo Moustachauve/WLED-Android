@@ -1,4 +1,5 @@
 import CoreData
+import Shared
 
 @objc(StatelessDeviceMigrationPolicy)
 class StatelessDeviceMigrationPolicy: NSEntityMigrationPolicy {

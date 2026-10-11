@@ -1,5 +1,6 @@
 import Testing
 import CoreData
+import Shared
 @testable import WLED
 
 @MainActor

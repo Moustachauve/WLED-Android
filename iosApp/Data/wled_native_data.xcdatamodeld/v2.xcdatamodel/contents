@@ -12,7 +12,7 @@
             </userInfo>
         </relationship>
     </entity>
-    <entity name="Device" representedClassName="Device" syncable="YES" codeGenerationType="class">
+    <entity name="Device" representedClassName="NSManagedObject" syncable="YES">
         <attribute name="address" attributeType="String"/>
         <attribute name="branch" optional="YES" attributeType="String"/>
         <attribute name="customName" optional="YES" attributeType="String"/>

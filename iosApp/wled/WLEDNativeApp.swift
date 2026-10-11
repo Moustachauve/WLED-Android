@@ -4,19 +4,28 @@ import SwiftUI
 @main
 struct WLEDNativeApp: App {
     static let dateLastUpdateKey = "lastUpdateReleasesDate"
-    
+
     let persistenceController = PersistenceController.shared
-    
+    let appDatabase = AppDatabase.shared
+
     var body: some Scene {
         WindowGroup {
-            DeviceListView()
+            DeviceListView(deviceRepository: appDatabase.deviceRepository)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .onAppear {
+                .task {
+                    do {
+                        try await CoreDataToRoomMigrator.migrateIfNeeded(
+                            context: persistenceController.container.viewContext,
+                            repository: appDatabase.deviceRepository
+                        )
+                    } catch {
+                        print("Core Data to Room migration failed: \(error)")
+                    }
                     refreshVersionsSync()
                 }
         }
     }
-    
+
     private func refreshVersionsSync() {
         Task {
             // Only update automatically from Github once per 24 hours to avoid rate limits

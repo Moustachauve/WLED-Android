@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Shared
 
 struct DeviceInfoTwoRows: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -25,7 +26,7 @@ struct DeviceInfoTwoRows: View {
             }
             HStack(spacing: 4) {
                 WebsocketStatusIndicator(currentStatus: device.websocketStatus)
-                Text(device.device.address ?? "")
+                Text(device.device.address)
                     .lineLimit(1)
                     .fixedSize()
                     .lineSpacing(0)
@@ -210,10 +211,12 @@ struct OfflineSinceText_Previews: PreviewProvider {
 
     // Helper to create the device and view
     static func createPreview(offset: TimeInterval, label: String) -> some View {
-        let context = PersistenceController.preview.container.viewContext
-        let device = Device(context: context)
-        // Convert Date to Int64 milliseconds
-        device.lastSeen = Int64(Date().addingTimeInterval(offset).timeIntervalSince1970 * 1000)
+        let lastSeen = Int64(Date().addingTimeInterval(offset).timeIntervalSince1970 * 1000)
+        let device = Device(
+            macAddress: "mock:mac:\(offset)",
+            address: "192.168.1.100",
+            lastSeen: lastSeen
+        )
         let deviceWithState = DeviceWithState(initialDevice: device)
 
         return VStack(alignment: .leading, spacing: 4) {

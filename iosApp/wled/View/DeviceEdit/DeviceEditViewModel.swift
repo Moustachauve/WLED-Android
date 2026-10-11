@@ -8,10 +8,12 @@
 import Foundation
 import CoreData
 import Combine
+import Shared
 
 @MainActor
 class DeviceEditViewModel: ObservableObject {
     private let context: NSManagedObjectContext
+    private let deviceRepository: DeviceRepository
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -23,12 +25,17 @@ class DeviceEditViewModel: ObservableObject {
 
     @Published var isCheckingForUpdates: Bool = false
 
-    init(device: DeviceWithState, context: NSManagedObjectContext) {
+    init(
+        device: DeviceWithState,
+        deviceRepository: DeviceRepository = AppDatabase.shared.deviceRepository,
+        context: NSManagedObjectContext = PersistenceController.shared.container.viewContext
+    ) {
         self.context = context
+        self.deviceRepository = deviceRepository
         self.device = device
-        customName = device.device.customName ?? ""
+        customName = device.device.customName
         hideDevice = device.device.isHidden
-        branch = device.device.branchValue
+        branch = device.device.branch
 
         setupCustomNameDebouncedListener()
         setupHideDeviceListener()
@@ -47,8 +54,9 @@ class DeviceEditViewModel: ObservableObject {
                 // Check if the value actually changed from the saved value
                 // to prevent saving when the view first loads
                 if self.device.device.customName != newCustomName {
-                    self.device.device.customName = newCustomName
-                    self.saveDevice()
+                    let updatedDevice = self.device.device.copy(customName: newCustomName)
+                    self.device.device = updatedDevice
+                    self.saveDevice(updatedDevice)
                 }
             }
             .store(in: &cancellables)
@@ -62,8 +70,9 @@ class DeviceEditViewModel: ObservableObject {
 
                 // Check against the source of truth to prevent loops
                 if self.device.device.isHidden != isHidden {
-                    self.device.device.isHidden = isHidden
-                    self.saveDevice()
+                    let updatedDevice = self.device.device.copy(isHidden: isHidden)
+                    self.device.device = updatedDevice
+                    self.saveDevice(updatedDevice)
                 }
             }
             .store(in: &cancellables)
@@ -75,10 +84,10 @@ class DeviceEditViewModel: ObservableObject {
             .sink { [weak self] newBranch in
                 guard let self = self else { return }
 
-                if self.device.device.branchValue != newBranch {
-                    self.device.device.branchValue = newBranch
-                    self.device.device.skipUpdateTag = ""
-                    self.saveDevice()
+                if self.device.device.branch != newBranch {
+                    let updatedDevice = self.device.device.copy(skipUpdateTag: "", branch: newBranch)
+                    self.device.device = updatedDevice
+                    self.saveDevice(updatedDevice)
                 }
             }
             .store(in: &cancellables)
@@ -92,17 +101,19 @@ class DeviceEditViewModel: ObservableObject {
         await ReleaseService(context: context).refreshVersions()
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: WLEDNativeApp.dateLastUpdateKey)
 
-        device.device.skipUpdateTag = ""
+        let updatedDevice = device.device.copy(skipUpdateTag: "")
+        device.device = updatedDevice
+        saveDevice(updatedDevice)
         isCheckingForUpdates = false
-        saveDevice()
     }
 
-    private func saveDevice() {
-        do {
-            try context.save()
-        } catch {
-            let nsError = error as NSError
-            print("Unresolved error saving device: \(nsError), \(nsError.userInfo)")
+    private func saveDevice(_ deviceToSave: Device) {
+        Task { [weak self] in
+            do {
+                try await self?.deviceRepository.update(device: deviceToSave)
+            } catch {
+                print("Unresolved error saving device: \(error.localizedDescription)")
+            }
         }
     }
 }

@@ -2,8 +2,7 @@ import Foundation
 import SwiftUI
 import Combine
 import CoreData
-
-// TODO: This probably shouldn't be in the Websocket folder?
+import Shared
 
 let AP_MODE_MAC_ADDRESS = "00:00:00:00:00:00"
 
@@ -11,7 +10,7 @@ enum WebsocketStatus {
     case connected
     case connecting
     case disconnected
-    
+
     func toString() -> String {
         switch self {
         case .connected: return "Connected"
@@ -34,23 +33,9 @@ class DeviceWithState: ObservableObject, Identifiable {
 
     init(initialDevice: Device) {
         self.device = initialDevice
-        self.id = initialDevice.macAddress ?? initialDevice.objectID.uriRepresentation().absoluteString
+        self.id = initialDevice.macAddress
 
         setupUpdatePipeline()
-        setDeviceWillChange()
-    }
-
-    private func setDeviceWillChange() {
-        // Forward changes from the inner Core Data Device to this wrapper
-        // Throttled to prevent high-frequency metadata changes (e.g. lastSeen)
-        // from spamming objectWillChange. Critical state like stateInfo and
-        // websocketStatus are @Published directly and bypass this throttle.
-        device.objectWillChange
-            .throttle(for: .milliseconds(500), scheduler: DispatchQueue.main, latest: true)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: - Calculated properties
@@ -58,7 +43,7 @@ class DeviceWithState: ObservableObject, Identifiable {
     var isOnline: Bool {
         return websocketStatus == .connected
     }
-    
+
     var isAPMode: Bool {
         return device.macAddress == AP_MODE_MAC_ADDRESS
     }
@@ -71,44 +56,29 @@ class DeviceWithState: ObservableObject, Identifiable {
 
     private func setupUpdatePipeline() {
         $device
-            .map { device in
-                // This defines which values in the device can cause a
-                // recalculation of the currently available version.
-                return Publishers.CombineLatest(
-                    device.publisher(for: \.branch),
-                    device.publisher(for: \.skipUpdateTag)
-                )
-                .map { (branch: $0, skipTag: $1, device: device) }
-            }
-            .switchToLatest()
             .combineLatest(
                 $stateInfo
                     .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
             )
             .removeDuplicates { prev, curr in
-                // Only re-query Core Data if the firmware version actually changed
-                prev.1?.info.version == curr.1?.info.version
+                // Only re-query Core Data if the firmware version, branch, or skip tag actually changed
+                prev.1?.info.version == curr.1?.info.version &&
+                prev.0.branch == curr.0.branch &&
+                prev.0.skipUpdateTag == curr.0.skipUpdateTag
             }
-            .receive(on: DispatchQueue.main) // Perform logic on Main Thread (safe for Core Data)
-            .map { (deviceInputs, stateInfo) -> String? in
-                let (branchRaw, skipTag, device) = deviceInputs
-
-                // Extract necessary info, fail fast if missing
+            .receive(on: DispatchQueue.main)
+            .map { (device, stateInfo) -> String? in
                 guard let info = stateInfo?.info,
-                      let currentVersion = info.version,
-                      let context = device.managedObjectContext else {
+                      let currentVersion = info.version else {
                     return nil
                 }
 
-                // Use your existing Service logic
-                // Note: We use the raw strings from Core Data to create the Enum
-                let branchEnum = Branch(rawValue: branchRaw ?? "") ?? .unknown
-
+                let context = PersistenceController.shared.container.viewContext
                 let releaseService = ReleaseService(context: context)
                 let newerTag = releaseService.getNewerReleaseTag(
                     versionName: currentVersion,
-                    branch: branchEnum,
-                    ignoreVersion: skipTag ?? ""
+                    branch: device.branch,
+                    ignoreVersion: device.skipUpdateTag
                 )
 
                 return newerTag.isEmpty ? nil : newerTag
@@ -121,15 +91,12 @@ class DeviceWithState: ObservableObject, Identifiable {
 
     /**
      * Get a DeviceWithState that can be used to represent a temporary WLED device in AP mode.
-     * Note: Since Device is a Core Data entity, we need a context to create it.
      */
-    static func getApModeDeviceWithState(context: NSManagedObjectContext) -> DeviceWithState {
-        // Create a new Device entity
-        // We assume this is transient and might not be saved to the persistent store immediately
-        let device = Device(context: context)
-        device.macAddress = AP_MODE_MAC_ADDRESS
-        device.address = "4.3.2.1"
-
+    static func getApModeDeviceWithState(context: NSManagedObjectContext? = nil) -> DeviceWithState {
+        let device = Device(
+            macAddress: AP_MODE_MAC_ADDRESS,
+            address: "4.3.2.1"
+        )
         let deviceWithState = DeviceWithState(initialDevice: device)
         deviceWithState.websocketStatus = .connected
 
@@ -156,10 +123,6 @@ class DeviceWithState: ObservableObject, Identifiable {
     }
 
     private func colorFromHex(rgbValue: Int, alpha: Double? = 1.0) -> Color {
-        // &  binary AND operator to zero out other color values
-        // >>  bitwise right shift operator
-        // Divide by 0xFF because UIColor takes CGFloats between 0.0 and 1.0
-
         let red =   CGFloat((rgbValue & 0xFF0000) >> 16) / 0xFF
         let green = CGFloat((rgbValue & 0x00FF00) >> 8) / 0xFF
         let blue =  CGFloat(rgbValue & 0x0000FF) / 0xFF
@@ -171,12 +134,10 @@ class DeviceWithState: ObservableObject, Identifiable {
 
 // MARK: - Hashable & Equatable Conformance
 extension DeviceWithState: Hashable {
-    // Two instances are equal if they are the exact same object in memory
     nonisolated static func == (lhs: DeviceWithState, rhs: DeviceWithState) -> Bool {
         return lhs.id == rhs.id
     }
-    
-    // Hash based on the object's unique memory address
+
     nonisolated func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }

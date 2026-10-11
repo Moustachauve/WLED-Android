@@ -6,16 +6,19 @@
 //
 
 import Foundation
-import CoreData
+import Shared
 import OSLog
 
 /// Service responsible for handling the first contact with a device.
-/// It fetches device info and handles the creation or update of the Device entity in Core Data.
+/// It fetches device info and handles the creation or update of the Device record in the repository.
 actor DeviceFirstContactService {
 
-    private let persistenceController: PersistenceController
+    private let repository: DeviceRepository
     private let urlSession: URLSession
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native", category: "DeviceFirstContactService")
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native",
+        category: "DeviceFirstContactService"
+    )
 
     enum ServiceError: LocalizedError {
         case invalidURL
@@ -35,10 +38,10 @@ actor DeviceFirstContactService {
     }
 
     /// - Parameters:
-    ///   - persistenceController: The Core Data controller.
+    ///   - repository: The Room device repository.
     ///   - urlSession: Injected session for testability (defaults to .shared).
-    init(persistenceController: PersistenceController = .shared, urlSession: URLSession = .shared) {
-        self.persistenceController = persistenceController
+    init(repository: DeviceRepository = AppDatabase.shared.deviceRepository, urlSession: URLSession = .shared) {
+        self.repository = repository
         self.urlSession = urlSession
     }
 
@@ -49,8 +52,8 @@ actor DeviceFirstContactService {
     /// as necessary).
     ///
     /// - Parameter rawAddress: The network address input (e.g., "http://192.168.1.1/" or "wled.local").
-    /// - Returns: The NSManagedObjectID of the device (to be retrieved safely on the main thread).
-    func fetchAndUpsertDevice(rawAddress: String) async throws -> NSManagedObjectID {
+    /// - Returns: The Device that was created or updated.
+    func fetchAndUpsertDevice(rawAddress: String) async throws -> Device {
         let cleanAddress = sanitize(address: rawAddress)
 
         logger.debug("Initiating contact with: \(cleanAddress)")
@@ -74,31 +77,21 @@ actor DeviceFirstContactService {
     func tryUpdateAddress(macAddress: String?, address: String) async -> Bool {
         guard let macAddress, !macAddress.isEmpty else { return false }
 
-        // Ensure the address provided by mDNS is clean before saving
         let cleanAddress = sanitize(address: address)
-        let logger = self.logger
-
-        return await persistenceController.container.performBackgroundTask { context in
-            let request: NSFetchRequest<Device> = Device.fetchRequest()
-            request.predicate = NSPredicate(format: "macAddress == %@", macAddress)
-            request.fetchLimit = 1
-
-            guard let existingDevice = try? context.fetch(request).first else {
-                return false
-            }
-
-            if existingDevice.address != address {
-                logger.info("Fast update: IP changed for \(existingDevice.originalName ?? "Unknown") (\(macAddress))")
-                existingDevice.address = cleanAddress
-
-                do {
-                    try context.save()
-                } catch {
-                    logger.error("Failed to save fast update: \(error.localizedDescription)")
-                }
-            }
-            return true
+        guard let existingDevice = try? await repository.findDeviceByMacAddress(address: macAddress) else {
+            return false
         }
+
+        if existingDevice.address != cleanAddress {
+            logger.info("Fast update: IP changed for \(existingDevice.originalName) (\(macAddress))")
+            let updatedDevice = existingDevice.copy(address: cleanAddress)
+            do {
+                try await repository.update(device: updatedDevice)
+            } catch {
+                logger.error("Failed to save fast update: \(error.localizedDescription)")
+            }
+        }
+        return true
     }
 
     // MARK: - Private Helpers
@@ -122,7 +115,6 @@ actor DeviceFirstContactService {
 
     /// Fetches device information from the specified address.
     private func fetchDeviceInfo(address: String) async throws -> Info {
-        // Construct URL, ensuring http scheme and json/info path
         let urlString = "http://\(address)/json/info"
 
         guard let url = URL(string: urlString) else {
@@ -141,43 +133,36 @@ actor DeviceFirstContactService {
         }
     }
 
-    /// Handles the Core Data logic to find, update, or create the device.
-    private func upsertDevice(macAddress: String, hostname: String, name: String?) async throws -> NSManagedObjectID {
-        let logger = self.logger
-        return try await persistenceController.container.performBackgroundTask { context in
-            context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
-
-            let request: NSFetchRequest<Device> = Device.fetchRequest()
-            request.predicate = NSPredicate(format: "macAddress == %@", macAddress)
-            request.fetchLimit = 1
-
-            let device: Device
-
-            if let existingDevice = try? context.fetch(request).first {
-                // Check if updates are actually needed to minimize Core Data thrashing
-                if existingDevice.address == hostname && existingDevice.originalName == name {
-                    logger.debug("Device exists and is up to date: \(macAddress)")
-                    device = existingDevice
-                } else {
-                    logger.debug("Updating existing device: \(macAddress)")
-                    existingDevice.address = hostname
-                    existingDevice.originalName = name
-                    device = existingDevice
-                }
+    /// Handles the repository logic to find, update, or create the device.
+    private func upsertDevice(macAddress: String, hostname: String, name: String?) async throws -> Device {
+        if let existingDevice = try? await repository.findDeviceByMacAddress(address: macAddress) {
+            let deviceName = name ?? existingDevice.originalName
+            if existingDevice.address == hostname && existingDevice.originalName == deviceName {
+                logger.debug("Device exists and is up to date: \(macAddress)")
+                return existingDevice
             } else {
-                logger.info("Creating new device: \(macAddress)")
-                device = Device(context: context)
-                device.macAddress = macAddress
-                device.address = hostname
-                device.originalName = name
-                device.isHidden = false
+                logger.debug("Updating existing device: \(macAddress)")
+                let updatedDevice = existingDevice.copy(
+                    address: hostname,
+                    originalName: deviceName
+                )
+                try await repository.update(device: updatedDevice)
+                return updatedDevice
             }
-
-            if context.hasChanges {
-                try context.save()
-            }
-
-            return device.objectID
+        } else {
+            logger.info("Creating new device: \(macAddress)")
+            let newDevice = Device(
+                macAddress: macAddress,
+                address: hostname,
+                isHidden: false,
+                originalName: name ?? "",
+                customName: "",
+                skipUpdateTag: "",
+                branch: .unknown,
+                lastSeen: 0
+            )
+            try await repository.insert(device: newDevice)
+            return newDevice
         }
     }
 }
