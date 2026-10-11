@@ -6,13 +6,18 @@
 //
 
 import Foundation
+import Shared
 
 @MainActor
 final class DeviceAddViewModel: ObservableObject {
 
     @Published var address: String = ""
     @Published var currentStep: Step = .form()
-    private let firstContactService = DeviceFirstContactService()
+    private let firstContactService: DeviceFirstContactService
+
+    init(firstContactService: DeviceFirstContactService = DeviceFirstContactService()) {
+        self.firstContactService = firstContactService
+    }
 
     var isAddressValid: Bool {
         let cleanedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -51,13 +56,10 @@ final class DeviceAddViewModel: ObservableObject {
     private func findDevice() async {
         currentStep = .adding
         do {
-            let newDeviceId = try await firstContactService.fetchAndUpsertDevice(
+            let newDevice = try await firstContactService.fetchAndUpsertDevice(
                 rawAddress: address
             )
-            let viewContext = PersistenceController.shared.container.viewContext
-            if let newDevice = viewContext.object(with: newDeviceId) as? Device {
-                currentStep = .success(device: newDevice)
-            }
+            currentStep = .success(device: newDevice)
         } catch let error {
             print("Error: \(error)")
             currentStep = .form(errorMessage: Error.cantConnect)

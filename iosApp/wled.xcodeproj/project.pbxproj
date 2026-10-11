@@ -7,14 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		C9LOCAL000000000000000003 /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = C9LOCAL000000000000000002 /* Shared */; };
-
 		884FA9392F027B6100097D56 /* wled_native_data.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 884FA9082F027B6100097D56 /* wled_native_data.xcdatamodeld */; };
 		C946FB862B68C53600D5B00D /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = C946FB852B68C53600D5B00D /* Collections */; };
 		C946FB882B68C53600D5B00D /* DequeModule in Frameworks */ = {isa = PBXBuildFile; productRef = C946FB872B68C53600D5B00D /* DequeModule */; };
 		C946FB8A2B68C53600D5B00D /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = C946FB892B68C53600D5B00D /* OrderedCollections */; };
 		C948F4982B3D2B330092C4B1 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = C948F4972B3D2B330092C4B1 /* MarkdownUI */; };
 		C9C4B47F2AC0050500791D20 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = C9C4B47E2AC0050500791D20 /* README.md */; };
+		C9LOCAL000000000000000003 /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = C9LOCAL000000000000000002 /* Shared */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -543,9 +542,10 @@
 /* Begin XCLocalSwiftPackageReference section */
 		C9LOCAL000000000000000001 /* XCLocalSwiftPackageReference "SharedPackage" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = "SharedPackage";
+			relativePath = SharedPackage;
 		};
 /* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		8849F9052F710909008ACEC3 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -574,12 +574,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		C9LOCAL000000000000000002 /* Shared */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = C9LOCAL000000000000000001 /* XCLocalSwiftPackageReference "SharedPackage" */;
-			productName = Shared;
-		};
-
 		8849FA222F710B1B008ACEC3 /* SwiftLintBuildToolPlugin */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 8849F9052F710909008ACEC3 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */;
@@ -604,6 +598,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C948F4962B3D2B320092C4B1 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
 			productName = MarkdownUI;
+		};
+		C9LOCAL000000000000000002 /* Shared */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C9LOCAL000000000000000001 /* XCLocalSwiftPackageReference "SharedPackage" */;
+			productName = Shared;
 		};
 /* End XCSwiftPackageProductDependency section */
 

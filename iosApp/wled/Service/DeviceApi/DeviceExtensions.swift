@@ -1,16 +1,54 @@
 import Foundation
+import Shared
 
 extension Device {
-    var displayName: String {
-        if let name = customName, !name.isEmpty {
-            return name
-        }
-        if let name = originalName, !name.isEmpty {
-            return name
-        }
-        return String(localized: "(New Device)")
+    convenience init(
+        macAddress: String,
+        address: String,
+        isHidden: Bool = false,
+        originalName: String = "",
+        customName: String = "",
+        skipUpdateTag: String = "",
+        branch: Branch = .unknown,
+        lastSeen: Int64 = 0
+    ) {
+        self.init(
+            macAddress: macAddress,
+            address: address,
+            isHidden: isHidden,
+            originalName: originalName,
+            customName: customName,
+            skipUpdateTag: skipUpdateTag,
+            branch: branch,
+            lastSeen: lastSeen,
+            repositoryId: 1
+        )
     }
-    
+
+    func copy(
+        macAddress: String? = nil,
+        address: String? = nil,
+        isHidden: Bool? = nil,
+        originalName: String? = nil,
+        customName: String? = nil,
+        skipUpdateTag: String? = nil,
+        branch: Branch? = nil,
+        lastSeen: Int64? = nil,
+        repositoryId: Int64? = nil
+    ) -> Device {
+        Device(
+            macAddress: macAddress ?? self.macAddress,
+            address: address ?? self.address,
+            isHidden: isHidden ?? self.isHidden,
+            originalName: originalName ?? self.originalName,
+            customName: customName ?? self.customName,
+            skipUpdateTag: skipUpdateTag ?? self.skipUpdateTag,
+            branch: branch ?? self.branch,
+            lastSeen: lastSeen ?? self.lastSeen,
+            repositoryId: repositoryId ?? self.repositoryId
+        )
+    }
+
     func getColor(state: WledState?) -> Int64 {
         guard let state = state,
               let colorInfo = state.segment?.first?.colors?.first,
@@ -26,5 +64,3 @@ extension Device {
         return (red << 16) | (green << 8) | blue
     }
 }
-
-extension Device: Observable { }

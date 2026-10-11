@@ -1,5 +1,5 @@
 import Foundation
-import CoreData
+import Shared
 import Combine
 
 @MainActor
@@ -57,11 +57,12 @@ class WebsocketClient: NSObject, ObservableObject, URLSessionWebSocketDelegate {
     
     func connect() {
         if webSocketTask != nil || isConnecting {
-            print("\(tag): Already connected or connecting to \(deviceState.device.address ?? "nil")")
+            print("\(tag): Already connected or connecting to \(deviceState.device.address)")
             return
         }
         
-        guard let address = deviceState.device.address, !address.isEmpty else {
+        let address = deviceState.device.address
+        guard !address.isEmpty else {
             print("\(tag): Device address is empty")
             return
         }

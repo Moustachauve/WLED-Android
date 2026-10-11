@@ -1,4 +1,5 @@
 import SwiftUI
+import Shared
 
 struct DeviceEditView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -6,9 +7,13 @@ struct DeviceEditView: View {
     @StateObject private var viewModel: DeviceEditViewModel
     @ObservedObject private var device: DeviceWithState
 
-    init(device: DeviceWithState) {
-        let context = device.device.managedObjectContext ?? PersistenceController.shared.container.viewContext
-        _viewModel = StateObject(wrappedValue: DeviceEditViewModel(device: device, context: context))
+    init(device: DeviceWithState, deviceRepository: DeviceRepository = AppDatabase.shared.deviceRepository) {
+        let context = PersistenceController.shared.container.viewContext
+        _viewModel = StateObject(wrappedValue: DeviceEditViewModel(
+            device: device,
+            deviceRepository: deviceRepository,
+            context: context
+        ))
 
         self.device = device
     }

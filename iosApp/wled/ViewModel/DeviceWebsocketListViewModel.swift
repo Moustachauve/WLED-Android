@@ -1,13 +1,13 @@
 import Foundation
-import CoreData
+import Shared
 import Combine
 import SwiftUI
 
 @MainActor
-class DeviceWebsocketListViewModel: NSObject, ObservableObject, NSFetchedResultsControllerDelegate {
-    
+class DeviceWebsocketListViewModel: NSObject, ObservableObject {
+
     // MARK: - Published Properties
-    
+
     // The list of devices with their live state, exposed to the UI
     @Published var allDevicesWithState: [DeviceWithState] = []
     @Published var onlineDevices: [DeviceWithState] = []
@@ -15,7 +15,7 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject, NSFetchedResults
 
     /// Whether the local network permission has been denied by the user.
     @Published var localNetworkDenied: Bool = false
-    
+
     // Preferences
     @Published var showHiddenDevices: Bool = false {
         didSet {
@@ -35,17 +35,17 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject, NSFetchedResults
     // MARK: - Private Properties
 
     private var discoveryService: DiscoveryService?
-    private let deviceFirstContactService = DeviceFirstContactService()
-    private let context: NSManagedObjectContext
-    private var frc: NSFetchedResultsController<Device>!
-    
+    private let deviceFirstContactService: DeviceFirstContactService
+    private let deviceRepository: DeviceRepository
+    private var observeDevicesTask: Task<Void, Never>?
+
     // Map of MacAddress -> Client Wrapper
     // We store the last known address to detect IP changes
     private struct ClientWrapper {
         let client: WebsocketClient
         let lastKnownAddress: String
     }
-    
+
     private var activeClients: [String: ClientWrapper] = [:]
     private var isPaused = false
     private var backgroundTask: Task<Void, Never>?
@@ -53,16 +53,22 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject, NSFetchedResults
     /// Delay before disconnecting websockets after entering background.
     /// Exposed as `internal` so tests can override with a shorter value.
     var backgroundDisconnectDelay: Duration = .seconds(2)
-    
+
     /// Amount of time after a device becomes offline before it is considered offline.
     private let offlineGracePeriod: TimeInterval = 60
     private var cancellables = Set<AnyCancellable>()
-    private let sortingQueue = DispatchQueue(label: "com.wled.DeviceSortingQueue")
 
     // MARK: - Initialization
-    
-    init(context: NSManagedObjectContext) {
-        self.context = context
+
+    init(
+        deviceRepository: DeviceRepository = AppDatabase.shared.deviceRepository,
+        clientFactory: ((Device) -> WebsocketClient)? = nil
+    ) {
+        self.deviceRepository = deviceRepository
+        self.deviceFirstContactService = DeviceFirstContactService(repository: deviceRepository)
+        if let clientFactory = clientFactory {
+            self.makeClient = clientFactory
+        }
         super.init()
 
         self.discoveryService = DiscoveryService { [weak self] address, macAddress in
@@ -119,61 +125,45 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject, NSFetchedResults
             .store(in: &cancellables)
     }
 
+    deinit {
+        observeDevicesTask?.cancel()
+    }
+
     // MARK: - Setup and loading
 
     /// Call this when the view appears to initialize data and connections
     func load() {
-        // Prevent double loading if already set up
-        guard frc == nil else { return }
+        guard observeDevicesTask == nil else { return }
 
-        setupFetchedResultsController()
-
-        // Initial population of clients
-        try? frc.performFetch()
-        if let objects = frc.fetchedObjects {
-            updateClients(with: objects)
+        observeDevicesTask = Task { [weak self] in
+            guard let self = self else { return }
+            for await devices in self.deviceRepository.allDevices {
+                guard !Task.isCancelled else { break }
+                self.updateClients(with: devices)
+            }
         }
     }
 
-    // MARK: - Core Data Setup
-    
-    private func setupFetchedResultsController() {
-        let request = NSFetchRequest<Device>(entityName: "Device")
-        // Sort by lastSeen or name as a default
-        request.sortDescriptors = [NSSortDescriptor(key: "lastSeen", ascending: false)]
-        
-        frc = NSFetchedResultsController(
-            fetchRequest: request,
-            managedObjectContext: context,
-            sectionNameKeyPath: nil,
-            cacheName: nil
-        )
-        frc.delegate = self
-    }
-    
     // MARK: - Client Management Logic
-    
+
     private func updateClients(with devices: [Device]) {
-        let newDeviceMap = Dictionary(uniqueKeysWithValues: devices.compactMap { device -> (String, Device)? in
-            guard let mac = device.macAddress else { return nil }
-            return (mac, device)
-        })
-        
+        let newDeviceMap = Dictionary(uniqueKeysWithValues: devices.map { ($0.macAddress, $0) })
+
         // 1. Identify and destroy clients for devices that are no longer present
         let currentMacs = Set(activeClients.keys)
         let newMacs = Set(newDeviceMap.keys)
         let macsToRemove = currentMacs.subtracting(newMacs)
-        
+
         for mac in macsToRemove {
             print("[ListVM] Device removed: \(mac). Destroying client.")
             activeClients[mac]?.client.destroy()
             activeClients[mac] = nil
         }
-        
+
         // 2. Identify and create/update clients for new or changed devices
         for (mac, device) in newDeviceMap {
-            let address = device.address ?? ""
-            
+            let address = device.address
+
             if let existingWrapper = activeClients[mac] {
                 if existingWrapper.lastKnownAddress != address {
                     // Address changed: Reconnect
@@ -181,8 +171,8 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject, NSFetchedResults
                     existingWrapper.client.destroy()
                     createAndAddClient(for: device, mac: mac)
                 } else {
-                    // Just a regular update (e.g. name changed), the ObservableObject DeviceWithState handles this automatically
-                    // because it holds the reference to the Core Data object.
+                    // Update the device data model on the existing wrapper
+                    existingWrapper.client.deviceState.device = device
                 }
             } else {
                 // New Device
@@ -190,60 +180,62 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject, NSFetchedResults
                 createAndAddClient(for: device, mac: mac)
             }
         }
-        
+
         publishState()
     }
-    
+
     private func createAndAddClient(for device: Device, mac: String) {
         let newClient = makeClient(device)
 
         newClient.onDeviceStateUpdated = { [weak self] info in
-            self?.handleDeviceUpdate(deviceID: device.objectID, info: info)
+            self?.handleDeviceUpdate(macAddress: mac, info: info)
         }
 
         if !isPaused {
             newClient.connect()
         }
-        
+
         activeClients[mac] = ClientWrapper(
             client: newClient,
-            lastKnownAddress: device.address ?? ""
+            lastKnownAddress: device.address
         )
     }
 
-    private func handleDeviceUpdate(deviceID: NSManagedObjectID, info: DeviceStateInfo) {
-        context.perform {
-            guard let device = try? self.context.existingObject(with: deviceID) as? Device else { return }
+    private func handleDeviceUpdate(macAddress: String, info: DeviceStateInfo) {
+        guard let wrapper = activeClients[macAddress] else { return }
+        let currentDevice = wrapper.client.deviceState.device
 
-            // Logic moved from WebsocketClient to here
-            let newName = info.info.name
-            let newVersion = info.info.version ?? ""
+        let newName = info.info.name
+        let newVersion = info.info.version ?? ""
+        var structuralChange = false
 
-            // Flag to determine if we need an immediate disk write
-            var structuralChange = false
-
-            var currentBranch = device.branchValue
-            if currentBranch == Branch.unknown {
-                if newVersion.contains("-b") {
-                    currentBranch = Branch.beta
-                } else {
-                    currentBranch = Branch.stable
-                }
-                device.branchValue = currentBranch
-                structuralChange = true
+        var currentBranch = currentDevice.branch
+        if currentBranch == .unknown {
+            if newVersion.contains("-b") {
+                currentBranch = .beta
+            } else {
+                currentBranch = .stable
             }
-            if device.originalName != newName {
-                device.originalName = newName
-                structuralChange = true
-            }
+            structuralChange = true
+        }
+        if currentDevice.originalName != newName {
+            structuralChange = true
+        }
 
-            // Update transient data (Updates UI in-memory, but no disk save needed yet)
-            device.lastSeen = Int64(Date().timeIntervalSince1970 * 1000)
+        let newLastSeen = Int64(Date().timeIntervalSince1970 * 1000)
 
-            // Only perform disk I/O if important data changed
-            if structuralChange && self.context.hasChanges {
-                try? self.context.save()
+        if structuralChange {
+            let updatedDevice = currentDevice.copy(
+                originalName: newName,
+                branch: currentBranch,
+                lastSeen: newLastSeen
+            )
+            Task { [weak self] in
+                try? await self?.deviceRepository.update(device: updatedDevice)
             }
+        } else {
+            let updatedDevice = currentDevice.copy(lastSeen: newLastSeen)
+            wrapper.client.deviceState.device = updatedDevice
         }
     }
 
@@ -254,18 +246,9 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject, NSFetchedResults
         }
         self.updateFilteredDevices(currentTime: Date())
     }
-    
-    // MARK: - NSFetchedResultsControllerDelegate
-    
-    nonisolated func controllerDidChangeContent(_ controller: NSFetchedResultsController<any NSFetchRequestResult>) {
-        Task { @MainActor in
-            guard let devices = self.frc.fetchedObjects else { return }
-            self.updateClients(with: devices)
-        }
-    }
 
     // MARK: - Lifecycle (Call these from App ScenePhase)
-    
+
     func onPause() {
         print("[ListVM] onPause: Scheduling disconnect.")
         backgroundTask?.cancel()
@@ -281,12 +264,9 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject, NSFetchedResults
             print("[ListVM] onPause: Disconnecting all connections.")
             self.isPaused = true
             self.activeClients.values.forEach { $0.client.disconnect() }
-            if self.context.hasChanges {
-                try? self.context.save()
-            }
         }
     }
-    
+
     func onResume() {
         print("[ListVM] onResume: Cancelling pending disconnect and resuming.")
         backgroundTask?.cancel()
@@ -295,45 +275,39 @@ class DeviceWebsocketListViewModel: NSObject, ObservableObject, NSFetchedResults
         isPaused = false
         activeClients.values.forEach { $0.client.connect() }
     }
-    
+
     // MARK: - Actions
-    
+
     func refreshOfflineDevices() {
         print("[ListVM] Refreshing offline devices.")
         let offlineClients = activeClients.values.filter { !$0.client.deviceState.isOnline }
         offlineClients.forEach { $0.client.connect() }
     }
-    
+
     func setBrightness(for deviceWrapper: DeviceWithState, brightness: Int) {
-        guard let mac = deviceWrapper.device.macAddress,
-              let wrapper = activeClients[mac] else {
-            print("[ListVM] No active client for \(deviceWrapper.device.macAddress ?? "nil")")
+        let mac = deviceWrapper.device.macAddress
+        guard let wrapper = activeClients[mac] else {
+            print("[ListVM] No active client for \(mac)")
             return
         }
         deviceWrapper.stateInfo?.state.brightness = Int64(brightness)
         wrapper.client.sendState(WledState(brightness: Int64(brightness)))
     }
-    
+
     func setDevicePower(for deviceWrapper: DeviceWithState, isOn: Bool) {
-        guard let mac = deviceWrapper.device.macAddress,
-              let wrapper = activeClients[mac] else {
-            print("[ListVM] No active client for \(deviceWrapper.device.macAddress ?? "nil")")
+        let mac = deviceWrapper.device.macAddress
+        guard let wrapper = activeClients[mac] else {
+            print("[ListVM] No active client for \(mac)")
             return
         }
         deviceWrapper.stateInfo?.state.isOn = isOn
         wrapper.client.sendState(WledState(isOn: isOn))
     }
-    
+
     func deleteDevice(_ device: Device) {
-        print("[ListVM] Deleting device \(device.originalName ?? "")")
-        // Capture context locally to avoid isolation issues in the closure
-        let objectID = device.objectID
-        let ctx = context
-        ctx.perform {
-            if let deviceToDelete = try? ctx.existingObject(with: objectID) {
-                ctx.delete(deviceToDelete)
-                try? ctx.save()
-            }
+        print("[ListVM] Deleting device \(device.originalName)")
+        Task { [weak self] in
+            try? await self?.deviceRepository.delete(device: device)
         }
     }
 

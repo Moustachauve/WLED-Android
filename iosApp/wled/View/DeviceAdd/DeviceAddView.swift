@@ -1,4 +1,5 @@
 import SwiftUI
+import Shared
 
 struct DeviceAddView: View {
     @Environment(\.managedObjectContext) private var viewContext

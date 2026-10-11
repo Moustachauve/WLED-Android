@@ -1,5 +1,8 @@
 import SwiftUI
 import CoreData
+import Shared
+
+private typealias State = SwiftUI.State
 
 struct DeviceListView: View {
 
@@ -22,15 +25,14 @@ struct DeviceListView: View {
 
     // MARK: - init
 
-    // Allow injecting a specific context (defaulting to shared for the actual app)
     init(
-        context: NSManagedObjectContext = PersistenceController.shared.container.viewContext,
+        deviceRepository: DeviceRepository = AppDatabase.shared.deviceRepository,
         clientFactory: ((Device) -> WebsocketClient)? = nil
     ) {
-        let viewModel = DeviceWebsocketListViewModel(context: context)
-        if let clientFactory = clientFactory {
-            viewModel.makeClient = clientFactory
-        }
+        let viewModel = DeviceWebsocketListViewModel(
+            deviceRepository: deviceRepository,
+            clientFactory: clientFactory
+        )
         _viewModel = StateObject(wrappedValue: viewModel)
     }
 
@@ -308,7 +310,6 @@ struct DeviceListView: View {
     // swiftlint:enable redundant_discardable_let
 
     DeviceListView(
-        context: PreviewData.viewContext,
         clientFactory: { device in
             MockWebsocketClient(device: device)
         }

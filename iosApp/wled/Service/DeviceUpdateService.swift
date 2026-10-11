@@ -1,5 +1,6 @@
 import Foundation
 import CoreData
+import Shared
 
 enum UpdateError: LocalizedError {
     case assetNotDetermined
@@ -255,8 +256,8 @@ class DeviceUpdateService: ObservableObject {
               FileManager.default.fileExists(atPath: binaryURL.path) else {
             throw UpdateError.fileNotFound
         }
-        guard let deviceAddress = device.device.address,
-              let url = URL(string: "http://\(deviceAddress)/update") else {
+        let deviceAddress = device.device.address
+        guard let url = URL(string: "http://\(deviceAddress)/update") else {
             throw UpdateError.invalidURL
         }
 
