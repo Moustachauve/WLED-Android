@@ -1258,23 +1258,6 @@
         }
       }
     },
-    "The device address is invalid." : {
-      "comment" : "Invalid URL error",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The device address is invalid."
-          }
-        },
-        "fr-CA" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’adresse de l’appareil est invalide."
-          }
-        }
-      }
-    },
     "The device did not report a valid MAC address." : {
       "comment" : "Missing MAC error",
       "localizations" : {
@@ -1288,6 +1271,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "L'appareil n'a pas fourni d'adresse MAC valide."
+          }
+        }
+      }
+    },
+    "The device responded with HTTP error %lld." : {
+      "comment" : "Error shown when a device answers with a non-success HTTP status code",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device responded with HTTP error %lld."
+          }
+        },
+        "fr-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'appareil a répondu avec l'erreur HTTP %lld."
           }
         }
       }
