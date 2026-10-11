@@ -26,3 +26,8 @@ fun DevicesDatabase.Companion.createDatabase(): DevicesDatabase {
         .configureDevicesDatabase()
         .build()
 }
+
+fun DevicesDatabase.Companion.createInMemoryDatabase(): DevicesDatabase =
+    Room.inMemoryDatabaseBuilder<DevicesDatabase>()
+        .configureDevicesDatabase()
+        .build()
