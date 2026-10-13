@@ -9,18 +9,15 @@ import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.domain.usecase.ValidateAddress
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 private const val TAG = "DeviceAddViewModel"
 
-@HiltViewModel
-class DeviceAddViewModel @Inject constructor(
+class DeviceAddViewModel(
     private val validateAddress: ValidateAddress,
     private val deviceFirstContactService: DeviceFirstContactService,
 ) : ViewModel() {

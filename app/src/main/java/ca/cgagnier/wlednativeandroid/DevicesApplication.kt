@@ -1,14 +1,20 @@
 package ca.cgagnier.wlednativeandroid
 
 import android.app.Application
+import ca.cgagnier.wlednativeandroid.di.appModule
+import ca.cgagnier.wlednativeandroid.di.sharedModules
 import ca.cgagnier.wlednativeandroid.widget.WidgetPreviewPublisher
-import dagger.hilt.android.HiltAndroidApp
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.context.startKoin
 
-@HiltAndroidApp
 class DevicesApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        startKoin {
+            androidContext(this@DevicesApplication)
+            modules(sharedModules + appModule)
+        }
         WidgetPreviewPublisher.publishIfNeeded(this)
     }
 }

@@ -7,8 +7,6 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ca.cgagnier.wlednativeandroid.di.DefaultDispatcher
-import ca.cgagnier.wlednativeandroid.di.IoDispatcher
 import ca.cgagnier.wlednativeandroid.domain.usecase.SaveDeviceStateUseCase
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
@@ -21,8 +19,6 @@ import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClient
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientFactory
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
@@ -37,25 +33,23 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
-import javax.inject.Inject
 
 private const val TAG = "DeviceWebsocketListViewModel"
 private const val SUBSCRIPTION_TIMEOUT_MS = 5000L
 private const val UPDATE_CHECK_RETRY_INTERVAL_MS = 60_000L
 private const val UPDATE_CHECK_CACHE_TTL_MS = 3600_000L // 1 hour
 
-@HiltViewModel
 @Suppress("LongParameterList", "TooGenericExceptionCaught") // DI constructor and lifecycle error handling
-class DeviceWebsocketListViewModel @Inject constructor(
+class DeviceWebsocketListViewModel(
     userPreferencesRepository: UserPreferencesRepository,
     private val deviceRepository: DeviceRepository,
     private val websocketClientFactory: WebsocketClientFactory,
     private val widgetManager: WledWidgetManager,
     private val saveDeviceStateUseCase: SaveDeviceStateUseCase,
     private val deviceUpdateManager: DeviceUpdateManager,
-    @ApplicationContext private val applicationContext: Context,
-    @DefaultDispatcher private val backgroundDispatcher: CoroutineDispatcher,
-    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    private val applicationContext: Context,
+    private val backgroundDispatcher: CoroutineDispatcher,
+    private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel(),
     DefaultLifecycleObserver {
 

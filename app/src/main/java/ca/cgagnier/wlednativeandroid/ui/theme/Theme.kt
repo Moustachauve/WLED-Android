@@ -16,13 +16,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import com.materialkolor.DynamicMaterialTheme
 import com.materialkolor.PaletteStyle
+import org.koin.androidx.compose.koinViewModel
 
 private val lightScheme = lightColorScheme(
     primary = primaryLight,
@@ -266,7 +266,7 @@ val unspecified_scheme = ColorFamily(
 fun WLEDNativeTheme(
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
-    themeViewModel: ThemeViewModel = hiltViewModel(),
+    themeViewModel: ThemeViewModel = koinViewModel(),
     content: @Composable () -> Unit,
 ) {
     val theme by themeViewModel.theme.collectAsStateWithLifecycle()
@@ -325,7 +325,7 @@ fun getColorFromDeviceState(state: State?): Int = state?.segment?.firstOrNull()?
 @Composable
 fun DeviceTheme(
     device: DeviceWithState,
-    themeViewModel: ThemeViewModel = hiltViewModel(),
+    themeViewModel: ThemeViewModel = koinViewModel(),
     content: @Composable () -> Unit,
 ) {
     val stateInfo = device.stateInfo

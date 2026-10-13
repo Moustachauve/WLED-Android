@@ -52,7 +52,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
 import ca.cgagnier.wlednativeandroid.model.Branch
@@ -72,6 +71,7 @@ import ca.cgagnier.wlednativeandroid.ui.homeScreen.update.UpdateDisclaimerDialog
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.update.UpdateInstallingDialog
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
 import kotlinx.coroutines.delay
+import org.koin.androidx.compose.koinViewModel
 
 /**
  * ViewModel-aware entry point for the device edit screen.
@@ -84,7 +84,7 @@ fun DeviceEdit(
     device: DeviceWithState,
     canNavigateBack: Boolean,
     navigateUp: () -> Unit,
-    viewModel: DeviceEditViewModel = hiltViewModel(),
+    viewModel: DeviceEditViewModel = koinViewModel(),
     onDeviceUpdated: ((DeviceWithState) -> Unit)? = null,
 ) {
     val vmState by viewModel.uiState.collectAsState()

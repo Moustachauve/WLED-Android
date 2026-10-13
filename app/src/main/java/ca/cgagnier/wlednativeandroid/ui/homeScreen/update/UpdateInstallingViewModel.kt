@@ -15,7 +15,6 @@ import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateService
 import ca.cgagnier.wlednativeandroid.service.update.splitRepository
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,12 +23,10 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.regex.Pattern
-import javax.inject.Inject
 
 private const val TAG = "UpdateInstallingViewModel"
 
-@HiltViewModel
-class UpdateInstallingViewModel @Inject constructor(
+class UpdateInstallingViewModel(
     private val deviceRepository: DeviceRepository,
     private val repositoryDao: RepositoryDao,
     private val deviceApiFactory: DeviceApiFactory,

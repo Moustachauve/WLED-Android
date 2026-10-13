@@ -25,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
@@ -38,6 +37,7 @@ import ca.cgagnier.wlednativeandroid.ui.homeScreen.list.DeviceList
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.list.DeviceWebsocketListViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Suppress("LongMethod") // Navigator requires type inference, limiting extraction options
@@ -46,8 +46,8 @@ fun DeviceListDetail(
     modifier: Modifier = Modifier,
     initialDeviceMacAddress: NavigationEvent? = null,
     actions: DeviceListDetailActions,
-    viewModel: DeviceListDetailViewModel = hiltViewModel(),
-    deviceWebsocketListViewModel: DeviceWebsocketListViewModel = hiltViewModel(),
+    viewModel: DeviceListDetailViewModel = koinViewModel(),
+    deviceWebsocketListViewModel: DeviceWebsocketListViewModel = koinViewModel(),
 ) {
     val coroutineScope = rememberCoroutineScope()
     val defaultScaffoldDirective = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo())

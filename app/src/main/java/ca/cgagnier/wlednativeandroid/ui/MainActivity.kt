@@ -8,7 +8,6 @@ import android.webkit.WebChromeClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -37,13 +36,12 @@ import ca.cgagnier.wlednativeandroid.FileUploadContractResult
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.ui.components.ChangelogBottomSheet
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
-import dagger.hilt.android.AndroidEntryPoint
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: MainViewModel by viewModels()
-    private val changelogViewModel: ChangelogViewModel by viewModels()
+    private val viewModel: MainViewModel by viewModel()
+    private val changelogViewModel: ChangelogViewModel by viewModel()
 
     // For WebView file upload support
     var uploadMessage: ValueCallback<Array<Uri>>? = null

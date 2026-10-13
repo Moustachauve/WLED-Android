@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.google.protobuf)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.hilt)
     alias(libs.plugins.compose.compiler)
     id("kotlin-parcelize")
 }
@@ -69,9 +68,6 @@ android {
             freeCompilerArgs.add("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api")
         }
     }
-    hilt {
-        enableAggregatingTask = true
-    }
     namespace = "ca.cgagnier.wlednativeandroid"
     lint {
         fatal += "MissingTranslation"
@@ -116,7 +112,6 @@ dependencies {
     implementation(libs.androidx.glance.material3)
     implementation(libs.androidx.glance.preview)
     implementation(libs.androidx.glance.appwidget.preview)
-    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -134,7 +129,9 @@ dependencies {
     implementation(libs.datastore)
     implementation(libs.datastore.core)
     implementation(libs.datastore.preferences)
-    implementation(libs.hilt.android)
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.jdk9)
     implementation(libs.ktor.client.core)
@@ -155,12 +152,12 @@ dependencies {
     implementation(libs.semver)
     implementation(libs.kermit)
     implementation(libs.compose.material.icons)
-    ksp(libs.hilt.compiler)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.selfie.runner.junit5)
     testImplementation(libs.mockk)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.koin.test)
 }
 
 protobuf {

@@ -16,8 +16,6 @@ import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,7 +23,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 private const val TAG = "DeviceEditViewModel"
 
@@ -36,16 +33,15 @@ private const val TAG = "DeviceEditViewModel"
  * and update-check operations. Exposes a single [uiState] flow
  * consumed by the UI composable.
  */
-@HiltViewModel
 @Suppress("LongParameterList") // DI constructor requires multiple dependencies.
-class DeviceEditViewModel @Inject constructor(
+class DeviceEditViewModel(
     private val deviceRepository: DeviceRepository,
     private val repositoryDao: RepositoryDao,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val githubApi: GithubApi,
     private val releaseService: ReleaseService,
     private val widgetManager: WledWidgetManager,
-    @param:ApplicationContext private val applicationContext: Context,
+    private val applicationContext: Context,
 ) : ViewModel() {
 
     private val updateDetailsVersion = MutableStateFlow<VersionWithAssets?>(null)

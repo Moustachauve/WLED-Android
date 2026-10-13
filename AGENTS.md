@@ -9,7 +9,7 @@ WLED-App is the repository for the official native WLED application on Android a
 *   **Language:** Kotlin
 *   **UI:** Jetpack Compose, Material 3, Jetpack Glance (Widgets)
 *   **Architecture:** Clean Architecture / MVVM (Model-View-ViewModel)
-*   **Dependency Injection:** Hilt
+*   **Dependency Injection:** Koin
 *   **Asynchronous:** Coroutines & Flow
 *   **Network:** Ktor Client (OkHttp engine), kotlinx.serialization (JSON), Protobuf
 *   **Database:** Room (Exports schemas to `app/schemas`)
@@ -72,14 +72,14 @@ This project enforces strict code style, static analysis, and localization rules
 
 The Android code is located in `app/src/main/java/ca/cgagnier/wlednativeandroid/`.
 
-*   `di/` - Hilt dependency injection modules.
+*   `di/` - Koin dependency injection modules.
 *   `domain/` - Domain logic and use cases.
 *   `model/` - Data models (Entities, DTOs).
 *   `repository/` - Data access layer (Repositories).
 *   `service/` - Background services (including mDNS device discovery).
 *   `ui/` - User Interface (Jetpack Compose screens and components).
     *   Uses Navigation 3 for routing (`MainNavHost.kt`).
-    *   ViewModels follow Hilt injection patterns.
+    *   ViewModels follow Koin injection patterns.
 *   `util/` - Utility classes.
 *   `widget/` - Jetpack Glance app widgets.
     *   Uses deep linking to navigate directly to specific devices.

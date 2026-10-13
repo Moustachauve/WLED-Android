@@ -11,9 +11,7 @@ import ca.cgagnier.wlednativeandroid.service.update.getRepositoryFromInfo
 import ca.cgagnier.wlednativeandroid.util.isIpAddress
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import co.touchlab.kermit.Logger
-import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
-import javax.inject.Inject
 
 private const val TAG = "DeviceFirstContactService"
 private val logger = Logger.withTag(TAG)
@@ -21,12 +19,12 @@ private val logger = Logger.withTag(TAG)
 /**
  * Service class responsible for handling the first contact with a device.
  */
-class DeviceFirstContactService @Inject constructor(
+class DeviceFirstContactService(
     private val repositoryDao: RepositoryDao,
     private val repository: DeviceRepository,
     private val deviceApiFactory: DeviceApiFactory,
     private val widgetManager: WledWidgetManager,
-    @param:ApplicationContext private val applicationContext: Context,
+    private val applicationContext: Context,
 ) {
     /**
      * Creates a new device record in the database.

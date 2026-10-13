@@ -25,10 +25,6 @@ import ca.cgagnier.wlednativeandroid.util.MAX_BRIGHTNESS_PERCENT
 import ca.cgagnier.wlednativeandroid.util.brightnessToPercent
 import ca.cgagnier.wlednativeandroid.util.percentToBrightness
 import co.touchlab.kermit.Logger
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -38,6 +34,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.jdk9.asPublisher
 import kotlinx.coroutines.launch
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Flow
 import java.util.concurrent.atomic.AtomicInteger
@@ -53,19 +51,14 @@ private val logger = Logger.withTag(TAG)
  * and adjust brightness. Available on Android 11 (API 30) and above.
  */
 @RequiresApi(Build.VERSION_CODES.R)
-class WledControlsService : ControlsProviderService() {
+class WledControlsService :
+    ControlsProviderService(),
+    KoinComponent {
 
     companion object {
         private const val BRIGHTNESS_STEP = 1f
         private const val BRIGHTNESS_FORMAT = "%.0f%%"
         private const val CLEANUP_DELAY_MS = 5000L
-    }
-
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    interface ControlsEntryPoint {
-        fun deviceRepository(): DeviceRepository
-        fun deviceApiFactory(): DeviceApiFactory
     }
 
     private val job = SupervisorJob()
@@ -80,15 +73,8 @@ class WledControlsService : ControlsProviderService() {
     private val requestCodeCounter = AtomicInteger(0)
     private val requestCodes = ConcurrentHashMap<String, Int>()
 
-    private val entryPoint: ControlsEntryPoint by lazy {
-        EntryPointAccessors.fromApplication(applicationContext, ControlsEntryPoint::class.java)
-    }
-
-    private val deviceRepository: DeviceRepository
-        get() = entryPoint.deviceRepository()
-
-    private val deviceApiFactory: DeviceApiFactory
-        get() = entryPoint.deviceApiFactory()
+    private val deviceRepository: DeviceRepository by inject()
+    private val deviceApiFactory: DeviceApiFactory by inject()
 
     override fun createPublisherForAllAvailable(): Flow.Publisher<Control> = kotlinx.coroutines.flow.flow {
         val devices = deviceRepository.getAllDevices()

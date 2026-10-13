@@ -15,7 +15,6 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +22,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit.DAYS
-import javax.inject.Inject
 
 private const val TAG = "MainViewModel"
 
@@ -37,9 +35,8 @@ sealed class DeepLinkState {
     data class Error(val messageResId: Int, val address: String) : DeepLinkState()
 }
 
-@HiltViewModel
 @Suppress("LongParameterList") // DI constructor requires multiple dependencies
-class MainViewModel @Inject constructor(
+class MainViewModel(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val releaseService: ReleaseService,
     private val githubApi: GithubApi,

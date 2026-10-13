@@ -8,13 +8,11 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 
 class WledWidget : GlanceAppWidget() {
 
@@ -37,15 +35,11 @@ class WledWidget : GlanceAppWidget() {
             }
         }
     }
-
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    interface WidgetEntryPoint {
-        fun widgetManager(): WledWidgetManager
-    }
 }
 
-class WledWidgetReceiver : GlanceAppWidgetReceiver() {
+class WledWidgetReceiver :
+    GlanceAppWidgetReceiver(),
+    KoinComponent {
     override val glanceAppWidget: GlanceAppWidget = WledWidget()
 
     override fun onUpdate(
@@ -59,11 +53,8 @@ class WledWidgetReceiver : GlanceAppWidgetReceiver() {
         // Refresh state for all widgets
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val entryPoint = EntryPointAccessors.fromApplication(
-                    context,
-                    WledWidget.WidgetEntryPoint::class.java,
-                )
-                entryPoint.widgetManager().updateAllWidgets(context)
+                val widgetManager: WledWidgetManager = get()
+                widgetManager.updateAllWidgets(context)
             } finally {
                 pendingResult?.finish()
             }

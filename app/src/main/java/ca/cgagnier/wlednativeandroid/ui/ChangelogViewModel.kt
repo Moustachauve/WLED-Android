@@ -5,16 +5,13 @@ import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.BuildConfig
 import ca.cgagnier.wlednativeandroid.domain.ChangelogProvider
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class ChangelogViewModel @Inject constructor(
+class ChangelogViewModel(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val changelogProvider: ChangelogProvider,
 ) : ViewModel() {

@@ -16,12 +16,10 @@ import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.ui.theme.getColorFromDeviceState
 import ca.cgagnier.wlednativeandroid.widget.components.getDeviceName
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class WledWidgetManager @Inject constructor(
+class WledWidgetManager(
     private val deviceApiFactory: DeviceApiFactory,
     private val deviceRepository: DeviceRepository,
 ) {
