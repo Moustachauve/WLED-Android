@@ -7,7 +7,7 @@ private typealias State = SwiftUI.State
 struct DeviceListView: View {
 
     // MARK: - Properties
-    @StateObject private var viewModel: DeviceWebsocketListViewModel
+    @State private var viewModel: DeviceWebsocketListViewModel
 
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
@@ -28,13 +28,13 @@ struct DeviceListView: View {
     // Allow injecting a specific database (defaulting to shared for the actual app)
     init(
         database: AppDatabase = .shared,
-        clientFactory: ((Device) -> WebsocketClient)? = nil
+        connectionManager: DeviceConnectionManager? = nil
     ) {
         let viewModel = DeviceWebsocketListViewModel(
-            database: database,
-            clientFactory: clientFactory
+            connectionManager: connectionManager,
+            database: database
         )
-        _viewModel = StateObject(wrappedValue: viewModel)
+        _viewModel = State(wrappedValue: viewModel)
     }
 
     // MARK: - Body
@@ -311,10 +311,7 @@ struct DeviceListView: View {
     // swiftlint:enable redundant_discardable_let
 
     DeviceListView(
-        database: PreviewData.database,
-        clientFactory: { device in
-            MockWebsocketClient(device: device)
-        }
+        database: PreviewData.database
     )
     .environment(\.managedObjectContext, PreviewData.viewContext)
 }

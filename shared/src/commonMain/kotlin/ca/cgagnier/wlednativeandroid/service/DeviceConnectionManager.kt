@@ -36,12 +36,24 @@ import kotlinx.coroutines.launch
 private const val TAG = "DeviceConnectionManager"
 private val logger = Logger.withTag(TAG)
 
+const val DEFAULT_BACKGROUND_PAUSE_DELAY_MS = 2_000L
+const val DEFAULT_LAST_SEEN_PERSIST_INTERVAL_MS = 30_000L
+const val DEFAULT_UPDATE_CHECK_CACHE_TTL_MS = 3_600_000L // 1 hour
+const val DEFAULT_UPDATE_CHECK_RETRY_INTERVAL_MS = 60_000L // 1 minute
+
 data class DeviceConnectionManagerConfig(
-    val backgroundPauseDelayMs: Long = 2_000L,
-    val lastSeenPersistIntervalMs: Long = 30_000L,
-    val updateCheckCacheTtlMs: Long = 3_600_000L, // 1 hour
-    val updateCheckRetryIntervalMs: Long = 60_000L, // 1 minute
-)
+    val backgroundPauseDelayMs: Long = DEFAULT_BACKGROUND_PAUSE_DELAY_MS,
+    val lastSeenPersistIntervalMs: Long = DEFAULT_LAST_SEEN_PERSIST_INTERVAL_MS,
+    val updateCheckCacheTtlMs: Long = DEFAULT_UPDATE_CHECK_CACHE_TTL_MS,
+    val updateCheckRetryIntervalMs: Long = DEFAULT_UPDATE_CHECK_RETRY_INTERVAL_MS,
+) {
+    constructor() : this(
+        DEFAULT_BACKGROUND_PAUSE_DELAY_MS,
+        DEFAULT_LAST_SEEN_PERSIST_INTERVAL_MS,
+        DEFAULT_UPDATE_CHECK_CACHE_TTL_MS,
+        DEFAULT_UPDATE_CHECK_RETRY_INTERVAL_MS,
+    )
+}
 
 /**
  * Shared coordinator managing real-time connections, optimistic commands,
@@ -520,6 +532,10 @@ class DeviceConnectionManager(
         connectionsToResume.forEach { it.resume() }
     }
 
+    fun onPause() = onBackground()
+
+    fun onResume() = onForeground()
+
     suspend fun flushLastSeen() {
         val currentDevices = _allDevicesWithState.value
         val toPersist: List<Pair<String, Long>> = synchronized(lock) {
@@ -627,4 +643,6 @@ class DeviceConnectionManager(
         }
         toDestroy.forEach { it.destroy() }
     }
+
+    companion object
 }

@@ -13,12 +13,17 @@ final class AppDatabase: @unchecked Sendable {
 
     let database: DevicesDatabase
     let deviceRepository: DeviceRepository
+    let deviceConnectionManager: DeviceConnectionManager
 
     /// Completes once legacy Core Data devices have been imported into Room.
     private let readyTask: Task<Void, Never>
 
     /// - Parameter inMemory: Uses a throwaway database and skips the legacy Core Data import (tests, previews).
-    init(inMemory: Bool = false) {
+    init(
+        inMemory: Bool = false,
+        connectionFactory: DeviceConnectionFactory? = nil,
+        config: DeviceConnectionManagerConfig? = nil
+    ) {
         if inMemory {
             self.database = DevicesDatabase.companion.createInMemoryDatabase()
         } else {
@@ -26,6 +31,25 @@ final class AppDatabase: @unchecked Sendable {
         }
         let repository = database.createDeviceRepository()
         self.deviceRepository = repository
+        if let config, let connectionFactory {
+            self.deviceConnectionManager = DeviceConnectionManager.companion.create(
+                database: database,
+                connectionFactory: connectionFactory,
+                config: config
+            )
+        } else if let config {
+            self.deviceConnectionManager = DeviceConnectionManager.companion.create(
+                database: database,
+                config: config
+            )
+        } else if let connectionFactory {
+            self.deviceConnectionManager = DeviceConnectionManager.companion.create(
+                database: database,
+                connectionFactory: connectionFactory
+            )
+        } else {
+            self.deviceConnectionManager = DeviceConnectionManager.companion.create(database: database)
+        }
 
         if inMemory {
             self.readyTask = Task {}
@@ -53,3 +77,4 @@ final class AppDatabase: @unchecked Sendable {
 extension DeviceRepository: @retroactive @unchecked Sendable {}
 extension Device: @retroactive @unchecked Sendable {}
 extension DevicesDatabase: @retroactive @unchecked Sendable {}
+extension DeviceConnectionManager: @retroactive @unchecked Sendable {}

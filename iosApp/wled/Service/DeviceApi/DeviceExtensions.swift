@@ -60,6 +60,13 @@ extension Device {
         )
     }
 
+    func getColor(state: State?) -> Int64 {
+        if let argb = getColorFromState(state: state) {
+            return Int64(argb.int32Value) & 0xFFFFFF
+        }
+        return 0x808080
+    }
+
     func getColor(state: WledState?) -> Int64 {
         guard let state = state,
               let colorInfo = state.segment?.first?.colors?.first,

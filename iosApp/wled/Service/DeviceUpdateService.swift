@@ -119,7 +119,7 @@ class DeviceUpdateService: ObservableObject {
     ///
     /// - Returns: `true` if the asset name was determined and found; otherwise `false`.
     private func determineAssetByRelease() -> Bool {
-        guard let release = device.stateInfo?.info.release,
+        guard let release = device.stateInfo?.info.releaseName,
               !release.isEmpty,
               let tagName = version.tagName else {
             return false

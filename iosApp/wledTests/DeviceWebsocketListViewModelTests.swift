@@ -4,9 +4,6 @@ import Combine
 import Shared
 @testable import WLED
 
-private typealias WebsocketClient = WLED.WebsocketClient
-private typealias WebsocketStatus = WLED.WebsocketStatus
-
 @MainActor
 struct DeviceWebsocketListViewModelTests {
 
@@ -28,7 +25,6 @@ struct DeviceWebsocketListViewModelTests {
         try await repository.insert(device: device3)
 
         let viewModel = DeviceWebsocketListViewModel(database: database)
-        viewModel.makeClient = { device in MockWebsocketClient(device: device) }
 
         // 2. Load — listens to allDevices Flow
         try await load(viewModel, expectedCount: 3)
@@ -43,12 +39,12 @@ struct DeviceWebsocketListViewModelTests {
         #expect(allNames.contains("A Device"))
         #expect(allNames.contains("Z Device"))
         #expect(!allNames.contains("Hidden Device"))
+        #expect(allNames == ["A Device", "Z Device"])
     }
 
     @Test func testShowingHiddenDevicesUpdatesListImmediately() async throws {
         try await repository.insert(device: createDevice(name: "Hidden Device", mac: "08", isHidden: true))
         let viewModel = DeviceWebsocketListViewModel(database: database)
-        viewModel.makeClient = { device in MockWebsocketClient(device: device) }
         try await load(viewModel, expectedCount: 1)
         viewModel.showHiddenDevices = false
 
@@ -63,64 +59,114 @@ struct DeviceWebsocketListViewModelTests {
         try await repository.insert(device: device)
 
         let viewModel = DeviceWebsocketListViewModel(database: database)
-        let mockClient = ManualMockWebsocketClient(device: device)
-        viewModel.makeClient = { _ in mockClient }
-
         try await load(viewModel, expectedCount: 1)
 
         // Initially disconnected
-        mockClient.setStatus(.disconnected)
-        viewModel.updateFilteredDevices(currentTime: Date())
-
+        database.deviceConnectionManager.updateDeviceState(
+            deviceWithState: Shared.DeviceWithState(
+                device: device,
+                stateInfo: nil,
+                websocketStatus: .disconnected,
+                updateVersionTag: nil
+            )
+        )
+        try await waitUntil { viewModel.offlineDevices.count == 1 && viewModel.onlineDevices.isEmpty }
         #expect(viewModel.offlineDevices.count == 1)
         #expect(viewModel.onlineDevices.isEmpty)
 
-        // Switch to connected — the reactive pipeline triggers after debounce
-        mockClient.setStatus(.connected)
+        // Switch to connected
+        database.deviceConnectionManager.updateDeviceState(
+            deviceWithState: Shared.DeviceWithState(
+                device: device,
+                stateInfo: nil,
+                websocketStatus: .connected,
+                updateVersionTag: nil
+            )
+        )
         try await waitUntil { viewModel.onlineDevices.count == 1 && viewModel.offlineDevices.isEmpty }
-
         #expect(viewModel.onlineDevices.count == 1)
         #expect(viewModel.offlineDevices.isEmpty)
     }
 
-    @Test func testDeviceUpdatePersistsLastSeen() async throws {
-        let device = createDevice(name: "Test Device", mac: "06", isHidden: false)
+    @Test func testDeviceUpdateReflectsInViewModel() async throws {
+        let device = createDevice(name: "Original Name", mac: "06", isHidden: false)
         try await repository.insert(device: device)
         let viewModel = DeviceWebsocketListViewModel(database: database)
-        let mockClient = ManualMockWebsocketClient(device: device)
-        viewModel.makeClient = { _ in mockClient }
         try await load(viewModel, expectedCount: 1)
 
-        mockClient.onDeviceStateUpdated?(.mock(name: "Test Device", version: "0.14.0", color: [255, 0, 0]))
+        let updatedDevice = device.copy(originalName: "Updated Name", lastSeen: 123456789)
+        database.deviceConnectionManager.updateDeviceState(
+            deviceWithState: Shared.DeviceWithState(
+                device: updatedDevice,
+                stateInfo: nil,
+                websocketStatus: .connected,
+                updateVersionTag: nil
+            )
+        )
 
-        try await waitUntil { try await repository.findDeviceByMacAddress(address: "06")?.lastSeen ?? 0 > 0 }
-        let saved = try await repository.findDeviceByMacAddress(address: "06")
-        #expect(saved?.lastSeen ?? 0 > 0)
+        try await waitUntil {
+            viewModel.allDevicesWithState.first?.device.originalName == "Updated Name"
+        }
+        #expect(viewModel.allDevicesWithState.first?.device.originalName == "Updated Name")
+        #expect(viewModel.allDevicesWithState.first?.device.lastSeen == 123456789)
     }
 
-    @Test func testDatabaseEmissionKeepsNewerInMemoryLastSeen() async throws {
-        // Recently persisted lastSeen, so the next websocket update only updates it in memory
-        let tenSecondsAgo = Int64(Date().addingTimeInterval(-10).timeIntervalSince1970 * 1000)
-        let device = Device(
-            macAddress: "07",
-            address: "192.168.1.7",
-            originalName: "Test Device",
-            branch: .stable,
-            lastSeen: tenSecondsAgo
-        )
+    @Test func testQuickResumeCancelsPendingPause() async throws {
+        let device = createDevice(name: "Test Device Quick Resume", mac: "04", isHidden: false)
         try await repository.insert(device: device)
+
         let viewModel = DeviceWebsocketListViewModel(database: database)
-        let mockClient = ManualMockWebsocketClient(device: device)
-        viewModel.makeClient = { _ in mockClient }
         try await load(viewModel, expectedCount: 1)
-        mockClient.onDeviceStateUpdated?(.mock(name: "Test Device", version: "0.14.0", color: [255, 0, 0]))
-        let inMemoryLastSeen = mockClient.deviceState.device.lastSeen
 
-        // Unrelated write triggers a database emission carrying the older lastSeen
-        try await repository.updateCustomName(macAddress: "07", customName: "Renamed")
+        // Simulate quick background + resume (app switcher peek)
+        viewModel.onPause()
+        try await Task.sleep(for: .milliseconds(200)) // Well under the 2s pause delay
+        viewModel.onResume()
 
-        try await waitUntil { mockClient.deviceState.device.customName == "Renamed" }
-        #expect(mockClient.deviceState.device.lastSeen == inMemoryLastSeen)
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(viewModel.isPaused == false)
+    }
+
+    @Test func testFullBackgroundPausesConnections() async throws {
+        let fastPauseConfig = DeviceConnectionManagerConfig(
+            backgroundPauseDelayMs: 50,
+            lastSeenPersistIntervalMs: 30000,
+            updateCheckCacheTtlMs: 3600000,
+            updateCheckRetryIntervalMs: 60000
+        )
+        let testDatabase = AppDatabase(inMemory: true, config: fastPauseConfig)
+        let device = createDevice(name: "Test Device Background Pause", mac: "05", isHidden: false)
+        try await testDatabase.deviceRepository.insert(device: device)
+
+        let viewModel = DeviceWebsocketListViewModel(database: testDatabase)
+        try await load(viewModel, expectedCount: 1)
+
+        // Trigger background pause
+        viewModel.onPause()
+
+        try await waitUntil(timeout: .seconds(3)) { viewModel.isPaused }
+        #expect(viewModel.isPaused == true)
+
+        // Resume should clear paused state
+        viewModel.onResume()
+        try await waitUntil(timeout: .seconds(2)) { !viewModel.isPaused }
+        #expect(viewModel.isPaused == false)
+    }
+
+    @Test func testDeleteDeviceRemovesFromDatabase() async throws {
+        let device = createDevice(name: "To Be Deleted", mac: "09", isHidden: false)
+        try await repository.insert(device: device)
+
+        let viewModel = DeviceWebsocketListViewModel(database: database)
+        try await load(viewModel, expectedCount: 1)
+
+        viewModel.deleteDevice(device)
+
+        try await waitUntil {
+            try await repository.findDeviceByMacAddress(address: "09") == nil
+        }
+        let remaining = try await repository.findDeviceByMacAddress(address: "09")
+        #expect(remaining == nil)
     }
 
     // MARK: - Helpers
@@ -152,65 +198,5 @@ struct DeviceWebsocketListViewModelTests {
             if try await condition() { return }
             try await Task.sleep(for: .milliseconds(20))
         }
-    }
-
-    @Test func testQuickResumeDoesNotDisconnect() async throws {
-        let device = createDevice(name: "Test Device Quick Resume", mac: "04", isHidden: false)
-        try await repository.insert(device: device)
-
-        let viewModel = DeviceWebsocketListViewModel(database: database)
-        let mockClient = ManualMockWebsocketClient(device: device)
-        viewModel.makeClient = { _ in mockClient }
-
-        try await load(viewModel, expectedCount: 1)
-        mockClient.setStatus(.connected)
-        viewModel.updateFilteredDevices(currentTime: Date())
-        #expect(viewModel.onlineDevices.count == 1)
-
-        // Simulate quick background + resume (app switcher peek)
-        viewModel.onPause()
-        try await Task.sleep(for: .milliseconds(500)) // Well under the 2s delay
-        viewModel.onResume()
-
-        // Device should still be connected — disconnect was cancelled
-        try await Task.sleep(for: .seconds(1))
-        #expect(mockClient.deviceState.websocketStatus == .connected)
-        #expect(viewModel.onlineDevices.count == 1)
-    }
-
-    @Test func testFullBackgroundDisconnectsAfterDelay() async throws {
-        let device = createDevice(name: "Test Device Background Disconnect", mac: "05", isHidden: false)
-        try await repository.insert(device: device)
-
-        let viewModel = DeviceWebsocketListViewModel(database: database)
-        viewModel.backgroundDisconnectDelay = .milliseconds(100)
-        let mockClient = ManualMockWebsocketClient(device: device)
-        viewModel.makeClient = { _ in mockClient }
-
-        try await load(viewModel, expectedCount: 1)
-        mockClient.setStatus(.connected)
-        viewModel.updateFilteredDevices(currentTime: Date())
-        #expect(viewModel.onlineDevices.count == 1)
-
-        // Simulate going to background and staying there
-        viewModel.onPause()
-
-        // Poll up to 10s for disconnect to complete (resilient against CI CPU scheduling delays)
-        try await waitUntil { mockClient.deviceState.websocketStatus == .disconnected }
-
-        // Device should now be disconnected
-        #expect(mockClient.deviceState.websocketStatus == .disconnected)
-    }
-}
-
-// Precise control mock
-class ManualMockWebsocketClient: WLED.WebsocketClient {
-    func setStatus(_ status: WLED.WebsocketStatus) {
-        self.deviceState.websocketStatus = status
-    }
-
-    override func connect() { /* no-op */ }
-    override func disconnect() {
-        self.deviceState.websocketStatus = .disconnected
     }
 }
