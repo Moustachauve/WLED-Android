@@ -70,29 +70,17 @@ struct DeviceInfoTwoRows: View {
     }
 
     func getUpdateIconName() -> String {
-        if #available(iOS 17.0, *) {
-            return "arrow.down.circle.dotted"
-        } else {
-            return "arrow.down.circle"
-        }
+        "arrow.down.circle.dotted"
     }
 
     @ViewBuilder
     func getSignalIcon(isOnline: Bool, signalStrength: Int?) -> some View {
         let icon = !isOnline || signalStrength == nil || signalStrength == 0 ? "wifi.slash" : "wifi"
 
-        if #available(iOS 17.0, *) {
-            Image(systemName: icon, variableValue: getSignalValue(signalStrength: signalStrength))
-                .symbolRenderingMode(.hierarchical)
-                .font(.caption2)
-            // iOS 17: Animates the signal bars filling up/down
-                .contentTransition(.symbolEffect(.replace))
-        } else {
-            // Fallback for iOS 16
-            Image(systemName: icon, variableValue: getSignalValue(signalStrength: signalStrength))
-                .symbolRenderingMode(.hierarchical)
-                .font(.caption2)
-        }
+        Image(systemName: icon, variableValue: getSignalValue(signalStrength: signalStrength))
+            .symbolRenderingMode(.hierarchical)
+            .font(.caption2)
+            .contentTransition(.symbolEffect(.replace))
     }
 
     func getSignalValue(signalStrength: Int?) -> Double {

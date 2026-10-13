@@ -149,11 +149,7 @@ struct DeviceUpdateAvailable: View {
     }
 
     private func getUpdateIconName() -> String {
-        if #available(iOS 17.0, *) {
-            return "arrow.down.circle.dotted"
-        } else {
-            return "arrow.down.circle"
-        }
+        "arrow.down.circle.dotted"
     }
 }
 
