@@ -16,7 +16,6 @@ import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.ui.theme.getColorFromDeviceState
 import ca.cgagnier.wlednativeandroid.widget.components.getDeviceName
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class WledWidgetManager(

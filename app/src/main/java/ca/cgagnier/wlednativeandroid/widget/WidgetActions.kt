@@ -7,11 +7,13 @@ import androidx.glance.appwidget.action.ActionCallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.get
+import org.koin.core.component.inject
 
 class TogglePowerAction :
     ActionCallback,
     KoinComponent {
+    private val widgetManager: WledWidgetManager by inject()
+
     companion object {
         val keyIsOn = ActionParameters.Key<Boolean>("isOn")
     }
@@ -20,7 +22,6 @@ class TogglePowerAction :
         val currentIsOn = parameters[keyIsOn] ?: false
         val newIsOn = !currentIsOn
 
-        val widgetManager: WledWidgetManager = get()
         widgetManager.toggleState(context, glanceId, newIsOn)
     }
 }
@@ -28,9 +29,9 @@ class TogglePowerAction :
 class RefreshAction :
     ActionCallback,
     KoinComponent {
+    private val widgetManager: WledWidgetManager by inject()
 
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        val widgetManager: WledWidgetManager = get()
         withContext(Dispatchers.IO) {
             widgetManager.refreshWidget(context, glanceId)
         }

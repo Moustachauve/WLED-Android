@@ -12,7 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.get
+import org.koin.core.component.inject
 
 class WledWidget : GlanceAppWidget() {
 
@@ -40,6 +40,8 @@ class WledWidget : GlanceAppWidget() {
 class WledWidgetReceiver :
     GlanceAppWidgetReceiver(),
     KoinComponent {
+    private val widgetManager: WledWidgetManager by inject()
+
     override val glanceAppWidget: GlanceAppWidget = WledWidget()
 
     override fun onUpdate(
@@ -53,7 +55,6 @@ class WledWidgetReceiver :
         // Refresh state for all widgets
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val widgetManager: WledWidgetManager = get()
                 widgetManager.updateAllWidgets(context)
             } finally {
                 pendingResult?.finish()

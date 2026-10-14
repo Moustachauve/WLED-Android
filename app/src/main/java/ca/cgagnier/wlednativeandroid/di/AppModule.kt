@@ -35,7 +35,9 @@ import okhttp3.OkHttpClient
 import okio.Path.Companion.toPath
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
 
@@ -90,59 +92,19 @@ val appModule: Module = module {
         AndroidDeviceDiscovery(androidContext())
     }
 
-    single { ValidateAddress() }
-    single { DeepLinkHandler() }
-    single { ChangelogProvider(androidContext()) }
-    single { WledWidgetManager(get(), get()) }
-    single { DeviceFirstContactService(get(), get(), get(), get(), androidContext()) }
+    singleOf(::ValidateAddress)
+    singleOf(::DeepLinkHandler)
+    singleOf(::ChangelogProvider)
+    singleOf(::WledWidgetManager)
+    singleOf(::DeviceFirstContactService)
 
-    viewModel {
-        MainViewModel(
-            userPreferencesRepository = get(),
-            releaseService = get(),
-            githubApi = get(),
-            deviceRepository = get(),
-            repositoryDao = get(),
-            deviceFirstContactService = get(),
-            deepLinkHandler = get(),
-        )
-    }
-
-    viewModel { SettingsViewModel(get()) }
-
-    viewModel { ChangelogViewModel(get(), get()) }
-
-    viewModel { ThemeViewModel(get()) }
-
-    viewModel {
-        UpdateInstallingViewModel(
-            deviceRepository = get(),
-            repositoryDao = get(),
-            deviceApiFactory = get(),
-            githubApi = get(),
-        )
-    }
-
-    viewModel {
-        DeviceEditViewModel(
-            deviceRepository = get(),
-            repositoryDao = get(),
-            versionWithAssetsRepository = get(),
-            githubApi = get(),
-            releaseService = get(),
-            widgetManager = get(),
-            applicationContext = androidContext(),
-        )
-    }
-
-    viewModel {
-        DeviceListDetailViewModel(
-            preferencesRepository = get(),
-            networkManager = get(),
-            deviceFirstContactService = get(),
-            discoveryService = get(),
-        )
-    }
+    viewModelOf(::MainViewModel)
+    viewModelOf(::SettingsViewModel)
+    viewModelOf(::ChangelogViewModel)
+    viewModelOf(::ThemeViewModel)
+    viewModelOf(::UpdateInstallingViewModel)
+    viewModelOf(::DeviceEditViewModel)
+    viewModelOf(::DeviceListDetailViewModel)
 
     viewModel {
         DeviceWebsocketListViewModel(
@@ -158,10 +120,5 @@ val appModule: Module = module {
         )
     }
 
-    viewModel {
-        DeviceAddViewModel(
-            validateAddress = get(),
-            deviceFirstContactService = get(),
-        )
-    }
+    viewModelOf(::DeviceAddViewModel)
 }

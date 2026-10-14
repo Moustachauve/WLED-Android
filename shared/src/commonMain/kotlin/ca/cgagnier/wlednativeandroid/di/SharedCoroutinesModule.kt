@@ -12,8 +12,8 @@ import org.koin.dsl.module
 val DEFAULT_DISPATCHER = named("defaultDispatcher")
 val IO_DISPATCHER = named("ioDispatcher")
 
-val sharedCoroutinesModule: Module = module {
+internal val sharedCoroutinesModule: Module = module {
     single<CoroutineDispatcher>(DEFAULT_DISPATCHER) { Dispatchers.Default }
     single<CoroutineDispatcher>(IO_DISPATCHER) { Dispatchers.IO }
-    single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+    single { CoroutineScope(SupervisorJob() + get<CoroutineDispatcher>(DEFAULT_DISPATCHER)) }
 }
