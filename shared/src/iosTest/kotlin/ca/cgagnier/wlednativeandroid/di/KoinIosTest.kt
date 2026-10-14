@@ -1,20 +1,27 @@
 package ca.cgagnier.wlednativeandroid.di
 
+import androidx.datastore.core.DataStore
 import ca.cgagnier.wlednativeandroid.domain.usecase.SaveDeviceStateUseCase
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
+import ca.cgagnier.wlednativeandroid.repository.UserPreferences
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
+import ca.cgagnier.wlednativeandroid.repository.createInMemoryDatabase
+import ca.cgagnier.wlednativeandroid.repository.createUserPreferencesDataStore
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientFactory
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
-import okio.Path.Companion.toPath
+import okio.FileSystem
+import okio.Path
+import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
+import org.koin.dsl.module
 import org.koin.test.KoinTest
 import org.koin.test.get
-import platform.Foundation.NSTemporaryDirectory
-import platform.Foundation.NSUUID
+import kotlin.random.Random
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -22,66 +29,41 @@ import kotlin.test.assertNotNull
 
 class KoinIosTest : KoinTest {
 
+    private lateinit var tempPath: Path
+
     @BeforeTest
     fun setUp() {
-        val tempPath = (NSTemporaryDirectory() + "test_user_prefs_${NSUUID().UUIDString}.json").toPath()
-        initKoinForTest(
-            preferencesPathProducer = { tempPath },
-        )
+        tempPath = FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "test_user_prefs_${Random.nextLong()}.json"
+        startKoin {
+            modules(
+                iosPlatformModule,
+                module {
+                    single<DevicesDatabase> { DevicesDatabase.createInMemoryDatabase() }
+                    single<DataStore<UserPreferences>> {
+                        createUserPreferencesDataStore(producePath = { tempPath })
+                    }
+                },
+            )
+        }
     }
 
     @AfterTest
     fun tearDown() {
         stopKoin()
+        FileSystem.SYSTEM.delete(tempPath, mustExist = false)
     }
 
     @Test
-    fun resolveDeviceRepository() {
+    fun resolveAllIosDependencies() {
         assertNotNull(get<DeviceRepository>())
-    }
-
-    @Test
-    fun resolveUserPreferencesRepository() {
         assertNotNull(get<UserPreferencesRepository>())
-    }
-
-    @Test
-    fun resolveSaveDeviceStateUseCase() {
         assertNotNull(get<SaveDeviceStateUseCase>())
-    }
-
-    @Test
-    fun resolveDeviceUpdateManager() {
         assertNotNull(get<DeviceUpdateManager>())
-    }
-
-    @Test
-    fun resolveGithubApi() {
         assertNotNull(get<GithubApi>())
-    }
-
-    @Test
-    fun resolveDeviceApiFactory() {
         assertNotNull(get<DeviceApiFactory>())
-    }
-
-    @Test
-    fun resolveWebsocketClientFactory() {
         assertNotNull(get<WebsocketClientFactory>())
-    }
-
-    @Test
-    fun resolveHttpClient() {
         assertNotNull(get<HttpClient>())
-    }
-
-    @Test
-    fun resolveCoroutineScope() {
         assertNotNull(get<CoroutineScope>())
-    }
-
-    @Test
-    fun resolveKoinHelper() {
         assertNotNull(KoinHelper.deviceRepository)
         assertNotNull(KoinHelper.userPreferencesRepository)
     }
