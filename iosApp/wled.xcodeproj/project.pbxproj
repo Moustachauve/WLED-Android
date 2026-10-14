@@ -221,6 +221,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		C9LOCAL000000000000000004 /* Compile Shared KMP Framework */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);

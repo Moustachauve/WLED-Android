@@ -31,7 +31,7 @@ class MockWebsocketClient: WebsocketClient {
             } else {
                 self.deviceState.websocketStatus = .connected
                 // Inject mock state info (colors, brightness) so the UI updates
-                let name = self.deviceState.device.originalName ?? "Mock Device"
+                let name = self.deviceState.device.originalName
                 self.deviceState.stateInfo = .mock(name: name, version: "0.14.0", color: randomColor)
             }
         }

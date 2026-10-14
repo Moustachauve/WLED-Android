@@ -91,7 +91,7 @@ class WebsocketClient: NSObject, ObservableObject, URLSessionWebSocketDelegate {
     }
     
     func disconnect() {
-        print("\(tag): Manually disconnecting from \(deviceState.device.address ?? "")")
+        print("\(tag): Manually disconnecting from \(deviceState.device.address)")
         isManuallyDisconnected = true
         
         webSocketTask?.cancel(with: .normalClosure, reason: Data("Client disconnected".utf8))
@@ -107,7 +107,7 @@ class WebsocketClient: NSObject, ObservableObject, URLSessionWebSocketDelegate {
         if isManuallyDisconnected || isConnecting { return }
         
         let delayTime = min(reconnectionDelay * pow(2.0, Double(retryCount)), maxReconnectionDelay)
-        print("\(tag): Reconnecting to \(deviceState.device.address ?? "") in \(delayTime)s")
+        print("\(tag): Reconnecting to \(deviceState.device.address) in \(delayTime)s")
         
         Task {
             try await Task.sleep(for: .seconds(delayTime))
@@ -189,7 +189,7 @@ class WebsocketClient: NSObject, ObservableObject, URLSessionWebSocketDelegate {
     /// Note: Kotlin code used `State` class. In Swift, assuming `WLEDStateChange` or `WledState` is the equivalent Encodable struct.
     func sendState(_ state: WledState) {
         if deviceState.websocketStatus != .connected {
-            print("\(tag): Not connected to \(deviceState.device.address ?? ""), reconnecting...")
+            print("\(tag): Not connected to \(deviceState.device.address), reconnecting...")
             connect()
         }
         

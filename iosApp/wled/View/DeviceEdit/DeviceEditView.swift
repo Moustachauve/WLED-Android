@@ -71,7 +71,7 @@ struct DeviceEditView: View {
                     .animation(.default, value: viewModel.isCheckingForUpdates)
                 }
 
-                Text("Mac Address: \(device.device.macAddress ?? "Unknown")")
+                Text("Mac Address: \(device.device.macAddress)")
                     .font(.caption)
                     .frame(maxWidth: .infinity, alignment: .leading)
 

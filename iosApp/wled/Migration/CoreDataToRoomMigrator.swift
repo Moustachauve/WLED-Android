@@ -20,10 +20,9 @@ struct CoreDataToRoomMigrator {
         }
 
         logger.info("Starting Core Data to Room device migration...")
-        let request = NSFetchRequest<NSManagedObject>(entityName: "Device")
-
         let devices: [Device] = try await context.perform {
-            try context.fetch(request).compactMap(makeDevice(from:))
+            let request = NSFetchRequest<NSManagedObject>(entityName: "Device")
+            return try context.fetch(request).compactMap(makeDevice(from:))
         }
 
         logger.info("Found \(devices.count) device(s) in Core Data to migrate.")
