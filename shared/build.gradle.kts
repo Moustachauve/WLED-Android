@@ -52,7 +52,7 @@ kotlin {
             implementation(libs.okio)
             api(libs.datastore.core)
             api(libs.datastore.core.okio)
-            implementation(libs.koin.core)
+            api(libs.koin.core)
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)

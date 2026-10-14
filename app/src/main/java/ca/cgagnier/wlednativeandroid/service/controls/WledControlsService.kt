@@ -34,8 +34,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.jdk9.asPublisher
 import kotlinx.coroutines.launch
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
+import org.koin.android.ext.android.inject
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Flow
 import java.util.concurrent.atomic.AtomicInteger
@@ -51,9 +50,7 @@ private val logger = Logger.withTag(TAG)
  * and adjust brightness. Available on Android 11 (API 30) and above.
  */
 @RequiresApi(Build.VERSION_CODES.R)
-class WledControlsService :
-    ControlsProviderService(),
-    KoinComponent {
+class WledControlsService : ControlsProviderService() {
 
     companion object {
         private const val BRIGHTNESS_STEP = 1f

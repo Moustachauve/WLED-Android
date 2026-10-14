@@ -46,6 +46,8 @@ private const val MAX_REQUESTS = 64
 private const val MAX_REQUESTS_PER_HOST = 16
 
 val appModule: Module = module {
+    includes(sharedModules)
+
     single<DevicesDatabase> {
         DevicesDatabase.getDatabase(androidContext())
     }
@@ -84,6 +86,7 @@ val appModule: Module = module {
         DeviceApiFactory.createHttpClient(get(), get())
     }
 
+    // Explicit constructors used because multiple constructors cause overload resolution ambiguity with singleOf
     single<NetworkConnectivityManager> {
         AndroidNetworkConnectivityManager(androidContext(), get())
     }

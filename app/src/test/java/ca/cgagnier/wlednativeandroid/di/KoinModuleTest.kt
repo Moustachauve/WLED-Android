@@ -21,6 +21,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -30,12 +31,12 @@ import java.io.File
 
 class KoinModuleTest : KoinTest {
 
+    @TempDir
+    lateinit var tempDir: File
+
     @BeforeEach
     fun setUp() {
         val mockContext = mockk<Context>(relaxed = true)
-        val tempDir = File(System.getProperty("java.io.tmpdir"), "koin-test-${System.currentTimeMillis()}").apply {
-            mkdirs()
-        }
         every { mockContext.cacheDir } returns tempDir
         every { mockContext.filesDir } returns tempDir
         every { mockContext.applicationContext } returns mockContext
@@ -43,7 +44,7 @@ class KoinModuleTest : KoinTest {
 
         startKoin {
             androidContext(mockContext)
-            modules(sharedModules + appModule)
+            modules(appModule)
         }
     }
 
@@ -53,47 +54,15 @@ class KoinModuleTest : KoinTest {
     }
 
     @Test
-    fun resolveMainViewModel() {
+    fun resolveAllViewModels() {
         assertNotNull(get<MainViewModel>())
-    }
-
-    @Test
-    fun resolveSettingsViewModel() {
         assertNotNull(get<SettingsViewModel>())
-    }
-
-    @Test
-    fun resolveChangelogViewModel() {
         assertNotNull(get<ChangelogViewModel>())
-    }
-
-    @Test
-    fun resolveThemeViewModel() {
         assertNotNull(get<ThemeViewModel>())
-    }
-
-    @Test
-    fun resolveUpdateInstallingViewModel() {
         assertNotNull(get<UpdateInstallingViewModel>())
-    }
-
-    @Test
-    fun resolveDeviceEditViewModel() {
         assertNotNull(get<DeviceEditViewModel>())
-    }
-
-    @Test
-    fun resolveDeviceListDetailViewModel() {
         assertNotNull(get<DeviceListDetailViewModel>())
-    }
-
-    @Test
-    fun resolveDeviceWebsocketListViewModel() {
         assertNotNull(get<DeviceWebsocketListViewModel>())
-    }
-
-    @Test
-    fun resolveDeviceAddViewModel() {
         assertNotNull(get<DeviceAddViewModel>())
     }
 
