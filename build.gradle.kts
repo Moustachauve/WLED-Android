@@ -14,7 +14,11 @@ plugins {
     alias(libs.plugins.spotless)
 }
 
-val isCi = providers.environmentVariable("CI").isPresent
+val isCi =
+    providers
+        .environmentVariable("CI")
+        .map { it.isNotEmpty() && !it.equals("false", ignoreCase = true) }
+        .getOrElse(false)
 
 spotless {
     // Only use ratchet locally. On CI, check all files (faster than fetching git history)
