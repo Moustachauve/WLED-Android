@@ -14,9 +14,11 @@ plugins {
     alias(libs.plugins.spotless)
 }
 
+val isCi = providers.environmentVariable("CI").isPresent
+
 spotless {
     // Only use ratchet locally. On CI, check all files (faster than fetching git history)
-    if (System.getenv("CI").isNullOrEmpty()) {
+    if (!isCi) {
         ratchetFrom("origin/dev")
     }
 
@@ -33,7 +35,7 @@ subprojects {
     apply(plugin = "io.gitlab.arturbosch.detekt")
 
     configure<com.diffplug.gradle.spotless.SpotlessExtension> {
-        if (System.getenv("CI").isNullOrEmpty()) {
+        if (!isCi) {
             ratchetFrom("origin/dev")
         }
 
