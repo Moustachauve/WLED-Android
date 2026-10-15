@@ -9,6 +9,8 @@ import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.repository.VersionDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
+import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
+import ca.cgagnier.wlednativeandroid.service.update.RepositoryIdResolver
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
@@ -20,6 +22,7 @@ internal val sharedDatabaseModule: Module = module {
     single<AssetDao> { get<DevicesDatabase>().assetDao() }
     singleOf(::DeviceRepository)
     single<DeviceStore> { get<DeviceRepository>() }
+    single<RepositoryIdResolver> { RepositoryIdResolver { get<RepositoryDao>().getOrCreateRepositoryId(it) } }
     singleOf(::VersionWithAssetsRepository)
     singleOf(::UserPreferencesRepository)
 }

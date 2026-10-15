@@ -8,7 +8,7 @@ import co.touchlab.kermit.Logger
 private const val TAG = "DeviceUpdateManager"
 private val logger = Logger.withTag(TAG)
 
-class DeviceUpdateManager(private val releaseService: ReleaseService) {
+class DeviceUpdateManager(private val releaseService: ReleaseService) : UpdateTagResolver {
 
     /**
      * Checks if a software update is available for the given [device] and [stateInfo].
@@ -16,7 +16,7 @@ class DeviceUpdateManager(private val releaseService: ReleaseService) {
      * @return The latest release version tag (e.g., "16.0.1") if an update is available,
      * or `null` if up-to-date, OTA is disabled, or state info is absent.
      */
-    suspend fun checkForUpdate(device: Device, stateInfo: DeviceStateInfo?): String? {
+    override suspend fun checkForUpdate(device: Device, stateInfo: DeviceStateInfo?): String? {
         val info = stateInfo?.info ?: return null
         val repository = getRepositoryFromInfo(info)
         logger.d {
