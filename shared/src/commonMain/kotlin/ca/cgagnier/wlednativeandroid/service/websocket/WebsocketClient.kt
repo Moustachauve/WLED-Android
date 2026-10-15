@@ -61,7 +61,7 @@ private val logger = Logger.withTag(TAG)
 // Constructor requires DI parameters for dispatcher, scope, random, and testing hooks
 @Suppress("LongParameterList")
 class WebsocketClient(
-    device: Device,
+    val address: String,
     private val httpClient: HttpClient,
     private val json: Json,
     private val coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -72,24 +72,48 @@ class WebsocketClient(
             header(HttpHeaders.UserAgent, USER_AGENT)
         }
     },
-) {
+) : DeviceConnection {
 
     @Volatile
-    var device: Device = device
+    var device: Device = Device(macAddress = "", address = address)
         private set
+
+    constructor(
+        device: Device,
+        httpClient: HttpClient,
+        json: Json,
+        coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + coroutineDispatcher),
+        random: Random = Random.Default,
+        sessionOpener: suspend (HttpClient, String) -> DefaultClientWebSocketSession = { client, url ->
+            client.webSocketSession(url) {
+                header(HttpHeaders.UserAgent, USER_AGENT)
+            }
+        },
+    ) : this(
+        address = device.address,
+        httpClient = httpClient,
+        json = json,
+        coroutineDispatcher = coroutineDispatcher,
+        coroutineScope = coroutineScope,
+        random = random,
+        sessionOpener = sessionOpener,
+    ) {
+        this.device = device
+    }
 
     private val clientJob = SupervisorJob(coroutineScope.coroutineContext[Job])
     private val clientScope = CoroutineScope(coroutineScope.coroutineContext + clientJob)
 
     private val _status = MutableStateFlow(WebsocketStatus.DISCONNECTED)
-    val status: StateFlow<WebsocketStatus> = _status.asStateFlow()
+    override val status: StateFlow<WebsocketStatus> = _status.asStateFlow()
 
     private val _incomingStateInfo = MutableSharedFlow<DeviceStateInfo>(
         replay = 0,
         extraBufferCapacity = BUFFER_CAPACITY,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
-    val incomingStateInfo: SharedFlow<DeviceStateInfo> = _incomingStateInfo.asSharedFlow()
+    override val incomingStateInfo: SharedFlow<DeviceStateInfo> = _incomingStateInfo.asSharedFlow()
 
     private val stateLock = SynchronizedObject()
     private var isManuallyDisconnected = false
@@ -102,12 +126,12 @@ class WebsocketClient(
     @Volatile
     private var currentSession: DefaultClientWebSocketSession? = null
 
-    fun connect() {
+    override fun connect() {
         var oldJob: Job? = null
         var shouldLaunch = false
         synchronized(stateLock) {
             if (isDestroyed) {
-                logger.w { "Cannot connect: WebsocketClient for ${device.address} has been destroyed" }
+                logger.w { "Cannot connect: WebsocketClient for $address has been destroyed" }
                 return
             }
             isManuallyDisconnected = false
@@ -115,11 +139,11 @@ class WebsocketClient(
             val currentJob = connectionJob
             if (currentJob?.isActive == true) {
                 if (_status.value == WebsocketStatus.DISCONNECTED) {
-                    logger.d { "Expediting reconnection for ${device.address}: cancelling backoff delay" }
+                    logger.d { "Expediting reconnection for $address: cancelling backoff delay" }
                     currentJob.cancel(CancellationException("Manual connect during backoff delay"))
                     oldJob = currentJob
                 } else {
-                    logger.d { "Connection already active or connecting for ${device.address}" }
+                    logger.d { "Connection already active or connecting for $address" }
                     return
                 }
             } else {
@@ -137,7 +161,7 @@ class WebsocketClient(
     }
 
     fun disconnect() {
-        logger.d { "Manually disconnecting from ${device.address}" }
+        logger.d { "Manually disconnecting from $address" }
         var jobToCancel: Job? = null
         var sessionToCancel: DefaultClientWebSocketSession? = null
         synchronized(stateLock) {
@@ -151,8 +175,8 @@ class WebsocketClient(
         _status.value = WebsocketStatus.DISCONNECTED
     }
 
-    fun pause() {
-        logger.d { "Pausing connection for ${device.address}" }
+    override fun pause() {
+        logger.d { "Pausing connection for $address" }
         var jobToCancel: Job? = null
         var sessionToCancel: DefaultClientWebSocketSession? = null
         synchronized(stateLock) {
@@ -166,7 +190,7 @@ class WebsocketClient(
         _status.value = WebsocketStatus.DISCONNECTED
     }
 
-    fun resume() {
+    override fun resume() {
         val shouldReturn = synchronized(stateLock) {
             if (isManuallyDisconnected || isDestroyed) {
                 true
@@ -176,7 +200,7 @@ class WebsocketClient(
             }
         }
         if (shouldReturn) {
-            logger.d { "Not resuming ${device.address}: manually disconnected or destroyed" }
+            logger.d { "Not resuming $address: manually disconnected or destroyed" }
             return
         }
         connect()
@@ -186,8 +210,8 @@ class WebsocketClient(
         this.device = newDevice
     }
 
-    fun destroy() {
-        logger.d { "Destroying WebsocketClient for ${device.address}" }
+    override fun destroy() {
+        logger.d { "Destroying WebsocketClient for $address" }
         synchronized(stateLock) { isDestroyed = true }
         disconnect()
         clientJob.cancel()
@@ -350,10 +374,10 @@ class WebsocketClient(
 
     // Non-throwing API: any frame serialization or socket write failure returns false
     @Suppress("TooGenericExceptionCaught")
-    suspend fun sendState(state: State): Boolean {
+    override suspend fun sendState(state: State): Boolean {
         val destroyed = synchronized(stateLock) { isDestroyed }
         if (destroyed) {
-            logger.w { "Cannot send state: WebsocketClient for ${device.address} has been destroyed" }
+            logger.w { "Cannot send state: WebsocketClient for $address has been destroyed" }
             return false
         }
         var session = currentSession

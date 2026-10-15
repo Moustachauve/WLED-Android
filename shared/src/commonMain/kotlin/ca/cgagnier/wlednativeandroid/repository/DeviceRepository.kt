@@ -4,8 +4,8 @@ import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
 import kotlinx.coroutines.flow.Flow
 
-class DeviceRepository(private val deviceDao: DeviceDao) {
-    val allDevices: Flow<List<Device>> = deviceDao.getAlphabetizedDevices()
+class DeviceRepository(private val deviceDao: DeviceDao) : DeviceStore {
+    override val allDevices: Flow<List<Device>> = deviceDao.getAlphabetizedDevices()
 
     suspend fun getAllDevices(): List<Device> = deviceDao.getAllDevices()
 
@@ -25,7 +25,7 @@ class DeviceRepository(private val deviceDao: DeviceDao) {
 
     suspend fun updateAddress(macAddress: String, address: String) = deviceDao.updateAddress(macAddress, address)
 
-    suspend fun updateOriginalName(macAddress: String, originalName: String) =
+    override suspend fun updateOriginalName(macAddress: String, originalName: String) =
         deviceDao.updateOriginalName(macAddress, originalName)
 
     suspend fun updateCustomName(macAddress: String, customName: String) =
@@ -37,11 +37,15 @@ class DeviceRepository(private val deviceDao: DeviceDao) {
         deviceDao.updateSkipUpdateTag(macAddress, skipUpdateTag)
 
     /** Updates the branch and clears the skipped version, since it belongs to the previous branch. */
-    suspend fun updateBranch(macAddress: String, branch: Branch) = deviceDao.updateBranch(macAddress, branch)
+    override suspend fun updateBranch(macAddress: String, branch: Branch) = deviceDao.updateBranch(macAddress, branch)
 
-    suspend fun updateLastSeen(macAddress: String, lastSeen: Long) = deviceDao.updateLastSeen(macAddress, lastSeen)
+    override suspend fun updateRepositoryId(macAddress: String, repositoryId: Long) =
+        deviceDao.updateRepositoryId(macAddress, repositoryId)
 
-    suspend fun delete(device: Device) {
+    override suspend fun updateLastSeen(macAddress: String, lastSeen: Long) =
+        deviceDao.updateLastSeen(macAddress, lastSeen)
+
+    override suspend fun delete(device: Device) {
         deviceDao.delete(device)
     }
 

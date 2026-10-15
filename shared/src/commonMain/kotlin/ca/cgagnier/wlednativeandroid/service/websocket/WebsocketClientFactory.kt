@@ -17,7 +17,15 @@ class WebsocketClientFactory(
     private val httpClient: HttpClient,
     private val json: Json,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-) {
+) : DeviceConnectionFactory {
+    override fun createConnection(address: String, scope: CoroutineScope): DeviceConnection = WebsocketClient(
+        address = address,
+        httpClient = httpClient,
+        json = json,
+        coroutineDispatcher = dispatcher,
+        coroutineScope = scope,
+    )
+
     /**
      * Creates a new WebsocketClient for the given device.
      */

@@ -40,6 +40,9 @@ interface DeviceDao {
     @Query("UPDATE Device2 SET lastSeen = :lastSeen WHERE macAddress = :macAddress")
     suspend fun updateLastSeen(macAddress: String, lastSeen: Long)
 
+    @Query("UPDATE Device2 SET repositoryId = :repositoryId WHERE macAddress = :macAddress")
+    suspend fun updateRepositoryId(macAddress: String, repositoryId: Long)
+
     @Delete
     suspend fun delete(device: Device)
 
