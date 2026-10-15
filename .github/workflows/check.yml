@@ -87,19 +87,14 @@ jobs:
           fi
           ./gradlew --stop
 
-      - name: Pre-boot iOS Simulator
-        run: |
-          SIMULATOR_ID=$(xcrun simctl list devices available -j | jq -r '.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | contains("iPhone")) | .udid' | head -n 1)
-          echo "Selected Simulator ID: $SIMULATOR_ID"
-          echo "SIMULATOR_ID=$SIMULATOR_ID" >> $GITHUB_ENV
-          xcrun simctl boot "$SIMULATOR_ID" || true
-
       - name: Build and Test iOS App
         run: |
+          DEST=$(xcrun simctl list devices available | grep -m1 "iPhone " | sed -E 's/^[[:space:]]*(iPhone [^()]+).*/platform=iOS Simulator,name=\1/' | xargs)
+          echo "Selected destination: $DEST"
           xcodebuild test \
             -project iosApp/wled.xcodeproj \
             -scheme wled \
-            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -destination "$DEST" \
             -skipPackagePluginValidation \
             -skipMacroValidation \
             -parallel-testing-enabled NO \
