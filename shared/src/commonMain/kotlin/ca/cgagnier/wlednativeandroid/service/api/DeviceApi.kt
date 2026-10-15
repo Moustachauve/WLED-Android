@@ -135,10 +135,10 @@ class DeviceApiFactory(private val defaultHttpClient: HttpClient) {
      * HttpClient.config shares the parent client's engine, connection pool, and threads
      * while applying custom timeout configuration.
      *
-     * @param device The device to create the API for.
+     * @param address The address of a device to create the API for.
      * @param timeout The custom timeout in seconds.
      */
-    fun create(device: Device, timeout: Long): DeviceApi {
+    fun create(address: String, timeout: Long): DeviceApi {
         val timeoutMillis = timeout * MILLIS_PER_SECOND
         val customHttpClient = defaultHttpClient.config {
             install(HttpTimeout) {
@@ -147,8 +147,16 @@ class DeviceApiFactory(private val defaultHttpClient: HttpClient) {
                 socketTimeoutMillis = timeoutMillis
             }
         }
-        return KtorDeviceApi(normalizeAddress(device.getDeviceUrl()), customHttpClient)
+        return KtorDeviceApi(normalizeAddress(address), customHttpClient)
     }
+
+    /**
+     * Create a new DeviceApi instance with a custom timeout.
+     *
+     * @param device The device to create the API for.
+     * @param timeout The custom timeout in seconds.
+     */
+    fun create(device: Device, timeout: Long): DeviceApi = create(device.getDeviceUrl(), timeout)
 
     private fun normalizeAddress(address: String): String =
         if (!address.startsWith("http://") && !address.startsWith("https://")) {

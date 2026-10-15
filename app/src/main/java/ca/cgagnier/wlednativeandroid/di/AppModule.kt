@@ -17,6 +17,7 @@ import ca.cgagnier.wlednativeandroid.service.AndroidNetworkConnectivityManager
 import ca.cgagnier.wlednativeandroid.service.DeviceDiscovery
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
+import ca.cgagnier.wlednativeandroid.service.WidgetStateSync
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.createHttpClient
 import ca.cgagnier.wlednativeandroid.ui.ChangelogViewModel
@@ -36,7 +37,6 @@ import okio.Path.Companion.toPath
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
-import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
@@ -98,8 +98,20 @@ val appModule: Module = module {
     singleOf(::ValidateAddress)
     singleOf(::DeepLinkHandler)
     singleOf(::ChangelogProvider)
-    singleOf(::WledWidgetManager)
+    single {
+        WledWidgetManager(get(), get())
+    }
     singleOf(::DeviceFirstContactService)
+
+    single {
+        WidgetStateSync(
+            context = androidContext(),
+            connectionManager = get(),
+            widgetManager = get(),
+            coroutineScope = get(),
+            ioDispatcher = get(IO_DISPATCHER),
+        )
+    }
 
     viewModelOf(::MainViewModel)
     viewModelOf(::SettingsViewModel)
@@ -108,20 +120,6 @@ val appModule: Module = module {
     viewModelOf(::UpdateInstallingViewModel)
     viewModelOf(::DeviceEditViewModel)
     viewModelOf(::DeviceListDetailViewModel)
-
-    viewModel {
-        DeviceWebsocketListViewModel(
-            userPreferencesRepository = get(),
-            deviceRepository = get(),
-            websocketClientFactory = get(),
-            widgetManager = get(),
-            saveDeviceStateUseCase = get(),
-            deviceUpdateManager = get(),
-            applicationContext = androidContext(),
-            backgroundDispatcher = get(DEFAULT_DISPATCHER),
-            ioDispatcher = get(IO_DISPATCHER),
-        )
-    }
-
+    viewModelOf(::DeviceWebsocketListViewModel)
     viewModelOf(::DeviceAddViewModel)
 }

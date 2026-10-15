@@ -2,9 +2,11 @@ package ca.cgagnier.wlednativeandroid.di
 
 import android.content.Context
 import android.net.ConnectivityManager
+import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
 import ca.cgagnier.wlednativeandroid.service.DeviceDiscovery
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
+import ca.cgagnier.wlednativeandroid.service.WidgetStateSync
 import ca.cgagnier.wlednativeandroid.ui.ChangelogViewModel
 import ca.cgagnier.wlednativeandroid.ui.MainViewModel
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.DeviceListDetailViewModel
@@ -69,6 +71,8 @@ class KoinModuleTest : KoinTest {
     @Test
     fun resolveAppServices() {
         assertNotNull(get<WledWidgetManager>())
+        assertNotNull(get<WidgetStateSync>())
+        assertNotNull(get<DeviceConnectionManager>())
         assertNotNull(get<DeviceFirstContactService>())
         assertNotNull(get<NetworkConnectivityManager>())
         assertNotNull(get<DeviceDiscovery>())

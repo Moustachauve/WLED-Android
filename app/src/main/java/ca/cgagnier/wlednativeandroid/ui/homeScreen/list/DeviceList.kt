@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.getApModeDeviceWithState
+import ca.cgagnier.wlednativeandroid.service.websocket.partitionDevices
 import ca.cgagnier.wlednativeandroid.ui.components.DeviceInfoTwoRows
 import ca.cgagnier.wlednativeandroid.ui.theme.DeviceTheme
 import kotlinx.coroutines.delay
@@ -54,11 +55,6 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 private const val TAG = "screen_DeviceList"
-
-/**
- * Amount of time after a device becomes offline before it is considered offline.
- */
-private const val DEVICE_OFFLINE_TIMEOUT_MS = 60000L
 
 @Composable
 fun DeviceList(
@@ -99,21 +95,16 @@ fun DeviceList(
         }
     }
 
-    val visibleDevices = remember(allDevices, showHiddenDevices) {
-        allDevices.filter { !it.device.isHidden || showHiddenDevices }
-            .sortedWith(
-                compareBy(String.CASE_INSENSITIVE_ORDER) {
-                    it.device.customName.ifBlank { it.device.originalName }
-                },
-            )
+    val partitioned = remember(allDevices, showHiddenDevices, currentTime) {
+        partitionDevices(
+            devices = allDevices,
+            showHiddenDevices = showHiddenDevices,
+            currentTimeMillis = currentTime,
+        )
     }
-    val partitionedDevices = remember(visibleDevices, currentTime) {
-        visibleDevices.partition { device ->
-            !shouldShowAsOffline(device, currentTime)
-        }
-    }
-    val onlineDevices = partitionedDevices.first
-    val offlineDevices = partitionedDevices.second
+    val visibleDevices = partitioned.visible
+    val onlineDevices = partitioned.online
+    val offlineDevices = partitioned.offline
 
     val pullToRefreshState = rememberPullToRefreshState()
     var isRefreshing by remember { mutableStateOf(false) }
@@ -420,12 +411,3 @@ fun ConfirmDeleteDialog(device: DeviceWithState? = null, onConfirm: () -> Unit, 
         })
     }
 }
-
-/**
- * Returns true if the device is offline and should be shown as such.
- *
- * This is to avoid devices jumping between online and offline constantly if the connection is
- * unstable.
- */
-private fun shouldShowAsOffline(device: DeviceWithState, currentTime: Long): Boolean =
-    !device.isOnline && currentTime - device.device.lastSeen >= DEVICE_OFFLINE_TIMEOUT_MS

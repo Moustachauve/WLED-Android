@@ -1,6 +1,5 @@
 package ca.cgagnier.wlednativeandroid.di
 
-import ca.cgagnier.wlednativeandroid.domain.usecase.SaveDeviceStateUseCase
 import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
@@ -13,7 +12,6 @@ internal val sharedDomainModule: Module = module {
     singleOf(::ReleaseService)
     singleOf(::DeviceUpdateManager)
     single<UpdateTagResolver> { get<DeviceUpdateManager>() }
-    single { SaveDeviceStateUseCase(get(), get(), get(IO_DISPATCHER)) }
     single {
         DeviceConnectionManager(
             store = get(),

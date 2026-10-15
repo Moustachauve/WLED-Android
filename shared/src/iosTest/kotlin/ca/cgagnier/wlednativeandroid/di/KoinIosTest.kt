@@ -1,13 +1,13 @@
 package ca.cgagnier.wlednativeandroid.di
 
 import androidx.datastore.core.DataStore
-import ca.cgagnier.wlednativeandroid.domain.usecase.SaveDeviceStateUseCase
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.repository.createInMemoryDatabase
 import ca.cgagnier.wlednativeandroid.repository.createUserPreferencesDataStore
+import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
@@ -57,7 +57,7 @@ class KoinIosTest : KoinTest {
     fun resolveAllIosDependencies() {
         assertNotNull(get<DeviceRepository>())
         assertNotNull(get<UserPreferencesRepository>())
-        assertNotNull(get<SaveDeviceStateUseCase>())
+        assertNotNull(get<DeviceConnectionManager>())
         assertNotNull(get<DeviceUpdateManager>())
         assertNotNull(get<GithubApi>())
         assertNotNull(get<DeviceApiFactory>())
@@ -66,5 +66,6 @@ class KoinIosTest : KoinTest {
         assertNotNull(get<CoroutineScope>())
         assertNotNull(KoinHelper.deviceRepository)
         assertNotNull(KoinHelper.userPreferencesRepository)
+        assertNotNull(KoinHelper.deviceConnectionManager)
     }
 }

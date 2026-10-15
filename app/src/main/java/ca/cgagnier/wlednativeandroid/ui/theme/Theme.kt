@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ca.cgagnier.wlednativeandroid.model.getColorFromState
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
@@ -316,11 +317,7 @@ fun WLEDNativeTheme(
     }
 }
 
-fun getColorFromDeviceState(state: State?): Int = state?.segment?.firstOrNull()?.colors?.firstOrNull()
-    ?.takeIf { it.size in 3..4 }
-    ?.let { (r, g, b) ->
-        android.graphics.Color.rgb(r, g, b)
-    } ?: android.graphics.Color.WHITE
+fun getColorFromDeviceState(state: State?): Int = getColorFromState(state) ?: android.graphics.Color.WHITE
 
 @Composable
 fun DeviceTheme(
