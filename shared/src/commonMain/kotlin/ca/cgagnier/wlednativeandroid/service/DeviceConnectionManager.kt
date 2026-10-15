@@ -28,7 +28,6 @@ import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.supervisorScope
 
 private const val TAG = "DeviceConnectionManager"
 private val logger = Logger.withTag(TAG)
@@ -144,21 +143,19 @@ class DeviceConnectionManager(
 
     private fun startObservingConnection(mac: String, connection: DeviceConnection) {
         val job = managerScope.launch {
-            supervisorScope {
-                launch {
-                    connection.status.collect { status ->
-                        onConnectionStatusChanged(mac, connection, status)
-                    }
+            launch {
+                connection.status.collect { status ->
+                    onConnectionStatusChanged(mac, connection, status)
                 }
-                launch {
-                    connection.incomingStateInfo.collect { stateInfo ->
-                        try {
-                            onIncomingStateInfo(mac, connection, stateInfo)
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                            logger.e(e) { "Error processing frame for $mac" }
-                        }
+            }
+            launch {
+                connection.incomingStateInfo.collect { stateInfo ->
+                    try {
+                        onIncomingStateInfo(mac, connection, stateInfo)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                        logger.e(e) { "Error processing frame for $mac" }
                     }
                 }
             }
@@ -322,9 +319,7 @@ class DeviceConnectionManager(
     fun destroy() {
         managerScope.cancel()
         val toDestroy = synchronized(lock) {
-            pauseJob?.cancel()
             pauseJob = null
-            connectionJobs.values.forEach { it.cancel() }
             connectionJobs.clear()
             val connections = activeConnections.values.toList()
             activeConnections.clear()

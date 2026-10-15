@@ -95,12 +95,7 @@ class DeviceConnectionManagerTest {
 
         override suspend fun sendState(state: State): Boolean {
             sentStates.add(state)
-            val deferred = sendStateDeferred
-            return if (deferred != null) {
-                deferred.await()
-            } else {
-                sendStateResult
-            }
+            return sendStateDeferred?.await() ?: sendStateResult
         }
 
         fun emitStateInfo(stateInfo: DeviceStateInfo) {
