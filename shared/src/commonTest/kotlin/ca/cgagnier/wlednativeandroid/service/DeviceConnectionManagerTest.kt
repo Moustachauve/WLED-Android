@@ -12,7 +12,6 @@ import ca.cgagnier.wlednativeandroid.service.websocket.DeviceConnection
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceConnectionFactory
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
@@ -44,28 +43,12 @@ class DeviceConnectionManagerTest {
     private class FakeDeviceStore : DeviceStore {
         val allDevicesFlow = MutableStateFlow<List<Device>>(emptyList())
         override val allDevices: Flow<List<Device>> = allDevicesFlow
-
-        val updatedOriginalNames = mutableMapOf<String, String>()
-        val updatedBranches = mutableMapOf<String, Branch>()
-        val updatedRepositoryIds = mutableMapOf<String, Long>()
-        val updatedLastSeens = mutableMapOf<String, Long>()
         val deletedDevices = mutableListOf<Device>()
 
-        override suspend fun updateOriginalName(macAddress: String, originalName: String) {
-            updatedOriginalNames[macAddress] = originalName
-        }
-
-        override suspend fun updateBranch(macAddress: String, branch: Branch) {
-            updatedBranches[macAddress] = branch
-        }
-
-        override suspend fun updateRepositoryId(macAddress: String, repositoryId: Long) {
-            updatedRepositoryIds[macAddress] = repositoryId
-        }
-
-        override suspend fun updateLastSeen(macAddress: String, lastSeen: Long) {
-            updatedLastSeens[macAddress] = lastSeen
-        }
+        override suspend fun updateOriginalName(macAddress: String, originalName: String) = Unit
+        override suspend fun updateBranch(macAddress: String, branch: Branch) = Unit
+        override suspend fun updateRepositoryId(macAddress: String, repositoryId: Long) = Unit
+        override suspend fun updateLastSeen(macAddress: String, lastSeen: Long) = Unit
 
         override suspend fun delete(device: Device) {
             deletedDevices.add(device)
@@ -137,6 +120,29 @@ class DeviceConnectionManagerTest {
         }
     }
 
+    private val store = FakeDeviceStore()
+    private val factory = FakeDeviceConnectionFactory()
+    private val connectivity = FakeNetworkConnectivityManager(isConnected = true)
+
+    private fun TestScope.createManager(
+        timeProvider: () -> Long = { 10_000L },
+        config: DeviceConnectionManagerConfig = DeviceConnectionManagerConfig(backgroundPauseDelayMs = 2_000L),
+    ): DeviceConnectionManager {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val scope = CoroutineScope(testDispatcher + SupervisorJob())
+        coroutineContext.job.invokeOnCompletion { scope.cancel() }
+        return DeviceConnectionManager(
+            store = store,
+            connectionFactory = factory,
+            connectivity = connectivity,
+            coroutineScope = scope,
+            timeProvider = timeProvider,
+            backgroundDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher,
+            config = config,
+        )
+    }
+
     @Suppress("LongParameterList")
     private fun createDevice(
         mac: String = "AABBCCDDEEFF",
@@ -171,39 +177,9 @@ class DeviceConnectionManagerTest {
         ),
     )
 
-    @Suppress("LongParameterList")
-    private fun createManager(
-        testScope: TestScope,
-        testDispatcher: CoroutineDispatcher,
-        store: FakeDeviceStore,
-        factory: FakeDeviceConnectionFactory,
-        connectivity: FakeNetworkConnectivityManager,
-        timeProvider: () -> Long = { 10_000L },
-        config: DeviceConnectionManagerConfig = DeviceConnectionManagerConfig(
-            backgroundPauseDelayMs = 2_000L,
-        ),
-    ): DeviceConnectionManager {
-        val scope = CoroutineScope(testDispatcher + SupervisorJob())
-        testScope.coroutineContext.job.invokeOnCompletion { scope.cancel() }
-        return DeviceConnectionManager(
-            store = store,
-            connectionFactory = factory,
-            connectivity = connectivity,
-            coroutineScope = scope,
-            timeProvider = timeProvider,
-            backgroundDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher,
-            config = config,
-        )
-    }
-
     @Test
     fun syncDevicesCreatesConnectionAndConnectsWhenForegrounded() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(this, testDispatcher, store, factory, connectivity)
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
         advanceUntilIdle()
@@ -216,11 +192,7 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun syncDevicesCancelsAndDestroysConnectionWhenDeviceRemoved() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(this, testDispatcher, store, factory, connectivity)
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
         advanceUntilIdle()
@@ -235,11 +207,7 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun syncDevicesReconnectsWhenDeviceAddressChanges() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(this, testDispatcher, store, factory, connectivity)
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
         advanceUntilIdle()
@@ -256,22 +224,16 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun syncDevicesPreservesNewerInMemoryLastSeenOverOlderDatabaseEmission() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
         var currentTime = 10_000L
-        val manager = createManager(this, testDispatcher, store, factory, connectivity, timeProvider = { currentTime })
+        val manager = createManager(timeProvider = { currentTime })
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", lastSeen = 5_000L))
         advanceUntilIdle()
 
-        // Incoming frame updates in-memory lastSeen to 10_000L
         val connection = factory.createdConnections["192.168.1.100"]!!
         connection.emitStateInfo(createStateInfo())
         advanceUntilIdle()
 
-        // DB emits an update with an older timestamp (e.g. 5_000L)
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", lastSeen = 5_000L))
         advanceUntilIdle()
 
@@ -280,18 +242,7 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun onBackgroundPausesConnectionsAfterDebounceDelay() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(
-            this,
-            testDispatcher,
-            store,
-            factory,
-            connectivity,
-            config = DeviceConnectionManagerConfig(backgroundPauseDelayMs = 2_000L),
-        )
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
         advanceUntilIdle()
@@ -300,11 +251,9 @@ class DeviceConnectionManagerTest {
         manager.onBackground()
         runCurrent()
 
-        // Still not paused yet because of 2000ms debounce
         assertFalse(manager.isPaused.value)
         assertEquals(0, connection.pauseCallCount)
 
-        // Advance debounce time
         advanceTimeBy(2_000L)
         runCurrent()
 
@@ -314,27 +263,16 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun onForegroundCancelsPendingBackgroundPauseWithinDebounceDelay() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(
-            this,
-            testDispatcher,
-            store,
-            factory,
-            connectivity,
-            config = DeviceConnectionManagerConfig(backgroundPauseDelayMs = 2_000L),
-        )
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
         advanceUntilIdle()
         val connection = factory.createdConnections["192.168.1.100"]!!
 
         manager.onBackground()
-        advanceTimeBy(1_000L) // Only 1s elapsed
+        advanceTimeBy(1_000L)
         manager.onForeground()
-        advanceTimeBy(2_000L) // Advance beyond original 2s
+        advanceTimeBy(2_000L)
         advanceUntilIdle()
 
         assertFalse(manager.isPaused.value)
@@ -343,18 +281,7 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun onForegroundResumesConnectionsIfWasPaused() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(
-            this,
-            testDispatcher,
-            store,
-            factory,
-            connectivity,
-            config = DeviceConnectionManagerConfig(backgroundPauseDelayMs = 2_000L),
-        )
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
         advanceUntilIdle()
@@ -374,11 +301,7 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun sendStateAppliesOptimisticStateImmediatelyAndReturnsTrue() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(this, testDispatcher, store, factory, connectivity)
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
         advanceUntilIdle()
@@ -396,11 +319,7 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun sendStateRollsBackOptimisticStateWhenConnectionFails() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(this, testDispatcher, store, factory, connectivity)
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
         advanceUntilIdle()
@@ -412,17 +331,12 @@ class DeviceConnectionManagerTest {
         connection.sendStateResult = false
         val success = manager.setBrightness("A", 255)
         assertFalse(success)
-        // Guarded rollback returns state to 100
         assertEquals(100, manager.allDevicesWithState.value[0].stateInfo?.state?.brightness)
     }
 
     @Test
     fun refreshOfflineDevicesReconnectsOnlyDisconnectedConnections() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(this, testDispatcher, store, factory, connectivity)
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(
             createDevice(mac = "A", address = "192.168.1.50"),
@@ -432,7 +346,6 @@ class DeviceConnectionManagerTest {
 
         val connA = factory.createdConnections["192.168.1.50"]!!
         val connB = factory.createdConnections["192.168.1.60"]!!
-        // Manually pause B so it's DISCONNECTED
         connB.pause()
         advanceUntilIdle()
 
@@ -448,17 +361,14 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun networkRecoveryReconnectsDisconnectedConnectionsWhenForegrounded() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = false)
-        createManager(this, testDispatcher, store, factory, connectivity)
+        connectivity.setConnected(false)
+        createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
         advanceUntilIdle()
 
         val conn = factory.createdConnections["192.168.1.50"]!!
-        conn.pause() // DISCONNECTED
+        conn.pause()
         advanceUntilIdle()
 
         val previousConnects = conn.connectCallCount
@@ -470,11 +380,7 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun deleteDeviceCancelsConnectionAndDeletesFromStore() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(this, testDispatcher, store, factory, connectivity)
+        val manager = createManager()
 
         val device = createDevice(mac = "A", address = "192.168.1.50")
         store.allDevicesFlow.value = listOf(device)
@@ -492,11 +398,7 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun sendStateGuardedRollbackPreservesNewerFrameWhenConnectionFails() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(this, testDispatcher, store, factory, connectivity)
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
         advanceUntilIdle()
@@ -528,11 +430,7 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun destroyCancelsCollectorsAndCleansUpConnections() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(this, testDispatcher, store, factory, connectivity)
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
         advanceUntilIdle()
@@ -551,18 +449,7 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun refreshOfflineDevicesDoesNotReconnectWhenPaused() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(
-            this,
-            testDispatcher,
-            store,
-            factory,
-            connectivity,
-            config = DeviceConnectionManagerConfig(backgroundPauseDelayMs = 2_000L),
-        )
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
         advanceUntilIdle()
@@ -583,16 +470,12 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun syncDevicesProcessesIncomingFrameEmittedImmediatelyOnConnect() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
         factory.onConnectionCreated = { conn ->
             conn.onConnect = {
                 conn.emitStateInfo(createStateInfo(brightness = 42))
             }
         }
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(this, testDispatcher, store, factory, connectivity)
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
         advanceUntilIdle()
@@ -603,11 +486,7 @@ class DeviceConnectionManagerTest {
 
     @Test
     fun staleConnectionStatusEmissionsDoNotOverwriteNewConnectionStatus() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val store = FakeDeviceStore()
-        val factory = FakeDeviceConnectionFactory()
-        val connectivity = FakeNetworkConnectivityManager(isConnected = true)
-        val manager = createManager(this, testDispatcher, store, factory, connectivity)
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
         advanceUntilIdle()

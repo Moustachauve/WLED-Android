@@ -19,10 +19,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -44,13 +46,16 @@ class DeviceConnectionManager(
     private val connectivity: NetworkConnectivityManager,
     coroutineScope: CoroutineScope,
     private val timeProvider: () -> Long = ::currentTimeMillis,
-    private val backgroundDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    backgroundDispatcher: CoroutineDispatcher = Dispatchers.Default,
     @Suppress("UnusedPrivateProperty")
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val config: DeviceConnectionManagerConfig = DeviceConnectionManagerConfig(),
 ) {
-    private val managerJob = SupervisorJob(coroutineScope.coroutineContext[Job])
-    private val managerScope = CoroutineScope(coroutineScope.coroutineContext + managerJob)
+    private val managerScope = CoroutineScope(
+        coroutineScope.coroutineContext +
+            SupervisorJob(coroutineScope.coroutineContext[Job]) +
+            backgroundDispatcher,
+    )
 
     private val _allDevicesWithState = MutableStateFlow<List<DeviceWithState>>(emptyList())
     val allDevicesWithState: StateFlow<List<DeviceWithState>> = _allDevicesWithState.asStateFlow()
@@ -66,17 +71,17 @@ class DeviceConnectionManager(
     private var pauseJob: Job? = null
 
     init {
-        managerScope.launch(backgroundDispatcher) {
+        managerScope.launch {
             store.allDevices.collect { devices ->
                 syncDevices(devices)
             }
         }
 
-        managerScope.launch(backgroundDispatcher) {
+        managerScope.launch {
             var wasConnected = connectivity.isConnected.value
             connectivity.isConnected.collect { isConnected ->
                 if (isConnected && !wasConnected) {
-                    onNetworkRecovered()
+                    refreshOfflineDevices()
                 }
                 wasConnected = isConnected
             }
@@ -87,8 +92,8 @@ class DeviceConnectionManager(
         val newDeviceMap = newDeviceList.associateBy { it.macAddress }
 
         removeDeletedConnections(newDeviceMap.keys)
-        mergeDeviceListState(newDeviceList)
         val toConnect = createOrUpdateConnections(newDeviceMap)
+        mergeDeviceListState(newDeviceList)
         toConnect.forEach { it.connect() }
     }
 
@@ -138,7 +143,7 @@ class DeviceConnectionManager(
     }
 
     private fun startObservingConnection(mac: String, connection: DeviceConnection) {
-        val job = managerScope.launch(backgroundDispatcher) {
+        val job = managerScope.launch {
             supervisorScope {
                 launch {
                     connection.status.collect { status ->
@@ -168,39 +173,21 @@ class DeviceConnectionManager(
         }
     }
 
-    private fun onConnectionStatusChanged(mac: String, connection: DeviceConnection, status: WebsocketStatus) {
-        val isCurrent = synchronized(lock) { activeConnections[mac] === connection }
-        if (!isCurrent) return
-
+    private inline fun updateDevice(mac: String, crossinline transform: (DeviceWithState) -> DeviceWithState) {
         _allDevicesWithState.update { list ->
-            list.map { current ->
-                if (current.device.macAddress == mac) {
-                    current.copy(websocketStatus = status)
-                } else {
-                    current
-                }
-            }
+            list.map { if (it.device.macAddress == mac) transform(it) else it }
         }
     }
 
-    private fun onIncomingStateInfo(mac: String, connection: DeviceConnection, stateInfo: DeviceStateInfo) {
-        val isCurrent = synchronized(lock) { activeConnections[mac] === connection }
-        if (!isCurrent) return
+    private fun onConnectionStatusChanged(mac: String, connection: DeviceConnection, status: WebsocketStatus) {
+        if (synchronized(lock) { activeConnections[mac] !== connection }) return
+        updateDevice(mac) { it.copy(websocketStatus = status) }
+    }
 
+    private fun onIncomingStateInfo(mac: String, connection: DeviceConnection, stateInfo: DeviceStateInfo) {
+        if (synchronized(lock) { activeConnections[mac] !== connection }) return
         val now = timeProvider()
-        _allDevicesWithState.update { list ->
-            list.map { current ->
-                if (current.device.macAddress == mac) {
-                    val updatedDevice = current.device.copy(lastSeen = now)
-                    current.copy(
-                        device = updatedDevice,
-                        stateInfo = stateInfo,
-                    )
-                } else {
-                    current
-                }
-            }
-        }
+        updateDevice(mac) { it.copy(device = it.device.copy(lastSeen = now), stateInfo = stateInfo) }
     }
 
     private fun mergeDeviceListState(newDeviceList: List<Device>) {
@@ -213,36 +200,16 @@ class DeviceConnectionManager(
                 val current = currentMap[device.macAddress]
                 val currentStatus = statusByMac[device.macAddress] ?: WebsocketStatus.DISCONNECTED
 
-                if (current != null) {
-                    val inMemoryLastSeen = current.device.lastSeen
-                    val effectiveLastSeen = if (inMemoryLastSeen > device.lastSeen) {
-                        inMemoryLastSeen
-                    } else {
-                        device.lastSeen
-                    }
-                    val effectiveDevice = device.copy(lastSeen = effectiveLastSeen)
-
-                    current.copy(
-                        device = effectiveDevice,
-                        websocketStatus = currentStatus,
-                    )
-                } else {
-                    DeviceWithState(
-                        device = device,
-                        stateInfo = null,
-                        websocketStatus = currentStatus,
-                    )
-                }
+                current?.copy(
+                    device = device.copy(lastSeen = maxOf(current.device.lastSeen, device.lastSeen)),
+                    websocketStatus = currentStatus,
+                ) ?: DeviceWithState(
+                    device = device,
+                    stateInfo = null,
+                    websocketStatus = currentStatus,
+                )
             }
         }
-    }
-
-    private fun onNetworkRecovered() {
-        if (_isPaused.value) return
-        val toReconnect = synchronized(lock) {
-            activeConnections.values.filter { it.status.value == WebsocketStatus.DISCONNECTED }
-        }
-        toReconnect.forEach { it.connect() }
     }
 
     fun refreshOfflineDevices() {
@@ -256,7 +223,7 @@ class DeviceConnectionManager(
     fun onBackground() {
         synchronized(lock) {
             pauseJob?.cancel()
-            pauseJob = managerScope.launch(backgroundDispatcher) {
+            pauseJob = managerScope.launch {
                 delay(config.backgroundPauseDelayMs)
                 val connections = synchronized(lock) {
                     if (!isActive) return@launch
@@ -287,16 +254,7 @@ class DeviceConnectionManager(
     }
 
     fun updateDeviceState(deviceWithState: DeviceWithState) {
-        val mac = deviceWithState.device.macAddress
-        _allDevicesWithState.update { list ->
-            list.map { current ->
-                if (current.device.macAddress == mac) {
-                    deviceWithState
-                } else {
-                    current
-                }
-            }
-        }
+        updateDevice(deviceWithState.device.macAddress) { deviceWithState }
     }
 
     suspend fun setBrightness(macAddress: String, brightness: Int): Boolean =
@@ -307,45 +265,24 @@ class DeviceConnectionManager(
     suspend fun sendState(macAddress: String, patch: State): Boolean {
         val connection = synchronized(lock) { activeConnections[macAddress] } ?: return false
 
-        var capturedPreviousState: State? = null
-        var foundDevice = false
-
-        _allDevicesWithState.update { list ->
-            foundDevice = false
-            var stateToCapture: State? = null
-            val updatedList = list.map { item ->
-                if (item.device.macAddress == macAddress) {
-                    foundDevice = true
-                    if (item.stateInfo != null) {
-                        stateToCapture = item.stateInfo.state
-                        val updatedState = applyPatch(item.stateInfo.state, patch)
-                        item.copy(stateInfo = item.stateInfo.copy(state = updatedState))
-                    } else {
-                        item
-                    }
+        val previousList = _allDevicesWithState.getAndUpdate { list ->
+            list.map { item ->
+                if (item.device.macAddress == macAddress && item.stateInfo != null) {
+                    item.copy(stateInfo = item.stateInfo.copy(state = applyPatch(item.stateInfo.state, patch)))
                 } else {
                     item
                 }
             }
-            capturedPreviousState = stateToCapture
-            updatedList
         }
-
-        if (!foundDevice) return false
+        val previousItem = previousList.firstOrNull { it.device.macAddress == macAddress } ?: return false
+        val previousState = previousItem.stateInfo?.state
 
         val success = connection.sendState(patch)
-        if (!success && capturedPreviousState != null) {
-            val rollbackTarget = capturedPreviousState
-            // Guarded rollback
-            _allDevicesWithState.update { list ->
-                list.map { item ->
-                    if (item.device.macAddress == macAddress && item.stateInfo != null) {
-                        val rolledBack = rollbackPatch(item.stateInfo.state, patch, rollbackTarget)
-                        item.copy(stateInfo = item.stateInfo.copy(state = rolledBack))
-                    } else {
-                        item
-                    }
-                }
+        if (!success && previousState != null) {
+            updateDevice(macAddress) { item ->
+                item.stateInfo?.let { info ->
+                    item.copy(stateInfo = info.copy(state = rollbackPatch(info.state, patch, previousState)))
+                } ?: item
             }
         }
         return success
@@ -383,7 +320,7 @@ class DeviceConnectionManager(
     )
 
     fun destroy() {
-        managerJob.cancel()
+        managerScope.cancel()
         val toDestroy = synchronized(lock) {
             pauseJob?.cancel()
             pauseJob = null
