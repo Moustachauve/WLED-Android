@@ -9,6 +9,9 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.repository.createDatabase
 import ca.cgagnier.wlednativeandroid.repository.createUserPreferencesDataStore
 import ca.cgagnier.wlednativeandroid.repository.documentDirectory
+import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
+import ca.cgagnier.wlednativeandroid.service.IosNetworkConnectivityManager
+import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.createHttpClient
 import io.ktor.client.HttpClient
@@ -27,6 +30,7 @@ internal val iosPlatformModule = module {
         )
     }
     single<HttpClient> { DeviceApiFactory.createHttpClient(json = get()) }
+    single<NetworkConnectivityManager> { IosNetworkConnectivityManager(get()) }
 }
 
 fun initKoin() {
@@ -38,4 +42,5 @@ fun initKoin() {
 object KoinHelper : KoinComponent {
     val deviceRepository: DeviceRepository get() = get()
     val userPreferencesRepository: UserPreferencesRepository get() = get()
+    val deviceConnectionManager: DeviceConnectionManager get() = get()
 }

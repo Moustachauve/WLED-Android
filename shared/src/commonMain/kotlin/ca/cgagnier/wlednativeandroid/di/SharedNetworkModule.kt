@@ -5,6 +5,7 @@ import ca.cgagnier.wlednativeandroid.service.api.defaultJson
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApiEndpoints
 import ca.cgagnier.wlednativeandroid.service.api.github.KtorGithubApiEndpoints
+import ca.cgagnier.wlednativeandroid.service.websocket.DeviceConnectionFactory
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientFactory
 import kotlinx.serialization.json.Json
 import org.koin.core.module.Module
@@ -15,6 +16,7 @@ internal val sharedNetworkModule: Module = module {
     single<Json> { defaultJson }
     singleOf(::DeviceApiFactory)
     single { WebsocketClientFactory(get(), get(), get(IO_DISPATCHER)) }
+    single<DeviceConnectionFactory> { get<WebsocketClientFactory>() }
     single<GithubApiEndpoints> { KtorGithubApiEndpoints(get()) }
     singleOf(::GithubApi)
 }
