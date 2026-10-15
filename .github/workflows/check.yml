@@ -73,14 +73,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-konan-
 
-      - name: Cache Swift Package Manager
-        uses: actions/cache@v6
-        with:
-          path: iosApp/build/SourcePackages
-          key: ${{ runner.os }}-spm-${{ hashFiles('iosApp/wled.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-spm-
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.4.0
         with:
@@ -101,7 +93,6 @@ jobs:
           echo "Selected Simulator ID: $SIMULATOR_ID"
           echo "SIMULATOR_ID=$SIMULATOR_ID" >> $GITHUB_ENV
           xcrun simctl boot "$SIMULATOR_ID" || true
-          xcrun simctl bootstatus "$SIMULATOR_ID" -b
 
       - name: Build and Test iOS App
         run: |
@@ -109,7 +100,6 @@ jobs:
             -project iosApp/wled.xcodeproj \
             -scheme wled \
             -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
-            -clonedSourcePackagesDirPath iosApp/build/SourcePackages \
             -skipPackagePluginValidation \
             -skipMacroValidation \
             -parallel-testing-enabled NO \
