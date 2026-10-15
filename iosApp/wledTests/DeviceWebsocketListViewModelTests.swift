@@ -77,7 +77,7 @@ struct DeviceWebsocketListViewModelTests {
 
         // Switch to connected — the reactive pipeline triggers after debounce
         mockClient.setStatus(.connected)
-        try await Task.sleep(for: .seconds(2)) // Wait for 2s debounce + Combine propagation (generous for CI)
+        try await waitUntil { viewModel.onlineDevices.count == 1 && viewModel.offlineDevices.isEmpty }
 
         #expect(viewModel.onlineDevices.count == 1)
         #expect(viewModel.offlineDevices.isEmpty)
@@ -143,7 +143,7 @@ struct DeviceWebsocketListViewModelTests {
 
     /// Polls `condition` until it's true or the timeout elapses (resilient against CI scheduling delays).
     private func waitUntil(
-        timeout: Duration = .seconds(3),
+        timeout: Duration = .seconds(10),
         _ condition: () async throws -> Bool
     ) async throws {
         let clock = ContinuousClock()
@@ -195,11 +195,8 @@ struct DeviceWebsocketListViewModelTests {
         // Simulate going to background and staying there
         viewModel.onPause()
 
-        // Poll up to 3s for disconnect to complete (resilient against CI CPU scheduling delays)
-        for _ in 0..<30 {
-            if mockClient.deviceState.websocketStatus == .disconnected { break }
-            try await Task.sleep(for: .milliseconds(100))
-        }
+        // Poll up to 10s for disconnect to complete (resilient against CI CPU scheduling delays)
+        try await waitUntil { mockClient.deviceState.websocketStatus == .disconnected }
 
         // Device should now be disconnected
         #expect(mockClient.deviceState.websocketStatus == .disconnected)

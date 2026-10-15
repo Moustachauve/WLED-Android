@@ -5,6 +5,14 @@ set -euo pipefail
 REPO_ROOT="$(cd "${SRCROOT:-$(pwd)}/.." && pwd)"
 cd "$REPO_ROOT"
 
+# Allow skipping KMP framework rebuild if already assembled (e.g. in CI or when SKIP_KMP_BUILD=1)
+if [ "${SKIP_KMP_BUILD:-0}" = "1" ] || [ -n "${CI:-}" ]; then
+    if [ -d "$REPO_ROOT/shared/build/XCFrameworks/Shared.xcframework" ]; then
+        echo "Shared.xcframework already exists; skipping Gradle assemble in Xcode build phase."
+        exit 0
+    fi
+fi
+
 # Ensure JAVA_HOME is configured (Xcode GUI launched apps do not inherit terminal shell profiles)
 if [ -z "${JAVA_HOME:-}" ]; then
     if [ -x "/usr/libexec/java_home" ]; then

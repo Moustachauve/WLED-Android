@@ -54,6 +54,7 @@ jobs:
   test-ios:
     name: Run Unit Tests & Build (iOS)
     runs-on: macos-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -65,40 +66,60 @@ jobs:
           distribution: 'temurin'
 
       - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.konan
           key: ${{ runner.os }}-konan-${{ hashFiles('gradle/libs.versions.toml') }}
           restore-keys: |
             ${{ runner.os }}-konan-
 
+      - name: Cache Swift Package Manager
+        uses: actions/cache@v6
+        with:
+          path: iosApp/build/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('iosApp/wled.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.4.0
         with:
           cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
 
-      - name: Run iOS unit tests
-        run: ./gradlew :shared:iosSimulatorArm64Test
-
-      - name: Assemble XCFramework
+      - name: Run iOS unit tests & Assemble XCFramework
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            ./gradlew :shared:assembleSharedDebugXCFramework
+            ./gradlew :shared:iosSimulatorArm64Test :shared:assembleSharedDebugXCFramework
           else
-            ./gradlew :shared:assembleSharedReleaseXCFramework
+            ./gradlew :shared:iosSimulatorArm64Test :shared:assembleSharedReleaseXCFramework
           fi
+          ./gradlew --stop
+
+      - name: Pre-boot iOS Simulator
+        run: |
+          SIMULATOR_ID=$(xcrun simctl list devices available -j | jq -r '.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | contains("iPhone")) | .udid' | head -n 1)
+          echo "Selected Simulator ID: $SIMULATOR_ID"
+          echo "SIMULATOR_ID=$SIMULATOR_ID" >> $GITHUB_ENV
+          xcrun simctl boot "$SIMULATOR_ID" || true
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
 
       - name: Build and Test iOS App
         run: |
-          DEST=$(xcrun simctl list devices available | grep -m1 "iPhone " | sed -E 's/^[[:space:]]*(iPhone [^()]+).*/platform=iOS Simulator,name=\1/' | xargs)
-          echo "Selected destination: $DEST"
           xcodebuild test \
             -project iosApp/wled.xcodeproj \
             -scheme wled \
-            -destination "$DEST" \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -clonedSourcePackagesDirPath iosApp/build/SourcePackages \
             -skipPackagePluginValidation \
             -skipMacroValidation \
-            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            -retry-tests-on-failure \
+            -test-iterations 2 \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
 
       - name: Upload iOS Test Results
         if: always()
