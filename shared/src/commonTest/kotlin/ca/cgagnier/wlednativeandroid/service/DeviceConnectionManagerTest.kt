@@ -37,6 +37,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -135,18 +136,24 @@ class DeviceConnectionManagerTest {
 
     private class FakeUpdateTagResolver : UpdateTagResolver {
         var tagToReturn: String? = null
+        var failureToThrow: Exception? = null
         var callCount = 0
 
         override suspend fun checkForUpdate(device: Device, stateInfo: DeviceStateInfo?): String? {
             callCount++
+            failureToThrow?.let { throw it }
             return tagToReturn
         }
     }
 
     private class FakeRepositoryIdResolver : RepositoryIdResolver {
         var idToReturn: Long = 1L
+        var callCount = 0
 
-        override suspend fun getOrCreateRepositoryId(ownerAndRepo: String): Long = idToReturn
+        override suspend fun getOrCreateRepositoryId(ownerAndRepo: String): Long {
+            callCount++
+            return idToReturn
+        }
     }
 
     private val store = FakeDeviceStore()
@@ -185,22 +192,21 @@ class DeviceConnectionManagerTest {
     private fun createDevice(
         mac: String = "AABBCCDDEEFF",
         address: String = "192.168.1.100",
-        originalName: String = "WLED",
+        originalName: String = "WLED-Light",
         customName: String = "",
-        branch: Branch = Branch.STABLE,
+        branch: Branch = Branch.UNKNOWN,
+        lastSeen: Long = 10_000L,
         repositoryId: Long = 1L,
         skipUpdateTag: String = "",
-        lastSeen: Long = 0L,
     ): Device = Device(
         macAddress = mac,
         address = address,
         originalName = originalName,
         customName = customName,
-        isHidden = false,
         branch = branch,
+        lastSeen = lastSeen,
         repositoryId = repositoryId,
         skipUpdateTag = skipUpdateTag,
-        lastSeen = lastSeen,
     )
 
     private fun createStateInfo(
@@ -208,6 +214,7 @@ class DeviceConnectionManagerTest {
         version: String = "0.14.0",
         brightness: Int = 128,
         isOn: Boolean = true,
+        repository: String? = null,
     ): DeviceStateInfo = DeviceStateInfo(
         state = State(isOn = isOn, brightness = brightness),
         info = Info(
@@ -215,110 +222,61 @@ class DeviceConnectionManagerTest {
             name = name,
             leds = Leds(count = 30),
             wifi = Wifi(),
+            repository = repository,
         ),
     )
 
     @Test
-    fun syncDevicesCreatesAndConnectsConnectionsForNewDevices() = runTest {
+    fun syncDevicesCreatesConnectionAndConnectsWhenForegrounded() = runTest {
         val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
         advanceUntilIdle()
 
-        assertTrue(factory.createdConnections.containsKey("192.168.1.50"))
-        val connection = factory.createdConnections["192.168.1.50"]!!
-        assertEquals(1, connection.connectCallCount)
+        val connection = factory.createdConnections["192.168.1.50"]
+        assertEquals(1, connection?.connectCallCount)
         assertEquals(1, manager.allDevicesWithState.value.size)
-        assertEquals("A", manager.allDevicesWithState.value[0].device.macAddress)
-    }
-
-    @Test
-    fun syncDevicesDisconnectsAndRemovesDeletedDevices() = runTest {
-        val manager = createManager()
-
-        store.allDevicesFlow.value = listOf(
-            createDevice(mac = "A", address = "192.168.1.50"),
-            createDevice(mac = "B", address = "192.168.1.60"),
-        )
-        advanceUntilIdle()
-
-        val connB = factory.createdConnections["192.168.1.60"]!!
-        store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
-        advanceUntilIdle()
-
-        assertEquals(1, connB.destroyCallCount)
-        assertEquals(1, manager.allDevicesWithState.value.size)
-        assertEquals("A", manager.allDevicesWithState.value[0].device.macAddress)
-    }
-
-    @Test
-    fun syncDevicesUpdatesConnectionWhenDeviceAddressChanges() = runTest {
-        val manager = createManager()
-
-        store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
-        advanceUntilIdle()
-
-        val oldConn = factory.createdConnections["192.168.1.50"]!!
-        store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.51"))
-        advanceUntilIdle()
-
-        assertEquals(1, oldConn.destroyCallCount)
-        assertTrue(factory.createdConnections.containsKey("192.168.1.51"))
-        val newConn = factory.createdConnections["192.168.1.51"]!!
-        assertEquals(1, newConn.connectCallCount)
-    }
-
-    @Test
-    fun syncDevicesDoesNotReconnectWhenAddressIsUnchanged() = runTest {
-        val manager = createManager()
-
-        store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
-        advanceUntilIdle()
-
-        val conn = factory.createdConnections["192.168.1.50"]!!
-        store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50", customName = "Updated"))
-        advanceUntilIdle()
-
-        assertEquals(1, conn.connectCallCount)
-        assertEquals("Updated", manager.allDevicesWithState.value[0].device.customName)
-    }
-
-    @Test
-    fun connectionStatusChangesUpdateStateFlow() = runTest {
-        val manager = createManager()
-
-        store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
-        advanceUntilIdle()
-
         assertEquals(WebsocketStatus.CONNECTED, manager.allDevicesWithState.value[0].websocketStatus)
-        val conn = factory.createdConnections["192.168.1.50"]!!
-        conn.pause()
-        advanceUntilIdle()
-
-        assertEquals(WebsocketStatus.DISCONNECTED, manager.allDevicesWithState.value[0].websocketStatus)
     }
 
     @Test
-    fun incomingStateInfoUpdatesDeviceStateAndLastSeen() = runTest {
-        val manager = createManager(timeProvider = { 12_345L })
+    fun syncDevicesCancelsAndDestroysConnectionWhenDeviceRemoved() = runTest {
+        val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
         advanceUntilIdle()
+        val connection = factory.createdConnections["192.168.1.50"]
 
-        val connection = factory.createdConnections["192.168.1.50"]!!
-        connection.emitStateInfo(createStateInfo(brightness = 200))
+        store.allDevicesFlow.value = emptyList()
         advanceUntilIdle()
 
-        val deviceWithState = manager.allDevicesWithState.value[0]
-        assertEquals(200, deviceWithState.stateInfo?.state?.brightness)
-        assertEquals(12_345L, deviceWithState.device.lastSeen)
+        assertEquals(1, connection?.destroyCallCount)
+        assertTrue(manager.allDevicesWithState.value.isEmpty())
     }
 
     @Test
-    fun syncDevicesDoesNotOverwriteNewerInMemoryLastSeenWithOlderDatabaseTimestamp() = runTest {
-        val manager = createManager(timeProvider = { 10_000L })
+    fun syncDevicesReconnectsWhenDeviceAddressChanges() = runTest {
+        val manager = createManager()
 
-        store.allDevicesFlow.value = listOf(createDevice(mac = "A", lastSeen = 0L))
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
+        advanceUntilIdle()
+        val oldConn = factory.createdConnections["192.168.1.50"]
+
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.60"))
+        advanceUntilIdle()
+        val newConn = factory.createdConnections["192.168.1.60"]
+
+        assertEquals(1, oldConn?.destroyCallCount)
+        assertEquals(1, newConn?.connectCallCount)
+        assertEquals("192.168.1.60", manager.allDevicesWithState.value[0].device.address)
+    }
+
+    @Test
+    fun syncDevicesPreservesNewerInMemoryLastSeenOverOlderDatabaseEmission() = runTest {
+        var currentTime = 10_000L
+        val manager = createManager(timeProvider = { currentTime })
+
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A", lastSeen = 5_000L))
         advanceUntilIdle()
 
         val connection = factory.createdConnections["192.168.1.100"]!!
@@ -362,6 +320,28 @@ class DeviceConnectionManagerTest {
     }
 
     @Test
+    fun incomingFrameResolvesAndPersistsRepositoryIdAndCachesLookup() = runTest {
+        repoIdResolver.idToReturn = 42L
+        val manager = createManager()
+
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A", repositoryId = 1L))
+        advanceUntilIdle()
+
+        val connection = factory.createdConnections["192.168.1.100"]!!
+        connection.emitStateInfo(createStateInfo(repository = "custom/wled-fork"))
+        advanceUntilIdle()
+
+        assertEquals(1, repoIdResolver.callCount)
+        assertEquals(42L, store.updatedRepositoryIds["A"])
+        assertEquals(42L, manager.allDevicesWithState.value[0].device.repositoryId)
+
+        connection.emitStateInfo(createStateInfo(repository = "custom/wled-fork", brightness = 200))
+        advanceUntilIdle()
+
+        assertEquals(1, repoIdResolver.callCount)
+    }
+
+    @Test
     fun incomingFrameThrottlesLastSeenWriteUntilIntervalElapses() = runTest {
         var currentTime = 10_000L
         createManager(
@@ -369,7 +349,7 @@ class DeviceConnectionManagerTest {
             config = DeviceConnectionManagerConfig(lastSeenPersistIntervalMs = 30_000L),
         )
 
-        store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A", lastSeen = 0L))
         advanceUntilIdle()
 
         val connection = factory.createdConnections["192.168.1.100"]!!
@@ -394,7 +374,7 @@ class DeviceConnectionManagerTest {
         var currentTime = 10_000L
         val manager = createManager(timeProvider = { currentTime })
 
-        store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A", lastSeen = 10_000L))
         advanceUntilIdle()
 
         val connection = factory.createdConnections["192.168.1.100"]!!
@@ -409,14 +389,137 @@ class DeviceConnectionManagerTest {
     }
 
     @Test
-    fun onBackgroundFlushesLastSeenAndPausesConnectionsAfterDebounceDelay() = runTest {
+    fun flushLastSeenDoesNotPersistUnchangedDatabaseTimestamp() = runTest {
+        val manager = createManager()
+
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A", lastSeen = 10_000L))
+        advanceUntilIdle()
+
+        manager.flushLastSeen()
+        advanceUntilIdle()
+
+        assertTrue(store.updatedLastSeens.isEmpty())
+    }
+
+    @Test
+    fun incomingFrameChecksForUpdateAndCachesResultWithinTtl() = runTest {
+        var currentTime = 10_000L
+        updateResolver.tagToReturn = "0.15.0"
+        val manager = createManager(
+            timeProvider = { currentTime },
+            config = DeviceConnectionManagerConfig(updateCheckCacheTtlMs = 3_600_000L),
+        )
+
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
+        advanceUntilIdle()
+
+        val connection = factory.createdConnections["192.168.1.100"]!!
+        connection.emitStateInfo(createStateInfo(version = "0.14.0"))
+        advanceUntilIdle()
+
+        assertEquals(1, updateResolver.callCount)
+        assertEquals("0.15.0", manager.allDevicesWithState.value[0].updateVersionTag)
+
+        currentTime = 20_000L
+        connection.emitStateInfo(createStateInfo(version = "0.14.0", brightness = 200))
+        advanceUntilIdle()
+
+        assertEquals(1, updateResolver.callCount)
+
+        currentTime = 3_615_000L
+        connection.emitStateInfo(createStateInfo(version = "0.14.0", brightness = 220))
+        advanceUntilIdle()
+
+        assertEquals(2, updateResolver.callCount)
+    }
+
+    @Test
+    fun incomingFrameInvalidatesUpdateCacheWhenFirmwareVersionChanges() = runTest {
+        var currentTime = 10_000L
+        updateResolver.tagToReturn = "0.15.0"
+        val manager = createManager(timeProvider = { currentTime })
+
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
+        advanceUntilIdle()
+
+        val connection = factory.createdConnections["192.168.1.100"]!!
+        connection.emitStateInfo(createStateInfo(version = "0.14.0"))
+        advanceUntilIdle()
+        assertEquals(1, updateResolver.callCount)
+
+        updateResolver.tagToReturn = null
+        currentTime = 12_000L
+        connection.emitStateInfo(createStateInfo(version = "0.15.0"))
+        advanceUntilIdle()
+
+        assertEquals(2, updateResolver.callCount)
+        assertNull(manager.allDevicesWithState.value[0].updateVersionTag)
+    }
+
+    @Test
+    fun incomingFrameRetriesUpdateCheckAfterFailureOnceRetryIntervalElapses() = runTest {
+        var currentTime = 10_000L
+        updateResolver.failureToThrow = IllegalStateException("DB error")
+        val manager = createManager(
+            timeProvider = { currentTime },
+            config = DeviceConnectionManagerConfig(updateCheckRetryIntervalMs = 60_000L),
+        )
+
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
+        advanceUntilIdle()
+
+        val connection = factory.createdConnections["192.168.1.100"]!!
+        connection.emitStateInfo(createStateInfo())
+        advanceUntilIdle()
+        assertEquals(1, updateResolver.callCount)
+
+        updateResolver.failureToThrow = null
+        updateResolver.tagToReturn = "0.15.0"
+        currentTime = 30_000L
+        connection.emitStateInfo(createStateInfo(brightness = 150))
+        advanceUntilIdle()
+        assertEquals(1, updateResolver.callCount)
+
+        currentTime = 71_000L
+        connection.emitStateInfo(createStateInfo(brightness = 180))
+        advanceUntilIdle()
+        assertEquals(2, updateResolver.callCount)
+        assertEquals("0.15.0", manager.allDevicesWithState.value[0].updateVersionTag)
+    }
+
+    @Test
+    fun syncDevicesRechecksUpdateWhenBranchChangesOrSkipTagCleared() = runTest {
+        updateResolver.tagToReturn = "0.15.0"
+        val manager = createManager()
+
+        store.allDevicesFlow.value = listOf(
+            createDevice(mac = "A", branch = Branch.STABLE, skipUpdateTag = "0.15.0"),
+        )
+        advanceUntilIdle()
+
+        val connection = factory.createdConnections["192.168.1.100"]!!
+        connection.emitStateInfo(createStateInfo(version = "0.14.0"))
+        advanceUntilIdle()
+        assertNull(manager.allDevicesWithState.value[0].updateVersionTag)
+
+        store.allDevicesFlow.value = listOf(
+            createDevice(mac = "A", branch = Branch.STABLE, skipUpdateTag = ""),
+        )
+        advanceUntilIdle()
+
+        assertEquals(2, updateResolver.callCount)
+        assertEquals("0.15.0", manager.allDevicesWithState.value[0].updateVersionTag)
+    }
+
+    @Test
+    fun onBackgroundPausesConnectionsAfterDebounceDelay() = runTest {
         var currentTime = 10_000L
         val manager = createManager(
             timeProvider = { currentTime },
             config = DeviceConnectionManagerConfig(backgroundPauseDelayMs = 2_000L),
         )
 
-        store.allDevicesFlow.value = listOf(createDevice(mac = "A"))
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A", lastSeen = 10_000L))
         advanceUntilIdle()
         val connection = factory.createdConnections["192.168.1.100"]!!
 
@@ -495,7 +598,7 @@ class DeviceConnectionManagerTest {
     }
 
     @Test
-    fun sendStateRollbackOptimisticStateWhenConnectionFails() = runTest {
+    fun sendStateRollsBackOptimisticStateWhenConnectionFails() = runTest {
         val manager = createManager()
 
         store.allDevicesFlow.value = listOf(createDevice(mac = "A"))

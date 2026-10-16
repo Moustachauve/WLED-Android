@@ -72,14 +72,23 @@ class DeviceConnectionManager(
     private val _isPaused = MutableStateFlow(false)
     val isPaused: StateFlow<Boolean> = _isPaused.asStateFlow()
 
+    private class DeviceSession(
+        var address: String,
+        var connection: DeviceConnection,
+        var connectionJob: Job? = null,
+        var updateCheckJob: Job? = null,
+        var lastSeenPersisted: Long = 0L,
+        var nextUpdateCheckAt: Long = 0L,
+    ) {
+        fun cancelJobs() {
+            connectionJob?.cancel()
+            updateCheckJob?.cancel()
+        }
+    }
+
     private val lock = SynchronizedObject()
-    private val activeConnections = mutableMapOf<String, DeviceConnection>()
-    private val lastKnownAddresses = mutableMapOf<String, String>()
-    private val connectionJobs = mutableMapOf<String, Job>()
-    private val updateCheckJobs = mutableMapOf<String, Job>()
-    private val lastSeenPersisted = mutableMapOf<String, Long>()
-    private val lastSuccessfulUpdateCheck = mutableMapOf<String, Long>()
-    private val lastUpdateCheckAttempt = mutableMapOf<String, Long>()
+    private val sessions = mutableMapOf<String, DeviceSession>()
+    private val resolvedRepositoryIds = mutableMapOf<String, Long>()
 
     private var pauseJob: Job? = null
 
@@ -112,19 +121,13 @@ class DeviceConnectionManager(
         recheckModifiedDevicesAsync(newDeviceList, previousStateMap)
     }
 
+    private fun removeTrackedDeviceLocked(mac: String): DeviceConnection? =
+        sessions.remove(mac)?.also { it.cancelJobs() }?.connection
+
     private fun removeDeletedConnections(newMacs: Set<String>) {
-        val toDestroy = mutableListOf<DeviceConnection>()
-        synchronized(lock) {
-            val removedMacs = activeConnections.keys - newMacs
-            for (mac in removedMacs) {
-                connectionJobs.remove(mac)?.cancel()
-                updateCheckJobs.remove(mac)?.cancel()
-                lastKnownAddresses.remove(mac)
-                lastSeenPersisted.remove(mac)
-                lastSuccessfulUpdateCheck.remove(mac)
-                lastUpdateCheckAttempt.remove(mac)
-                activeConnections.remove(mac)?.let { toDestroy.add(it) }
-            }
+        val toDestroy = synchronized(lock) {
+            val removedMacs = sessions.keys - newMacs
+            removedMacs.mapNotNull { mac -> removeTrackedDeviceLocked(mac) }
         }
         toDestroy.forEach { it.destroy() }
     }
@@ -136,18 +139,23 @@ class DeviceConnectionManager(
 
         synchronized(lock) {
             for ((mac, device) in newDeviceMap) {
-                val existing = activeConnections[mac]
-                val previousAddress = lastKnownAddresses[mac]
-                if (existing == null || previousAddress != device.address) {
+                val existing = sessions[mac]
+                if (existing == null || existing.address != device.address) {
+                    val newConn = connectionFactory.createConnection(device.address, managerScope)
                     if (existing != null) {
                         logger.d { "Address changed for $mac to ${device.address}; reconnecting" }
-                        connectionJobs.remove(mac)?.cancel()
-                        toDestroy.add(existing)
+                        existing.connectionJob?.cancel()
+                        existing.connectionJob = null
+                        toDestroy.add(existing.connection)
+                        existing.address = device.address
+                        existing.connection = newConn
+                    } else {
+                        sessions[mac] = DeviceSession(
+                            address = device.address,
+                            connection = newConn,
+                            lastSeenPersisted = device.lastSeen,
+                        )
                     }
-
-                    val newConn = connectionFactory.createConnection(device.address, managerScope)
-                    activeConnections[mac] = newConn
-                    lastKnownAddresses[mac] = device.address
                     toObserve.add(mac to newConn)
                     if (!_isPaused.value) {
                         toConnect.add(newConn)
@@ -163,7 +171,13 @@ class DeviceConnectionManager(
 
     private fun mergeDeviceListState(newDeviceList: List<Device>) {
         val statusByMac = synchronized(lock) {
-            activeConnections.mapValues { (_, conn) -> conn.status.value }
+            for (device in newDeviceList) {
+                val session = sessions[device.macAddress] ?: continue
+                if (device.lastSeen > session.lastSeenPersisted) {
+                    session.lastSeenPersisted = device.lastSeen
+                }
+            }
+            sessions.mapValues { (_, session) -> session.connection.status.value }
         }
         _allDevicesWithState.update { currentList ->
             val currentMap = currentList.associateBy { it.device.macAddress }
@@ -225,10 +239,10 @@ class DeviceConnectionManager(
         stateInfo: DeviceStateInfo,
     ) {
         synchronized(lock) {
-            lastSuccessfulUpdateCheck.remove(mac)
-            lastUpdateCheckAttempt.remove(mac)
-            updateCheckJobs.remove(mac)?.cancel()
-            val job = managerScope.launch {
+            val session = sessions[mac] ?: return
+            session.nextUpdateCheckAt = 0L
+            session.updateCheckJob?.cancel()
+            session.updateCheckJob = managerScope.launch {
                 val newTag = determineUpdateTag(
                     current = previous,
                     deviceToUse = device,
@@ -245,7 +259,6 @@ class DeviceConnectionManager(
                     current.copy(updateVersionTag = tag)
                 }
             }
-            updateCheckJobs[mac] = job
         }
     }
 
@@ -258,20 +271,17 @@ class DeviceConnectionManager(
             }
             launch {
                 connection.incomingStateInfo.collect { stateInfo ->
-                    try {
+                    runCatchingNonCancellation({ "Error processing frame for $mac" }) {
                         onIncomingStateInfo(mac, connection, stateInfo)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                        logger.e(e) { "Error processing frame for $mac" }
                     }
                 }
             }
         }
         synchronized(lock) {
-            if (activeConnections[mac] === connection) {
-                connectionJobs[mac]?.cancel()
-                connectionJobs[mac] = job
+            val session = sessions[mac]
+            if (session != null && session.connection === connection) {
+                session.connectionJob?.cancel()
+                session.connectionJob = job
             } else {
                 job.cancel()
             }
@@ -284,13 +294,22 @@ class DeviceConnectionManager(
         }
     }
 
+    private inline fun <T> runCatchingNonCancellation(errorMessage: () -> String, block: () -> T): T? = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+        logger.e(e) { errorMessage() }
+        null
+    }
+
     private fun onConnectionStatusChanged(mac: String, connection: DeviceConnection, status: WebsocketStatus) {
-        if (synchronized(lock) { activeConnections[mac] !== connection }) return
+        if (synchronized(lock) { sessions[mac]?.connection !== connection }) return
         updateDevice(mac) { it.copy(websocketStatus = status) }
     }
 
     private suspend fun onIncomingStateInfo(mac: String, connection: DeviceConnection, stateInfo: DeviceStateInfo) {
-        if (synchronized(lock) { activeConnections[mac] !== connection }) return
+        if (synchronized(lock) { sessions[mac]?.connection !== connection }) return
         val now = timeProvider()
         val current = _allDevicesWithState.value.firstOrNull { it.device.macAddress == mac } ?: return
         val currentDevice = current.device
@@ -318,11 +337,15 @@ class DeviceConnectionManager(
         updateInMemoryState(mac, updatedDevice, stateInfo, updateTag)
     }
 
-    private suspend fun resolveRepositoryIdSafe(repoStr: String, fallback: Long): Long = try {
-        repositoryIdResolver.getOrCreateRepositoryId(repoStr)
-    } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-        logger.e(e) { "Failed to resolve repository ID for $repoStr" }
-        fallback
+    private suspend fun resolveRepositoryIdSafe(repoStr: String, fallback: Long): Long {
+        synchronized(lock) { resolvedRepositoryIds[repoStr] }?.let { return it }
+        return runCatchingNonCancellation({ "Failed to resolve repository ID for $repoStr" }) {
+            val resolved = repositoryIdResolver.getOrCreateRepositoryId(repoStr)
+            synchronized(lock) {
+                resolvedRepositoryIds[repoStr] = resolved
+            }
+            resolved
+        } ?: fallback
     }
 
     private suspend fun persistMetadataChanges(
@@ -333,38 +356,37 @@ class DeviceConnectionManager(
         repoId: Long,
     ) {
         if (name.isNotBlank() && name != currentDevice.originalName) {
-            try {
+            runCatchingNonCancellation({ "Failed to update originalName for $mac" }) {
                 store.updateOriginalName(mac, name)
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                logger.e(e) { "Failed to update originalName for $mac" }
             }
         }
 
         if (branch != currentDevice.branch) {
-            try {
+            runCatchingNonCancellation({ "Failed to update branch for $mac" }) {
                 store.updateBranch(mac, branch)
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                logger.e(e) { "Failed to update branch for $mac" }
             }
         }
 
         if (repoId != currentDevice.repositoryId) {
-            try {
+            runCatchingNonCancellation({ "Failed to update repositoryId for $mac" }) {
                 store.updateRepositoryId(mac, repoId)
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                logger.e(e) { "Failed to update repositoryId for $mac" }
             }
         }
     }
 
     private suspend fun persistThrottledLastSeen(mac: String, now: Long) {
-        val lastPersisted = synchronized(lock) { lastSeenPersisted[mac] ?: 0L }
-        if (now - lastPersisted >= config.lastSeenPersistIntervalMs) {
-            synchronized(lock) { lastSeenPersisted[mac] = now }
-            try {
+        val shouldPersist = synchronized(lock) {
+            val session = sessions[mac] ?: return
+            if (now - session.lastSeenPersisted >= config.lastSeenPersistIntervalMs) {
+                session.lastSeenPersisted = now
+                true
+            } else {
+                false
+            }
+        }
+        if (shouldPersist) {
+            runCatchingNonCancellation({ "Failed to update lastSeen for $mac" }) {
                 store.updateLastSeen(mac, now)
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                logger.e(e) { "Failed to update lastSeen for $mac" }
             }
         }
     }
@@ -375,16 +397,22 @@ class DeviceConnectionManager(
         stateInfo: DeviceStateInfo,
         updateTag: String?,
     ) {
-        val finalTag = if (updatedDevice.skipUpdateTag.isNotEmpty() &&
-            updatedDevice.skipUpdateTag == updateTag
-        ) {
-            null
-        } else {
-            updateTag
-        }
         updateDevice(mac) { item ->
+            val mergedDevice = item.device.copy(
+                originalName = updatedDevice.originalName,
+                branch = if (item.device.branch == Branch.UNKNOWN) updatedDevice.branch else item.device.branch,
+                repositoryId = updatedDevice.repositoryId,
+                lastSeen = maxOf(item.device.lastSeen, updatedDevice.lastSeen),
+            )
+            val finalTag = if (mergedDevice.skipUpdateTag.isNotEmpty() &&
+                mergedDevice.skipUpdateTag == updateTag
+            ) {
+                null
+            } else {
+                updateTag
+            }
             item.copy(
-                device = updatedDevice,
+                device = mergedDevice,
                 stateInfo = stateInfo,
                 updateVersionTag = finalTag,
             )
@@ -399,33 +427,30 @@ class DeviceConnectionManager(
         now: Long,
     ): String? {
         val metadataChanged = hasMetadataChanged(current, deviceToUse, stateInfo)
-        if (metadataChanged) {
-            synchronized(lock) {
-                lastSuccessfulUpdateCheck.remove(mac)
+        val shouldSkipCheck = synchronized(lock) {
+            val session = sessions[mac] ?: return current.updateVersionTag
+            if (!metadataChanged && now < session.nextUpdateCheckAt) {
+                true
+            } else {
+                session.nextUpdateCheckAt = now + config.updateCheckRetryIntervalMs
+                false
             }
         }
 
-        val lastSuccessfulCheck = synchronized(lock) { lastSuccessfulUpdateCheck[mac] }
-        val hasRecentCheck = lastSuccessfulCheck != null &&
-            now - lastSuccessfulCheck < config.updateCheckCacheTtlMs
-        val lastAttempt = synchronized(lock) { lastUpdateCheckAttempt[mac] ?: 0L }
-        val retryAllowed = now - lastAttempt > config.updateCheckRetryIntervalMs
-
-        if (!metadataChanged && (hasRecentCheck || !retryAllowed)) {
+        if (shouldSkipCheck) {
             return current.updateVersionTag
         }
 
-        synchronized(lock) { lastUpdateCheckAttempt[mac] = now }
-        return try {
+        var checkSucceeded = false
+        val resolvedTag = runCatchingNonCancellation({ "Failed to check update for $mac" }) {
             val tag = updateTagResolver.checkForUpdate(deviceToUse, stateInfo)
-            synchronized(lock) { lastSuccessfulUpdateCheck[mac] = now }
+            synchronized(lock) {
+                sessions[mac]?.nextUpdateCheckAt = now + config.updateCheckCacheTtlMs
+            }
+            checkSucceeded = true
             tag
-        } catch (e: CancellationException) {
-            throw e
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            logger.e(e) { "Failed to check update for $mac" }
-            current.updateVersionTag
         }
+        return if (checkSucceeded) resolvedTag else current.updateVersionTag
     }
 
     private fun hasMetadataChanged(
@@ -458,7 +483,7 @@ class DeviceConnectionManager(
     fun refreshOfflineDevices() {
         if (_isPaused.value) return
         val offline = synchronized(lock) {
-            activeConnections.values.filter { it.status.value == WebsocketStatus.DISCONNECTED }
+            sessions.values.map { it.connection }.filter { it.status.value == WebsocketStatus.DISCONNECTED }
         }
         offline.forEach { it.connect() }
     }
@@ -474,7 +499,7 @@ class DeviceConnectionManager(
                 val connections = synchronized(lock) {
                     if (!isActive) return@launch
                     _isPaused.value = true
-                    activeConnections.values.toList()
+                    sessions.values.map { it.connection }
                 }
                 connections.forEach { it.pause() }
             }
@@ -487,7 +512,7 @@ class DeviceConnectionManager(
             pauseJob = null
             if (_isPaused.value) {
                 _isPaused.value = false
-                activeConnections.values.toList()
+                sessions.values.map { it.connection }
             } else {
                 emptyList()
             }
@@ -496,36 +521,30 @@ class DeviceConnectionManager(
     }
 
     suspend fun flushLastSeen() {
-        val toPersist: List<Pair<String, Long>> = _allDevicesWithState.value.mapNotNull { item ->
-            val mac = item.device.macAddress
-            val currentLastSeen = item.device.lastSeen
-            val persisted = synchronized(lock) { lastSeenPersisted[mac] ?: 0L }
-            if (currentLastSeen > persisted) {
-                synchronized(lock) { lastSeenPersisted[mac] = currentLastSeen }
-                mac to currentLastSeen
-            } else {
-                null
+        val currentDevices = _allDevicesWithState.value
+        val toPersist: List<Pair<String, Long>> = synchronized(lock) {
+            currentDevices.mapNotNull { item ->
+                val mac = item.device.macAddress
+                val session = sessions[mac] ?: return@mapNotNull null
+                val currentLastSeen = item.device.lastSeen
+                if (currentLastSeen > session.lastSeenPersisted) {
+                    session.lastSeenPersisted = currentLastSeen
+                    mac to currentLastSeen
+                } else {
+                    null
+                }
             }
         }
         for ((mac, lastSeen) in toPersist) {
-            try {
+            runCatchingNonCancellation({ "Failed to flush lastSeen for $mac" }) {
                 store.updateLastSeen(mac, lastSeen)
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                logger.e(e) { "Failed to flush lastSeen for $mac" }
             }
         }
     }
 
     suspend fun deleteDevice(device: Device) {
-        val mac = device.macAddress
         val connection = synchronized(lock) {
-            connectionJobs.remove(mac)?.cancel()
-            updateCheckJobs.remove(mac)?.cancel()
-            lastKnownAddresses.remove(mac)
-            lastSeenPersisted.remove(mac)
-            lastSuccessfulUpdateCheck.remove(mac)
-            lastUpdateCheckAttempt.remove(mac)
-            activeConnections.remove(mac)
+            removeTrackedDeviceLocked(device.macAddress)
         }
         connection?.destroy()
         store.delete(device)
@@ -541,7 +560,7 @@ class DeviceConnectionManager(
     suspend fun setPower(macAddress: String, isOn: Boolean): Boolean = sendState(macAddress, State(isOn = isOn))
 
     suspend fun sendState(macAddress: String, patch: State): Boolean {
-        val connection = synchronized(lock) { activeConnections[macAddress] } ?: return false
+        val connection = synchronized(lock) { sessions[macAddress]?.connection } ?: return false
 
         val previousList = _allDevicesWithState.getAndUpdate { list ->
             list.map { item ->
@@ -601,14 +620,9 @@ class DeviceConnectionManager(
         managerScope.cancel()
         val toDestroy = synchronized(lock) {
             pauseJob = null
-            connectionJobs.clear()
-            updateCheckJobs.clear()
-            lastSeenPersisted.clear()
-            lastSuccessfulUpdateCheck.clear()
-            lastUpdateCheckAttempt.clear()
-            val connections = activeConnections.values.toList()
-            activeConnections.clear()
-            lastKnownAddresses.clear()
+            resolvedRepositoryIds.clear()
+            val connections = sessions.values.map { it.connection }
+            sessions.clear()
             connections
         }
         toDestroy.forEach { it.destroy() }
