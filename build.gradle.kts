@@ -100,7 +100,7 @@ subprojects {
 }
 
 tasks.register("installGitHooks") {
-    description = "Installs a git pre-commit hook to run Spotless"
+    description = "Installs a git pre-commit hook to run Spotless, Detekt, and SwiftLint"
     group = "help"
 
     // Capture the root directory here, during configuration, not execution
@@ -114,10 +114,10 @@ tasks.register("installGitHooks") {
         val preCommitFile = File(hooksDir, "pre-commit")
         preCommitFile.writeText(
             """
-                        #!/bin/bash
+            #!/bin/bash
             echo "Running Spotless check..."
             ./gradlew spotlessCheck
-            if [ $? -ne 0 ]; then
+            if [ ${'$'}? -ne 0 ]; then
                 echo "Spotless check failed. Automatically formatting..."
                 ./gradlew spotlessApply
                 echo "Code has been reformatted. Please review, stage, and commit again."
@@ -126,14 +126,23 @@ tasks.register("installGitHooks") {
 
             echo "Running Detekt check..."
             ./gradlew detekt
-            if [ $? -ne 0 ]; then
+            if [ ${'$'}? -ne 0 ]; then
                 echo "Detekt found issues. Please fix them manually and commit again."
                 exit 1
             fi
 
+            if command -v swiftlint >/dev/null 2>&1; then
+                echo "Running SwiftLint check..."
+                swiftlint lint --config iosApp/.swiftlint.yml --strict iosApp
+                if [ ${'$'}? -ne 0 ]; then
+                    echo "SwiftLint found issues. Please fix them manually and commit again."
+                    exit 1
+                fi
+            fi
+
             echo "All checks passed!"
             exit 0
-            """.trimIndent(),
+            """.trimIndent() + "\n",
         )
 
         preCommitFile.setExecutable(true)

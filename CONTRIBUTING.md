@@ -57,10 +57,10 @@ You can run SwiftLint from the root of the repository or from the `iosApp` direc
 
 ```bash
 # From repository root
-swiftlint lint --config iosApp/.swiftlint.yml iosApp
+swiftlint lint --config iosApp/.swiftlint.yml --strict iosApp
 
 # Or within the iosApp directory
-cd iosApp && swiftlint lint
+cd iosApp && swiftlint lint --strict
 ```
 
 The `iosApp/.swiftlint.yml` configuration file defines the active rules. By default, the CI pipeline will block Pull Requests that contain SwiftLint errors.
@@ -75,6 +75,9 @@ xcodebuild test \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
   -skipPackagePluginValidation \
   -skipMacroValidation \
+  -parallel-testing-enabled NO \
+  -maximum-concurrent-test-simulator-destinations 1 \
+  ONLY_ACTIVE_ARCH=YES \
   CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
 ```
 
