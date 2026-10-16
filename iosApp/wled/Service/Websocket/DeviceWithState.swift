@@ -4,13 +4,9 @@ import Combine
 import CoreData
 import Shared
 
-// TODO: This probably shouldn't be in the Websocket folder?
+typealias WebsocketStatus = Shared.WebsocketStatus
 
-enum WebsocketStatus {
-    case connected
-    case connecting
-    case disconnected
-
+extension WebsocketStatus {
     func toString() -> String {
         switch self {
         case .connected: return "Connected"

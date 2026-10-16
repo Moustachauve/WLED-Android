@@ -7,7 +7,7 @@ private typealias State = SwiftUI.State
 struct DeviceListView: View {
 
     // MARK: - Properties
-    @StateObject private var viewModel: DeviceWebsocketListViewModel
+    @State private var viewModel: DeviceWebsocketListViewModel
 
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
@@ -28,13 +28,13 @@ struct DeviceListView: View {
     // Allow injecting a specific database (defaulting to shared for the actual app)
     init(
         database: AppDatabase = .shared,
-        clientFactory: ((Device) -> WebsocketClient)? = nil
+        connectionManager: DeviceConnectionManager? = nil
     ) {
         let viewModel = DeviceWebsocketListViewModel(
-            database: database,
-            clientFactory: clientFactory
+            connectionManager: connectionManager,
+            database: database
         )
-        _viewModel = StateObject(wrappedValue: viewModel)
+        _viewModel = State(wrappedValue: viewModel)
     }
 
     // MARK: - Body
@@ -58,7 +58,7 @@ struct DeviceListView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .onAppear(perform: appearAction)
-        .onChange(of: scenePhase) { newPhase in
+        .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
                 viewModel.onResume()
@@ -70,17 +70,17 @@ struct DeviceListView: View {
                 break
             }
         }
-        .onChange(of: viewModel.allDevicesWithState) { devices in
+        .onChange(of: viewModel.allDevicesWithState) { _, devices in
             restoreLastSelection(from: devices)
         }
-        .onChange(of: selection) { newSelection in
+        .onChange(of: selection) { _, newSelection in
             if let mac = newSelection?.device.macAddress {
                 lastSelectedDeviceMac = mac
             }
         }
         // Listen for layout changes (e.g. iPad rotation or window resizing)
         // If the user expands the window, we want to fill the empty space immediately.
-        .onChange(of: horizontalSizeClass) { newSizeClass in
+        .onChange(of: horizontalSizeClass) { _, newSizeClass in
             print(
                 "changed horizontalSizeClass, \(horizontalSizeClass, default: "unknown") -> \(newSizeClass, default: "unknown")"
             )
@@ -311,10 +311,7 @@ struct DeviceListView: View {
     // swiftlint:enable redundant_discardable_let
 
     DeviceListView(
-        database: PreviewData.database,
-        clientFactory: { device in
-            MockWebsocketClient(device: device)
-        }
+        database: PreviewData.database
     )
     .environment(\.managedObjectContext, PreviewData.viewContext)
 }

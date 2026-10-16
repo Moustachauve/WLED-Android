@@ -154,7 +154,9 @@ struct DeviceInfoTwoRows_Previews: PreviewProvider {
     // Let's display a device with only one bar of signal
     static var hiddenDevice: DeviceWithState = {
         let device = PreviewData.hiddenDevice
-        device.stateInfo?.info.wifi.signal = -86
+        if let current = device.stateInfo {
+            device.stateInfo = current.withSignal(signal: -86)
+        }
         return device
     }()
 

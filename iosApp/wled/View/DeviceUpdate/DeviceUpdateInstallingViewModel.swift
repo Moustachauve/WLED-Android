@@ -45,7 +45,9 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
             
             if let rawTag = version.tagName {
                 let cleanedTag = rawTag.hasPrefix("v") ? String(rawTag.dropFirst()) : rawTag
-                device.stateInfo?.info.version = cleanedTag
+                if let current = device.stateInfo {
+                    device.stateInfo = current.withVersion(newVersion: cleanedTag)
+                }
             }
             status = .completed
         } catch {

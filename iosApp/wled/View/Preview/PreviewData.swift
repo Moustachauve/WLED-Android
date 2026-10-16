@@ -99,31 +99,18 @@ struct PreviewData {
 
 extension DeviceStateInfo {
     static func mock(name: String, version: String, color: [Int]) -> DeviceStateInfo {
-        let r = color.indices.contains(0) ? color[0] : 255
-        let g = color.indices.contains(1) ? color[1] : 160
-        let b = color.indices.contains(2) ? color[2] : 0
+        let r = Int32(color.indices.contains(0) ? color[0] : 255)
+        let g = Int32(color.indices.contains(1) ? color[1] : 160)
+        let b = Int32(color.indices.contains(2) ? color[2] : 0)
 
-        let json = """
-        {
-            "state": {
-                "on": true,
-                "bri": 128,
-                "seg": [
-                    {"id": 0, "col": [[\(r), \(g), \(b)], [0, 0, 0], [0, 0, 0]]}
-                ]
-            },
-            "info": {
-                "name": "\(name)",
-                "ver": "\(version)",
-                "leds": { "count": 30, "pwr": 0, "fps": 0, "maxpwr": 0, "maxseg": 0 },
-                "wifi": { "signal": -60 }
-            }
-        }
-        """
-        guard let data = json.data(using: .utf8),
-              let decoded = try? JSONDecoder().decode(DeviceStateInfo.self, from: data) else {
-            fatalError("Failed to decode mock DeviceStateInfo")
-        }
-        return decoded
+        return DeviceStateInfo.companion.createMock(
+            name: name,
+            version: version,
+            red: r,
+            green: g,
+            blue: b,
+            brightness: 128,
+            isOn: true
+        )
     }
 }
