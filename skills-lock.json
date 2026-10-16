@@ -1,6 +1,54 @@
 {
   "version": 1,
   "skills": {
+    "adaptive": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "jetpack-compose/adaptive/SKILL.md",
+      "computedHash": "e1ea8438726a8683ee32e73986032924c86f574d93c4826fcff6ba74537506bf"
+    },
+    "agp-9-upgrade": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "build-system/agp/agp-9-upgrade/SKILL.md",
+      "computedHash": "0fb35549ed0ce391d853bd3d8c63b4fcbe910c49dcad1ecd90e1c75efbc09f16"
+    },
+    "edge-to-edge": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "system/edge-to-edge/SKILL.md",
+      "computedHash": "7db3c09f145f5bad71b09da526dad46cb8b2ace56e62e87aa2ca7e81a0b4790e"
+    },
+    "glance-canonical-layouts": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "system/glance-canonical-layouts/SKILL.md",
+      "computedHash": "f4df5939ca87a1283616ee115af599ab5292c38f5139838e1b0c72fea36aef3d"
+    },
+    "jetpack-compose-performance": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "jetpack-compose/jetpack-compose-performance/SKILL.md",
+      "computedHash": "aed76c3147007fbb30c045e5e6b27d4bc52b9afa4cb779953548a86eff7bb255"
+    },
+    "navigation-3": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "navigation/navigation-3/SKILL.md",
+      "computedHash": "6aa8d6f7460e3c9b4c2c85cbd84720e990b03b2f0c594d31a1dbed0def247fe6"
+    },
+    "navigation-event": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "navigation/navigation-event/SKILL.md",
+      "computedHash": "fa15e3460cf3fbe4ac0614db0f0bd074c11b2bbc86f277e4349df642c3429a50"
+    },
+    "r8-analyzer": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "performance/r8-analyzer/SKILL.md",
+      "computedHash": "69fdd394fe2b5658833a10a711511ac0ae422dfbbf1d981ce08a7fa9bbcf54df"
+    },
     "swift-concurrency-pro": {
       "source": "twostraws/swift-concurrency-agent-skill",
       "sourceType": "github",

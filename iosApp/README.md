@@ -2,18 +2,18 @@
 
 <a href='https://apps.apple.com/us/app/wled-native/id6446207239'><img alt='Download on the App Store' src='https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg' height='60'/></a>
 
-Native iOS application for discovering and controlling [WLED](https://github.com/Aircoookie/WLED) devices, built with SwiftUI as part of the [WLED-App](../README.md) monorepo.
+Native iOS application for discovering and controlling [WLED](https://github.com/wled/WLED) devices, built with SwiftUI as part of the [WLED-App](../README.md) monorepo.
 
 ## Architecture
 
-- **UI:** SwiftUI (Targeting iOS 16+)
+- **UI:** SwiftUI (Targeting iOS 18+)
 - **Shared Logic:** Consumes the Kotlin Multiplatform shared module (`:shared`) via `SharedPackage` (XCFramework with SKIE)
 - **Discovery & Networking:** Bonjour / mDNS network discovery and WebSocket communication
 
 ## Building & Testing
 
 ### 1. Build Shared KMP Framework
-The iOS application depends on the shared Kotlin Multiplatform module (`:shared`). Building in Xcode automatically runs a build phase that compiles and synchronizes the framework. You can also assemble the XCFramework manually via Gradle:
+The iOS application depends on the shared Kotlin Multiplatform module (`:shared`). Building in Xcode automatically runs a build phase (`iosApp/scripts/compile_kmp.sh`) that compiles and synchronizes the framework. You can also assemble the XCFramework manually via Gradle:
 
 ```bash
 # Debug build (local development)
@@ -42,6 +42,9 @@ xcodebuild test \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
   -skipPackagePluginValidation \
   -skipMacroValidation \
+  -parallel-testing-enabled NO \
+  -maximum-concurrent-test-simulator-destinations 1 \
+  ONLY_ACTIVE_ARCH=YES \
   CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
 ```
 
@@ -50,10 +53,10 @@ Swift style is enforced using **SwiftLint** (configured via `.swiftlint.yml`):
 
 ```bash
 # Within the iosApp directory
-swiftlint lint
+swiftlint lint --strict
 
 # Or from the repository root
-swiftlint lint --config iosApp/.swiftlint.yml iosApp
+swiftlint lint --config iosApp/.swiftlint.yml --strict iosApp
 ```
 
 ## Contributing & Governance
