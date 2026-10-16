@@ -43,6 +43,7 @@ class DeviceWebsocketListViewModel {
     private var discoveryService: DiscoveryService?
 
     private var deviceMap: [String: DeviceWithState] = [:]
+    private var lastSharedUpdateTag: [String: String] = [:]
 
     private nonisolated(unsafe) var observeDevicesTask: Task<Void, Never>?
     private nonisolated(unsafe) var observePausedTask: Task<Void, Never>?
@@ -132,27 +133,32 @@ class DeviceWebsocketListViewModel {
 
         // Prune removed devices from in-memory cache
         deviceMap = deviceMap.filter { newMacs.contains($0.key) }
+        lastSharedUpdateTag = lastSharedUpdateTag.filter { newMacs.contains($0.key) }
 
         for shared in sharedDevices {
             let mac = shared.device.macAddress
+            let wrapper: DeviceWithState
             if let existing = deviceMap[mac] {
                 existing.device = shared.device
                 existing.stateInfo = shared.stateInfo
                 existing.websocketStatus = shared.websocketStatus
-                if let updateTag = shared.updateVersionTag {
-                    existing.availableUpdateVersion = updateTag
-                }
-                updatedList.append(existing)
+                wrapper = existing
             } else {
                 let newDevice = DeviceWithState(initialDevice: shared.device)
                 newDevice.stateInfo = shared.stateInfo
                 newDevice.websocketStatus = shared.websocketStatus
-                if let updateTag = shared.updateVersionTag {
-                    newDevice.availableUpdateVersion = updateTag
-                }
                 deviceMap[mac] = newDevice
-                updatedList.append(newDevice)
+                wrapper = newDevice
             }
+
+            if let updateTag = shared.updateVersionTag {
+                lastSharedUpdateTag[mac] = updateTag
+                wrapper.availableUpdateVersion = updateTag
+            } else if lastSharedUpdateTag.removeValue(forKey: mac) != nil {
+                wrapper.availableUpdateVersion = nil
+            }
+
+            updatedList.append(wrapper)
         }
 
         self.allDevicesWithState = updatedList
@@ -177,23 +183,34 @@ class DeviceWebsocketListViewModel {
 
     func setBrightness(for deviceWrapper: DeviceWithState, brightness: Int) {
         let mac = deviceWrapper.device.macAddress
-        if let current = deviceWrapper.stateInfo {
-            deviceWrapper.stateInfo = current.withBrightness(brightness: Int32(brightness))
+        let previousStateInfo = deviceWrapper.stateInfo
+        let optimisticBrightness = Int32(brightness)
+        if let current = previousStateInfo {
+            deviceWrapper.stateInfo = current.withBrightness(brightness: optimisticBrightness)
         }
         let manager = connectionManager
         Task {
-            _ = try? await manager.setBrightness(macAddress: mac, brightness: Int32(brightness))
+            let result = try? await manager.setBrightness(macAddress: mac, brightness: optimisticBrightness)
+            if result?.boolValue != true,
+               deviceWrapper.stateInfo?.state.brightness?.int32Value == optimisticBrightness {
+                deviceWrapper.stateInfo = previousStateInfo
+            }
         }
     }
 
     func setDevicePower(for deviceWrapper: DeviceWithState, isOn: Bool) {
         let mac = deviceWrapper.device.macAddress
-        if let current = deviceWrapper.stateInfo {
+        let previousStateInfo = deviceWrapper.stateInfo
+        if let current = previousStateInfo {
             deviceWrapper.stateInfo = current.withIsOn(isOn: isOn)
         }
         let manager = connectionManager
         Task {
-            _ = try? await manager.setPower(macAddress: mac, isOn: isOn)
+            let result = try? await manager.setPower(macAddress: mac, isOn: isOn)
+            if result?.boolValue != true,
+               deviceWrapper.stateInfo?.state.isOn?.boolValue == isOn {
+                deviceWrapper.stateInfo = previousStateInfo
+            }
         }
     }
 

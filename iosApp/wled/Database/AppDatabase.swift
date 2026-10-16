@@ -31,10 +31,11 @@ final class AppDatabase: @unchecked Sendable {
         }
         let repository = database.createDeviceRepository()
         self.deviceRepository = repository
-        if let config, let connectionFactory {
+        let effectiveConnectionFactory = connectionFactory ?? (inMemory ? NoOpDeviceConnectionFactory.shared : nil)
+        if let config, let effectiveConnectionFactory {
             self.deviceConnectionManager = DeviceConnectionManager.companion.create(
                 database: database,
-                connectionFactory: connectionFactory,
+                connectionFactory: effectiveConnectionFactory,
                 config: config
             )
         } else if let config {
@@ -42,10 +43,10 @@ final class AppDatabase: @unchecked Sendable {
                 database: database,
                 config: config
             )
-        } else if let connectionFactory {
+        } else if let effectiveConnectionFactory {
             self.deviceConnectionManager = DeviceConnectionManager.companion.create(
                 database: database,
-                connectionFactory: connectionFactory
+                connectionFactory: effectiveConnectionFactory
             )
         } else {
             self.deviceConnectionManager = DeviceConnectionManager.companion.create(database: database)

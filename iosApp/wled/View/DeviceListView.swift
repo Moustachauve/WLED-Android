@@ -58,7 +58,7 @@ struct DeviceListView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .onAppear(perform: appearAction)
-        .onChange(of: scenePhase) { newPhase in
+        .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
                 viewModel.onResume()
@@ -70,17 +70,17 @@ struct DeviceListView: View {
                 break
             }
         }
-        .onChange(of: viewModel.allDevicesWithState) { devices in
+        .onChange(of: viewModel.allDevicesWithState) { _, devices in
             restoreLastSelection(from: devices)
         }
-        .onChange(of: selection) { newSelection in
+        .onChange(of: selection) { _, newSelection in
             if let mac = newSelection?.device.macAddress {
                 lastSelectedDeviceMac = mac
             }
         }
         // Listen for layout changes (e.g. iPad rotation or window resizing)
         // If the user expands the window, we want to fill the empty space immediately.
-        .onChange(of: horizontalSizeClass) { newSizeClass in
+        .onChange(of: horizontalSizeClass) { _, newSizeClass in
             print(
                 "changed horizontalSizeClass, \(horizontalSizeClass, default: "unknown") -> \(newSizeClass, default: "unknown")"
             )
