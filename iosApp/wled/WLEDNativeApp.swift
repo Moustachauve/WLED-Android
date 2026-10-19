@@ -1,5 +1,6 @@
 import Shared
 import SwiftUI
+import CoreData
 
 @main
 struct WLEDNativeApp: App {

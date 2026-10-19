@@ -3,7 +3,7 @@ import CoreData
 import OSLog
 import Shared
 
-final class AppDatabase: @unchecked Sendable {
+final class AppDatabase: Sendable {
     static let shared = AppDatabase()
 
     private static let logger = Logger(

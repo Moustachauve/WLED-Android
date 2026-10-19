@@ -1,32 +1,47 @@
 import Foundation
-import Combine
-import CoreData
 import Network
-import SwiftUI
 
 // TODO: Check if this needs a start/stop like on Android
 @MainActor
-class DiscoveryService: NSObject, ObservableObject, Identifiable {
+final class DiscoveryService {
 
     let onDeviceDiscovered: (_ address: String, _ macAddress: String?) -> Void
-    var browser: NWBrowser!
+    let onLocalNetworkPermissionChanged: (_ isGranted: Bool) -> Void
+    private var browser: NWBrowser?
 
     /// Tracks whether the local network permission has been granted.
     /// `nil` = unknown (checking), `true` = granted, `false` = denied.
-    @Published var isLocalNetworkGranted: Bool?
+    private(set) var isLocalNetworkGranted: Bool? {
+        didSet {
+            if let isLocalNetworkGranted, oldValue != isLocalNetworkGranted {
+                onLocalNetworkPermissionChanged(isLocalNetworkGranted)
+            }
+        }
+    }
 
-    init(onDeviceDiscovered: @escaping (_: String, _: String?) -> Void) {
+    init(
+        onDeviceDiscovered: @escaping (_ address: String, _ macAddress: String?) -> Void,
+        onLocalNetworkPermissionChanged: @escaping (_ isGranted: Bool) -> Void = { _ in }
+    ) {
         self.onDeviceDiscovered = onDeviceDiscovered
+        self.onLocalNetworkPermissionChanged = onLocalNetworkPermissionChanged
+    }
+
+    isolated deinit {
+        browser?.cancel()
     }
 
     func scan() {
+        browser?.cancel()
+
         let descriptor = NWBrowser.Descriptor.bonjourWithTXTRecord(type: "_wled._tcp", domain: "local.")
         let parameters = NWParameters()
         parameters.allowLocalEndpointReuse = true
         parameters.acceptLocalOnly = true
         parameters.allowFastOpen = true
 
-        browser = NWBrowser(for: descriptor, using: parameters)
+        let browser = NWBrowser(for: descriptor, using: parameters)
+        self.browser = browser
 
         browser.stateUpdateHandler = { [weak self] state in
             Task { @MainActor in
@@ -49,12 +64,10 @@ class DiscoveryService: NSObject, ObservableObject, Identifiable {
         switch newState {
         case .failed(let error):
             print("NW Browser: now in Error state: \(error)")
-            self.browser.cancel()
+            self.browser?.cancel()
         case .ready:
             print("NW Browser: new bonjour discovery - ready")
-            if isLocalNetworkGranted != true {
-                isLocalNetworkGranted = true
-            }
+            isLocalNetworkGranted = true
         case .waiting(let error):
             print("NW Browser: waiting with error: \(error)")
             // DNS error -65570 is kDNSServiceErr_PolicyDenied, which means

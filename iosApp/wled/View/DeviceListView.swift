@@ -57,6 +57,9 @@ struct DeviceListView: View {
             detailView
         }
         .navigationSplitViewStyle(.balanced)
+        .task {
+            await viewModel.observe()
+        }
         .onAppear(perform: appearAction)
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
@@ -260,7 +263,6 @@ struct DeviceListView: View {
     }
 
     private func appearAction() {
-        viewModel.load()
         viewModel.onResume()
         viewModel.startDiscovery()
     }

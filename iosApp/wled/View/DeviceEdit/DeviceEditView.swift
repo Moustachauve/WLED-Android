@@ -1,11 +1,14 @@
 import SwiftUI
+import CoreData
 import Shared
+
+private typealias State = SwiftUI.State
 
 struct DeviceEditView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     @StateObject private var viewModel: DeviceEditViewModel
-    @ObservedObject private var device: DeviceWithState
+    private var device: DeviceWithState
 
     init(device: DeviceWithState, deviceRepository: DeviceRepository = AppDatabase.shared.deviceRepository) {
         let context = PersistenceController.shared.container.viewContext
@@ -89,7 +92,7 @@ struct DeviceEditView: View {
 
 struct DeviceNoUpdateAvailable: View {
 
-    @ObservedObject var device: DeviceWithState
+    var device: DeviceWithState
     let isCheckingForUpdates: Bool
     let onCheckForUpdate: () async -> Void
 
@@ -122,7 +125,7 @@ struct DeviceNoUpdateAvailable: View {
 
 struct DeviceUpdateAvailable: View {
 
-    @ObservedObject var device: DeviceWithState
+    var device: DeviceWithState
 
     private let unknownVersion = String(localized: "unknown_version")
 

@@ -1,6 +1,5 @@
 import Testing
 import Foundation
-import Combine
 import Shared
 @testable import WLED
 
@@ -9,10 +8,15 @@ struct DeviceWebsocketListViewModelTests {
 
     let database: AppDatabase
     let repository: DeviceRepository
+    let userDefaults: UserDefaults
 
-    init() {
+    init() throws {
         self.database = AppDatabase(inMemory: true)
         self.repository = database.deviceRepository
+        let suiteName = "DeviceWebsocketListViewModelTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        self.userDefaults = defaults
     }
 
     @Test func testInitialLoadingAndSorting() async throws {
@@ -24,10 +28,11 @@ struct DeviceWebsocketListViewModelTests {
         try await repository.insert(device: device2)
         try await repository.insert(device: device3)
 
-        let viewModel = DeviceWebsocketListViewModel(database: database)
+        let viewModel = makeViewModel()
 
         // 2. Load — listens to allDevices Flow
-        try await load(viewModel, expectedCount: 3)
+        let observationTask = try await startObserving(viewModel, expectedCount: 3)
+        defer { observationTask.cancel() }
 
         #expect(viewModel.allDevicesWithState.count == 3)
 
@@ -41,8 +46,9 @@ struct DeviceWebsocketListViewModelTests {
 
     @Test func testShowingHiddenDevicesUpdatesListImmediately() async throws {
         try await repository.insert(device: createDevice(name: "Hidden Device", mac: "08", isHidden: true))
-        let viewModel = DeviceWebsocketListViewModel(database: database)
-        try await load(viewModel, expectedCount: 1)
+        let viewModel = makeViewModel()
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
         viewModel.showHiddenDevices = false
 
         viewModel.showHiddenDevices = true
@@ -55,8 +61,9 @@ struct DeviceWebsocketListViewModelTests {
         let device = createDevice(name: "Test Device", mac: "01", isHidden: false)
         try await repository.insert(device: device)
 
-        let viewModel = DeviceWebsocketListViewModel(database: database)
-        try await load(viewModel, expectedCount: 1)
+        let viewModel = makeViewModel()
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
 
         database.deviceConnectionManager.updateDeviceState(
             deviceWithState: Shared.DeviceWithState(
@@ -75,8 +82,9 @@ struct DeviceWebsocketListViewModelTests {
         let device = createDevice(name: "Test Device", mac: "01", isHidden: false)
         try await repository.insert(device: device)
 
-        let viewModel = DeviceWebsocketListViewModel(database: database)
-        try await load(viewModel, expectedCount: 1)
+        let viewModel = makeViewModel()
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
 
         database.deviceConnectionManager.updateDeviceState(
             deviceWithState: Shared.DeviceWithState(
@@ -94,8 +102,9 @@ struct DeviceWebsocketListViewModelTests {
     @Test func testDeviceUpdateReflectsInViewModel() async throws {
         let device = createDevice(name: "Original Name", mac: "06", isHidden: false)
         try await repository.insert(device: device)
-        let viewModel = DeviceWebsocketListViewModel(database: database)
-        try await load(viewModel, expectedCount: 1)
+        let viewModel = makeViewModel()
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
 
         let updatedDevice = device.copy(originalName: "Updated Name", lastSeen: 123456789)
         database.deviceConnectionManager.updateDeviceState(
@@ -119,8 +128,9 @@ struct DeviceWebsocketListViewModelTests {
         let device = createDevice(name: "Test Device Quick Resume", mac: "04", isHidden: false)
         try await testDatabase.deviceRepository.insert(device: device)
 
-        let viewModel = DeviceWebsocketListViewModel(database: testDatabase)
-        try await load(viewModel, expectedCount: 1)
+        let viewModel = makeViewModel(database: testDatabase)
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
 
         // Simulate quick background + resume (app switcher peek) before the 300ms pause delay expires
         viewModel.onPause()
@@ -137,8 +147,9 @@ struct DeviceWebsocketListViewModelTests {
         let device = createDevice(name: "Test Device Background Pause", mac: "05", isHidden: false)
         try await testDatabase.deviceRepository.insert(device: device)
 
-        let viewModel = DeviceWebsocketListViewModel(database: testDatabase)
-        try await load(viewModel, expectedCount: 1)
+        let viewModel = makeViewModel(database: testDatabase)
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
 
         viewModel.onPause()
 
@@ -151,8 +162,9 @@ struct DeviceWebsocketListViewModelTests {
         let device = createDevice(name: "Test Device Resume", mac: "07", isHidden: false)
         try await testDatabase.deviceRepository.insert(device: device)
 
-        let viewModel = DeviceWebsocketListViewModel(database: testDatabase)
-        try await load(viewModel, expectedCount: 1)
+        let viewModel = makeViewModel(database: testDatabase)
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
         viewModel.onPause()
         try await waitUntil(timeout: .seconds(3)) { viewModel.isPaused }
 
@@ -166,8 +178,9 @@ struct DeviceWebsocketListViewModelTests {
         let device = createDevice(name: "To Be Deleted", mac: "09", isHidden: false)
         try await repository.insert(device: device)
 
-        let viewModel = DeviceWebsocketListViewModel(database: database)
-        try await load(viewModel, expectedCount: 1)
+        let viewModel = makeViewModel()
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
 
         viewModel.deleteDevice(device)
 
@@ -179,6 +192,13 @@ struct DeviceWebsocketListViewModelTests {
     }
 
     // MARK: - Helpers
+
+    private func makeViewModel(database: AppDatabase? = nil) -> DeviceWebsocketListViewModel {
+        DeviceWebsocketListViewModel(
+            database: database ?? self.database,
+            userDefaults: userDefaults
+        )
+    }
 
     private func makeFastPauseDatabase(delayMs: Int64 = 50) -> AppDatabase {
         let fastPauseConfig = DeviceConnectionManagerConfig(
@@ -201,9 +221,15 @@ struct DeviceWebsocketListViewModelTests {
     }
 
     /// Starts observing the database and waits until the expected number of devices is loaded.
-    private func load(_ viewModel: DeviceWebsocketListViewModel, expectedCount: Int) async throws {
-        viewModel.load()
+    private func startObserving(
+        _ viewModel: DeviceWebsocketListViewModel,
+        expectedCount: Int
+    ) async throws -> Task<Void, Never> {
+        let task = Task {
+            await viewModel.observe()
+        }
         try await waitUntil { viewModel.allDevicesWithState.count == expectedCount }
+        return task
     }
 
     /// Polls `condition` until it's true or the timeout elapses (resilient against CI scheduling delays).

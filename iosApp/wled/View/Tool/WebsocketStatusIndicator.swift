@@ -6,6 +6,9 @@
 //
 
 import SwiftUI
+import Shared
+
+private typealias State = SwiftUI.State
 
 struct WebsocketStatusIndicator: View {
 

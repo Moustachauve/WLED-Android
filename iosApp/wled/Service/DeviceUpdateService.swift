@@ -30,7 +30,7 @@ enum UpdateError: LocalizedError {
 
 /// Service responsible for identifying, downloading, and installing firmware updates for WLED devices.
 @MainActor
-class DeviceUpdateService: ObservableObject {
+class DeviceUpdateService {
 
     // MARK: - Constants
 

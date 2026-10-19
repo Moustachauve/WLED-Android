@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// `URLProtocol` that serves canned responses so networking code can be tested without a real device.
 ///
@@ -6,30 +7,33 @@ import Foundation
 /// Install it on a session through `URLSessionConfiguration.protocolClasses`.
 final class StubURLProtocol: URLProtocol, @unchecked Sendable {
 
-    enum Stub {
+    enum Stub: Sendable {
         case http(statusCode: Int, body: String, contentType: String = "application/json")
         case failure(URLError.Code)
         /// Never answers, leaving the request pending until it is cancelled.
         case never
     }
 
-    private static let lock = NSLock()
-    nonisolated(unsafe) private static var stubs: [String: Stub] = [:]
-    nonisolated(unsafe) private static var recordedRequests: [String: [URLRequest]] = [:]
+    private struct State: Sendable {
+        var stubs: [String: Stub] = [:]
+        var recordedRequests: [String: [URLRequest]] = [:]
+    }
+
+    private static let state = Mutex(State())
 
     static func register(_ stub: Stub, for host: String) {
-        lock.withLock { stubs[host] = stub }
+        state.withLock { $0.stubs[host] = stub }
     }
 
     static func requests(for host: String) -> [URLRequest] {
-        lock.withLock { recordedRequests[host] ?? [] }
+        state.withLock { $0.recordedRequests[host] ?? [] }
     }
 
     private static func stub(recording request: URLRequest) -> Stub? {
         guard let host = request.url?.host else { return nil }
-        return lock.withLock {
-            recordedRequests[host, default: []].append(request)
-            return stubs[host]
+        return state.withLock {
+            $0.recordedRequests[host, default: []].append(request)
+            return $0.stubs[host]
         }
     }
 

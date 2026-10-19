@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import CoreData
 
 class VersionViewModel: ObservableObject {

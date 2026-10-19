@@ -10,7 +10,7 @@ import Shared
 
 struct DeviceInfoTwoRows: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @ObservedObject var device: DeviceWithState
+    var device: DeviceWithState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -102,7 +102,7 @@ struct DeviceInfoTwoRows: View {
 // MARK: - OfflineSinceText
 
 struct OfflineSinceText: View {
-    @ObservedObject var device: DeviceWithState
+    var device: DeviceWithState
     @Environment(\.locale) private var locale
 
     private let formatter: RelativeDateTimeFormatter = {

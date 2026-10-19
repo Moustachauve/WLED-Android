@@ -1,9 +1,12 @@
 import SwiftUI
+import Shared
+
+private typealias State = SwiftUI.State
 
 struct DeviceListItemView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.colorScheme) var colorScheme
-    @ObservedObject var device: DeviceWithState
+    var device: DeviceWithState
 
     var isSelected: Bool = false
 

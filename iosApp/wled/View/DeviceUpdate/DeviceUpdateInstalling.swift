@@ -1,10 +1,12 @@
 import SwiftUI
+import CoreData
+import Shared
 
 struct DeviceUpdateInstalling: View {
     @Environment(\.presentationMode) var presentationMode
 
     @StateObject var viewModel = DeviceUpdateInstallingViewModel()
-    @ObservedObject var device: DeviceWithState
+    var device: DeviceWithState
     @ObservedObject var version: Version
 
     var body: some View {

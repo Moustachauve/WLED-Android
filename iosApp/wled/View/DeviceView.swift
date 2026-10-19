@@ -1,8 +1,11 @@
 import SwiftUI
+import Shared
+
+private typealias State = SwiftUI.State
 
 struct DeviceView: View {
     @Environment(\.colorScheme) var colorScheme
-    @ObservedObject var device: DeviceWithState
+    var device: DeviceWithState
 
     @State var showDownloadFinished = false
     @State var shouldWebViewRefresh = false

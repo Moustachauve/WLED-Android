@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import Combine
+import Observation
 import CoreData
 import Shared
 
@@ -17,18 +17,31 @@ extension WebsocketStatus {
 }
 
 @MainActor
-class DeviceWithState: ObservableObject, Identifiable {
-    private var cancellables = Set<AnyCancellable>()
+@Observable
+final class DeviceWithState: Identifiable {
 
-    @Published var device: Device
-    @Published var stateInfo: DeviceStateInfo?
-    @Published var websocketStatus: WebsocketStatus = .disconnected
-    @Published var availableUpdateVersion: String?
+    var device: Device {
+        didSet {
+            if oldValue.branch != device.branch || oldValue.skipUpdateTag != device.skipUpdateTag {
+                scheduleUpdateCheck(immediate: true)
+            }
+        }
+    }
+    var stateInfo: DeviceStateInfo? {
+        didSet {
+            if oldValue?.info.version != stateInfo?.info.version {
+                scheduleUpdateCheck(immediate: false)
+            }
+        }
+    }
+    var websocketStatus: WebsocketStatus = .disconnected
+    var availableUpdateVersion: String?
 
     nonisolated let id: String
 
     /// Core Data context holding the release cache used to compute `availableUpdateVersion`.
-    private let releaseContext: NSManagedObjectContext
+    @ObservationIgnored private let releaseContext: NSManagedObjectContext
+    @ObservationIgnored private var updateCheckTask: Task<Void, Never>?
 
     init(
         initialDevice: Device,
@@ -37,8 +50,10 @@ class DeviceWithState: ObservableObject, Identifiable {
         self.device = initialDevice
         self.id = initialDevice.macAddress
         self.releaseContext = releaseContext
+    }
 
-        setupUpdatePipeline()
+    isolated deinit {
+        updateCheckTask?.cancel()
     }
 
     // MARK: - Calculated properties
@@ -57,36 +72,35 @@ class DeviceWithState: ObservableObject, Identifiable {
 
     // MARK: - Update pipeline code
 
-    private func setupUpdatePipeline() {
-        $device
-            .combineLatest(
-                $stateInfo
-                    .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
-            )
-            .removeDuplicates { prev, curr in
-                // Only re-query Core Data if the firmware version, branch, or skip tag actually changed
-                prev.1?.info.version == curr.1?.info.version &&
-                prev.0.branch == curr.0.branch &&
-                prev.0.skipUpdateTag == curr.0.skipUpdateTag
+    private func scheduleUpdateCheck(immediate: Bool) {
+        updateCheckTask?.cancel()
+        updateCheckTask = Task { [weak self] in
+            if !immediate {
+                try? await Task.sleep(for: .seconds(2))
             }
-            .receive(on: DispatchQueue.main) // Perform logic on Main Thread (safe for Core Data)
-            .map { [releaseContext] (device, stateInfo) -> String? in
-                guard let info = stateInfo?.info,
-                      let currentVersion = info.version else {
-                    return nil
-                }
+            guard let self, !Task.isCancelled else { return }
+            self.evaluateUpdateAvailability()
+        }
+    }
 
-                let releaseService = ReleaseService(context: releaseContext)
-                let newerTag = releaseService.getNewerReleaseTag(
-                    versionName: currentVersion,
-                    branch: device.branch,
-                    ignoreVersion: device.skipUpdateTag
-                )
-
-                return newerTag.isEmpty ? nil : newerTag
+    private func evaluateUpdateAvailability() {
+        guard let currentVersion = stateInfo?.info.version else {
+            if availableUpdateVersion != nil {
+                availableUpdateVersion = nil
             }
-            .removeDuplicates()
-            .assign(to: &$availableUpdateVersion)
+            return
+        }
+
+        let releaseService = ReleaseService(context: releaseContext)
+        let newerTag = releaseService.getNewerReleaseTag(
+            versionName: currentVersion,
+            branch: device.branch,
+            ignoreVersion: device.skipUpdateTag
+        )
+        let newValue = newerTag.isEmpty ? nil : newerTag
+        if availableUpdateVersion != newValue {
+            availableUpdateVersion = newValue
+        }
     }
 
     // MARK: - Helper Functions

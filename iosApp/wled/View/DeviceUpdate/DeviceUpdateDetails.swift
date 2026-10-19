@@ -13,7 +13,7 @@ struct DeviceUpdateDetails: View {
     // in the future.
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) var dismiss
-    @ObservedObject var device: DeviceWithState
+    var device: DeviceWithState
     
     @State var showWarningDialog = false
     @State var showInstallingDialog = false

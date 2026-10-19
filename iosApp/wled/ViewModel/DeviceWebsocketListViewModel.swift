@@ -1,12 +1,17 @@
 import Foundation
 import Shared
-import Combine
 import SwiftUI
 import Observation
+import OSLog
 
 @MainActor
 @Observable
-class DeviceWebsocketListViewModel {
+final class DeviceWebsocketListViewModel {
+
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native",
+        category: "DeviceWebsocketListViewModel"
+    )
 
     // MARK: - Observable Properties
 
@@ -24,14 +29,14 @@ class DeviceWebsocketListViewModel {
     // Preferences
     var showHiddenDevices: Bool = false {
         didSet {
-            UserDefaults.standard.set(showHiddenDevices, forKey: "DeviceListView.showHiddenDevices")
+            userDefaults.set(showHiddenDevices, forKey: "DeviceListView.showHiddenDevices")
             updateFilteredDevices(currentTime: Date())
         }
     }
 
     var showOfflineDevices: Bool = true {
         didSet {
-            UserDefaults.standard.set(showOfflineDevices, forKey: "DeviceListView.showOfflineDevices")
+            userDefaults.set(showOfflineDevices, forKey: "DeviceListView.showOfflineDevices")
         }
     }
 
@@ -40,89 +45,76 @@ class DeviceWebsocketListViewModel {
     private let connectionManager: DeviceConnectionManager
     private let database: AppDatabase
     private let deviceFirstContactService: DeviceFirstContactService
+    private let userDefaults: UserDefaults
     @ObservationIgnored private var discoveryService: DiscoveryService?
 
     @ObservationIgnored private var deviceMap: [String: DeviceWithState] = [:]
 
-    @ObservationIgnored private nonisolated(unsafe) var observeDevicesTask: Task<Void, Never>?
-    @ObservationIgnored private nonisolated(unsafe) var observePausedTask: Task<Void, Never>?
-    @ObservationIgnored private nonisolated(unsafe) var refreshTimerTask: Task<Void, Never>?
-
     /// Amount of time after a device becomes offline before it is considered offline.
     private let offlineGracePeriod: TimeInterval = 60
-    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     init(
         connectionManager: DeviceConnectionManager? = nil,
-        database: AppDatabase = .shared
+        database: AppDatabase = .shared,
+        userDefaults: UserDefaults = .standard
     ) {
         self.database = database
         self.connectionManager = connectionManager ?? database.deviceConnectionManager
         self.deviceFirstContactService = DeviceFirstContactService(repository: database.deviceRepository)
+        self.userDefaults = userDefaults
 
-        self.discoveryService = DiscoveryService { [weak self] address, macAddress in
-            Task { @MainActor [weak self] in
+        self.discoveryService = DiscoveryService(
+            onDeviceDiscovered: { [weak self] address, macAddress in
                 self?.deviceDiscovered(at: address, withMACAddress: macAddress)
-            }
-        }
-
-        // Load preferences
-        self.showHiddenDevices = UserDefaults.standard.bool(forKey: "DeviceListView.showHiddenDevices")
-        if UserDefaults.standard.object(forKey: "DeviceListView.showOfflineDevices") == nil {
-            self.showOfflineDevices = true
-        } else {
-            self.showOfflineDevices = UserDefaults.standard.bool(forKey: "DeviceListView.showOfflineDevices")
-        }
-
-        // Observe local network permission status from the discovery service
-        discoveryService?.$isLocalNetworkGranted
-            .compactMap { $0 }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] isGranted in
+            },
+            onLocalNetworkPermissionChanged: { [weak self] isGranted in
                 self?.localNetworkDenied = !isGranted
             }
-            .store(in: &cancellables)
-    }
+        )
 
-    deinit {
-        observeDevicesTask?.cancel()
-        observePausedTask?.cancel()
-        refreshTimerTask?.cancel()
+        // Load preferences
+        self.showHiddenDevices = userDefaults.bool(forKey: "DeviceListView.showHiddenDevices")
+        if userDefaults.object(forKey: "DeviceListView.showOfflineDevices") == nil {
+            self.showOfflineDevices = true
+        } else {
+            self.showOfflineDevices = userDefaults.bool(forKey: "DeviceListView.showOfflineDevices")
+        }
     }
 
     // MARK: - Setup and loading
 
-    /// Call this when the view appears to initialize data and connections
-    func load() {
-        guard observeDevicesTask == nil else { return }
-
-        let database = database
-        let manager = connectionManager
-
-        observeDevicesTask = Task { [weak self] in
-            await database.waitUntilReady()
-            for await devices in manager.allDevicesWithState {
-                guard let self, !Task.isCancelled else { break }
-                self.syncDevicesWithState(devices)
-            }
+    /// Observes device states, connection pause status, and offline grace-period timers
+    /// for as long as the caller's structured task remains active.
+    func observe() async {
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.observeDevices() }
+            group.addTask { await self.observePausedState() }
+            group.addTask { await self.runOfflineGracePeriodTimer() }
         }
+    }
 
-        observePausedTask = Task { [weak self] in
-            for await paused in manager.isPaused {
-                guard let self, !Task.isCancelled else { break }
-                self.isPaused = paused.boolValue
-            }
+    private func observeDevices() async {
+        await database.waitUntilReady()
+        for await devices in connectionManager.allDevicesWithState {
+            guard !Task.isCancelled else { break }
+            syncDevicesWithState(devices)
         }
+    }
 
-        // Periodically refresh for time-based online/offline status changes (grace period)
-        refreshTimerTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(30))
-                guard let self, !Task.isCancelled else { break }
-                self.updateFilteredDevices(currentTime: Date())
-            }
+    private func observePausedState() async {
+        for await paused in connectionManager.isPaused {
+            guard !Task.isCancelled else { break }
+            isPaused = paused.boolValue
+        }
+    }
+
+    private func runOfflineGracePeriodTimer() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(30))
+            guard !Task.isCancelled else { break }
+            updateFilteredDevices(currentTime: Date())
         }
     }
 
@@ -253,7 +245,7 @@ class DeviceWebsocketListViewModel {
                         .fetchAndUpsertDevice(rawAddress: address)
                 }
             } catch {
-                print("deviceDiscovered: Failed to upsert device: \(error)")
+                Self.logger.error("deviceDiscovered: Failed to upsert device: \(error.localizedDescription)")
             }
         }
     }
