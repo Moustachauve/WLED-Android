@@ -17,6 +17,9 @@ data class DeviceStateInfo(@SerialName("state") val state: State, @SerialName("i
     fun withSignal(signal: Int): DeviceStateInfo = copy(info = info.copy(wifi = info.wifi.copy(signal = signal)))
 
     companion object {
+        /**
+         * Creates a fixture [DeviceStateInfo] instance for unit tests and UI previews.
+         */
         @Suppress("LongParameterList")
         fun createMock(
             name: String = "Test Device",

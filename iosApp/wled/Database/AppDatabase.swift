@@ -32,25 +32,11 @@ final class AppDatabase: @unchecked Sendable {
         let repository = database.createDeviceRepository()
         self.deviceRepository = repository
         let effectiveConnectionFactory = connectionFactory ?? (inMemory ? NoOpDeviceConnectionFactory.shared : nil)
-        if let config, let effectiveConnectionFactory {
-            self.deviceConnectionManager = DeviceConnectionManager.companion.create(
-                database: database,
-                connectionFactory: effectiveConnectionFactory,
-                config: config
-            )
-        } else if let config {
-            self.deviceConnectionManager = DeviceConnectionManager.companion.create(
-                database: database,
-                config: config
-            )
-        } else if let effectiveConnectionFactory {
-            self.deviceConnectionManager = DeviceConnectionManager.companion.create(
-                database: database,
-                connectionFactory: effectiveConnectionFactory
-            )
-        } else {
-            self.deviceConnectionManager = DeviceConnectionManager.companion.create(database: database)
-        }
+        self.deviceConnectionManager = DeviceConnectionManager.companion.create(
+            database: database,
+            connectionFactory: effectiveConnectionFactory,
+            config: config
+        )
 
         if inMemory {
             self.readyTask = Task {}
@@ -66,6 +52,10 @@ final class AppDatabase: @unchecked Sendable {
                 }
             }
         }
+    }
+
+    deinit {
+        deviceConnectionManager.destroy()
     }
 
     /// Suspends until the database is ready to be read from and written to.

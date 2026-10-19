@@ -40,18 +40,17 @@ class DeviceWebsocketListViewModel {
     private let connectionManager: DeviceConnectionManager
     private let database: AppDatabase
     private let deviceFirstContactService: DeviceFirstContactService
-    private var discoveryService: DiscoveryService?
+    @ObservationIgnored private var discoveryService: DiscoveryService?
 
-    private var deviceMap: [String: DeviceWithState] = [:]
-    private var lastSharedUpdateTag: [String: String] = [:]
+    @ObservationIgnored private var deviceMap: [String: DeviceWithState] = [:]
 
-    private nonisolated(unsafe) var observeDevicesTask: Task<Void, Never>?
-    private nonisolated(unsafe) var observePausedTask: Task<Void, Never>?
-    private nonisolated(unsafe) var refreshTimerTask: Task<Void, Never>?
+    @ObservationIgnored private nonisolated(unsafe) var observeDevicesTask: Task<Void, Never>?
+    @ObservationIgnored private nonisolated(unsafe) var observePausedTask: Task<Void, Never>?
+    @ObservationIgnored private nonisolated(unsafe) var refreshTimerTask: Task<Void, Never>?
 
     /// Amount of time after a device becomes offline before it is considered offline.
     private let offlineGracePeriod: TimeInterval = 60
-    private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
@@ -113,7 +112,7 @@ class DeviceWebsocketListViewModel {
         observePausedTask = Task { [weak self] in
             for await paused in manager.isPaused {
                 guard let self, !Task.isCancelled else { break }
-                self.isPaused = (paused as? Bool) ?? (paused as? KotlinBoolean)?.boolValue ?? false
+                self.isPaused = paused.boolValue
             }
         }
 
@@ -133,15 +132,20 @@ class DeviceWebsocketListViewModel {
 
         // Prune removed devices from in-memory cache
         deviceMap = deviceMap.filter { newMacs.contains($0.key) }
-        lastSharedUpdateTag = lastSharedUpdateTag.filter { newMacs.contains($0.key) }
 
         for shared in sharedDevices {
             let mac = shared.device.macAddress
             let wrapper: DeviceWithState
             if let existing = deviceMap[mac] {
-                existing.device = shared.device
-                existing.stateInfo = shared.stateInfo
-                existing.websocketStatus = shared.websocketStatus
+                if existing.device != shared.device {
+                    existing.device = shared.device
+                }
+                if existing.stateInfo != shared.stateInfo {
+                    existing.stateInfo = shared.stateInfo
+                }
+                if existing.websocketStatus != shared.websocketStatus {
+                    existing.websocketStatus = shared.websocketStatus
+                }
                 wrapper = existing
             } else {
                 let newDevice = DeviceWithState(initialDevice: shared.device)
@@ -149,13 +153,6 @@ class DeviceWebsocketListViewModel {
                 newDevice.websocketStatus = shared.websocketStatus
                 deviceMap[mac] = newDevice
                 wrapper = newDevice
-            }
-
-            if let updateTag = shared.updateVersionTag {
-                lastSharedUpdateTag[mac] = updateTag
-                wrapper.availableUpdateVersion = updateTag
-            } else if lastSharedUpdateTag.removeValue(forKey: mac) != nil {
-                wrapper.availableUpdateVersion = nil
             }
 
             updatedList.append(wrapper)
@@ -183,34 +180,17 @@ class DeviceWebsocketListViewModel {
 
     func setBrightness(for deviceWrapper: DeviceWithState, brightness: Int) {
         let mac = deviceWrapper.device.macAddress
-        let previousStateInfo = deviceWrapper.stateInfo
-        let optimisticBrightness = Int32(brightness)
-        if let current = previousStateInfo {
-            deviceWrapper.stateInfo = current.withBrightness(brightness: optimisticBrightness)
-        }
         let manager = connectionManager
         Task {
-            let result = try? await manager.setBrightness(macAddress: mac, brightness: optimisticBrightness)
-            if result?.boolValue != true,
-               deviceWrapper.stateInfo?.state.brightness?.int32Value == optimisticBrightness {
-                deviceWrapper.stateInfo = previousStateInfo
-            }
+            _ = try? await manager.setBrightness(macAddress: mac, brightness: Int32(brightness))
         }
     }
 
     func setDevicePower(for deviceWrapper: DeviceWithState, isOn: Bool) {
         let mac = deviceWrapper.device.macAddress
-        let previousStateInfo = deviceWrapper.stateInfo
-        if let current = previousStateInfo {
-            deviceWrapper.stateInfo = current.withIsOn(isOn: isOn)
-        }
         let manager = connectionManager
         Task {
-            let result = try? await manager.setPower(macAddress: mac, isOn: isOn)
-            if result?.boolValue != true,
-               deviceWrapper.stateInfo?.state.isOn?.boolValue == isOn {
-                deviceWrapper.stateInfo = previousStateInfo
-            }
+            _ = try? await manager.setPower(macAddress: mac, isOn: isOn)
         }
     }
 

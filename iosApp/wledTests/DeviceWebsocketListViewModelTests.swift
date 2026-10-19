@@ -36,9 +36,6 @@ struct DeviceWebsocketListViewModelTests {
         viewModel.updateFilteredDevices(currentTime: Date())
 
         let allNames = (viewModel.onlineDevices + viewModel.offlineDevices).map { $0.device.displayName }
-        #expect(allNames.contains("A Device"))
-        #expect(allNames.contains("Z Device"))
-        #expect(!allNames.contains("Hidden Device"))
         #expect(allNames == ["A Device", "Z Device"])
     }
 
@@ -117,88 +114,21 @@ struct DeviceWebsocketListViewModelTests {
         #expect(viewModel.allDevicesWithState.first?.device.lastSeen == 123456789)
     }
 
-    @Test func testClearedUpdateVersionTagClearsAvailableUpdateVersion() async throws {
-        let device = createDevice(name: "Updatable Device", mac: "10", isHidden: false)
-        try await repository.insert(device: device)
-        let viewModel = DeviceWebsocketListViewModel(database: database)
-        try await load(viewModel, expectedCount: 1)
-
-        database.deviceConnectionManager.updateDeviceState(
-            deviceWithState: Shared.DeviceWithState(
-                device: device,
-                stateInfo: nil,
-                websocketStatus: .connected,
-                updateVersionTag: "v0.15.0"
-            )
-        )
-        try await waitUntil {
-            viewModel.allDevicesWithState.first?.availableUpdateVersion == "v0.15.0"
-        }
-
-        database.deviceConnectionManager.updateDeviceState(
-            deviceWithState: Shared.DeviceWithState(
-                device: device,
-                stateInfo: nil,
-                websocketStatus: .connected,
-                updateVersionTag: nil
-            )
-        )
-        try await waitUntil {
-            viewModel.allDevicesWithState.first?.availableUpdateVersion == nil
-        }
-        #expect(viewModel.allDevicesWithState.first?.availableUpdateVersion == nil)
-    }
-
-    @Test func testFailedPowerToggleRollsBackOptimisticState() async throws {
-        let device = createDevice(name: "Offline Light", mac: "11", isHidden: false)
-        try await repository.insert(device: device)
-        let viewModel = DeviceWebsocketListViewModel(database: database)
-        try await load(viewModel, expectedCount: 1)
-
-        let initialState = DeviceStateInfo.companion.createMock(
-            name: "Offline Light",
-            version: "0.14.0",
-            red: 255,
-            green: 160,
-            blue: 0,
-            brightness: 128,
-            isOn: false
-        )
-        database.deviceConnectionManager.updateDeviceState(
-            deviceWithState: Shared.DeviceWithState(
-                device: device,
-                stateInfo: initialState,
-                websocketStatus: .disconnected,
-                updateVersionTag: nil
-            )
-        )
-        try await waitUntil {
-            viewModel.allDevicesWithState.first?.stateInfo?.state.isOn?.boolValue == false
-        }
-
-        let wrapper = try #require(viewModel.allDevicesWithState.first)
-        viewModel.setDevicePower(for: wrapper, isOn: true)
-        #expect(wrapper.stateInfo?.state.isOn?.boolValue == true)
-
-        try await waitUntil {
-            wrapper.stateInfo?.state.isOn?.boolValue == false
-        }
-        #expect(wrapper.stateInfo?.state.isOn?.boolValue == false)
-    }
-
     @Test func testQuickResumeCancelsPendingPause() async throws {
+        let testDatabase = makeFastPauseDatabase(delayMs: 300)
         let device = createDevice(name: "Test Device Quick Resume", mac: "04", isHidden: false)
-        try await repository.insert(device: device)
+        try await testDatabase.deviceRepository.insert(device: device)
 
-        let viewModel = DeviceWebsocketListViewModel(database: database)
+        let viewModel = DeviceWebsocketListViewModel(database: testDatabase)
         try await load(viewModel, expectedCount: 1)
 
-        // Simulate quick background + resume (app switcher peek)
+        // Simulate quick background + resume (app switcher peek) before the 300ms pause delay expires
         viewModel.onPause()
-        try await Task.sleep(for: .milliseconds(200)) // Well under the 2s pause delay
+        try await Task.sleep(for: .milliseconds(50))
         viewModel.onResume()
 
-        try await Task.sleep(for: .milliseconds(500))
+        // Wait past the 300ms delay to verify pause did not fire
+        try await Task.sleep(for: .milliseconds(400))
         #expect(viewModel.isPaused == false)
     }
 
@@ -250,9 +180,9 @@ struct DeviceWebsocketListViewModelTests {
 
     // MARK: - Helpers
 
-    private func makeFastPauseDatabase() -> AppDatabase {
+    private func makeFastPauseDatabase(delayMs: Int64 = 50) -> AppDatabase {
         let fastPauseConfig = DeviceConnectionManagerConfig(
-            backgroundPauseDelayMs: 50,
+            backgroundPauseDelayMs: delayMs,
             lastSeenPersistIntervalMs: 30000,
             updateCheckCacheTtlMs: 3600000,
             updateCheckRetryIntervalMs: 60000

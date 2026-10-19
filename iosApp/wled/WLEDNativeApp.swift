@@ -5,16 +5,23 @@ import SwiftUI
 struct WLEDNativeApp: App {
     static let dateLastUpdateKey = "lastUpdateReleasesDate"
 
+    /// Set by xcodebuild when the app is launched as a unit test host. In that case the real UI is skipped so
+    /// tests don't open live device connections, run discovery, or fetch releases from GitHub.
+    private static let isRunningUnitTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
     let persistenceController = PersistenceController.shared
-    let appDatabase = AppDatabase.shared
 
     var body: some Scene {
         WindowGroup {
-            DeviceListView(database: appDatabase)
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .onAppear {
-                    refreshVersionsSync()
-                }
+            if Self.isRunningUnitTests {
+                EmptyView()
+            } else {
+                DeviceListView(database: .shared)
+                    .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                    .onAppear {
+                        refreshVersionsSync()
+                    }
+            }
         }
     }
 

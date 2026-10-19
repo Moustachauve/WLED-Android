@@ -46,14 +46,7 @@ data class DeviceConnectionManagerConfig(
     val lastSeenPersistIntervalMs: Long = DEFAULT_LAST_SEEN_PERSIST_INTERVAL_MS,
     val updateCheckCacheTtlMs: Long = DEFAULT_UPDATE_CHECK_CACHE_TTL_MS,
     val updateCheckRetryIntervalMs: Long = DEFAULT_UPDATE_CHECK_RETRY_INTERVAL_MS,
-) {
-    constructor() : this(
-        DEFAULT_BACKGROUND_PAUSE_DELAY_MS,
-        DEFAULT_LAST_SEEN_PERSIST_INTERVAL_MS,
-        DEFAULT_UPDATE_CHECK_CACHE_TTL_MS,
-        DEFAULT_UPDATE_CHECK_RETRY_INTERVAL_MS,
-    )
-}
+)
 
 /**
  * Shared coordinator managing real-time connections, optimistic commands,
