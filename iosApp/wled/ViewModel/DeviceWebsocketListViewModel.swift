@@ -138,17 +138,17 @@ final class DeviceWebsocketListViewModel {
                 if existing.websocketStatus != shared.websocketStatus {
                     existing.websocketStatus = shared.websocketStatus
                 }
+                if existing.availableUpdateVersion != shared.updateVersionTag {
+                    existing.availableUpdateVersion = shared.updateVersionTag
+                }
                 wrapper = existing
             } else {
                 let newDevice = DeviceWithState(initialDevice: shared.device)
                 newDevice.stateInfo = shared.stateInfo
                 newDevice.websocketStatus = shared.websocketStatus
+                newDevice.availableUpdateVersion = shared.updateVersionTag
                 deviceMap[mac] = newDevice
                 wrapper = newDevice
-            }
-            // Guard against redundant @Published emissions when the update tag hasn't changed
-            if wrapper.availableUpdateVersion != shared.updateVersionTag {
-                wrapper.availableUpdateVersion = shared.updateVersionTag
             }
 
             updatedList.append(wrapper)

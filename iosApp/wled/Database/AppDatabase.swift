@@ -4,6 +4,7 @@ import Shared
 
 final class AppDatabase: Sendable {
     static let shared = AppDatabase()
+    // Bumped to _v2 after migrating releases from Core Data to Room so upgrading users fetch immediately.
     static let dateLastUpdateKey = "lastUpdateReleasesDate_v2"
 
     private static let logger = Logger(
@@ -13,6 +14,8 @@ final class AppDatabase: Sendable {
 
     let database: DevicesDatabase
     let deviceRepository: DeviceRepository
+    // Computed because `any RepositoryDao` (an Obj-C protocol existential) is not Sendable in Swift 6;
+    // Room's generated `database.repositoryDao()` returns a lazy singleton instance.
     var repositoryDao: any RepositoryDao { database.repositoryDao() }
     let versionWithAssetsRepository: VersionWithAssetsRepository
     let releaseService: ReleaseService
@@ -110,8 +113,8 @@ final class AppDatabase: Sendable {
                 githubApi: githubApi,
                 deviceRepository: deviceRepository
             )
-            deviceConnectionManager.recheckUpdates()
             if allSucceeded.boolValue {
+                deviceConnectionManager.recheckUpdates()
                 userDefaults.set(Date().timeIntervalSince1970, forKey: Self.dateLastUpdateKey)
             }
         } catch {

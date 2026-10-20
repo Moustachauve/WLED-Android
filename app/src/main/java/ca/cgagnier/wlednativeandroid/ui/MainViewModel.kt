@@ -50,12 +50,12 @@ class MainViewModel(
 
     private var deepLinkJob: kotlinx.coroutines.Job? = null
 
-    private val syncBuiltInReposJob = viewModelScope.launch(Dispatchers.IO) {
+    private val syncBuiltInReposJob = viewModelScope.launch {
         releaseService.syncBuiltInRepositories()
     }
 
     fun downloadUpdateMetadata() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             syncBuiltInReposJob.join()
             val lastCheckDate = userPreferencesRepository.lastUpdateCheckDate.first()
             val now = System.currentTimeMillis()
@@ -65,8 +65,8 @@ class MainViewModel(
             }
 
             val allSucceeded = releaseService.refreshVersionsForUsedRepositories(githubApi, deviceRepository)
-            deviceConnectionManager.recheckUpdates()
             if (allSucceeded) {
+                deviceConnectionManager.recheckUpdates()
                 // Set the next date to check in minimum 24 hours from now.
                 userPreferencesRepository.updateLastUpdateCheckDate(now + DAYS.toMillis(1))
             }

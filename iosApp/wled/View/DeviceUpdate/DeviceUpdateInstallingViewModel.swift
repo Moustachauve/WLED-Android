@@ -103,8 +103,13 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
             }
             status = .completed
         } catch is CancellationError {
+            status = .idle
             return
         } catch {
+            if Task.isCancelled {
+                status = .idle
+                return
+            }
             status = .failed(versionName: assetName, error: error.localizedDescription)
         }
     }

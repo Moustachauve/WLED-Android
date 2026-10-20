@@ -94,25 +94,7 @@ class DeviceUpdateServiceTest {
         )
     }
 
-    @Test
-    fun determineAssetResolvesMatchingBinaryAcrossVersionsAndOverrides() {
-        val cases = listOf(
-            // ESP32_V4 -> ESP32 override on 0.16.0+ (including pre-release and lowercase)
-            AssetResolutionCase("0.16.0", "ESP32_V4", expectedAssetName = "WLED_0.16.0_ESP32.bin"),
-            AssetResolutionCase("0.16.1", "ESP32_V4", expectedAssetName = "WLED_0.16.1_ESP32.bin"),
-            AssetResolutionCase("0.16.0", "esp32_v4", expectedAssetName = "WLED_0.16.0_ESP32.bin"),
-            AssetResolutionCase("0.16.0-b2", "ESP32_V4", expectedAssetName = "WLED_0.16.0-b2_ESP32.bin"),
-            // Standard releases on 0.16.0+ pass through unchanged
-            AssetResolutionCase("0.16.0", "ESP32", expectedAssetName = "WLED_0.16.0_ESP32.bin"),
-            AssetResolutionCase("0.16.0", "ESP32_S3", expectedAssetName = "WLED_0.16.0_ESP32_S3.bin"),
-            AssetResolutionCase("0.16.0", "ESP8266", expectedAssetName = "WLED_0.16.0_ESP8266.bin"),
-            // ESP32_V4 preserved on 0.15.x
-            AssetResolutionCase("0.15.0", "ESP32_V4", expectedAssetName = "WLED_0.15.0_ESP32_V4.bin"),
-            AssetResolutionCase("0.15.1", "ESP32_V4", expectedAssetName = "WLED_0.15.1_ESP32_V4.bin"),
-            AssetResolutionCase("0.15.0-b5", "ESP32_V4", expectedAssetName = "WLED_0.15.0-b5_ESP32_V4.bin"),
-            // Legacy fallback to platformName when release is missing
-            AssetResolutionCase("0.14.4", null, platformName = "esp32", expectedAssetName = "WLED_0.14.4_ESP32.bin"),
-        )
+    private fun assertDeterminedAssets(cases: List<AssetResolutionCase>) {
         cases.forEach { case ->
             val service = makeDeviceUpdateService(
                 targetVersionTag = case.targetVersionTag,
@@ -127,6 +109,55 @@ class DeviceUpdateServiceTest {
             )
             assertEquals(case.expectedAssetName, service.getAssetName())
         }
+    }
+
+    @Test
+    fun determineAssetAppliesReleaseOverrideOn016AndNewer() {
+        assertDeterminedAssets(
+            listOf(
+                AssetResolutionCase("0.16.0", "ESP32_V4", expectedAssetName = "WLED_0.16.0_ESP32.bin"),
+                AssetResolutionCase("0.16.1", "ESP32_V4", expectedAssetName = "WLED_0.16.1_ESP32.bin"),
+                AssetResolutionCase("0.16.0", "esp32_v4", expectedAssetName = "WLED_0.16.0_ESP32.bin"),
+                AssetResolutionCase("0.16.0-b2", "ESP32_V4", expectedAssetName = "WLED_0.16.0-b2_ESP32.bin"),
+                AssetResolutionCase("0.16.0+build1", "ESP32_V4", expectedAssetName = "WLED_0.16.0+build1_ESP32.bin"),
+            ),
+        )
+    }
+
+    @Test
+    fun determineAssetPassesThroughStandardReleaseNames() {
+        assertDeterminedAssets(
+            listOf(
+                AssetResolutionCase("0.16.0", "ESP32", expectedAssetName = "WLED_0.16.0_ESP32.bin"),
+                AssetResolutionCase("0.16.0", "ESP32_S3", expectedAssetName = "WLED_0.16.0_ESP32_S3.bin"),
+                AssetResolutionCase("0.16.0", "ESP8266", expectedAssetName = "WLED_0.16.0_ESP8266.bin"),
+            ),
+        )
+    }
+
+    @Test
+    fun determineAssetPreservesEsp32V4Before016() {
+        assertDeterminedAssets(
+            listOf(
+                AssetResolutionCase("0.15.0", "ESP32_V4", expectedAssetName = "WLED_0.15.0_ESP32_V4.bin"),
+                AssetResolutionCase("0.15.1", "ESP32_V4", expectedAssetName = "WLED_0.15.1_ESP32_V4.bin"),
+                AssetResolutionCase("0.15.0-b5", "ESP32_V4", expectedAssetName = "WLED_0.15.0-b5_ESP32_V4.bin"),
+            ),
+        )
+    }
+
+    @Test
+    fun determineAssetFallsBackToLegacyPlatformWhenReleaseIsMissing() {
+        assertDeterminedAssets(
+            listOf(
+                AssetResolutionCase(
+                    targetVersionTag = "0.14.4",
+                    release = null,
+                    platformName = "esp32",
+                    expectedAssetName = "WLED_0.14.4_ESP32.bin",
+                ),
+            ),
+        )
     }
 
     @Test

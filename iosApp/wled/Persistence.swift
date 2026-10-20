@@ -1,5 +1,8 @@
 import CoreData
 
+/// Legacy Core Data stack retained solely for the one-time import of `Device` entities into Room (`CoreDataToRoomMigrator`).
+/// Note: `Version` and `Asset` entities remain in `wled_native_data.xcdatamodeld` (with `codeGenerationType` removed)
+/// so their entity version hashes continue to match `StatelessDeviceMapping.xcmappingmodel` during v1-to-v2 store migration.
 struct PersistenceController {
     static let shared = PersistenceController()
 

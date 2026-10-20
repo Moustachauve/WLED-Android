@@ -134,8 +134,9 @@ struct StatelessDeviceMigrationPolicyTests {
 
     @Test
     func compiledMappingModelMatchesV1AndV2DataModels() throws {
+        let modelBundle = Bundle(for: StatelessDeviceMigrationPolicy.self)
         let momdURL = try #require(
-            Bundle.main.url(forResource: "wled_native_data", withExtension: "momd")
+            modelBundle.url(forResource: "wled_native_data", withExtension: "momd")
         )
         let v1Model = try #require(
             NSManagedObjectModel(contentsOf: momdURL.appendingPathComponent("wled_native_data.mom"))
@@ -144,11 +145,14 @@ struct StatelessDeviceMigrationPolicyTests {
             NSManagedObjectModel(contentsOf: momdURL.appendingPathComponent("v2.mom"))
         )
         let mappingModel = NSMappingModel(
-            from: [Bundle.main],
+            from: [modelBundle],
             forSourceModel: v1Model,
             destinationModel: v2Model
         )
-        #expect(mappingModel != nil)
+        #expect(
+            mappingModel != nil,
+            "StatelessDeviceMapping.xcmappingmodel entity hashes must match wled_native_data (v1) and v2"
+        )
     }
 
     // MARK: - Helpers

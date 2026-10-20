@@ -18,6 +18,7 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -46,8 +47,12 @@ interface DeviceApi {
 }
 
 @Throws(Exception::class)
-suspend fun DeviceApi.updateDevice(binaryPath: Path, fs: FileSystem = defaultFileSystem): ApiResponse<String> {
-    val bytes = withContext(Dispatchers.IO) {
+suspend fun DeviceApi.updateDevice(
+    binaryPath: Path,
+    fs: FileSystem = defaultFileSystem,
+    ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+): ApiResponse<String> {
+    val bytes = withContext(ioDispatcher) {
         fs.read(binaryPath) { readByteArray() }
     }
     return updateDevice(bytes, binaryPath.name)

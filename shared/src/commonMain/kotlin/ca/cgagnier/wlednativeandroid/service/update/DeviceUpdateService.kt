@@ -13,6 +13,9 @@ import co.touchlab.kermit.Logger
 import io.github.z4kn4fein.semver.toVersion
 import io.github.z4kn4fein.semver.toVersionOrNull
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
@@ -57,6 +60,7 @@ class DeviceUpdateService(
     private val deviceApiFactory: DeviceApiFactory,
     private val githubApi: GithubApi,
     private val fs: FileSystem = defaultFileSystem,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val supportedPlatforms = listOf(
         "esp01",
@@ -72,16 +76,12 @@ class DeviceUpdateService(
     init {
         // Try to use the release variable, but fallback to the legacy platform method for
         // compatibility with WLED older than 0.15.0
-        if (hasReleaseName()) { // never swap to generic build if release name is known
-            determineAssetByRelease()
+        val rawRelease = device.stateInfo?.info?.release
+        if (!rawRelease.isNullOrEmpty()) { // never swap to generic build if release name is known
+            determineAssetByRelease(rawRelease)
         } else {
             determineAssetByPlatform()
         }
-    }
-
-    private fun hasReleaseName(): Boolean {
-        val release = device.stateInfo?.info?.release
-        return !release.isNullOrEmpty()
     }
 
     /**
@@ -89,18 +89,11 @@ class DeviceUpdateService(
      *
      * This is the preferred method. It is only available on WLED devices since 0.15.0.
      */
-    private fun determineAssetByRelease(): Boolean {
-        val rawRelease = device.stateInfo?.info?.release
-        if (rawRelease.isNullOrEmpty()) {
-            return false
-        }
-
+    private fun determineAssetByRelease(rawRelease: String) {
         val release = resolveReleaseOverride(rawRelease, versionWithAssets.version.tagName)
-        val combined = "${versionWithAssets.version.tagName}_$release"
-        val versionWithRelease =
-            if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
+        val versionWithRelease = formatVersionWithTarget(release)
         assetName = "WLED_$versionWithRelease.bin"
-        return findAsset(versionWithRelease)
+        findAsset(versionWithRelease)
     }
 
     /**
@@ -108,32 +101,33 @@ class DeviceUpdateService(
      *
      * Legacy method for backwards compatibility with WLED devices older than 0.15.0
      */
-    private fun determineAssetByPlatform(): Boolean {
-        val deviceInfo = device.stateInfo?.info
-        if (deviceInfo == null || !supportedPlatforms.contains(deviceInfo.platformName)) {
-            return false
+    private fun determineAssetByPlatform() {
+        val platformName = device.stateInfo?.info?.platformName
+        if (platformName == null || !supportedPlatforms.contains(platformName)) {
+            return
         }
 
         // TODO: Add support for Ethernet devices. Support was never fully implemented.
         // val ethernetVariant = if (deviceInfo.isEthernet) "_Ethernet" else ""
-        val combined =
-            "${versionWithAssets.version.tagName}_${deviceInfo.platformName?.uppercase()}"
-        val versionWithPlatform =
-            if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
+        val versionWithPlatform = formatVersionWithTarget(platformName.uppercase())
         assetName = "WLED_$versionWithPlatform.bin"
-        return findAsset(versionWithPlatform)
+        findAsset(versionWithPlatform)
     }
 
-    private fun findAsset(assetName: String): Boolean {
+    private fun formatVersionWithTarget(target: String): String {
+        val combined = "${versionWithAssets.version.tagName}_$target"
+        return if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
+    }
+
+    private fun findAsset(assetName: String) {
         for (asset in versionWithAssets.assets) {
             if (asset.name.endsWith("$assetName.bin")) {
                 this.asset = asset
                 this.assetName = asset.name
                 couldDetermineAsset = true
-                return true
+                return
             }
         }
-        return false
     }
 
     /**
@@ -174,7 +168,7 @@ class DeviceUpdateService(
         // Longer TTL because updates can take a bit of time to fully install
         return deviceApiFactory
             .create(device.device, UPDATE_TIMEOUT_SECONDS)
-            .updateDevice(getPathForAsset(), fs)
+            .updateDevice(getPathForAsset(), fs, ioDispatcher)
     }
 
     companion object {

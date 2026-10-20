@@ -2,23 +2,34 @@ import Testing
 import Shared
 
 struct DeviceUpdateServiceTests {
+    struct OverrideCase: CustomTestStringConvertible, Sendable {
+        let rawRelease: String
+        let targetVersionTag: String
+        let expected: String
+
+        var testDescription: String {
+            "\(rawRelease) @ \(targetVersionTag) -> \(expected)"
+        }
+    }
+
     @Test(arguments: [
-        ("ESP32_V4", "0.15.0", "ESP32_V4"),
-        ("ESP32", "0.15.0", "ESP32"),
-        ("ESP8266", "0.15.0", "ESP8266"),
-        ("ESP32_V4", "0.16.0", "ESP32"),
-        ("esp32_v4", "0.16.0", "ESP32"),
-        ("ESP32_S2", "0.16.0", "ESP32_S2"),
-        ("ESP8266", "0.16.0", "ESP8266"),
-        ("ESP32_V4", "0.15.0-b5", "ESP32_V4"),
-        ("ESP32_V4", "0.16.0-b2", "ESP32"),
-        ("ESP32_V4", "invalid_version_string", "ESP32_V4")
+        OverrideCase(rawRelease: "ESP32_V4", targetVersionTag: "0.15.0", expected: "ESP32_V4"),
+        OverrideCase(rawRelease: "ESP32", targetVersionTag: "0.15.0", expected: "ESP32"),
+        OverrideCase(rawRelease: "ESP8266", targetVersionTag: "0.15.0", expected: "ESP8266"),
+        OverrideCase(rawRelease: "ESP32_V4", targetVersionTag: "0.16.0", expected: "ESP32"),
+        OverrideCase(rawRelease: "esp32_v4", targetVersionTag: "0.16.0", expected: "ESP32"),
+        OverrideCase(rawRelease: "ESP32_V4", targetVersionTag: "0.16.0+build", expected: "ESP32"),
+        OverrideCase(rawRelease: "ESP32_S2", targetVersionTag: "0.16.0", expected: "ESP32_S2"),
+        OverrideCase(rawRelease: "ESP8266", targetVersionTag: "0.16.0", expected: "ESP8266"),
+        OverrideCase(rawRelease: "ESP32_V4", targetVersionTag: "0.15.0-b5", expected: "ESP32_V4"),
+        OverrideCase(rawRelease: "ESP32_V4", targetVersionTag: "0.16.0-b2", expected: "ESP32"),
+        OverrideCase(rawRelease: "ESP32_V4", targetVersionTag: "invalid_version_string", expected: "ESP32_V4")
     ])
-    func resolveReleaseOverride(rawRelease: String, targetVersionTag: String, expected: String) {
+    func resolveReleaseOverride(testCase: OverrideCase) {
         let actual = DeviceUpdateService.companion.resolveReleaseOverride(
-            rawRelease: rawRelease,
-            targetVersionTag: targetVersionTag
+            rawRelease: testCase.rawRelease,
+            targetVersionTag: testCase.targetVersionTag
         )
-        #expect(actual == expected)
+        #expect(actual == testCase.expected)
     }
 }

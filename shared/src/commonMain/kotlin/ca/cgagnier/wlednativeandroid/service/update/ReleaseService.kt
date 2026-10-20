@@ -64,6 +64,7 @@ class ReleaseService(
     private val repositoryDao: RepositoryDao,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    // Secondary constructor for Objective-C/Swift interop, which does not export default arguments.
     constructor(
         versionWithAssetsRepository: VersionWithAssetsRepository,
         repositoryDao: RepositoryDao,

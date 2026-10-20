@@ -112,7 +112,7 @@ struct DeviceWebsocketListViewModelTests {
                 device: updatedDevice,
                 stateInfo: nil,
                 websocketStatus: .connected,
-                updateVersionTag: "0.15.1"
+                updateVersionTag: nil
             )
         )
 
@@ -121,6 +121,27 @@ struct DeviceWebsocketListViewModelTests {
         }
         #expect(viewModel.allDevicesWithState.first?.device.originalName == "Updated Name")
         #expect(viewModel.allDevicesWithState.first?.device.lastSeen == 123456789)
+    }
+
+    @Test func testAvailableUpdateVersionReflectsInViewModel() async throws {
+        let device = createDevice(name: "Updatable Device", mac: "07", isHidden: false)
+        try await repository.insert(device: device)
+        let viewModel = makeViewModel()
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
+
+        database.deviceConnectionManager.updateDeviceState(
+            deviceWithState: Shared.DeviceWithState(
+                device: device,
+                stateInfo: nil,
+                websocketStatus: .connected,
+                updateVersionTag: "0.15.1"
+            )
+        )
+
+        try await waitUntil {
+            viewModel.allDevicesWithState.first?.availableUpdateVersion == "0.15.1"
+        }
         #expect(viewModel.allDevicesWithState.first?.availableUpdateVersion == "0.15.1")
     }
 
