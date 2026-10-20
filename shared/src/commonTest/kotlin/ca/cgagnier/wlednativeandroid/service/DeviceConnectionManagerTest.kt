@@ -802,4 +802,24 @@ class DeviceConnectionManagerTest {
 
         assertEquals("0.15.0", manager.allDevicesWithState.value[0].updateVersionTag)
     }
+
+    @Test
+    fun markUpdateInstalledUpdatesVersionAndClearsUpdateTag() = runTest {
+        updateResolver.tagToReturn = "0.15.0"
+        val manager = createManager()
+
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
+        advanceUntilIdle()
+
+        val conn = factory.createdConnections["192.168.1.50"]!!
+        conn.emitStateInfo(createStateInfo(version = "0.14.0"))
+        advanceUntilIdle()
+        assertEquals("0.15.0", manager.allDevicesWithState.value[0].updateVersionTag)
+
+        manager.markUpdateInstalled(macAddress = "A", installedVersionTag = "v0.15.0")
+
+        val updated = manager.allDevicesWithState.value[0]
+        assertEquals("0.15.0", updated.stateInfo?.info?.version)
+        assertEquals(null, updated.updateVersionTag)
+    }
 }

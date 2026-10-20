@@ -10,6 +10,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import okio.Path.Companion.toPath
 import platform.Foundation.NSCachesDirectory
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSUserDomainMask
 
 @OptIn(ExperimentalForeignApi::class)
@@ -21,7 +22,7 @@ internal fun cachesDirectory(): String {
         create = true,
         error = null,
     )
-    return requireNotNull(cachesDirectory?.path)
+    return cachesDirectory?.path ?: NSTemporaryDirectory()
 }
 
 @Suppress("LongParameterList")

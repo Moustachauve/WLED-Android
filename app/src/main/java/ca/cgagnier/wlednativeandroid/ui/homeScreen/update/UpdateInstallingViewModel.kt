@@ -152,8 +152,6 @@ class UpdateInstallingViewModel(
             )
         }
         updateService.sendSoftwareUpdateRequest(
-            updateService.device.device,
-            updateService.getPathForAsset(),
             callback = { onSoftwareUpdateResponse(it) },
             errorCallback = { onSoftwareUpdateError(it) },
         )

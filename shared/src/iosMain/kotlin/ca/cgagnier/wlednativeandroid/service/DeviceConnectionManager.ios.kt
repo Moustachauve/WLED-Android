@@ -32,11 +32,13 @@ fun DeviceConnectionManager.Companion.create(
     database: DevicesDatabase,
     connectionFactory: DeviceConnectionFactory?,
     config: DeviceConnectionManagerConfig?,
+    updateTagResolver: UpdateTagResolver? = null,
 ): DeviceConnectionManager = create(
     database = database,
     connectionFactory = connectionFactory,
     config = config ?: DeviceConnectionManagerConfig(),
     connectivity = null,
+    updateTagResolver = updateTagResolver,
 )
 
 @Suppress("LongParameterList")
@@ -45,6 +47,7 @@ internal fun DeviceConnectionManager.Companion.create(
     connectionFactory: DeviceConnectionFactory?,
     config: DeviceConnectionManagerConfig,
     connectivity: NetworkConnectivityManager?,
+    updateTagResolver: UpdateTagResolver? = null,
     coroutineScope: CoroutineScope? = null,
     httpClient: HttpClient? = null,
     backgroundDispatcher: CoroutineDispatcher = Dispatchers.Default,
@@ -57,15 +60,17 @@ internal fun DeviceConnectionManager.Companion.create(
         json = defaultJson,
         dispatcher = ioDispatcher,
     )
-    val versionWithAssetsRepository = database.createVersionWithAssetsRepository()
-    val releaseService = ReleaseService(versionWithAssetsRepository, database.repositoryDao())
-    val updateTagResolver: UpdateTagResolver = DeviceUpdateManager(releaseService)
+    val effectiveUpdateTagResolver: UpdateTagResolver = updateTagResolver ?: run {
+        val versionWithAssetsRepository = database.createVersionWithAssetsRepository()
+        val releaseService = ReleaseService(versionWithAssetsRepository, database.repositoryDao())
+        DeviceUpdateManager(releaseService)
+    }
 
     return DeviceConnectionManager(
         store = database.createDeviceRepository(),
         connectionFactory = factory,
         connectivity = connectivity ?: IosNetworkConnectivityManager(scope),
-        updateTagResolver = updateTagResolver,
+        updateTagResolver = effectiveUpdateTagResolver,
         repositoryIdResolver = RepositoryIdResolver { database.repositoryDao().getOrCreateRepositoryId(it) },
         coroutineScope = scope,
         backgroundDispatcher = backgroundDispatcher,

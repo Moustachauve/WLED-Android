@@ -11,6 +11,7 @@ import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
+import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
@@ -39,6 +40,7 @@ class DeviceEditViewModel(
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val githubApi: GithubApi,
     private val releaseService: ReleaseService,
+    private val deviceConnectionManager: DeviceConnectionManager,
     private val widgetManager: WledWidgetManager,
     private val applicationContext: Context,
 ) : ViewModel() {
@@ -168,6 +170,7 @@ class DeviceEditViewModel(
             deviceRepository.update(updatedDevice)
             try {
                 releaseService.refreshVersionsForDevice(githubApi, device)
+                deviceConnectionManager.recheckUpdates()
             } finally {
                 isCheckingUpdates.value = false
             }

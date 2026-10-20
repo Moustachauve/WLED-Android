@@ -1,7 +1,6 @@
 package ca.cgagnier.wlednativeandroid.service.update
 
 import ca.cgagnier.wlednativeandroid.model.Asset
-import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.service.api.ApiResponse
@@ -15,6 +14,7 @@ import io.github.z4kn4fein.semver.toVersion
 import io.github.z4kn4fein.semver.toVersionOrNull
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import okio.FileSystem
@@ -157,6 +157,9 @@ class DeviceUpdateService(
         val repoStr = repo?.ownerAndRepo ?: DEFAULT_REPO
         val (repoOwner, repoName) = splitRepository(repoStr)
         emitAll(downloadBinary(repoOwner, repoName))
+    }.catch { error ->
+        if (error is CancellationException) throw error
+        emit(DownloadState.Failed(error))
     }
 
     fun getPathForAsset(): Path {
@@ -178,18 +181,11 @@ class DeviceUpdateService(
     }
 
     suspend fun sendSoftwareUpdateRequest(
-        device: Device,
-        binaryFile: Path,
         callback: ((ApiResponse<String>) -> Unit)? = null,
         errorCallback: ((Exception) -> Unit)? = null,
     ) {
-        logger.d { "Installing software update: ${device.macAddress}" }
         try {
-            // Longer TTL because updates can take a bit of time to fully install
-            val response = deviceApiFactory
-                .create(device, UPDATE_TIMEOUT_SECONDS)
-                .updateDevice(binaryFile, fs)
-            callback?.invoke(response)
+            callback?.invoke(installUpdate())
         } catch (e: CancellationException) {
             throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {

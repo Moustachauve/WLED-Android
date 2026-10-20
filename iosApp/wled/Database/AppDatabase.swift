@@ -53,7 +53,8 @@ final class AppDatabase: Sendable {
             repositoryDao: repoDao
         )
         self.releaseService = relService
-        self.deviceUpdateManager = DeviceUpdateManager(releaseService: relService)
+        let updateManager = DeviceUpdateManager(releaseService: relService)
+        self.deviceUpdateManager = updateManager
         self.githubApi = githubApi ?? GithubApi.companion.create()
         self.deviceApiFactory = deviceApiFactory ?? DeviceApiClient.shared.factory
 
@@ -61,12 +62,17 @@ final class AppDatabase: Sendable {
         self.deviceConnectionManager = DeviceConnectionManager.companion.create(
             database: db,
             connectionFactory: effectiveConnectionFactory,
-            config: config
+            config: config,
+            updateTagResolver: updateManager
         )
 
         if inMemory {
             self.readyTask = Task {
-                try? await relService.syncBuiltInRepositories()
+                do {
+                    try await relService.syncBuiltInRepositories()
+                } catch {
+                    Self.logger.error("Failed to sync built-in repositories: \(error.localizedDescription)")
+                }
             }
         } else {
             self.readyTask = Task {
@@ -74,9 +80,13 @@ final class AppDatabase: Sendable {
                     try await CoreDataToRoomMigrator.migrateIfNeeded(
                         repository: repository
                     )
+                } catch {
+                    Self.logger.error("Core Data to Room migration failed: \(error.localizedDescription)")
+                }
+                do {
                     try await relService.syncBuiltInRepositories()
                 } catch {
-                    Self.logger.error("Database initialization failed: \(error.localizedDescription)")
+                    Self.logger.error("Failed to sync built-in repositories: \(error.localizedDescription)")
                 }
             }
         }
@@ -106,27 +116,28 @@ final class AppDatabase: Sendable {
         }
         Self.logger.info("Refreshing available releases from GitHub")
         do {
-            try await releaseService.refreshVersionsForUsedRepositories(
+            let allSucceeded = try await releaseService.refreshVersionsForUsedRepositories(
                 githubApi: githubApi,
                 deviceRepository: deviceRepository
             )
-            userDefaults.set(Date().timeIntervalSince1970, forKey: Self.dateLastUpdateKey)
             deviceConnectionManager.recheckUpdates()
+            if allSucceeded.boolValue {
+                userDefaults.set(Date().timeIntervalSince1970, forKey: Self.dateLastUpdateKey)
+            }
         } catch {
             Self.logger.error("Failed to refresh releases: \(error.localizedDescription)")
         }
     }
 
     /// Forces a refresh of GitHub releases for the repository associated with `device`.
-    func refreshVersions(for device: Device, userDefaults: UserDefaults = .standard) async {
+    func refreshVersions(for device: Device) async {
         await waitUntilReady()
         Self.logger.info("Refreshing available releases for device \(device.macAddress)")
         do {
-            try await releaseService.refreshVersionsForDevice(
+            _ = try await releaseService.refreshVersionsForDevice(
                 githubApi: githubApi,
                 device: device
             )
-            userDefaults.set(Date().timeIntervalSince1970, forKey: Self.dateLastUpdateKey)
             deviceConnectionManager.recheckUpdates()
         } catch {
             Self.logger.error("Failed to refresh releases for device: \(error.localizedDescription)")

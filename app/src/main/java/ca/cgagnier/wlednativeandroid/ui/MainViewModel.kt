@@ -10,6 +10,7 @@ import ca.cgagnier.wlednativeandroid.domain.DeepLinkHandler
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
+import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
@@ -39,6 +40,7 @@ class MainViewModel(
     private val releaseService: ReleaseService,
     private val githubApi: GithubApi,
     private val deviceRepository: DeviceRepository,
+    private val deviceConnectionManager: DeviceConnectionManager,
     private val deviceFirstContactService: DeviceFirstContactService,
     private val deepLinkHandler: DeepLinkHandler,
 ) : ViewModel() {
@@ -63,9 +65,12 @@ class MainViewModel(
                 return@launch
             }
 
-            releaseService.refreshVersionsForUsedRepositories(githubApi, deviceRepository)
-            // Set the next date to check in minimum 24 hours from now.
-            userPreferencesRepository.updateLastUpdateCheckDate(now + DAYS.toMillis(1))
+            val allSucceeded = releaseService.refreshVersionsForUsedRepositories(githubApi, deviceRepository)
+            deviceConnectionManager.recheckUpdates()
+            if (allSucceeded) {
+                // Set the next date to check in minimum 24 hours from now.
+                userPreferencesRepository.updateLastUpdateCheckDate(now + DAYS.toMillis(1))
+            }
         }
     }
 

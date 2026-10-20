@@ -583,6 +583,27 @@ class DeviceConnectionManager(
         updateDevice(deviceWithState.device.macAddress) { deviceWithState }
     }
 
+    /**
+     * Updates the cached [DeviceStateInfo] version and clears the pending [DeviceWithState.updateVersionTag]
+     * for [macAddress] immediately after a successful OTA firmware installation, before the device
+     * finishes rebooting and reconnects over WebSocket.
+     */
+    fun markUpdateInstalled(macAddress: String, installedVersionTag: String) {
+        val cleanedVersion = installedVersionTag.removePrefix("v")
+        synchronized(lock) {
+            sessions[macAddress]?.nextUpdateCheckAt = 0L
+        }
+        updateDevice(macAddress) { current ->
+            val updatedStateInfo = current.stateInfo?.let { stateInfo ->
+                stateInfo.copy(info = stateInfo.info.copy(version = cleanedVersion))
+            }
+            current.copy(
+                stateInfo = updatedStateInfo,
+                updateVersionTag = null,
+            )
+        }
+    }
+
     suspend fun setBrightness(macAddress: String, brightness: Int): Boolean =
         sendState(macAddress, State(brightness = brightness))
 

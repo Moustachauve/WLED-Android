@@ -7,10 +7,16 @@
 
 import Foundation
 import Combine
+import OSLog
 import Shared
 
 @MainActor
 class DeviceUpdateInstallingViewModel: ObservableObject {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native",
+        category: "DeviceUpdateInstallingViewModel"
+    )
+
     enum UpdateStatus: Equatable {
         case idle
         case downloading(versionName: String)
@@ -35,9 +41,11 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
             githubApi: database.githubApi,
             cacheDirPath: cacheDirPath
         )
+        let determinedAssetName = updateService.getAssetName()
+        let fallbackName = determinedAssetName.isEmpty ? version.version.tagName : determinedAssetName
         guard updateService.couldDetermineAsset() else {
             status = .failed(
-                versionName: updateService.getAssetName(),
+                versionName: fallbackName,
                 error: String(localized: "No Compatible Version Found")
             )
             return
@@ -83,11 +91,21 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
                 device.stateInfo = current.withVersion(newVersion: cleanedTag)
             }
             device.availableUpdateVersion = nil
-            try? await database.deviceRepository.updateSkipUpdateTag(
+            database.deviceConnectionManager.markUpdateInstalled(
                 macAddress: device.device.macAddress,
-                skipUpdateTag: ""
+                installedVersionTag: rawTag
             )
+            do {
+                try await database.deviceRepository.updateSkipUpdateTag(
+                    macAddress: device.device.macAddress,
+                    skipUpdateTag: ""
+                )
+            } catch {
+                Self.logger.error("Failed to reset skipUpdateTag: \(error.localizedDescription)")
+            }
             status = .completed
+        } catch is CancellationError {
+            return
         } catch {
             status = .failed(versionName: assetName, error: error.localizedDescription)
         }

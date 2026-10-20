@@ -116,14 +116,6 @@ class DeviceEditViewModel: ObservableObject {
         }
 
         await database.refreshVersions(for: device.device)
-
-        if let stateInfo = device.stateInfo {
-            let resolvedTag = try? await database.deviceUpdateManager.checkForUpdate(
-                device: device.device,
-                stateInfo: stateInfo
-            )
-            device.availableUpdateVersion = resolvedTag
-        }
     }
 
     /// Persists a single field so concurrent writers (e.g. websocket updates) can't overwrite it with a stale copy.

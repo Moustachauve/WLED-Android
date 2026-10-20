@@ -84,6 +84,7 @@ struct DeviceUpdateDetails: View {
                 tagName: tag
             )
         } catch {
+            versionWithAssets = nil
             Self.logger.error("Unexpected error when loading version \(tag): \(error.localizedDescription)")
         }
     }
