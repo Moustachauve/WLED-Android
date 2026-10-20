@@ -7,8 +7,11 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.R
-import ca.cgagnier.wlednativeandroid.domain.usecase.ValidateAddress
+import ca.cgagnier.wlednativeandroid.domain.AddressValidationError
+import ca.cgagnier.wlednativeandroid.domain.AddressValidationResult
+import ca.cgagnier.wlednativeandroid.domain.AddressValidator
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -18,7 +21,7 @@ import kotlinx.coroutines.launch
 private const val TAG = "DeviceAddViewModel"
 
 class DeviceAddViewModel(
-    private val validateAddress: ValidateAddress,
+    private val addressValidator: AddressValidator,
     private val deviceFirstContactService: DeviceFirstContactService,
 ) : ViewModel() {
 
@@ -31,28 +34,31 @@ class DeviceAddViewModel(
 
     fun submitCreateDevice() {
         findDeviceJob = viewModelScope.launch(Dispatchers.IO) {
-            val emailResult = validateAddress.execute(state.address)
-            val hasError = listOf(
-                emailResult,
-            ).any { !it.successful }
-            if (hasError) {
-                state = state.copy(
-                    step = DeviceAddStep.Form(addressError = emailResult.errorMessage),
-                )
-                return@launch
-            }
+            when (val validationResult = addressValidator.validate(state.address)) {
+                is AddressValidationResult.Invalid -> {
+                    val errorResId = when (validationResult.error) {
+                        AddressValidationError.EMPTY -> R.string.please_enter_value
+                        AddressValidationError.INVALID -> R.string.please_enter_valid_value
+                    }
+                    state = state.copy(
+                        step = DeviceAddStep.Form(addressError = errorResId),
+                    )
+                }
 
-            findDevice()
+                is AddressValidationResult.Valid -> {
+                    findDevice(validationResult.sanitizedAddress)
+                }
+            }
         }
     }
 
     /**
      * Starts searching for the device and adds it, if one is found
      */
-    private suspend fun findDevice() {
+    private suspend fun findDevice(sanitizedAddress: String) {
         state = state.copy(step = DeviceAddStep.Adding)
         try {
-            val newDevice = deviceFirstContactService.fetchAndUpsertDevice(state.address)
+            val newDevice = deviceFirstContactService.fetchAndUpsertDevice(sanitizedAddress)
             // If the dialog was closed before we got here, don't update the state
             if (!currentCoroutineContext().isActive) {
                 return
@@ -62,6 +68,8 @@ class DeviceAddViewModel(
                     device = newDevice,
                 ),
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "Error during first contact", e)
             // If the dialog was closed before we got here, don't update the state

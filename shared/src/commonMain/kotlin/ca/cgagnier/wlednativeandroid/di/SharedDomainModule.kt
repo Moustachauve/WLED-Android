@@ -1,6 +1,8 @@
 package ca.cgagnier.wlednativeandroid.di
 
+import ca.cgagnier.wlednativeandroid.domain.AddressValidator
 import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
+import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.update.UpdateTagResolver
@@ -9,6 +11,8 @@ import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 
 internal val sharedDomainModule: Module = module {
+    singleOf(::AddressValidator)
+    single { DeviceFirstContactService(get(), get(), get()) }
     single { ReleaseService(get(), get(), get(IO_DISPATCHER)) }
     singleOf(::DeviceUpdateManager)
     single<UpdateTagResolver> { get<DeviceUpdateManager>() }

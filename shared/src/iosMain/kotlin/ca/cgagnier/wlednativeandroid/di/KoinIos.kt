@@ -1,6 +1,7 @@
 package ca.cgagnier.wlednativeandroid.di
 
 import androidx.datastore.core.DataStore
+import ca.cgagnier.wlednativeandroid.domain.AddressValidator
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
@@ -12,6 +13,7 @@ import ca.cgagnier.wlednativeandroid.repository.createDatabase
 import ca.cgagnier.wlednativeandroid.repository.createUserPreferencesDataStore
 import ca.cgagnier.wlednativeandroid.repository.documentDirectory
 import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
+import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.IosNetworkConnectivityManager
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
@@ -50,6 +52,8 @@ object KoinHelper : KoinComponent {
     val versionWithAssetsRepository: VersionWithAssetsRepository get() = get()
     val userPreferencesRepository: UserPreferencesRepository get() = get()
     val deviceConnectionManager: DeviceConnectionManager get() = get()
+    val deviceFirstContactService: DeviceFirstContactService get() = get()
+    val addressValidator: AddressValidator get() = get()
     val releaseService: ReleaseService get() = get()
     val deviceUpdateManager: DeviceUpdateManager get() = get()
     val githubApi: GithubApi get() = get()

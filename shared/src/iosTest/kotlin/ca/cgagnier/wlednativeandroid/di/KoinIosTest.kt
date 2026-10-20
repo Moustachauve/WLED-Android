@@ -1,6 +1,7 @@
 package ca.cgagnier.wlednativeandroid.di
 
 import androidx.datastore.core.DataStore
+import ca.cgagnier.wlednativeandroid.domain.AddressValidator
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
@@ -8,6 +9,7 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.repository.createInMemoryDatabase
 import ca.cgagnier.wlednativeandroid.repository.createUserPreferencesDataStore
 import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
+import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
@@ -58,6 +60,8 @@ class KoinIosTest : KoinTest {
         assertNotNull(get<DeviceRepository>())
         assertNotNull(get<UserPreferencesRepository>())
         assertNotNull(get<DeviceConnectionManager>())
+        assertNotNull(get<DeviceFirstContactService>())
+        assertNotNull(get<AddressValidator>())
         assertNotNull(get<DeviceUpdateManager>())
         assertNotNull(get<GithubApi>())
         assertNotNull(get<DeviceApiFactory>())
@@ -69,6 +73,8 @@ class KoinIosTest : KoinTest {
         assertNotNull(KoinHelper.versionWithAssetsRepository)
         assertNotNull(KoinHelper.userPreferencesRepository)
         assertNotNull(KoinHelper.deviceConnectionManager)
+        assertNotNull(KoinHelper.deviceFirstContactService)
+        assertNotNull(KoinHelper.addressValidator)
         assertNotNull(KoinHelper.releaseService)
         assertNotNull(KoinHelper.deviceUpdateManager)
         assertNotNull(KoinHelper.githubApi)

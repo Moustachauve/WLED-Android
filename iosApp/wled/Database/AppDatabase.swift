@@ -22,6 +22,7 @@ final class AppDatabase: Sendable {
     let deviceUpdateManager: DeviceUpdateManager
     let githubApi: GithubApi
     let deviceApiFactory: DeviceApiFactory
+    let deviceFirstContactService: DeviceFirstContactService
     let deviceConnectionManager: DeviceConnectionManager
 
     /// Completes once legacy Core Data devices have been imported and built-in repositories synced into Room.
@@ -31,7 +32,8 @@ final class AppDatabase: Sendable {
     init(
         inMemory: Bool = false,
         connectionFactory: DeviceConnectionFactory? = nil,
-        config: DeviceConnectionManagerConfig? = nil
+        config: DeviceConnectionManagerConfig? = nil,
+        deviceApiFactory: DeviceApiFactory? = nil
     ) {
         let db: DevicesDatabase
         if inMemory {
@@ -57,7 +59,13 @@ final class AppDatabase: Sendable {
         let updateManager = DeviceUpdateManager(releaseService: relService)
         self.deviceUpdateManager = updateManager
         self.githubApi = GithubApi.companion.create()
-        self.deviceApiFactory = DeviceApiClient.shared.factory
+        let apiFactory = deviceApiFactory ?? DeviceApiFactory.companion.create()
+        self.deviceApiFactory = apiFactory
+        self.deviceFirstContactService = DeviceFirstContactService(
+            repositoryDao: repoDao,
+            repository: repository,
+            deviceApiFactory: apiFactory
+        )
 
         let effectiveConnectionFactory = connectionFactory ?? (inMemory ? NoOpDeviceConnectionFactory.shared : nil)
         self.deviceConnectionManager = DeviceConnectionManager.companion.create(
@@ -153,3 +161,5 @@ extension Repository: @retroactive @unchecked Sendable {}
 extension DevicesDatabase: @retroactive @unchecked Sendable {}
 extension DeviceConnectionManager: @retroactive @unchecked Sendable {}
 extension DeviceUpdateService: @retroactive @unchecked Sendable {}
+extension DeviceFirstContactService: @retroactive @unchecked Sendable {}
+extension AddressValidator: @retroactive @unchecked Sendable {}

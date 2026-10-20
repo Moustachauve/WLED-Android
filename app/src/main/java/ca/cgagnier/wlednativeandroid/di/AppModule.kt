@@ -4,7 +4,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.dataStoreFile
 import ca.cgagnier.wlednativeandroid.domain.ChangelogProvider
 import ca.cgagnier.wlednativeandroid.domain.DeepLinkHandler
-import ca.cgagnier.wlednativeandroid.domain.usecase.ValidateAddress
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
 import ca.cgagnier.wlednativeandroid.repository.USER_PREFERENCES_DATA_STORE_FILE_NAME
 import ca.cgagnier.wlednativeandroid.repository.UserPreferences
@@ -95,13 +94,23 @@ val appModule: Module = module {
         AndroidDeviceDiscovery(androidContext())
     }
 
-    singleOf(::ValidateAddress)
     singleOf(::DeepLinkHandler)
     singleOf(::ChangelogProvider)
     single {
         WledWidgetManager(get(), get())
     }
-    singleOf(::DeviceFirstContactService)
+    single {
+        val context = androidContext()
+        val widgetManager: WledWidgetManager = get()
+        DeviceFirstContactService(
+            repositoryDao = get(),
+            repository = get(),
+            deviceApiFactory = get(),
+            onDeviceAddressUpdated = { updatedDevice ->
+                widgetManager.updateWidgetDeviceDetails(context, updatedDevice)
+            },
+        )
+    }
 
     single {
         WidgetStateSync(

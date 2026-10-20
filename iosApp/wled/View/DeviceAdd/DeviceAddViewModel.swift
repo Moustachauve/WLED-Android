@@ -15,50 +15,33 @@ final class DeviceAddViewModel: ObservableObject {
     @Published var address: String = ""
     @Published var currentStep: Step = .form()
     private let firstContactService: DeviceFirstContactService
+    private let addressValidator: AddressValidator
 
-    init(firstContactService: DeviceFirstContactService = DeviceFirstContactService()) {
+    init(
+        firstContactService: DeviceFirstContactService = AppDatabase.shared.deviceFirstContactService,
+        addressValidator: AddressValidator = AddressValidator()
+    ) {
         self.firstContactService = firstContactService
-    }
-
-    var isAddressValid: Bool {
-        let cleanedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanedAddress.isEmpty else { return false }
-
-        let addressWithScheme: String
-        if cleanedAddress.lowercased().hasPrefix("http://") || cleanedAddress.lowercased().hasPrefix("https://") {
-            addressWithScheme = cleanedAddress
-        } else {
-            addressWithScheme = "http://\(cleanedAddress)"
-        }
-
-        guard let components = URLComponents(string: addressWithScheme) else {
-            return false
-        }
-
-        // This prevents valid URLs that are empty or just schemes (like "http://")
-        guard let host = components.host, !host.isEmpty else {
-            return false
-        }
-
-        return true
+        self.addressValidator = addressValidator
     }
 
     func submitCreateDevice() {
-        if !isAddressValid {
+        guard let valid = addressValidator.validate(rawAddress: address) as? AddressValidationResult.Valid else {
             currentStep = .form(errorMessage: Error.enterValidAddress)
             return
         }
+        let sanitizedAddress = valid.sanitizedAddress
         Task {
-            await findDevice()
+            await findDevice(sanitizedAddress: sanitizedAddress)
         }
     }
 
     /// Starts searching for the device and adds it, if one is found
-    private func findDevice() async {
+    private func findDevice(sanitizedAddress: String) async {
         currentStep = .adding
         do {
             let newDevice = try await firstContactService.fetchAndUpsertDevice(
-                rawAddress: address
+                rawAddress: sanitizedAddress
             )
             currentStep = .success(device: newDevice)
         } catch let error {

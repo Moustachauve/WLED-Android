@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.di
 
 import android.content.Context
 import android.net.ConnectivityManager
+import ca.cgagnier.wlednativeandroid.domain.AddressValidator
 import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
 import ca.cgagnier.wlednativeandroid.service.DeviceDiscovery
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
@@ -74,6 +75,7 @@ class KoinModuleTest : KoinTest {
         assertNotNull(get<WidgetStateSync>())
         assertNotNull(get<DeviceConnectionManager>())
         assertNotNull(get<DeviceFirstContactService>())
+        assertNotNull(get<AddressValidator>())
         assertNotNull(get<NetworkConnectivityManager>())
         assertNotNull(get<DeviceDiscovery>())
     }

@@ -62,7 +62,7 @@ final class DeviceWebsocketListViewModel {
     ) {
         self.database = database
         self.connectionManager = connectionManager ?? database.deviceConnectionManager
-        self.deviceFirstContactService = DeviceFirstContactService(repository: database.deviceRepository)
+        self.deviceFirstContactService = database.deviceFirstContactService
         self.userDefaults = userDefaults
 
         self.discoveryService = DiscoveryService(
@@ -243,8 +243,9 @@ final class DeviceWebsocketListViewModel {
             // Don't upsert discovered devices until legacy devices have been imported
             await database.waitUntilReady()
             do {
-                if await !deviceFirstContactService
-                    .tryUpdateAddress(macAddress: macAddress, address: address) {
+                let updated = try await deviceFirstContactService
+                    .tryUpdateAddress(macAddress: macAddress, rawAddress: address)
+                if !updated.boolValue {
                     _ = try await deviceFirstContactService
                         .fetchAndUpsertDevice(rawAddress: address)
                 }
