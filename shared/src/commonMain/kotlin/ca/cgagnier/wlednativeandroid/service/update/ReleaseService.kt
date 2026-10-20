@@ -200,7 +200,8 @@ class ReleaseService(
     /**
      * Refreshes versions for all enabled repositories that are currently used by at least one device.
      *
-     * @return `true` if all targeted repositories were refreshed without error, `false` otherwise.
+     * @return `true` if at least one repository was refreshed and all refreshes succeeded;
+     *      `false` if no enabled used repositories exist yet or if any repository refresh failed.
      */
     suspend fun refreshVersionsForUsedRepositories(githubApi: GithubApi, deviceRepository: DeviceRepository): Boolean =
         withContext(ioDispatcher) {

@@ -40,6 +40,11 @@ struct DeviceUpdateInstalling: View {
                 }
 
                 Button {
+                    viewModel.completeUpdateIfInstalled(
+                        device: device,
+                        version: version,
+                        database: database
+                    )
                     NotificationCenter.default.post(
                         name: .didCompleteUpdateInstall,
                         object: nil

@@ -591,7 +591,11 @@ class DeviceConnectionManager(
     fun markUpdateInstalled(macAddress: String, installedVersionTag: String) {
         val cleanedVersion = installedVersionTag.removePrefix("v")
         synchronized(lock) {
-            sessions[macAddress]?.nextUpdateCheckAt = 0L
+            sessions[macAddress]?.let { session ->
+                session.nextUpdateCheckAt = 0L
+                session.updateCheckJob?.cancel()
+                session.updateCheckJob = null
+            }
         }
         updateDevice(macAddress) { current ->
             val updatedStateInfo = current.stateInfo?.let { stateInfo ->

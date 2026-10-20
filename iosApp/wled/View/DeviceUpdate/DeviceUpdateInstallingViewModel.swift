@@ -83,16 +83,6 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
                 return
             }
 
-            let rawTag = version.version.tagName
-            let cleanedTag = rawTag.hasPrefix("v") ? String(rawTag.dropFirst()) : rawTag
-            if let current = device.stateInfo {
-                device.stateInfo = current.withVersion(newVersion: cleanedTag)
-            }
-            device.availableUpdateVersion = nil
-            database.deviceConnectionManager.markUpdateInstalled(
-                macAddress: device.device.macAddress,
-                installedVersionTag: rawTag
-            )
             do {
                 try await database.deviceRepository.updateSkipUpdateTag(
                     macAddress: device.device.macAddress,
@@ -102,15 +92,30 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
                 Self.logger.error("Failed to reset skipUpdateTag: \(error.localizedDescription)")
             }
             status = .completed
-        } catch is CancellationError {
-            status = .idle
-            return
         } catch {
-            if Task.isCancelled {
+            if error is CancellationError || Task.isCancelled {
                 status = .idle
                 return
             }
             status = .failed(versionName: assetName, error: error.localizedDescription)
         }
+    }
+
+    func completeUpdateIfInstalled(
+        device: DeviceWithState,
+        version: VersionWithAssets,
+        database: AppDatabase = .shared
+    ) {
+        guard status == .completed else { return }
+        let rawTag = version.version.tagName
+        let cleanedTag = rawTag.hasPrefix("v") ? String(rawTag.dropFirst()) : rawTag
+        if let current = device.stateInfo {
+            device.stateInfo = current.withVersion(newVersion: cleanedTag)
+        }
+        device.availableUpdateVersion = nil
+        database.deviceConnectionManager.markUpdateInstalled(
+            macAddress: device.device.macAddress,
+            installedVersionTag: rawTag
+        )
     }
 }

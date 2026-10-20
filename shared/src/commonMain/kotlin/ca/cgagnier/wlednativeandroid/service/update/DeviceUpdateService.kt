@@ -139,10 +139,13 @@ class DeviceUpdateService(
 
     fun isAssetFileCached(): Boolean = couldDetermineAsset && fs.exists(getPathForAsset())
 
-    fun downloadBinary(repoOwner: String, repoName: String): Flow<DownloadState> {
+    fun downloadBinary(repoOwner: String, repoName: String): Flow<DownloadState> = flow {
         val targetPath = getPathForAsset()
         targetPath.parent?.let(fs::createDirectories)
-        return githubApi.downloadReleaseBinary(asset, repoOwner, repoName, targetPath)
+        emitAll(githubApi.downloadReleaseBinary(asset, repoOwner, repoName, targetPath))
+    }.catch { error ->
+        if (error is CancellationException) throw error
+        emit(DownloadState.Failed(error))
     }
 
     fun downloadBinary(repositoryDao: RepositoryDao): Flow<DownloadState> = flow {

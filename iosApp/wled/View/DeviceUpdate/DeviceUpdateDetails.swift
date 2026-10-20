@@ -74,7 +74,6 @@ struct DeviceUpdateDetails: View {
 
     private func loadVersion() async {
         guard let tag = device.availableUpdateVersion, !tag.isEmpty else {
-            versionWithAssets = nil
             return
         }
         await database.waitUntilReady()
