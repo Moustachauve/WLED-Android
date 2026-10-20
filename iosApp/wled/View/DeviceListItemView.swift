@@ -4,7 +4,6 @@ import Shared
 private typealias State = SwiftUI.State
 
 struct DeviceListItemView: View {
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.colorScheme) var colorScheme
     var device: DeviceWithState
 

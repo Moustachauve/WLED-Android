@@ -1,5 +1,4 @@
 import SwiftUI
-import CoreData
 import Shared
 
 struct DeviceUpdateInstalling: View {
@@ -7,7 +6,8 @@ struct DeviceUpdateInstalling: View {
 
     @StateObject var viewModel = DeviceUpdateInstallingViewModel()
     var device: DeviceWithState
-    @ObservedObject var version: Version
+    let version: VersionWithAssets
+    var database: AppDatabase = .shared
 
     var body: some View {
         ZStack {
@@ -35,9 +35,8 @@ struct DeviceUpdateInstalling: View {
                     )
                 case .completed:
                     SuccessView()
-                case .failed(let error, let versionName):
+                case .failed(let versionName, let error):
                     FailureView(errorMessage: error, versionName: versionName)
-
                 }
 
                 Button {
@@ -53,14 +52,17 @@ struct DeviceUpdateInstalling: View {
                 .disabled(!canDismiss)
                 .padding(.top)
             }
-            .fixedSize(horizontal: false, vertical: /*@START_MENU_TOKEN@*/true/*@END_MENU_TOKEN@*/)
+            .fixedSize(horizontal: false, vertical: true)
             .padding()
             .background(Color(UIColor.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .shadow(radius: 20)
             .task {
-                await viewModel
-                    .startUpdateProcess(device: device, version: version)
+                await viewModel.startUpdateProcess(
+                    device: device,
+                    version: version,
+                    database: database
+                )
             }
         }
     }
@@ -161,8 +163,9 @@ extension Notification.Name {
 }
 
 #Preview {
-    let device = PreviewData.deviceWithUpdate
-    let version = Version(context: PreviewData.viewContext)
-    
-    return DeviceUpdateInstalling(device: device, version: version)
+    DeviceUpdateInstalling(
+        device: PreviewData.deviceWithUpdate,
+        version: PreviewData.previewVersion,
+        database: PreviewData.database
+    )
 }

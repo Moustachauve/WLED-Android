@@ -1,10 +1,10 @@
 import Foundation
-import CoreData
 import OSLog
 import Shared
 
 final class AppDatabase: Sendable {
     static let shared = AppDatabase()
+    static let dateLastUpdateKey = "lastUpdateReleasesDate_v2"
 
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native",
@@ -13,42 +13,70 @@ final class AppDatabase: Sendable {
 
     let database: DevicesDatabase
     let deviceRepository: DeviceRepository
+    var repositoryDao: any RepositoryDao { database.repositoryDao() }
+    let versionWithAssetsRepository: VersionWithAssetsRepository
+    let releaseService: ReleaseService
+    let deviceUpdateManager: DeviceUpdateManager
+    let githubApi: GithubApi
+    let deviceApiFactory: DeviceApiFactory
     let deviceConnectionManager: DeviceConnectionManager
 
-    /// Completes once legacy Core Data devices have been imported into Room.
+    /// Completes once legacy Core Data devices have been imported and built-in repositories synced into Room.
     private let readyTask: Task<Void, Never>
 
     /// - Parameter inMemory: Uses a throwaway database and skips the legacy Core Data import (tests, previews).
     init(
         inMemory: Bool = false,
         connectionFactory: DeviceConnectionFactory? = nil,
-        config: DeviceConnectionManagerConfig? = nil
+        config: DeviceConnectionManagerConfig? = nil,
+        githubApi: GithubApi? = nil,
+        deviceApiFactory: DeviceApiFactory? = nil
     ) {
+        let db: DevicesDatabase
         if inMemory {
-            self.database = DevicesDatabase.companion.createInMemoryDatabase()
+            db = DevicesDatabase.companion.createInMemoryDatabase()
         } else {
-            self.database = DevicesDatabase.companion.createDatabase()
+            db = DevicesDatabase.companion.createDatabase()
         }
-        let repository = database.createDeviceRepository()
+        self.database = db
+
+        let repository = db.createDeviceRepository()
         self.deviceRepository = repository
+
+        let repoDao = db.repositoryDao()
+
+        let versionRepo = db.createVersionWithAssetsRepository()
+        self.versionWithAssetsRepository = versionRepo
+
+        let relService = ReleaseService(
+            versionWithAssetsRepository: versionRepo,
+            repositoryDao: repoDao
+        )
+        self.releaseService = relService
+        self.deviceUpdateManager = DeviceUpdateManager(releaseService: relService)
+        self.githubApi = githubApi ?? GithubApi.companion.create()
+        self.deviceApiFactory = deviceApiFactory ?? DeviceApiClient.shared.factory
+
         let effectiveConnectionFactory = connectionFactory ?? (inMemory ? NoOpDeviceConnectionFactory.shared : nil)
         self.deviceConnectionManager = DeviceConnectionManager.companion.create(
-            database: database,
+            database: db,
             connectionFactory: effectiveConnectionFactory,
             config: config
         )
 
         if inMemory {
-            self.readyTask = Task {}
+            self.readyTask = Task {
+                try? await relService.syncBuiltInRepositories()
+            }
         } else {
             self.readyTask = Task {
                 do {
                     try await CoreDataToRoomMigrator.migrateIfNeeded(
-                        context: PersistenceController.shared.container.newBackgroundContext(),
                         repository: repository
                     )
+                    try await relService.syncBuiltInRepositories()
                 } catch {
-                    Self.logger.error("Core Data to Room migration failed: \(error.localizedDescription)")
+                    Self.logger.error("Database initialization failed: \(error.localizedDescription)")
                 }
             }
         }
@@ -63,9 +91,61 @@ final class AppDatabase: Sendable {
     func waitUntilReady() async {
         await readyTask.value
     }
+
+    /// Refreshes available GitHub releases for all repositories used by known devices,
+    /// throttled to at most once every 24 hours.
+    func refreshVersionsIfNeeded(userDefaults: UserDefaults = .standard) async {
+        await waitUntilReady()
+        let lastRefreshTimestamp = userDefaults.double(forKey: Self.dateLastUpdateKey)
+        if lastRefreshTimestamp > 0 {
+            let lastRefreshDate = Date(timeIntervalSince1970: lastRefreshTimestamp)
+            if let nextRefreshDate = Calendar.current.date(byAdding: .day, value: 1, to: lastRefreshDate),
+               Date() <= nextRefreshDate {
+                return
+            }
+        }
+        Self.logger.info("Refreshing available releases from GitHub")
+        do {
+            try await releaseService.refreshVersionsForUsedRepositories(
+                githubApi: githubApi,
+                deviceRepository: deviceRepository
+            )
+            userDefaults.set(Date().timeIntervalSince1970, forKey: Self.dateLastUpdateKey)
+            deviceConnectionManager.recheckUpdates()
+        } catch {
+            Self.logger.error("Failed to refresh releases: \(error.localizedDescription)")
+        }
+    }
+
+    /// Forces a refresh of GitHub releases for the repository associated with `device`.
+    func refreshVersions(for device: Device, userDefaults: UserDefaults = .standard) async {
+        await waitUntilReady()
+        Self.logger.info("Refreshing available releases for device \(device.macAddress)")
+        do {
+            try await releaseService.refreshVersionsForDevice(
+                githubApi: githubApi,
+                device: device
+            )
+            userDefaults.set(Date().timeIntervalSince1970, forKey: Self.dateLastUpdateKey)
+            deviceConnectionManager.recheckUpdates()
+        } catch {
+            Self.logger.error("Failed to refresh releases for device: \(error.localizedDescription)")
+        }
+    }
 }
 
 extension DeviceRepository: @retroactive @unchecked Sendable {}
+extension VersionWithAssetsRepository: @retroactive @unchecked Sendable {}
+extension ReleaseService: @retroactive @unchecked Sendable {}
+extension DeviceUpdateManager: @retroactive @unchecked Sendable {}
+extension GithubApi: @retroactive @unchecked Sendable {}
+extension DeviceApiFactory: @retroactive @unchecked Sendable {}
 extension Device: @retroactive @unchecked Sendable {}
+extension DeviceStateInfo: @retroactive @unchecked Sendable {}
+extension VersionWithAssets: @retroactive @unchecked Sendable {}
+extension Version: @retroactive @unchecked Sendable {}
+extension Asset: @retroactive @unchecked Sendable {}
+extension Repository: @retroactive @unchecked Sendable {}
 extension DevicesDatabase: @retroactive @unchecked Sendable {}
 extension DeviceConnectionManager: @retroactive @unchecked Sendable {}
+extension DeviceUpdateService: @retroactive @unchecked Sendable {}

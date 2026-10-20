@@ -493,6 +493,26 @@ class DeviceConnectionManager(
         offline.forEach { it.connect() }
     }
 
+    /**
+     * Invalidates cached update-check timestamps and re-evaluates update availability
+     * for all devices that currently have state info.
+     *
+     * Call this after refreshing release metadata from GitHub so connected devices
+     * immediately reflect newly downloaded releases.
+     */
+    fun recheckUpdates() {
+        val currentDevices = _allDevicesWithState.value
+        for (item in currentDevices) {
+            val stateInfo = item.stateInfo ?: continue
+            scheduleModifiedUpdateCheck(
+                mac = item.device.macAddress,
+                device = item.device,
+                previous = item,
+                stateInfo = stateInfo,
+            )
+        }
+    }
+
     fun onBackground() {
         managerScope.launch(ioDispatcher) {
             flushLastSeen()

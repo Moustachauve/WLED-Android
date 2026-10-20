@@ -11,7 +11,7 @@ struct CoreDataToRoomMigrator {
     )
 
     static func migrateIfNeeded(
-        context: NSManagedObjectContext,
+        context: @autoclosure () -> NSManagedObjectContext = PersistenceController.shared.container.newBackgroundContext(),
         repository: DeviceRepository,
         userDefaults: UserDefaults = .standard
     ) async throws {
@@ -19,10 +19,11 @@ struct CoreDataToRoomMigrator {
             return
         }
 
+        let managedContext = context()
         logger.info("Starting Core Data to Room device migration...")
-        let devices: [Device] = try await context.perform {
+        let devices: [Device] = try await managedContext.perform {
             let request = NSFetchRequest<NSManagedObject>(entityName: "Device")
-            return try context.fetch(request).compactMap(makeDevice(from:))
+            return try managedContext.fetch(request).compactMap(makeDevice(from:))
         }
 
         logger.info("Found \(devices.count) device(s) in Core Data to migrate.")

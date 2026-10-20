@@ -12,7 +12,6 @@ import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
-import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
@@ -168,9 +167,7 @@ class DeviceEditViewModel(
             val updatedDevice = device.copy(skipUpdateTag = "")
             deviceRepository.update(updatedDevice)
             try {
-                val repo = repositoryDao.getRepositoryById(device.repositoryId)
-                val repoStr = repo?.ownerAndRepo ?: DEFAULT_REPO
-                releaseService.refreshVersions(githubApi, setOf(repoStr))
+                releaseService.refreshVersionsForDevice(githubApi, device)
             } finally {
                 isCheckingUpdates.value = false
             }

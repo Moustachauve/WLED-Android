@@ -1,5 +1,4 @@
 import SwiftUI
-import CoreData
 import Shared
 
 private typealias State = SwiftUI.State
@@ -315,5 +314,4 @@ struct DeviceListView: View {
     DeviceListView(
         database: PreviewData.database
     )
-    .environment(\.managedObjectContext, PreviewData.viewContext)
 }

@@ -6,13 +6,18 @@
 //
 
 import Foundation
-import CoreData
 import Combine
+import OSLog
 import Shared
 
 @MainActor
 class DeviceEditViewModel: ObservableObject {
-    private let context: NSManagedObjectContext
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native",
+        category: "DeviceEditViewModel"
+    )
+
+    private let database: AppDatabase
     private let deviceRepository: DeviceRepository
 
     private var cancellables = Set<AnyCancellable>()
@@ -27,11 +32,10 @@ class DeviceEditViewModel: ObservableObject {
 
     init(
         device: DeviceWithState,
-        deviceRepository: DeviceRepository = AppDatabase.shared.deviceRepository,
-        context: NSManagedObjectContext = PersistenceController.shared.container.viewContext
+        database: AppDatabase = .shared
     ) {
-        self.context = context
-        self.deviceRepository = deviceRepository
+        self.database = database
+        self.deviceRepository = database.deviceRepository
         self.device = device
         customName = device.device.customName
         hideDevice = device.device.isHidden
@@ -101,15 +105,25 @@ class DeviceEditViewModel: ObservableObject {
 
     func checkForUpdate() async {
         isCheckingForUpdates = true
-        print("Refreshing available Releases")
-        await ReleaseService(context: context).refreshVersions()
-        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: WLEDNativeApp.dateLastUpdateKey)
+        defer { isCheckingForUpdates = false }
 
+        let mac = device.device.macAddress
         device.device = device.device.copy(skipUpdateTag: "")
-        persist { repository, mac in
-            try await repository.updateSkipUpdateTag(macAddress: mac, skipUpdateTag: "")
+        do {
+            try await deviceRepository.updateSkipUpdateTag(macAddress: mac, skipUpdateTag: "")
+        } catch {
+            Self.logger.error("Failed to clear skipUpdateTag: \(error.localizedDescription)")
         }
-        isCheckingForUpdates = false
+
+        await database.refreshVersions(for: device.device)
+
+        if let stateInfo = device.stateInfo {
+            let resolvedTag = try? await database.deviceUpdateManager.checkForUpdate(
+                device: device.device,
+                stateInfo: stateInfo
+            )
+            device.availableUpdateVersion = resolvedTag
+        }
     }
 
     /// Persists a single field so concurrent writers (e.g. websocket updates) can't overwrite it with a stale copy.
@@ -120,7 +134,7 @@ class DeviceEditViewModel: ObservableObject {
             do {
                 try await write(repository, mac)
             } catch {
-                print("Unresolved error saving device: \(error.localizedDescription)")
+                Self.logger.error("Unresolved error saving device: \(error.localizedDescription)")
             }
         }
     }

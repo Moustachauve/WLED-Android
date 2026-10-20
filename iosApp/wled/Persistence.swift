@@ -2,12 +2,7 @@ import CoreData
 
 struct PersistenceController {
     static let shared = PersistenceController()
-    
-    static let preview: PersistenceController = {
-        let result = PersistenceController(inMemory: true)
-        return result
-    }()
-    
+
     let container: NSPersistentContainer
     
     init(inMemory: Bool = false) {

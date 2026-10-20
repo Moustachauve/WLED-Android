@@ -9,7 +9,6 @@ import SwiftUI
 import Shared
 
 struct DeviceInfoTwoRows: View {
-    @Environment(\.managedObjectContext) private var viewContext
     var device: DeviceWithState
 
     var body: some View {

@@ -2,10 +2,13 @@ package ca.cgagnier.wlednativeandroid.service
 
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
 import ca.cgagnier.wlednativeandroid.repository.createDeviceRepository
+import ca.cgagnier.wlednativeandroid.repository.createVersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.createHttpClient
 import ca.cgagnier.wlednativeandroid.service.api.defaultJson
+import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
+import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.update.RepositoryIdResolver
 import ca.cgagnier.wlednativeandroid.service.update.UpdateTagResolver
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceConnectionFactory
@@ -54,9 +57,9 @@ internal fun DeviceConnectionManager.Companion.create(
         json = defaultJson,
         dispatcher = ioDispatcher,
     )
-    // TODO: Use DeviceUpdateManager once iOS release data is stored in Room. Until then, update availability on
-    //  iOS comes from the Core Data pipeline in DeviceWithState.swift, so the shared check is disabled.
-    val updateTagResolver = UpdateTagResolver { _, _ -> null }
+    val versionWithAssetsRepository = database.createVersionWithAssetsRepository()
+    val releaseService = ReleaseService(versionWithAssetsRepository, database.repositoryDao())
+    val updateTagResolver: UpdateTagResolver = DeviceUpdateManager(releaseService)
 
     return DeviceConnectionManager(
         store = database.createDeviceRepository(),

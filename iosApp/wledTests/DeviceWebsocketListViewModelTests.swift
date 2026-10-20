@@ -112,7 +112,7 @@ struct DeviceWebsocketListViewModelTests {
                 device: updatedDevice,
                 stateInfo: nil,
                 websocketStatus: .connected,
-                updateVersionTag: nil
+                updateVersionTag: "0.15.1"
             )
         )
 
@@ -121,6 +121,7 @@ struct DeviceWebsocketListViewModelTests {
         }
         #expect(viewModel.allDevicesWithState.first?.device.originalName == "Updated Name")
         #expect(viewModel.allDevicesWithState.first?.device.lastSeen == 123456789)
+        #expect(viewModel.allDevicesWithState.first?.availableUpdateVersion == "0.15.1")
     }
 
     @Test func testQuickResumeCancelsPendingPause() async throws {

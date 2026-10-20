@@ -36,4 +36,6 @@ class GithubApi(private val apiEndpoints: GithubApiEndpoints) {
         logger.d { "downloading release binary asset ${asset.name} (id: ${asset.assetId})" }
         return apiEndpoints.downloadReleaseBinary(repoOwner, repoName, asset.assetId, targetPath)
     }
+
+    companion object
 }

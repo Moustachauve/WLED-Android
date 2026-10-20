@@ -3,21 +3,27 @@ package ca.cgagnier.wlednativeandroid.service.update
 import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
+import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.service.api.ApiResponse
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
-import ca.cgagnier.wlednativeandroid.service.api.github.downloadReleaseBinary
 import ca.cgagnier.wlednativeandroid.service.api.updateDevice
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import co.touchlab.kermit.Logger
 import io.github.z4kn4fein.semver.toVersion
 import io.github.z4kn4fein.semver.toVersionOrNull
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import java.io.File
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import okio.FileSystem
+import okio.Path
+import ca.cgagnier.wlednativeandroid.shared.fileSystem as defaultFileSystem
 
 private const val TAG = "DeviceUpdateService"
 private val logger = Logger.withTag(TAG)
+private const val UPDATE_TIMEOUT_SECONDS = 120L
 
 /**
  * The minimum target version from which [RELEASE_NAME_OVERRIDES] are applied.
@@ -43,12 +49,14 @@ private val RELEASE_NAME_OVERRIDES = mapOf(
     "ESP32_V4" to "ESP32",
 )
 
+@Suppress("LongParameterList")
 class DeviceUpdateService(
     val device: DeviceWithState,
     private val versionWithAssets: VersionWithAssets,
-    private val cacheDir: File,
+    private val cacheDir: Path,
     private val deviceApiFactory: DeviceApiFactory,
     private val githubApi: GithubApi,
+    private val fs: FileSystem = defaultFileSystem,
 ) {
     private val supportedPlatforms = listOf(
         "esp01",
@@ -87,27 +95,12 @@ class DeviceUpdateService(
             return false
         }
 
-        val release = getReleaseOverride(rawRelease)
+        val release = resolveReleaseOverride(rawRelease, versionWithAssets.version.tagName)
         val combined = "${versionWithAssets.version.tagName}_$release"
         val versionWithRelease =
             if (combined.startsWith("v", ignoreCase = true)) combined.drop(1) else combined
         assetName = "WLED_$versionWithRelease.bin"
         return findAsset(versionWithRelease)
-    }
-
-    private fun getReleaseOverride(rawRelease: String): String {
-        val targetVersion = versionWithAssets.version.tagName.toVersionOrNull(strict = false)
-        if (targetVersion == null) {
-            logger.w {
-                "Could not parse target version '${versionWithAssets.version.tagName}', skipping release name overrides"
-            }
-            return rawRelease
-        }
-        return if (targetVersion >= RELEASE_OVERRIDES_MIN_VERSION) {
-            RELEASE_NAME_OVERRIDES.getOrDefault(rawRelease, rawRelease)
-        } else {
-            rawRelease
-        }
     }
 
     /**
@@ -150,34 +143,76 @@ class DeviceUpdateService(
 
     fun couldDetermineAsset(): Boolean = couldDetermineAsset
 
-    fun isAssetFileCached(): Boolean = getPathForAsset().exists()
+    fun isAssetFileCached(): Boolean = couldDetermineAsset && fs.exists(getPathForAsset())
 
-    suspend fun downloadBinary(repoOwner: String, repoName: String): Flow<DownloadState> {
-        if (!::asset.isInitialized) {
-            throw Exception("Asset could not be determined for ${device.device.macAddress}.")
+    fun downloadBinary(repoOwner: String, repoName: String): Flow<DownloadState> {
+        check(::asset.isInitialized) {
+            "Asset could not be determined for ${device.device.macAddress}."
         }
         return githubApi.downloadReleaseBinary(asset, repoOwner, repoName, getPathForAsset())
     }
 
-    fun getPathForAsset(): File {
-        val cacheDirectory = File(cacheDir, versionWithAssets.version.tagName)
-        cacheDirectory.mkdirs()
-        return File(cacheDirectory, asset.name)
+    fun downloadBinary(repositoryDao: RepositoryDao): Flow<DownloadState> = flow {
+        val repo = repositoryDao.getRepositoryById(device.device.repositoryId)
+        val repoStr = repo?.ownerAndRepo ?: DEFAULT_REPO
+        val (repoOwner, repoName) = splitRepository(repoStr)
+        emitAll(downloadBinary(repoOwner, repoName))
+    }
+
+    fun getPathForAsset(): Path {
+        check(::asset.isInitialized) {
+            "Asset could not be determined for ${device.device.macAddress}."
+        }
+        val cacheDirectory = cacheDir / versionWithAssets.version.tagName
+        fs.createDirectories(cacheDirectory)
+        return cacheDirectory / asset.name
+    }
+
+    @Throws(Exception::class)
+    suspend fun installUpdate(): ApiResponse<String> {
+        logger.d { "Installing software update: ${device.device.macAddress}" }
+        // Longer TTL because updates can take a bit of time to fully install
+        return deviceApiFactory
+            .create(device.device, UPDATE_TIMEOUT_SECONDS)
+            .updateDevice(getPathForAsset(), fs)
     }
 
     suspend fun sendSoftwareUpdateRequest(
         device: Device,
-        binaryFile: File,
+        binaryFile: Path,
         callback: ((ApiResponse<String>) -> Unit)? = null,
         errorCallback: ((Exception) -> Unit)? = null,
     ) {
         logger.d { "Installing software update: ${device.macAddress}" }
         try {
             // Longer TTL because updates can take a bit of time to fully install
-            val response = deviceApiFactory.create(device, 120L).updateDevice(binaryFile)
+            val response = deviceApiFactory
+                .create(device, UPDATE_TIMEOUT_SECONDS)
+                .updateDevice(binaryFile, fs)
             callback?.invoke(response)
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            // Catch transport and I/O failures so they can be forwarded to the caller's errorCallback
             errorCallback?.invoke(e)
+        }
+    }
+
+    companion object {
+        fun resolveReleaseOverride(rawRelease: String, targetVersionTag: String): String {
+            val targetVersion = targetVersionTag.toVersionOrNull(strict = false)
+            if (targetVersion == null) {
+                logger.w {
+                    "Could not parse target version '$targetVersionTag', skipping release name overrides"
+                }
+                return rawRelease
+            }
+            val baseVersion = targetVersion.copy(preRelease = null, buildMetadata = null)
+            return if (baseVersion >= RELEASE_OVERRIDES_MIN_VERSION) {
+                RELEASE_NAME_OVERRIDES[rawRelease.uppercase()] ?: rawRelease
+            } else {
+                rawRelease
+            }
         }
     }
 }

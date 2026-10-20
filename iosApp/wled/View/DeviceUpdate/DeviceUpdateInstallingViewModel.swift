@@ -18,42 +18,78 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
         case completed
         case failed(versionName: String, error: String)
     }
-    
+
     @Published var status: UpdateStatus = .idle
-    
+
     func startUpdateProcess(
         device: DeviceWithState,
-        version: Version
+        version: VersionWithAssets,
+        database: AppDatabase = .shared,
+        cacheDirPath: String? = nil
     ) async {
-        let updateService = DeviceUpdateService(
-            device: device,
-            version: version
+        let updateService = DeviceUpdateService.companion.create(
+            device: device.device,
+            stateInfo: device.stateInfo,
+            versionWithAssets: version,
+            deviceApiFactory: database.deviceApiFactory,
+            githubApi: database.githubApi,
+            cacheDirPath: cacheDirPath
         )
+        guard updateService.couldDetermineAsset() else {
+            status = .failed(
+                versionName: updateService.getAssetName(),
+                error: String(localized: "No Compatible Version Found")
+            )
+            return
+        }
+
+        let assetName = updateService.getAssetName()
         do {
-            guard updateService.couldDetermineAsset else {
-                status = .failed(versionName: "", error: String(localized: "No Compatible Version Found"))
-                return
-            }
             if !updateService.isAssetFileCached() {
-                status = .downloading(versionName: updateService.getAssetName())
-                let success = await updateService.downloadBinary()
-                guard success else {
-                    status = .failed(versionName: updateService.getAssetName(), error: String(localized: "Download failed"))
+                status = .downloading(versionName: assetName)
+                var didFinishDownload = false
+                for await downloadState in updateService.downloadBinary(repositoryDao: database.repositoryDao) {
+                    if let failed = downloadState as? DownloadState.Failed {
+                        status = .failed(
+                            versionName: assetName,
+                            error: failed.error?.message ?? String(localized: "Download failed")
+                        )
+                        return
+                    }
+                    if downloadState is DownloadState.Finished {
+                        didFinishDownload = true
+                        break
+                    }
+                }
+                guard didFinishDownload else {
+                    status = .failed(versionName: assetName, error: String(localized: "Download failed"))
                     return
                 }
             }
-            status = .installing(versionName: updateService.getAssetName())
-            try await updateService.installUpdate()
-            
-            if let rawTag = version.tagName {
-                let cleanedTag = rawTag.hasPrefix("v") ? String(rawTag.dropFirst()) : rawTag
-                if let current = device.stateInfo {
-                    device.stateInfo = current.withVersion(newVersion: cleanedTag)
-                }
+
+            status = .installing(versionName: assetName)
+            let response = try await updateService.installUpdate()
+            guard response.isSuccessful else {
+                status = .failed(
+                    versionName: assetName,
+                    error: String(localized: "Update failed with status code: \(Int(response.code))")
+                )
+                return
             }
+
+            let rawTag = version.version.tagName
+            let cleanedTag = rawTag.hasPrefix("v") ? String(rawTag.dropFirst()) : rawTag
+            if let current = device.stateInfo {
+                device.stateInfo = current.withVersion(newVersion: cleanedTag)
+            }
+            device.availableUpdateVersion = nil
+            try? await database.deviceRepository.updateSkipUpdateTag(
+                macAddress: device.device.macAddress,
+                skipUpdateTag: ""
+            )
             status = .completed
         } catch {
-            status = .failed(versionName: updateService.getAssetName(), error: error.localizedDescription)
+            status = .failed(versionName: assetName, error: error.localizedDescription)
         }
     }
 }

@@ -8,9 +8,7 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.domain.DeepLink
 import ca.cgagnier.wlednativeandroid.domain.DeepLinkHandler
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
-import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
-import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
@@ -41,7 +39,6 @@ class MainViewModel(
     private val releaseService: ReleaseService,
     private val githubApi: GithubApi,
     private val deviceRepository: DeviceRepository,
-    private val repositoryDao: RepositoryDao,
     private val deviceFirstContactService: DeviceFirstContactService,
     private val deepLinkHandler: DeepLinkHandler,
 ) : ViewModel() {
@@ -53,44 +50,7 @@ class MainViewModel(
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            syncBuiltInRepositories()
-        }
-    }
-
-    private suspend fun syncBuiltInRepositories() {
-        val builtInOwnerAndRepos = Repository.BUILT_IN_REPOSITORIES.map { it.ownerAndRepo }
-
-        Repository.BUILT_IN_REPOSITORIES.forEach { builtin ->
-            val existing = repositoryDao.getRepositoryByOwnerAndRepo(builtin.ownerAndRepo)
-            if (existing == null) {
-                repositoryDao.insert(builtin)
-                Log.d(TAG, "Inserted built-in repository: ${builtin.ownerAndRepo}")
-            } else {
-                // Update names and descriptions if they changed, but preserve user booleans
-                val updated = existing.copy(
-                    name = builtin.name,
-                    description = builtin.description,
-                    htmlUrl = builtin.htmlUrl,
-                    isDefault = true,
-                )
-                if (existing != updated) {
-                    repositoryDao.update(updated)
-                    Log.d(TAG, "Updated built-in repository: ${builtin.ownerAndRepo}")
-                }
-            }
-        }
-
-        // Force all non-default repository to be false, in case they used to be default
-        val allRepos = repositoryDao.getAllRepositories().first()
-        allRepos.forEach { repo ->
-            if (repo.isDefault) {
-                val isBuiltIn = builtInOwnerAndRepos.any { it.equals(repo.ownerAndRepo, ignoreCase = true) }
-                if (!isBuiltIn) {
-                    val updated = repo.copy(isDefault = false)
-                    repositoryDao.update(updated)
-                    Log.d(TAG, "Removed default status from repository: ${repo.ownerAndRepo}")
-                }
-            }
+            releaseService.syncBuiltInRepositories()
         }
     }
 
@@ -103,23 +63,7 @@ class MainViewModel(
                 return@launch
             }
 
-            val usedRepoIds = deviceRepository.getUsedRepositoryIds().toSet()
-
-            // Collect unique ENABLED repositories from the database that are used by at least one device
-            val repositoriesFlow = repositoryDao.getAllRepositories()
-            val allRepos = repositoriesFlow.first()
-            val repositories = allRepos
-                .filter { it.isEnabled && it.isUpdateEnabled && usedRepoIds.contains(it.id) }
-                .map { it.ownerAndRepo }
-                .toMutableSet()
-
-            if (repositories.isEmpty() && allRepos.isEmpty()) {
-                Log.i(TAG, "No repositories found, skipping update check.")
-                return@launch
-            }
-
-            Log.i(TAG, "Refreshing versions from ${repositories.size} repositories: $repositories")
-            releaseService.refreshVersions(githubApi, repositories)
+            releaseService.refreshVersionsForUsedRepositories(githubApi, deviceRepository)
             // Set the next date to check in minimum 24 hours from now.
             userPreferencesRepository.updateLastUpdateCheckDate(now + DAYS.toMillis(1))
         }

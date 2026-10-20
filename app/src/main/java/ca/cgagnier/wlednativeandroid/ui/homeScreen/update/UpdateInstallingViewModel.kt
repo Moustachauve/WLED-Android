@@ -11,9 +11,8 @@ import ca.cgagnier.wlednativeandroid.service.api.ApiResponse
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
-import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateService
-import ca.cgagnier.wlednativeandroid.service.update.splitRepository
+import ca.cgagnier.wlednativeandroid.service.update.invoke
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -106,11 +105,8 @@ class UpdateInstallingViewModel(
         }
 
         Log.d(TAG, "Downloading asset '${updateService.getAssetName()}'")
-        val repo = repositoryDao.getRepositoryById(updateService.device.device.repositoryId)
-        val repoStr = repo?.ownerAndRepo ?: DEFAULT_REPO
-        val (repoOwner, repoName) = splitRepository(repoStr)
 
-        updateService.downloadBinary(repoOwner, repoName).collect { downloadState ->
+        updateService.downloadBinary(repositoryDao).collect { downloadState ->
             when (downloadState) {
                 is DownloadState.Downloading -> {
                     Log.d(TAG, "File download Progress=${downloadState.progress}")

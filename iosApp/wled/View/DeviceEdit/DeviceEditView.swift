@@ -1,24 +1,24 @@
 import SwiftUI
-import CoreData
 import Shared
 
 private typealias State = SwiftUI.State
 
 struct DeviceEditView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
     @StateObject private var viewModel: DeviceEditViewModel
     private var device: DeviceWithState
+    private let database: AppDatabase
 
-    init(device: DeviceWithState, deviceRepository: DeviceRepository = AppDatabase.shared.deviceRepository) {
-        let context = PersistenceController.shared.container.viewContext
+    init(
+        device: DeviceWithState,
+        database: AppDatabase = .shared
+    ) {
         _viewModel = StateObject(wrappedValue: DeviceEditViewModel(
             device: device,
-            deviceRepository: deviceRepository,
-            context: context
+            database: database
         ))
 
         self.device = device
+        self.database = database
     }
 
     // MARK: - body
@@ -67,7 +67,7 @@ struct DeviceEditView: View {
                                 await viewModel.checkForUpdate()
                             }
                         } else {
-                            DeviceUpdateAvailable(device: device)
+                            DeviceUpdateAvailable(device: device, database: database)
                         }
                     }
                     .animation(.default, value: device.availableUpdateVersion)
@@ -126,6 +126,7 @@ struct DeviceNoUpdateAvailable: View {
 struct DeviceUpdateAvailable: View {
 
     var device: DeviceWithState
+    var database: AppDatabase = .shared
 
     private let unknownVersion = String(localized: "unknown_version")
 
@@ -142,7 +143,7 @@ struct DeviceUpdateAvailable: View {
                 Text("Update Available")
                 Text("From \(device.stateInfo?.info.version ?? unknownVersion) to \(device.availableUpdateVersion ?? unknownVersion)")
                 NavigationLink {
-                    DeviceUpdateDetails(device: device)
+                    DeviceUpdateDetails(device: device, database: database)
                 } label: {
                     Text("See Update")
                 }
@@ -158,6 +159,6 @@ struct DeviceUpdateAvailable: View {
 
 #Preview {
     NavigationStack {
-        DeviceEditView(device: PreviewData.onlineDevice)
+        DeviceEditView(device: PreviewData.onlineDevice, database: PreviewData.database)
     }
 }

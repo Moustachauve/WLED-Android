@@ -2,7 +2,6 @@ import SwiftUI
 import Shared
 
 struct DeviceAddView: View {
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) var dismiss
 
     @ObservedObject private var viewModel = DeviceAddViewModel()

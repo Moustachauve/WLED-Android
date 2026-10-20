@@ -14,7 +14,7 @@ import Shared
 final class DeviceApiClient: @unchecked Sendable {
     static let shared = DeviceApiClient(factory: DeviceApiFactory.companion.create())
 
-    private let factory: DeviceApiFactory
+    let factory: DeviceApiFactory
 
     init(factory: DeviceApiFactory) {
         self.factory = factory

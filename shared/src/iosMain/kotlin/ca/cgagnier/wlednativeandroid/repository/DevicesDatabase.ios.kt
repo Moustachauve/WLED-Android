@@ -34,3 +34,7 @@ fun DevicesDatabase.Companion.createInMemoryDatabase(): DevicesDatabase =
 
 /** Creates a new [DeviceRepository] backed by this database. Callers should keep and reuse the instance. */
 fun DevicesDatabase.createDeviceRepository(): DeviceRepository = DeviceRepository(deviceDao())
+
+/** Creates a new [VersionWithAssetsRepository] backed by this database. Callers should keep and reuse the instance. */
+fun DevicesDatabase.createVersionWithAssetsRepository(): VersionWithAssetsRepository =
+    VersionWithAssetsRepository(this, repositoryDao(), versionDao(), assetDao())

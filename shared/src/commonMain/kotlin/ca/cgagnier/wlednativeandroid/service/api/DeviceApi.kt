@@ -19,6 +19,9 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
+import okio.FileSystem
+import okio.Path
+import ca.cgagnier.wlednativeandroid.shared.fileSystem as defaultFileSystem
 
 /**
  * HTTP API of a single WLED device.
@@ -37,6 +40,12 @@ interface DeviceApi {
 
     @Throws(Exception::class)
     suspend fun updateDevice(fileData: ByteArray, fileName: String): ApiResponse<String>
+}
+
+@Throws(Exception::class)
+suspend fun DeviceApi.updateDevice(binaryPath: Path, fs: FileSystem = defaultFileSystem): ApiResponse<String> {
+    val bytes = fs.read(binaryPath) { readByteArray() }
+    return updateDevice(bytes, binaryPath.name)
 }
 
 class KtorDeviceApi(private val baseUrl: String, private val httpClient: HttpClient) : DeviceApi {

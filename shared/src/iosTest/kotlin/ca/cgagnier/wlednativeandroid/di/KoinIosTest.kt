@@ -65,7 +65,13 @@ class KoinIosTest : KoinTest {
         assertNotNull(get<HttpClient>())
         assertNotNull(get<CoroutineScope>())
         assertNotNull(KoinHelper.deviceRepository)
+        assertNotNull(KoinHelper.repositoryDao)
+        assertNotNull(KoinHelper.versionWithAssetsRepository)
         assertNotNull(KoinHelper.userPreferencesRepository)
         assertNotNull(KoinHelper.deviceConnectionManager)
+        assertNotNull(KoinHelper.releaseService)
+        assertNotNull(KoinHelper.deviceUpdateManager)
+        assertNotNull(KoinHelper.githubApi)
+        assertNotNull(KoinHelper.deviceApiFactory)
     }
 }

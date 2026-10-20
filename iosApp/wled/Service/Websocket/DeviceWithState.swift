@@ -1,7 +1,6 @@
 import Foundation
 import SwiftUI
 import Observation
-import CoreData
 import Shared
 
 typealias WebsocketStatus = Shared.WebsocketStatus
@@ -20,40 +19,16 @@ extension WebsocketStatus {
 @Observable
 final class DeviceWithState: Identifiable {
 
-    var device: Device {
-        didSet {
-            if oldValue.branch != device.branch || oldValue.skipUpdateTag != device.skipUpdateTag {
-                scheduleUpdateCheck(immediate: true)
-            }
-        }
-    }
-    var stateInfo: DeviceStateInfo? {
-        didSet {
-            if oldValue?.info.version != stateInfo?.info.version {
-                scheduleUpdateCheck(immediate: false)
-            }
-        }
-    }
+    var device: Device
+    var stateInfo: DeviceStateInfo?
     var websocketStatus: WebsocketStatus = .disconnected
     var availableUpdateVersion: String?
 
     nonisolated let id: String
 
-    /// Core Data context holding the release cache used to compute `availableUpdateVersion`.
-    @ObservationIgnored private let releaseContext: NSManagedObjectContext
-    @ObservationIgnored private var updateCheckTask: Task<Void, Never>?
-
-    init(
-        initialDevice: Device,
-        releaseContext: NSManagedObjectContext = PersistenceController.shared.container.viewContext
-    ) {
+    init(initialDevice: Device) {
         self.device = initialDevice
         self.id = initialDevice.macAddress
-        self.releaseContext = releaseContext
-    }
-
-    isolated deinit {
-        updateCheckTask?.cancel()
     }
 
     // MARK: - Calculated properties
@@ -68,39 +43,6 @@ final class DeviceWithState: Identifiable {
 
     var hasUpdateAvailable: Bool {
         return !(availableUpdateVersion ?? "").isEmpty
-    }
-
-    // MARK: - Update pipeline code
-
-    private func scheduleUpdateCheck(immediate: Bool) {
-        updateCheckTask?.cancel()
-        updateCheckTask = Task { [weak self] in
-            if !immediate {
-                try? await Task.sleep(for: .seconds(2))
-            }
-            guard let self, !Task.isCancelled else { return }
-            self.evaluateUpdateAvailability()
-        }
-    }
-
-    private func evaluateUpdateAvailability() {
-        guard let currentVersion = stateInfo?.info.version else {
-            if availableUpdateVersion != nil {
-                availableUpdateVersion = nil
-            }
-            return
-        }
-
-        let releaseService = ReleaseService(context: releaseContext)
-        let newerTag = releaseService.getNewerReleaseTag(
-            versionName: currentVersion,
-            branch: device.branch,
-            ignoreVersion: device.skipUpdateTag
-        )
-        let newValue = newerTag.isEmpty ? nil : newerTag
-        if availableUpdateVersion != newValue {
-            availableUpdateVersion = newValue
-        }
     }
 
     // MARK: - Helper Functions

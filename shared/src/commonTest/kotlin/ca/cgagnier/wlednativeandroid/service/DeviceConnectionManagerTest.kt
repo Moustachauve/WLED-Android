@@ -782,4 +782,24 @@ class DeviceConnectionManagerTest {
 
         assertEquals(WebsocketStatus.CONNECTED, manager.allDevicesWithState.value[0].websocketStatus)
     }
+
+    @Test
+    fun recheckUpdatesInvalidatesCacheAndResolvesNewUpdateTag() = runTest {
+        updateResolver.tagToReturn = null
+        val manager = createManager()
+
+        store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
+        advanceUntilIdle()
+
+        val conn = factory.createdConnections["192.168.1.50"]!!
+        conn.emitStateInfo(createStateInfo(version = "0.14.0"))
+        advanceUntilIdle()
+        assertEquals(null, manager.allDevicesWithState.value[0].updateVersionTag)
+
+        updateResolver.tagToReturn = "0.15.0"
+        manager.recheckUpdates()
+        advanceUntilIdle()
+
+        assertEquals("0.15.0", manager.allDevicesWithState.value[0].updateVersionTag)
+    }
 }

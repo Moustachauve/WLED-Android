@@ -7,18 +7,36 @@
 
 import Foundation
 import SwiftUI
-import CoreData
 import Shared
 
 @MainActor
 struct PreviewData {
 
-    static var viewContext: NSManagedObjectContext {
-        return PersistenceController.preview.container.viewContext
-    }
-
     /// In-memory device database that preview devices are saved to, so list previews can observe them.
     static let database = AppDatabase(inMemory: true)
+
+    static let previewVersion = VersionWithAssets(
+        version: Version(
+            id: 1,
+            repositoryId: Repository.companion.DEFAULT_ID,
+            tagName: "0.15.0",
+            name: "v0.15.0 Hoshi",
+            description: "## What's Changed\n\n* Cool new features by @wled",
+            isPrerelease: false,
+            publishedDate: "2025-01-01T00:00:00Z",
+            htmlUrl: "https://github.com/wled/WLED/releases/tag/v0.15.0"
+        ),
+        assets: [
+            Asset(
+                id: 1,
+                versionId: 1,
+                name: "WLED_0.15.0_ESP32.bin",
+                size: 1_048_576,
+                downloadUrl: "https://github.com/wled/WLED/releases/download/v0.15.0/WLED_0.15.0_ESP32.bin",
+                assetId: 1
+            )
+        ]
+    )
 
     // MARK: - Devices
 
@@ -35,11 +53,10 @@ struct PreviewData {
     }
 
     static var deviceWithUpdate: DeviceWithState {
-        // Device is on 0.13.0, Update 0.14.0 is available in DB
+        // Device is on 0.14.0, Update 0.15.0 is available in DB
         ensureVersionsExist()
-        let device = createDevice(name: "Old WLED", ip: "10.0.1.14", version: "0.13.0", color: [50, 50, 255])
-        // Force the available update version for preview purposes since the Combine pipeline might be async
-        device.availableUpdateVersion = "0.14.0"
+        let device = createDevice(name: "Old WLED", ip: "10.0.1.14", version: "0.14.0", color: [50, 50, 255])
+        device.availableUpdateVersion = "0.15.0"
         return device
     }
 
@@ -52,7 +69,7 @@ struct PreviewData {
     private static func createDevice(
         name: String,
         ip: String,
-        version: String = "0.14.0",
+        version: String = "0.15.0",
         isHidden: Bool = false,
         color: [Int] = [255, 160, 0],
         lastSeen: Int64 = Int64(Date().timeIntervalSince1970 * 1000)
@@ -78,19 +95,23 @@ struct PreviewData {
     }
 
     private static func ensureVersionsExist() {
-        // Create a mock update version in CoreData if needed
-        // Assuming 'Version' entity exists and has 'tagName'
-        let request = NSFetchRequest<NSFetchRequestResult>(entityName: "Version")
-        request.predicate = NSPredicate(format: "tagName == %@", "0.14.0")
-
-        if let count = try? viewContext.count(for: request), count == 0 {
-            let version = Version(context: viewContext)
-            version.tagName = "0.14.0"
-            version.name = "v0.14.0 Hoshi"
-            version.versionDescription = "## What's Changed\n\n* Cool new features by @Aircoookie"
-            version.isPrerelease = false
-            version.publishedDate = Date()
-            try? viewContext.save()
+        let repo = Repository(
+            id: Repository.companion.DEFAULT_ID,
+            name: "WLED",
+            ownerAndRepo: Repository.companion.DEFAULT_OWNER_REPO,
+            description: "Official WLED Repository",
+            htmlUrl: "https://github.com/wled/WLED",
+            isDefault: true,
+            isEnabled: true,
+            isUpdateEnabled: true
+        )
+        let version = previewVersion.version
+        let assets = previewVersion.assets
+        Task {
+            try? await database.versionWithAssetsRepository.updateRepository(
+                repository: repo,
+                versionToAssetsMap: [version: assets]
+            )
         }
     }
 }

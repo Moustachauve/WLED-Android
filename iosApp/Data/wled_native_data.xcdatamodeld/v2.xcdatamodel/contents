@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24411" systemVersion="25B78" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
-    <entity name="Asset" representedClassName="Asset" syncable="YES" codeGenerationType="class">
+    <entity name="Asset" representedClassName="NSManagedObject" syncable="YES">
         <attribute name="assetId" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="downloadUrl" optional="YES" attributeType="String"/>
         <attribute name="name" optional="YES" attributeType="String"/>
@@ -27,7 +27,7 @@
             </uniquenessConstraint>
         </uniquenessConstraints>
     </entity>
-    <entity name="Version" representedClassName="Version" syncable="YES" codeGenerationType="class">
+    <entity name="Version" representedClassName="NSManagedObject" syncable="YES">
         <attribute name="htmlUrl" optional="YES" attributeType="String"/>
         <attribute name="isPrerelease" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="name" optional="YES" attributeType="String"/>

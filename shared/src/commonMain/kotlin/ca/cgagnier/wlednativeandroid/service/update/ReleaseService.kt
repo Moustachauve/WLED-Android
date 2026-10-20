@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.service.update
 
 import ca.cgagnier.wlednativeandroid.model.Asset
 import ca.cgagnier.wlednativeandroid.model.Branch
+import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.UpdateSourceRegistry
 import ca.cgagnier.wlednativeandroid.model.Version
@@ -9,6 +10,7 @@ import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.model.githubapi.Release
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.model.wledapi.isOtaEnabled
+import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
@@ -16,6 +18,7 @@ import co.touchlab.kermit.Logger
 import io.github.z4kn4fein.semver.toVersionOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 private const val TAG = "updateService"
@@ -146,6 +149,77 @@ class ReleaseService(
         }
 
         return versionWithAssetsRepository.getLatestStableVersionWithAssets(repositoryId)
+    }
+
+    /**
+     * Synchronizes built-in repositories (official WLED, QuinLED, MoonModules) into the database,
+     * preserving any user-configured enablement flags.
+     */
+    suspend fun syncBuiltInRepositories() = withContext(Dispatchers.IO) {
+        val builtInOwnerAndRepos = Repository.BUILT_IN_REPOSITORIES.map { it.ownerAndRepo }
+
+        Repository.BUILT_IN_REPOSITORIES.forEach { builtin ->
+            val existing = repositoryDao.getRepositoryByOwnerAndRepo(builtin.ownerAndRepo)
+            if (existing == null) {
+                repositoryDao.insert(builtin)
+                logger.d { "Inserted built-in repository: ${builtin.ownerAndRepo}" }
+            } else {
+                // Update names and descriptions if they changed, but preserve user booleans
+                val updated = existing.copy(
+                    name = builtin.name,
+                    description = builtin.description,
+                    htmlUrl = builtin.htmlUrl,
+                    isDefault = true,
+                )
+                if (existing != updated) {
+                    repositoryDao.update(updated)
+                    logger.d { "Updated built-in repository: ${builtin.ownerAndRepo}" }
+                }
+            }
+        }
+
+        // Force all non-default repository to be false, in case they used to be default
+        val allRepos = repositoryDao.getAllRepositories().first()
+        allRepos.forEach { repo ->
+            if (repo.isDefault) {
+                val isBuiltIn = builtInOwnerAndRepos.any { it.equals(repo.ownerAndRepo, ignoreCase = true) }
+                if (!isBuiltIn) {
+                    val updated = repo.copy(isDefault = false)
+                    repositoryDao.update(updated)
+                    logger.d { "Removed default status from repository: ${repo.ownerAndRepo}" }
+                }
+            }
+        }
+    }
+
+    /**
+     * Refreshes versions for all enabled repositories that are currently used by at least one device.
+     */
+    suspend fun refreshVersionsForUsedRepositories(githubApi: GithubApi, deviceRepository: DeviceRepository) =
+        withContext(Dispatchers.IO) {
+            val usedRepoIds = deviceRepository.getUsedRepositoryIds().toSet()
+            val allRepos = repositoryDao.getAllRepositories().first()
+            val repositories = allRepos
+                .filter { it.isEnabled && it.isUpdateEnabled && usedRepoIds.contains(it.id) }
+                .map { it.ownerAndRepo }
+                .toSet()
+
+            if (repositories.isEmpty() && allRepos.isEmpty()) {
+                logger.i { "No repositories found, skipping update check." }
+                return@withContext
+            }
+
+            logger.i { "Refreshing versions from ${repositories.size} repositories: $repositories" }
+            refreshVersions(githubApi, repositories)
+        }
+
+    /**
+     * Refreshes versions for the repository associated with a single [device].
+     */
+    suspend fun refreshVersionsForDevice(githubApi: GithubApi, device: Device) = withContext(Dispatchers.IO) {
+        val repo = repositoryDao.getRepositoryById(device.repositoryId)
+        val repoStr = repo?.ownerAndRepo ?: DEFAULT_REPO
+        refreshVersions(githubApi, setOf(repoStr))
     }
 
     /**
