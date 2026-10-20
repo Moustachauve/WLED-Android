@@ -14,6 +14,7 @@ import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateService
 import ca.cgagnier.wlednativeandroid.service.update.invoke
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -151,10 +152,14 @@ class UpdateInstallingViewModel(
                 assetName = updateService.getAssetName(),
             )
         }
-        updateService.sendSoftwareUpdateRequest(
-            callback = { onSoftwareUpdateResponse(it) },
-            errorCallback = { onSoftwareUpdateError(it) },
-        )
+        try {
+            onSoftwareUpdateResponse(updateService.installUpdate())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            // Catch transport and I/O failures so they can be surfaced in the UI
+            onSoftwareUpdateError(e)
+        }
     }
 
     private fun onSoftwareUpdateResponse(response: ApiResponse<String>) {

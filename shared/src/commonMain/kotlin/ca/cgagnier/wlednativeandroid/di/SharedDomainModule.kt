@@ -9,7 +9,7 @@ import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 
 internal val sharedDomainModule: Module = module {
-    singleOf(::ReleaseService)
+    single { ReleaseService(get(), get(), get(IO_DISPATCHER)) }
     singleOf(::DeviceUpdateManager)
     single<UpdateTagResolver> { get<DeviceUpdateManager>() }
     single {

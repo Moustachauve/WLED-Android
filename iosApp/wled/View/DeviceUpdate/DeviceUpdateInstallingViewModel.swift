@@ -52,6 +52,7 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
         }
 
         let assetName = updateService.getAssetName()
+        let downloadFailedMessage = String(localized: "Download failed")
         do {
             if !updateService.isAssetFileCached() {
                 status = .downloading(versionName: assetName)
@@ -60,7 +61,7 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
                     if let failed = downloadState as? DownloadState.Failed {
                         status = .failed(
                             versionName: assetName,
-                            error: failed.error?.message ?? String(localized: "Download failed")
+                            error: failed.error?.message ?? downloadFailedMessage
                         )
                         return
                     }
@@ -70,7 +71,7 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
                     }
                 }
                 guard didFinishDownload else {
-                    status = .failed(versionName: assetName, error: String(localized: "Download failed"))
+                    status = .failed(versionName: assetName, error: downloadFailedMessage)
                     return
                 }
             }

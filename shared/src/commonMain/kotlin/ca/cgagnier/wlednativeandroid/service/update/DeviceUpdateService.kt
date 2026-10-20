@@ -146,10 +146,9 @@ class DeviceUpdateService(
     fun isAssetFileCached(): Boolean = couldDetermineAsset && fs.exists(getPathForAsset())
 
     fun downloadBinary(repoOwner: String, repoName: String): Flow<DownloadState> {
-        check(::asset.isInitialized) {
-            "Asset could not be determined for ${device.device.macAddress}."
-        }
-        return githubApi.downloadReleaseBinary(asset, repoOwner, repoName, getPathForAsset())
+        val targetPath = getPathForAsset()
+        targetPath.parent?.let(fs::createDirectories)
+        return githubApi.downloadReleaseBinary(asset, repoOwner, repoName, targetPath)
     }
 
     fun downloadBinary(repositoryDao: RepositoryDao): Flow<DownloadState> = flow {
@@ -166,9 +165,7 @@ class DeviceUpdateService(
         check(::asset.isInitialized) {
             "Asset could not be determined for ${device.device.macAddress}."
         }
-        val cacheDirectory = cacheDir / versionWithAssets.version.tagName
-        fs.createDirectories(cacheDirectory)
-        return cacheDirectory / asset.name
+        return cacheDir / versionWithAssets.version.tagName / asset.name
     }
 
     @Throws(Exception::class)
@@ -178,20 +175,6 @@ class DeviceUpdateService(
         return deviceApiFactory
             .create(device.device, UPDATE_TIMEOUT_SECONDS)
             .updateDevice(getPathForAsset(), fs)
-    }
-
-    suspend fun sendSoftwareUpdateRequest(
-        callback: ((ApiResponse<String>) -> Unit)? = null,
-        errorCallback: ((Exception) -> Unit)? = null,
-    ) {
-        try {
-            callback?.invoke(installUpdate())
-        } catch (e: CancellationException) {
-            throw e
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            // Catch transport and I/O failures so they can be forwarded to the caller's errorCallback
-            errorCallback?.invoke(e)
-        }
     }
 
     companion object {

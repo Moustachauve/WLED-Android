@@ -17,13 +17,23 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
-import okio.Path.Companion.toPath
+import okio.FileSystem
+import okio.Path
+import okio.SYSTEM
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DeviceUpdateServiceTest {
+
+    private data class AssetResolutionCase(
+        val targetVersionTag: String,
+        val release: String?,
+        val platformName: String? = null,
+        val expectedAssetName: String,
+    )
 
     private fun makeVersion(tagName: String) = Version(
         tagName = tagName,
@@ -43,11 +53,15 @@ class DeviceUpdateServiceTest {
         assetId = 0,
     )
 
+    private fun newTempCacheDir(): Path =
+        FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "wled_update_test_${Random.nextLong(0, Long.MAX_VALUE)}"
+
     private fun makeDeviceUpdateService(
         targetVersionTag: String,
         release: String?,
         platformName: String? = null,
         availableAssets: List<Asset>,
+        cacheDir: Path = newTempCacheDir(),
     ): DeviceUpdateService {
         val device = Device(macAddress = "AA:BB:CC:DD:EE:FF", address = "192.168.1.1")
         val stateInfo = if (release != null || platformName != null) {
@@ -74,81 +88,45 @@ class DeviceUpdateServiceTest {
         return DeviceUpdateService(
             device = deviceWithState,
             versionWithAssets = versionWithAssets,
-            cacheDir = "/tmp/wled_test".toPath(),
+            cacheDir = cacheDir,
             deviceApiFactory = deviceApiFactory,
             githubApi = githubApi,
         )
     }
 
     @Test
-    fun determineAssetMapsEsp32V4ToEsp32OnVersion0160AndLater() {
+    fun determineAssetResolvesMatchingBinaryAcrossVersionsAndOverrides() {
         val cases = listOf(
-            Triple("0.16.0", "ESP32_V4", "WLED_0.16.0_ESP32.bin"),
-            Triple("0.16.1", "ESP32_V4", "WLED_0.16.1_ESP32.bin"),
-            Triple("0.16.0", "esp32_v4", "WLED_0.16.0_ESP32.bin"),
-            Triple("0.16.0-b2", "ESP32_V4", "WLED_0.16.0-b2_ESP32.bin"),
+            // ESP32_V4 -> ESP32 override on 0.16.0+ (including pre-release and lowercase)
+            AssetResolutionCase("0.16.0", "ESP32_V4", expectedAssetName = "WLED_0.16.0_ESP32.bin"),
+            AssetResolutionCase("0.16.1", "ESP32_V4", expectedAssetName = "WLED_0.16.1_ESP32.bin"),
+            AssetResolutionCase("0.16.0", "esp32_v4", expectedAssetName = "WLED_0.16.0_ESP32.bin"),
+            AssetResolutionCase("0.16.0-b2", "ESP32_V4", expectedAssetName = "WLED_0.16.0-b2_ESP32.bin"),
+            // Standard releases on 0.16.0+ pass through unchanged
+            AssetResolutionCase("0.16.0", "ESP32", expectedAssetName = "WLED_0.16.0_ESP32.bin"),
+            AssetResolutionCase("0.16.0", "ESP32_S3", expectedAssetName = "WLED_0.16.0_ESP32_S3.bin"),
+            AssetResolutionCase("0.16.0", "ESP8266", expectedAssetName = "WLED_0.16.0_ESP8266.bin"),
+            // ESP32_V4 preserved on 0.15.x
+            AssetResolutionCase("0.15.0", "ESP32_V4", expectedAssetName = "WLED_0.15.0_ESP32_V4.bin"),
+            AssetResolutionCase("0.15.1", "ESP32_V4", expectedAssetName = "WLED_0.15.1_ESP32_V4.bin"),
+            AssetResolutionCase("0.15.0-b5", "ESP32_V4", expectedAssetName = "WLED_0.15.0-b5_ESP32_V4.bin"),
+            // Legacy fallback to platformName when release is missing
+            AssetResolutionCase("0.14.4", null, platformName = "esp32", expectedAssetName = "WLED_0.14.4_ESP32.bin"),
         )
-        cases.forEach { (targetTag, release, expectedAsset) ->
+        cases.forEach { case ->
             val service = makeDeviceUpdateService(
-                targetVersionTag = targetTag,
-                release = release,
-                availableAssets = listOf(makeAsset(1L, expectedAsset)),
+                targetVersionTag = case.targetVersionTag,
+                release = case.release,
+                platformName = case.platformName,
+                availableAssets = listOf(makeAsset(1L, case.expectedAssetName)),
             )
 
-            assertTrue(service.couldDetermineAsset(), "Expected asset for $targetTag / $release")
-            assertEquals(expectedAsset, service.getAssetName())
-        }
-    }
-
-    @Test
-    fun determineAssetPassesThroughStandardAndUnknownReleasesOnVersion0160() {
-        val cases = listOf(
-            "ESP32" to "WLED_0.16.0_ESP32.bin",
-            "ESP32_S3" to "WLED_0.16.0_ESP32_S3.bin",
-            "ESP8266" to "WLED_0.16.0_ESP8266.bin",
-        )
-        cases.forEach { (release, expectedAsset) ->
-            val service = makeDeviceUpdateService(
-                targetVersionTag = "0.16.0",
-                release = release,
-                availableAssets = listOf(makeAsset(1L, expectedAsset)),
+            assertTrue(
+                service.couldDetermineAsset(),
+                "Expected asset for ${case.targetVersionTag} / ${case.release} / ${case.platformName}",
             )
-
-            assertTrue(service.couldDetermineAsset(), "Expected asset for $release")
-            assertEquals(expectedAsset, service.getAssetName())
+            assertEquals(case.expectedAssetName, service.getAssetName())
         }
-    }
-
-    @Test
-    fun determineAssetPreservesEsp32V4OnVersion015x() {
-        val cases = listOf(
-            "0.15.0" to "WLED_0.15.0_ESP32_V4.bin",
-            "0.15.1" to "WLED_0.15.1_ESP32_V4.bin",
-            "0.15.0-b5" to "WLED_0.15.0-b5_ESP32_V4.bin",
-        )
-        cases.forEach { (targetTag, expectedAsset) ->
-            val service = makeDeviceUpdateService(
-                targetVersionTag = targetTag,
-                release = "ESP32_V4",
-                availableAssets = listOf(makeAsset(1L, expectedAsset)),
-            )
-
-            assertTrue(service.couldDetermineAsset(), "Expected asset for $targetTag")
-            assertEquals(expectedAsset, service.getAssetName())
-        }
-    }
-
-    @Test
-    fun determineAssetFallsBackToPlatformWhenReleaseIsMissing() {
-        val service = makeDeviceUpdateService(
-            targetVersionTag = "0.14.4",
-            release = null,
-            platformName = "esp32",
-            availableAssets = listOf(makeAsset(1L, "WLED_0.14.4_ESP32.bin")),
-        )
-
-        assertTrue(service.couldDetermineAsset())
-        assertEquals("WLED_0.14.4_ESP32.bin", service.getAssetName())
     }
 
     @Test
@@ -162,6 +140,24 @@ class DeviceUpdateServiceTest {
 
         assertFalse(service.couldDetermineAsset())
         assertEquals("WLED_0.15.0_ESP32_Ethernet.bin", service.getAssetName())
+    }
+
+    @Test
+    fun isAssetFileCachedDoesNotCreateCacheDirectory() {
+        val cacheDir = newTempCacheDir()
+        try {
+            val service = makeDeviceUpdateService(
+                targetVersionTag = "0.15.0",
+                release = "ESP32",
+                availableAssets = listOf(makeAsset(1L, "WLED_0.15.0_ESP32.bin")),
+                cacheDir = cacheDir,
+            )
+
+            assertFalse(service.isAssetFileCached())
+            assertFalse(FileSystem.SYSTEM.exists(cacheDir))
+        } finally {
+            FileSystem.SYSTEM.deleteRecursively(cacheDir)
+        }
     }
 
     @Test

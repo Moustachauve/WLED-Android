@@ -1,19 +1,29 @@
 package ca.cgagnier.wlednativeandroid.service.update
 
 import ca.cgagnier.wlednativeandroid.model.Branch
+import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.Repository
 import ca.cgagnier.wlednativeandroid.model.Version
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
+import ca.cgagnier.wlednativeandroid.model.githubapi.Release
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.model.wledapi.Leds
 import ca.cgagnier.wlednativeandroid.model.wledapi.Wifi
+import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
+import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -140,6 +150,113 @@ class ReleaseServiceTest {
         val result = releaseService.getNewerReleaseTag(deviceInfo, Branch.STABLE, ignoreVersion = "")
 
         assertNull(result)
+    }
+
+    @Test
+    fun `syncBuiltInRepositories inserts missing built-ins and clears default flag on custom repos`() = runTest {
+        val service = ReleaseService(
+            versionWithAssetsRepository,
+            repositoryDao,
+            StandardTestDispatcher(testScheduler),
+        )
+        val staleCustomRepo = Repository(
+            id = 99L,
+            name = "OldDefault",
+            ownerAndRepo = "custom/WLED",
+            description = "Custom fork",
+            htmlUrl = "https://github.com/custom/WLED",
+            isDefault = true,
+        )
+        coEvery { repositoryDao.getRepositoryByOwnerAndRepo(any()) } returns null
+        coEvery { repositoryDao.insert(any()) } returns 1L
+        coEvery { repositoryDao.update(any()) } returns Unit
+        every { repositoryDao.getAllRepositories() } returns flowOf(listOf(staleCustomRepo))
+
+        service.syncBuiltInRepositories()
+
+        Repository.BUILT_IN_REPOSITORIES.forEach { builtin ->
+            coVerify { repositoryDao.insert(builtin) }
+        }
+        coVerify { repositoryDao.update(staleCustomRepo.copy(isDefault = false)) }
+    }
+
+    @Test
+    fun `refreshVersions returns false when a repository fails and still updates successful ones`() = runTest {
+        val service = ReleaseService(
+            versionWithAssetsRepository,
+            repositoryDao,
+            StandardTestDispatcher(testScheduler),
+        )
+        val githubApi: GithubApi = mockk()
+        val release = mockk<Release>(relaxed = true) {
+            every { tagName } returns "v0.15.0"
+            every { name } returns "0.15.0"
+            every { body } returns "Notes"
+            every { prerelease } returns false
+            every { publishedAt } returns "2025-01-01T00:00:00Z"
+            every { htmlUrl } returns "https://github.com/wled/WLED/releases/tag/v0.15.0"
+            every { assets } returns emptyList()
+        }
+        coEvery { githubApi.getAllReleases("wled", "WLED") } returns Result.success(listOf(release))
+        coEvery { githubApi.getAllReleases("broken", "fork") } returns Result.failure(Exception("Network error"))
+        coEvery { versionWithAssetsRepository.updateRepository(any(), any()) } returns Unit
+
+        val succeeded = service.refreshVersions(githubApi, setOf("wled/WLED", "broken/fork"))
+
+        assertFalse(succeeded)
+        coVerify(exactly = 1) {
+            versionWithAssetsRepository.updateRepository(
+                match { it.ownerAndRepo == "wled/WLED" },
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `refreshVersionsForUsedRepositories only refreshes enabled and used repositories`() = runTest {
+        val service = ReleaseService(
+            versionWithAssetsRepository,
+            repositoryDao,
+            StandardTestDispatcher(testScheduler),
+        )
+        val githubApi: GithubApi = mockk()
+        val deviceRepository: DeviceRepository = mockk()
+        val usedEnabledRepo = defaultRepo.copy(id = 1L, isEnabled = true, isUpdateEnabled = true)
+        val unusedRepo = defaultRepo.copy(id = 2L, ownerAndRepo = "unused/WLED", isEnabled = true)
+        val disabledRepo = defaultRepo.copy(id = 3L, ownerAndRepo = "disabled/WLED", isEnabled = false)
+
+        coEvery { deviceRepository.getUsedRepositoryIds() } returns listOf(1L, 3L)
+        every { repositoryDao.getAllRepositories() } returns flowOf(
+            listOf(usedEnabledRepo, unusedRepo, disabledRepo),
+        )
+        coEvery { githubApi.getAllReleases("wled", "WLED") } returns Result.success(emptyList())
+
+        val succeeded = service.refreshVersionsForUsedRepositories(githubApi, deviceRepository)
+
+        assertTrue(succeeded)
+        coVerify(exactly = 1) { githubApi.getAllReleases("wled", "WLED") }
+        coVerify(exactly = 0) { githubApi.getAllReleases("unused", "WLED") }
+        coVerify(exactly = 0) { githubApi.getAllReleases("disabled", "WLED") }
+    }
+
+    @Test
+    fun `refreshVersionsForDevice refreshes device repository`() = runTest {
+        val service = ReleaseService(
+            versionWithAssetsRepository,
+            repositoryDao,
+            StandardTestDispatcher(testScheduler),
+        )
+        val githubApi: GithubApi = mockk()
+        val customRepo = defaultRepo.copy(id = 5L, ownerAndRepo = "MoonModules/WLED")
+        val device = Device(macAddress = "AABBCCDDEEFF", address = "192.168.1.50", repositoryId = 5L)
+
+        coEvery { repositoryDao.getRepositoryById(5L) } returns customRepo
+        coEvery { githubApi.getAllReleases("MoonModules", "WLED") } returns Result.success(emptyList())
+
+        val succeeded = service.refreshVersionsForDevice(githubApi, device)
+
+        assertTrue(succeeded)
+        coVerify(exactly = 1) { githubApi.getAllReleases("MoonModules", "WLED") }
     }
 
     private fun createInfo(version: String?, options: Int = 0x01): Info = Info(

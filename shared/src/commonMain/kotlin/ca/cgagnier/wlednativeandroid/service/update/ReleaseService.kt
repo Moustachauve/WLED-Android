@@ -16,6 +16,7 @@ import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import co.touchlab.kermit.Logger
 import io.github.z4kn4fein.semver.toVersionOrNull
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.first
@@ -61,7 +62,12 @@ fun splitRepository(repository: String): Pair<String, String> {
 class ReleaseService(
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val repositoryDao: RepositoryDao,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    constructor(
+        versionWithAssetsRepository: VersionWithAssetsRepository,
+        repositoryDao: RepositoryDao,
+    ) : this(versionWithAssetsRepository, repositoryDao, Dispatchers.IO)
 
     /**
      * If a new version is available, returns the version tag of it.
@@ -155,7 +161,7 @@ class ReleaseService(
      * Synchronizes built-in repositories (official WLED, QuinLED, MoonModules) into the database,
      * preserving any user-configured enablement flags.
      */
-    suspend fun syncBuiltInRepositories() = withContext(Dispatchers.IO) {
+    suspend fun syncBuiltInRepositories() = withContext(ioDispatcher) {
         val builtInOwnerAndRepos = Repository.BUILT_IN_REPOSITORIES.map { it.ownerAndRepo }
 
         Repository.BUILT_IN_REPOSITORIES.forEach { builtin ->
@@ -180,16 +186,14 @@ class ReleaseService(
 
         // Force all non-default repository to be false, in case they used to be default
         val allRepos = repositoryDao.getAllRepositories().first()
-        allRepos.forEach { repo ->
-            if (repo.isDefault) {
-                val isBuiltIn = builtInOwnerAndRepos.any { it.equals(repo.ownerAndRepo, ignoreCase = true) }
-                if (!isBuiltIn) {
-                    val updated = repo.copy(isDefault = false)
-                    repositoryDao.update(updated)
-                    logger.d { "Removed default status from repository: ${repo.ownerAndRepo}" }
-                }
+        allRepos
+            .filter { repo ->
+                repo.isDefault && builtInOwnerAndRepos.none { it.equals(repo.ownerAndRepo, ignoreCase = true) }
             }
-        }
+            .forEach { repo ->
+                repositoryDao.update(repo.copy(isDefault = false))
+                logger.d { "Removed default status from repository: ${repo.ownerAndRepo}" }
+            }
     }
 
     /**
@@ -198,7 +202,7 @@ class ReleaseService(
      * @return `true` if all targeted repositories were refreshed without error, `false` otherwise.
      */
     suspend fun refreshVersionsForUsedRepositories(githubApi: GithubApi, deviceRepository: DeviceRepository): Boolean =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val usedRepoIds = deviceRepository.getUsedRepositoryIds().toSet()
             val allRepos = repositoryDao.getAllRepositories().first()
             val repositories = allRepos
@@ -206,9 +210,9 @@ class ReleaseService(
                 .map { it.ownerAndRepo }
                 .toSet()
 
-            if (repositories.isEmpty() && allRepos.isEmpty()) {
-                logger.i { "No repositories found, skipping update check." }
-                return@withContext false
+            if (repositories.isEmpty()) {
+                logger.i { "No used enabled repositories found, skipping update check." }
+                return@withContext allRepos.isNotEmpty()
             }
 
             logger.i { "Refreshing versions from ${repositories.size} repositories: $repositories" }
@@ -218,7 +222,7 @@ class ReleaseService(
     /**
      * Refreshes versions for the repository associated with a single [device].
      */
-    suspend fun refreshVersionsForDevice(githubApi: GithubApi, device: Device): Boolean = withContext(Dispatchers.IO) {
+    suspend fun refreshVersionsForDevice(githubApi: GithubApi, device: Device): Boolean = withContext(ioDispatcher) {
         val repo = repositoryDao.getRepositoryById(device.repositoryId)
         val repoStr = repo?.ownerAndRepo ?: DEFAULT_REPO
         refreshVersions(githubApi, setOf(repoStr))
@@ -230,38 +234,38 @@ class ReleaseService(
      *
      * @return `true` if all repositories were refreshed without error, `false` if any failed.
      */
-    suspend fun refreshVersions(githubApi: GithubApi, repositories: Set<String>): Boolean =
-        withContext(Dispatchers.IO) {
-            var allSucceeded = true
-            for (repository in repositories) {
-                val (repoOwner, repoName) = splitRepository(repository)
-                logger.i { "Fetching releases from $repository" }
-                githubApi.getAllReleases(repoOwner, repoName).onFailure { exception ->
-                    logger.w(exception) { "Failed to refresh versions from $repository" }
-                    allSucceeded = false
-                }.onSuccess { releases ->
-                    if (releases.isEmpty()) {
-                        logger.w { "GitHub returned 0 releases for $repository." }
-                    } else {
-                        val repoModel = Repository(
-                            name = repoName,
-                            ownerAndRepo = repository,
-                            description = "",
-                            htmlUrl = "https://github.com/$repository",
-                        )
+    suspend fun refreshVersions(githubApi: GithubApi, repositories: Set<String>): Boolean = withContext(ioDispatcher) {
+        var failureCount = 0
+        for (repository in repositories) {
+            val (repoOwner, repoName) = splitRepository(repository)
+            logger.i { "Fetching releases from $repository" }
+            val releases = githubApi.getAllReleases(repoOwner, repoName).getOrElse { exception ->
+                logger.w(exception) { "Failed to refresh versions from $repository" }
+                failureCount++
+                null
+            } ?: continue
 
-                        // We need to return pair of version with its assets so the repository
-                        // can map the new autogenerated IDs
-                        val versionAndAssetsMap = releases.associate { release ->
-                            createVersion(release, 0L) to createAssetsForVersion(release, 0L)
-                        }
-                        logger.i { "Updating ${versionAndAssetsMap.size} versions and assets for $repository" }
-                        versionWithAssetsRepository.updateRepository(repoModel, versionAndAssetsMap)
-                    }
+            if (releases.isEmpty()) {
+                logger.w { "GitHub returned 0 releases for $repository." }
+            } else {
+                val repoModel = Repository(
+                    name = repoName,
+                    ownerAndRepo = repository,
+                    description = "",
+                    htmlUrl = "https://github.com/$repository",
+                )
+
+                // We need to return pair of version with its assets so the repository
+                // can map the new autogenerated IDs
+                val versionAndAssetsMap = releases.associate { release ->
+                    createVersion(release, 0L) to createAssetsForVersion(release, 0L)
                 }
+                logger.i { "Updating ${versionAndAssetsMap.size} versions and assets for $repository" }
+                versionWithAssetsRepository.updateRepository(repoModel, versionAndAssetsMap)
             }
-            allSucceeded
         }
+        failureCount == 0
+    }
 
     private fun createVersion(version: Release, repositoryId: Long): Version = Version(
         repositoryId = repositoryId,

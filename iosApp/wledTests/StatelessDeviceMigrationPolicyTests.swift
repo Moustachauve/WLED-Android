@@ -132,6 +132,25 @@ struct StatelessDeviceMigrationPolicyTests {
         #expect(manager.createdDestinations.count == 1, "Should not create a second instance for duplicate MAC")
     }
 
+    @Test
+    func compiledMappingModelMatchesV1AndV2DataModels() throws {
+        let momdURL = try #require(
+            Bundle.main.url(forResource: "wled_native_data", withExtension: "momd")
+        )
+        let v1Model = try #require(
+            NSManagedObjectModel(contentsOf: momdURL.appendingPathComponent("wled_native_data.mom"))
+        )
+        let v2Model = try #require(
+            NSManagedObjectModel(contentsOf: momdURL.appendingPathComponent("v2.mom"))
+        )
+        let mappingModel = NSMappingModel(
+            from: [Bundle.main],
+            forSourceModel: v1Model,
+            destinationModel: v2Model
+        )
+        #expect(mappingModel != nil)
+    }
+
     // MARK: - Helpers
 
     static func createSourceModel() -> NSManagedObjectModel {

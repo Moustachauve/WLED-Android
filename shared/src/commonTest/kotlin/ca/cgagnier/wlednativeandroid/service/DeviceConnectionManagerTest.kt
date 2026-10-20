@@ -783,18 +783,22 @@ class DeviceConnectionManagerTest {
         assertEquals(WebsocketStatus.CONNECTED, manager.allDevicesWithState.value[0].websocketStatus)
     }
 
-    @Test
-    fun recheckUpdatesInvalidatesCacheAndResolvesNewUpdateTag() = runTest {
-        updateResolver.tagToReturn = null
+    private fun TestScope.connectSingleDeviceWithVersion(
+        initialUpdateTag: String?,
+        version: String = "0.14.0",
+    ): DeviceConnectionManager {
+        updateResolver.tagToReturn = initialUpdateTag
         val manager = createManager()
-
         store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
         advanceUntilIdle()
-
-        val conn = factory.createdConnections["192.168.1.50"]!!
-        conn.emitStateInfo(createStateInfo(version = "0.14.0"))
+        factory.createdConnections["192.168.1.50"]!!.emitStateInfo(createStateInfo(version = version))
         advanceUntilIdle()
-        assertEquals(null, manager.allDevicesWithState.value[0].updateVersionTag)
+        return manager
+    }
+
+    @Test
+    fun recheckUpdatesInvalidatesCacheAndResolvesNewUpdateTag() = runTest {
+        val manager = connectSingleDeviceWithVersion(initialUpdateTag = null)
 
         updateResolver.tagToReturn = "0.15.0"
         manager.recheckUpdates()
@@ -804,22 +808,20 @@ class DeviceConnectionManagerTest {
     }
 
     @Test
-    fun markUpdateInstalledUpdatesVersionAndClearsUpdateTag() = runTest {
-        updateResolver.tagToReturn = "0.15.0"
-        val manager = createManager()
-
-        store.allDevicesFlow.value = listOf(createDevice(mac = "A", address = "192.168.1.50"))
-        advanceUntilIdle()
-
-        val conn = factory.createdConnections["192.168.1.50"]!!
-        conn.emitStateInfo(createStateInfo(version = "0.14.0"))
-        advanceUntilIdle()
-        assertEquals("0.15.0", manager.allDevicesWithState.value[0].updateVersionTag)
+    fun markUpdateInstalledUpdatesStateInfoVersion() = runTest {
+        val manager = connectSingleDeviceWithVersion(initialUpdateTag = "0.15.0")
 
         manager.markUpdateInstalled(macAddress = "A", installedVersionTag = "v0.15.0")
 
-        val updated = manager.allDevicesWithState.value[0]
-        assertEquals("0.15.0", updated.stateInfo?.info?.version)
-        assertEquals(null, updated.updateVersionTag)
+        assertEquals("0.15.0", manager.allDevicesWithState.value[0].stateInfo?.info?.version)
+    }
+
+    @Test
+    fun markUpdateInstalledClearsUpdateVersionTag() = runTest {
+        val manager = connectSingleDeviceWithVersion(initialUpdateTag = "0.15.0")
+
+        manager.markUpdateInstalled(macAddress = "A", installedVersionTag = "v0.15.0")
+
+        assertEquals(null, manager.allDevicesWithState.value[0].updateVersionTag)
     }
 }
