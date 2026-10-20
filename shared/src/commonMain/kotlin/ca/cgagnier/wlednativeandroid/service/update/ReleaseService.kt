@@ -212,7 +212,7 @@ class ReleaseService(
 
             if (repositories.isEmpty()) {
                 logger.i { "No used enabled repositories found, skipping update check." }
-                return@withContext allRepos.isNotEmpty()
+                return@withContext false
             }
 
             logger.i { "Refreshing versions from ${repositories.size} repositories: $repositories" }

@@ -17,8 +17,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -27,10 +28,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReleaseServiceTest {
 
     private val versionWithAssetsRepository: VersionWithAssetsRepository = mockk()
     private val repositoryDao: RepositoryDao = mockk()
+    private val githubApi: GithubApi = mockk()
     private lateinit var releaseService: ReleaseService
 
     private val defaultRepo = Repository(
@@ -43,7 +46,11 @@ class ReleaseServiceTest {
 
     @BeforeEach
     fun setUp() {
-        releaseService = ReleaseService(versionWithAssetsRepository, repositoryDao)
+        releaseService = ReleaseService(
+            versionWithAssetsRepository,
+            repositoryDao,
+            UnconfinedTestDispatcher(),
+        )
         coEvery { repositoryDao.getRepositoryByOwnerAndRepo("wled/WLED") } returns defaultRepo
     }
 
@@ -153,12 +160,20 @@ class ReleaseServiceTest {
     }
 
     @Test
-    fun `syncBuiltInRepositories inserts missing built-ins and clears default flag on custom repos`() = runTest {
-        val service = ReleaseService(
-            versionWithAssetsRepository,
-            repositoryDao,
-            StandardTestDispatcher(testScheduler),
-        )
+    fun `syncBuiltInRepositories inserts missing built-in repositories`() = runTest {
+        coEvery { repositoryDao.getRepositoryByOwnerAndRepo(any()) } returns null
+        coEvery { repositoryDao.insert(any()) } returns 1L
+        every { repositoryDao.getAllRepositories() } returns flowOf(emptyList())
+
+        releaseService.syncBuiltInRepositories()
+
+        Repository.BUILT_IN_REPOSITORIES.forEach { builtin ->
+            coVerify { repositoryDao.insert(builtin) }
+        }
+    }
+
+    @Test
+    fun `syncBuiltInRepositories clears default flag on non-built-in repositories`() = runTest {
         val staleCustomRepo = Repository(
             id = 99L,
             name = "OldDefault",
@@ -167,27 +182,17 @@ class ReleaseServiceTest {
             htmlUrl = "https://github.com/custom/WLED",
             isDefault = true,
         )
-        coEvery { repositoryDao.getRepositoryByOwnerAndRepo(any()) } returns null
-        coEvery { repositoryDao.insert(any()) } returns 1L
+        coEvery { repositoryDao.getRepositoryByOwnerAndRepo(any()) } returns defaultRepo
         coEvery { repositoryDao.update(any()) } returns Unit
         every { repositoryDao.getAllRepositories() } returns flowOf(listOf(staleCustomRepo))
 
-        service.syncBuiltInRepositories()
+        releaseService.syncBuiltInRepositories()
 
-        Repository.BUILT_IN_REPOSITORIES.forEach { builtin ->
-            coVerify { repositoryDao.insert(builtin) }
-        }
         coVerify { repositoryDao.update(staleCustomRepo.copy(isDefault = false)) }
     }
 
     @Test
     fun `refreshVersions returns false when a repository fails and still updates successful ones`() = runTest {
-        val service = ReleaseService(
-            versionWithAssetsRepository,
-            repositoryDao,
-            StandardTestDispatcher(testScheduler),
-        )
-        val githubApi: GithubApi = mockk()
         val release = mockk<Release>(relaxed = true) {
             every { tagName } returns "v0.15.0"
             every { name } returns "0.15.0"
@@ -201,7 +206,7 @@ class ReleaseServiceTest {
         coEvery { githubApi.getAllReleases("broken", "fork") } returns Result.failure(Exception("Network error"))
         coEvery { versionWithAssetsRepository.updateRepository(any(), any()) } returns Unit
 
-        val succeeded = service.refreshVersions(githubApi, setOf("wled/WLED", "broken/fork"))
+        val succeeded = releaseService.refreshVersions(githubApi, setOf("wled/WLED", "broken/fork"))
 
         assertFalse(succeeded)
         coVerify(exactly = 1) {
@@ -214,12 +219,6 @@ class ReleaseServiceTest {
 
     @Test
     fun `refreshVersionsForUsedRepositories only refreshes enabled and used repositories`() = runTest {
-        val service = ReleaseService(
-            versionWithAssetsRepository,
-            repositoryDao,
-            StandardTestDispatcher(testScheduler),
-        )
-        val githubApi: GithubApi = mockk()
         val deviceRepository: DeviceRepository = mockk()
         val usedEnabledRepo = defaultRepo.copy(id = 1L, isEnabled = true, isUpdateEnabled = true)
         val unusedRepo = defaultRepo.copy(id = 2L, ownerAndRepo = "unused/WLED", isEnabled = true)
@@ -231,7 +230,7 @@ class ReleaseServiceTest {
         )
         coEvery { githubApi.getAllReleases("wled", "WLED") } returns Result.success(emptyList())
 
-        val succeeded = service.refreshVersionsForUsedRepositories(githubApi, deviceRepository)
+        val succeeded = releaseService.refreshVersionsForUsedRepositories(githubApi, deviceRepository)
 
         assertTrue(succeeded)
         coVerify(exactly = 1) { githubApi.getAllReleases("wled", "WLED") }
@@ -240,20 +239,26 @@ class ReleaseServiceTest {
     }
 
     @Test
+    fun `refreshVersionsForUsedRepositories returns false when no repositories are used`() = runTest {
+        val deviceRepository: DeviceRepository = mockk()
+        coEvery { deviceRepository.getUsedRepositoryIds() } returns emptyList()
+        every { repositoryDao.getAllRepositories() } returns flowOf(listOf(defaultRepo))
+
+        val succeeded = releaseService.refreshVersionsForUsedRepositories(githubApi, deviceRepository)
+
+        assertFalse(succeeded)
+        coVerify(exactly = 0) { githubApi.getAllReleases(any(), any()) }
+    }
+
+    @Test
     fun `refreshVersionsForDevice refreshes device repository`() = runTest {
-        val service = ReleaseService(
-            versionWithAssetsRepository,
-            repositoryDao,
-            StandardTestDispatcher(testScheduler),
-        )
-        val githubApi: GithubApi = mockk()
         val customRepo = defaultRepo.copy(id = 5L, ownerAndRepo = "MoonModules/WLED")
         val device = Device(macAddress = "AABBCCDDEEFF", address = "192.168.1.50", repositoryId = 5L)
 
         coEvery { repositoryDao.getRepositoryById(5L) } returns customRepo
         coEvery { githubApi.getAllReleases("MoonModules", "WLED") } returns Result.success(emptyList())
 
-        val succeeded = service.refreshVersionsForDevice(githubApi, device)
+        val succeeded = releaseService.refreshVersionsForDevice(githubApi, device)
 
         assertTrue(succeeded)
         coVerify(exactly = 1) { githubApi.getAllReleases("MoonModules", "WLED") }

@@ -30,19 +30,17 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
     func startUpdateProcess(
         device: DeviceWithState,
         version: VersionWithAssets,
-        database: AppDatabase = .shared,
-        cacheDirPath: String? = nil
+        database: AppDatabase = .shared
     ) async {
         let updateService = DeviceUpdateService.companion.create(
             device: device.device,
             stateInfo: device.stateInfo,
             versionWithAssets: version,
             deviceApiFactory: database.deviceApiFactory,
-            githubApi: database.githubApi,
-            cacheDirPath: cacheDirPath
+            githubApi: database.githubApi
         )
-        let determinedAssetName = updateService.getAssetName()
-        let fallbackName = determinedAssetName.isEmpty ? version.version.tagName : determinedAssetName
+        let assetName = updateService.getAssetName()
+        let fallbackName = assetName.isEmpty ? version.version.tagName : assetName
         guard updateService.couldDetermineAsset() else {
             status = .failed(
                 versionName: fallbackName,
@@ -51,7 +49,6 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
             return
         }
 
-        let assetName = updateService.getAssetName()
         let downloadFailedMessage = String(localized: "Download failed")
         do {
             if !updateService.isAssetFileCached() {

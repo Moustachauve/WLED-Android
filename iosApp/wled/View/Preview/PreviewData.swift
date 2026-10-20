@@ -95,19 +95,15 @@ struct PreviewData {
     }
 
     private static func ensureVersionsExist() {
-        let repo = Repository(
-            id: Repository.companion.DEFAULT_ID,
-            name: "WLED",
-            ownerAndRepo: Repository.companion.DEFAULT_OWNER_REPO,
-            description: "Official WLED Repository",
-            htmlUrl: "https://github.com/wled/WLED",
-            isDefault: true,
-            isEnabled: true,
-            isUpdateEnabled: true
-        )
         let version = previewVersion.version
         let assets = previewVersion.assets
         Task {
+            await database.waitUntilReady()
+            guard let repo = try? await database.repositoryDao.getRepositoryByOwnerAndRepo(
+                ownerAndRepo: Repository.companion.DEFAULT_OWNER_REPO
+            ) else {
+                return
+            }
             try? await database.versionWithAssetsRepository.updateRepository(
                 repository: repo,
                 versionToAssetsMap: [version: assets]

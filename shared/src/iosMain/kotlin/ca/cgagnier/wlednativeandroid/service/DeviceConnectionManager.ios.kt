@@ -62,7 +62,7 @@ internal fun DeviceConnectionManager.Companion.create(
     )
     val effectiveUpdateTagResolver: UpdateTagResolver = updateTagResolver ?: run {
         val versionWithAssetsRepository = database.createVersionWithAssetsRepository()
-        val releaseService = ReleaseService(versionWithAssetsRepository, database.repositoryDao())
+        val releaseService = ReleaseService(versionWithAssetsRepository, database.repositoryDao(), ioDispatcher)
         DeviceUpdateManager(releaseService)
     }
 

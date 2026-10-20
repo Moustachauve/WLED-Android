@@ -50,14 +50,13 @@ class MainViewModel(
 
     private var deepLinkJob: kotlinx.coroutines.Job? = null
 
-    init {
-        viewModelScope.launch(Dispatchers.IO) {
-            releaseService.syncBuiltInRepositories()
-        }
+    private val syncBuiltInReposJob = viewModelScope.launch(Dispatchers.IO) {
+        releaseService.syncBuiltInRepositories()
     }
 
     fun downloadUpdateMetadata() {
         viewModelScope.launch(Dispatchers.IO) {
+            syncBuiltInReposJob.join()
             val lastCheckDate = userPreferencesRepository.lastUpdateCheckDate.first()
             val now = System.currentTimeMillis()
             if (now < lastCheckDate) {

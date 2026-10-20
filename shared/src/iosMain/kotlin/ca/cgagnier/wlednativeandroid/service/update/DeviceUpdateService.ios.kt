@@ -31,18 +31,16 @@ internal fun cachesDirectory(): String {
     }
 }
 
-@Suppress("LongParameterList")
 fun DeviceUpdateService.Companion.create(
     device: Device,
     stateInfo: DeviceStateInfo?,
     versionWithAssets: VersionWithAssets,
     deviceApiFactory: DeviceApiFactory,
     githubApi: GithubApi,
-    cacheDirPath: String? = null,
 ): DeviceUpdateService = DeviceUpdateService(
     device = DeviceWithState(device = device, stateInfo = stateInfo),
     versionWithAssets = versionWithAssets,
-    cacheDir = (cacheDirPath ?: cachesDirectory()).toPath(),
+    cacheDir = cachesDirectory().toPath(),
     deviceApiFactory = deviceApiFactory,
     githubApi = githubApi,
 )

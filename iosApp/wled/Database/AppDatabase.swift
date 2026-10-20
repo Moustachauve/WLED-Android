@@ -28,9 +28,7 @@ final class AppDatabase: Sendable {
     init(
         inMemory: Bool = false,
         connectionFactory: DeviceConnectionFactory? = nil,
-        config: DeviceConnectionManagerConfig? = nil,
-        githubApi: GithubApi? = nil,
-        deviceApiFactory: DeviceApiFactory? = nil
+        config: DeviceConnectionManagerConfig? = nil
     ) {
         let db: DevicesDatabase
         if inMemory {
@@ -55,8 +53,8 @@ final class AppDatabase: Sendable {
         self.releaseService = relService
         let updateManager = DeviceUpdateManager(releaseService: relService)
         self.deviceUpdateManager = updateManager
-        self.githubApi = githubApi ?? GithubApi.companion.create()
-        self.deviceApiFactory = deviceApiFactory ?? DeviceApiClient.shared.factory
+        self.githubApi = GithubApi.companion.create()
+        self.deviceApiFactory = DeviceApiClient.shared.factory
 
         let effectiveConnectionFactory = connectionFactory ?? (inMemory ? NoOpDeviceConnectionFactory.shared : nil)
         self.deviceConnectionManager = DeviceConnectionManager.companion.create(
@@ -66,16 +64,8 @@ final class AppDatabase: Sendable {
             updateTagResolver: updateManager
         )
 
-        if inMemory {
-            self.readyTask = Task {
-                do {
-                    try await relService.syncBuiltInRepositories()
-                } catch {
-                    Self.logger.error("Failed to sync built-in repositories: \(error.localizedDescription)")
-                }
-            }
-        } else {
-            self.readyTask = Task {
+        self.readyTask = Task {
+            if !inMemory {
                 do {
                     try await CoreDataToRoomMigrator.migrateIfNeeded(
                         repository: repository
@@ -83,11 +73,11 @@ final class AppDatabase: Sendable {
                 } catch {
                     Self.logger.error("Core Data to Room migration failed: \(error.localizedDescription)")
                 }
-                do {
-                    try await relService.syncBuiltInRepositories()
-                } catch {
-                    Self.logger.error("Failed to sync built-in repositories: \(error.localizedDescription)")
-                }
+            }
+            do {
+                try await relService.syncBuiltInRepositories()
+            } catch {
+                Self.logger.error("Failed to sync built-in repositories: \(error.localizedDescription)")
             }
         }
     }
