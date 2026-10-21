@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		884FA9392F027B6100097D56 /* wled_native_data.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 884FA9082F027B6100097D56 /* wled_native_data.xcdatamodeld */; };
 		C948F4982B3D2B330092C4B1 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = C948F4972B3D2B330092C4B1 /* MarkdownUI */; };
-		C9C4B47F2AC0050500791D20 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = C9C4B47E2AC0050500791D20 /* README.md */; };
 		C9LOCAL000000000000000003 /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = C9LOCAL000000000000000002 /* Shared */; };
 /* End PBXBuildFile section */
 
@@ -36,13 +35,14 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				changelog/README.md,
 			);
 			target = C9A9E5BC2918D1C3005B5C22 /* WLED */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		8813CE002EE9178D00B0A987 /* wled */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (8813CE392EE9178D00B0A987 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = wled; sourceTree = "<group>"; };
+		8813CE002EE9178D00B0A987 /* wled */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (8813CE392EE9178D00B0A987 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (changelog, ); path = wled; sourceTree = "<group>"; };
 		882CC9142F05CFE00080567C /* wledTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = wledTests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
@@ -202,7 +202,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C9C4B47F2AC0050500791D20 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
