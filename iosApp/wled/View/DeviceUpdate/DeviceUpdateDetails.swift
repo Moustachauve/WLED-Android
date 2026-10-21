@@ -109,6 +109,7 @@ struct DeviceUpdateDetails: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationView {
         DeviceUpdateDetails(
@@ -117,3 +118,4 @@ struct DeviceUpdateDetails: View {
         )
     }
 }
+#endif

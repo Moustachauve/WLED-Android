@@ -64,6 +64,7 @@ struct DeviceListItemView: View {
 
 }
 
+#if DEBUG
 struct DeviceListItemView_Previews: PreviewProvider {
     static var previews: some View {
         let device = PreviewData.onlineDevice
@@ -106,3 +107,4 @@ struct DeviceListItemView_Previews: PreviewProvider {
         .previewLayout(.sizeThatFits)
     }
 }
+#endif

@@ -78,8 +78,10 @@ struct DeviceView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         DeviceView(device: PreviewData.onlineDevice)
     }
 }
+#endif

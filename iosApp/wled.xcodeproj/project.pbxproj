@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		884FA9392F027B6100097D56 /* wled_native_data.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 884FA9082F027B6100097D56 /* wled_native_data.xcdatamodeld */; };
 		C948F4982B3D2B330092C4B1 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = C948F4972B3D2B330092C4B1 /* MarkdownUI */; };
-		C9C4B47F2AC0050500791D20 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = C9C4B47E2AC0050500791D20 /* README.md */; };
 		C9LOCAL000000000000000003 /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = C9LOCAL000000000000000002 /* Shared */; };
 /* End PBXBuildFile section */
 
@@ -36,6 +35,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				changelog/README.md,
 			);
 			target = C9A9E5BC2918D1C3005B5C22 /* WLED */;
 		};
@@ -202,7 +202,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C9C4B47F2AC0050500791D20 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -451,6 +450,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"wled/View/Preview\"";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = wled/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
@@ -483,6 +483,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"wled/View/Preview\"";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = wled/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
