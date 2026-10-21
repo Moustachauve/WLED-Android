@@ -24,6 +24,10 @@ struct DeviceListView: View {
 
     // MARK: - init
 
+    init(viewModel: DeviceWebsocketListViewModel) {
+        _viewModel = State(wrappedValue: viewModel)
+    }
+
     // Allow injecting a specific database (defaulting to shared for the actual app)
     init(
         database: AppDatabase = .shared,
@@ -33,7 +37,7 @@ struct DeviceListView: View {
             connectionManager: connectionManager,
             database: database
         )
-        _viewModel = State(wrappedValue: viewModel)
+        self.init(viewModel: viewModel)
     }
 
     // MARK: - Body

@@ -91,10 +91,11 @@ jobs:
         run: |
           DEST=$(xcrun simctl list devices available | grep -m1 "iPhone " | sed -E 's/^[[:space:]]*(iPhone [^()]+).*/platform=iOS Simulator,name=\1/' | xargs)
           echo "Selected destination: $DEST"
-          xcodebuild test \
+          SKIP_KMP_BUILD=1 xcodebuild test \
             -project iosApp/wled.xcodeproj \
             -scheme wled \
             -destination "$DEST" \
+            -resultBundlePath iosApp/build/TestResults.xcresult \
             -skipPackagePluginValidation \
             -skipMacroValidation \
             -parallel-testing-enabled NO \
@@ -111,7 +112,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ios-test-results
-          path: shared/build/reports/tests/iosSimulatorArm64Test/
+          path: |
+            shared/build/reports/tests/iosSimulatorArm64Test/
+            iosApp/build/TestResults.xcresult
           if-no-files-found: ignore
           retention-days: 7
 

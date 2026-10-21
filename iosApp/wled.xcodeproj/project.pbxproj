@@ -11,6 +11,7 @@
 		C948F4982B3D2B330092C4B1 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = C948F4972B3D2B330092C4B1 /* MarkdownUI */; };
 		C9C4B47F2AC0050500791D20 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = C9C4B47E2AC0050500791D20 /* README.md */; };
 		C9LOCAL000000000000000003 /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = C9LOCAL000000000000000002 /* Shared */; };
+		C9SNAP000000000000000003 /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = C9SNAP000000000000000002 /* SnapshotTesting */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,6 +52,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C9SNAP000000000000000003 /* SnapshotTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -115,6 +117,7 @@
 			);
 			name = WLEDTests;
 			packageProductDependencies = (
+				C9SNAP000000000000000002 /* SnapshotTesting */,
 			);
 			productName = WLEDTests;
 			productReference = 882CC9132F05CFE00080567C /* WLEDTests.xctest */;
@@ -179,6 +182,7 @@
 				C9LOCAL000000000000000001 /* XCLocalSwiftPackageReference "SharedPackage" */,
 				C948F4962B3D2B320092C4B1 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				8849F9052F710909008ACEC3 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */,
+				C9SNAP000000000000000001 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
 			);
 			productRefGroup = C9A9E5BE2918D1C3005B5C22 /* Products */;
 			projectDirPath = "";
@@ -564,6 +568,14 @@
 				minimumVersion = 2.4.1;
 			};
 		};
+		C9SNAP000000000000000001 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-snapshot-testing";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.19.6;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -581,6 +593,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C9LOCAL000000000000000001 /* XCLocalSwiftPackageReference "SharedPackage" */;
 			productName = Shared;
+		};
+		C9SNAP000000000000000002 /* SnapshotTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C9SNAP000000000000000001 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
+			productName = SnapshotTesting;
 		};
 /* End XCSwiftPackageProductDependency section */
 
