@@ -46,33 +46,36 @@ final class DeviceWebsocketListViewModel {
     private let database: AppDatabase
     private let deviceFirstContactService: DeviceFirstContactService
     private let userDefaults: UserDefaults
-    @ObservationIgnored private var discoveryService: DiscoveryService?
+    @ObservationIgnored private let discoveryService: any DeviceDiscovering
 
     @ObservationIgnored private var deviceMap: [String: DeviceWithState] = [:]
+    @ObservationIgnored private var latestSharedDevices: [Shared.DeviceWithState] = []
 
-    /// Amount of time after a device becomes offline before it is considered offline.
-    private let offlineGracePeriod: TimeInterval = 60
+    /// Amount of time (in milliseconds) after a device becomes offline before it is considered offline.
+    private static let offlineGracePeriodMs: Int64 = 60_000
 
     // MARK: - Initialization
 
     init(
         connectionManager: DeviceConnectionManager? = nil,
         database: AppDatabase = .shared,
-        userDefaults: UserDefaults = .standard
+        userDefaults: UserDefaults = .standard,
+        discoveryService: (any DeviceDiscovering)? = nil
     ) {
         self.database = database
         self.connectionManager = connectionManager ?? database.deviceConnectionManager
         self.deviceFirstContactService = database.deviceFirstContactService
         self.userDefaults = userDefaults
 
-        self.discoveryService = DiscoveryService(
-            onDeviceDiscovered: { [weak self] address, macAddress in
-                self?.deviceDiscovered(at: address, withMACAddress: macAddress)
-            },
-            onLocalNetworkPermissionChanged: { [weak self] isGranted in
-                self?.localNetworkDenied = !isGranted
-            }
-        )
+        let resolvedDiscoveryService = discoveryService ?? DiscoveryService()
+        self.discoveryService = resolvedDiscoveryService
+
+        resolvedDiscoveryService.onDeviceDiscovered = { [weak self] address, macAddress in
+            self?.deviceDiscovered(at: address, withMACAddress: macAddress)
+        }
+        resolvedDiscoveryService.onLocalNetworkPermissionChanged = { [weak self] isGranted in
+            self?.localNetworkDenied = !isGranted
+        }
 
         // Load preferences
         self.showHiddenDevices = userDefaults.bool(forKey: "DeviceListView.showHiddenDevices")
@@ -119,6 +122,7 @@ final class DeviceWebsocketListViewModel {
     }
 
     private func syncDevicesWithState(_ sharedDevices: [Shared.DeviceWithState]) {
+        latestSharedDevices = sharedDevices
         var updatedList: [DeviceWithState] = []
         let newMacs = Set(sharedDevices.map { $0.device.macAddress })
 
@@ -161,6 +165,7 @@ final class DeviceWebsocketListViewModel {
     // MARK: - Lifecycle (Call these from App ScenePhase)
 
     func onPause() {
+        discoveryService.stop()
         connectionManager.onPause()
     }
 
@@ -198,24 +203,15 @@ final class DeviceWebsocketListViewModel {
     }
 
     func updateFilteredDevices(currentTime: Date = Date()) {
-        let visible = allDevicesWithState.filter { showHiddenDevices || !$0.device.isHidden }
-        let sorted = visible.sorted {
-            $0.device.displayName.localizedStandardCompare($1.device.displayName) == .orderedAscending
-        }
-
-        var online: [DeviceWithState] = []
-        var offline: [DeviceWithState] = []
-        for device in sorted {
-            let isConsideredOnline = device.isOnline || {
-                let lastSeenDate = Date(timeIntervalSince1970: TimeInterval(device.device.lastSeen) / 1000.0)
-                return currentTime.timeIntervalSince(lastSeenDate) < offlineGracePeriod
-            }()
-            if isConsideredOnline {
-                online.append(device)
-            } else {
-                offline.append(device)
-            }
-        }
+        let currentTimeMillis = Int64(currentTime.timeIntervalSince1970 * 1000.0)
+        let partitioned = PartitionedDevicesKt.partitionDevices(
+            devices: latestSharedDevices,
+            showHiddenDevices: showHiddenDevices,
+            currentTimeMillis: currentTimeMillis,
+            offlineGracePeriodMs: Self.offlineGracePeriodMs
+        )
+        let online = partitioned.online.compactMap { deviceMap[$0.device.macAddress] }
+        let offline = partitioned.offline.compactMap { deviceMap[$0.device.macAddress] }
 
         // Only update if content changed to avoid unnecessary SwiftUI view body evaluations
         if self.onlineDevices != online {
@@ -229,7 +225,11 @@ final class DeviceWebsocketListViewModel {
     // MARK: - Discovery Logic
 
     func startDiscovery() {
-        discoveryService?.scan()
+        discoveryService.scan()
+    }
+
+    func stopDiscovery() {
+        discoveryService.stop()
     }
 
     /// Opens the app's Settings page where the user can toggle Local Network permission.
@@ -243,12 +243,10 @@ final class DeviceWebsocketListViewModel {
             // Don't upsert discovered devices until legacy devices have been imported
             await database.waitUntilReady()
             do {
-                let updated = try await deviceFirstContactService
-                    .tryUpdateAddress(macAddress: macAddress, rawAddress: address)
-                if !updated.boolValue {
-                    _ = try await deviceFirstContactService
-                        .fetchAndUpsertDevice(rawAddress: address)
-                }
+                try await deviceFirstContactService.processDiscoveredDevice(
+                    rawAddress: address,
+                    macAddress: macAddress
+                )
             } catch {
                 Self.logger.error("deviceDiscovered: Failed to upsert device: \(error.localizedDescription)")
             }

@@ -5,17 +5,19 @@ import ca.cgagnier.wlednativeandroid.service.DeviceDiscovery
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.DiscoveredDevice
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
@@ -46,6 +48,7 @@ class DeviceListDetailViewModelTest {
             networkManager = networkManager,
             deviceFirstContactService = deviceFirstContactService,
             discoveryService = discoveryService,
+            ioDispatcher = testDispatcher,
         )
     }
 
@@ -55,41 +58,34 @@ class DeviceListDetailViewModelTest {
     }
 
     @Test
-    fun discoveredDeviceWithMacAddressUpdatesAddressWhenDeviceExists() = runTest {
-        coEvery { deviceFirstContactService.tryUpdateAddress("AABBCCDDEEFF", "192.168.1.50") } returns true
+    fun discoveredDeviceForwardsToFirstContactService() = runTest(testDispatcher) {
+        val device = DiscoveredDevice(address = "192.168.1.50", macAddress = "AABBCCDDEEFF")
 
-        discoveredDevicesFlow.emit(DiscoveredDevice(address = "192.168.1.50", macAddress = "AABBCCDDEEFF"))
+        discoveredDevicesFlow.emit(device)
         advanceUntilIdle()
 
-        coVerify(timeout = 2000) {
-            deviceFirstContactService.tryUpdateAddress("AABBCCDDEEFF", "192.168.1.50")
-        }
-        coVerify(exactly = 0) {
-            deviceFirstContactService.fetchAndUpsertDevice(any())
+        coVerify(exactly = 1) {
+            deviceFirstContactService.processDiscoveredDevice(device)
         }
     }
 
     @Test
-    fun discoveredDeviceFallsBackToFetchAndUpsertWhenAddressUpdateFails() = runTest {
-        coEvery { deviceFirstContactService.tryUpdateAddress(any(), any()) } returns false
+    fun startDiscoveryServiceTimedCancelsPreviousTimerBeforeStopping() = runTest(testDispatcher) {
+        viewModel.startDiscoveryServiceTimed(timeMillis = 10_000L)
+        runCurrent()
+        verify(exactly = 1) { discoveryService.start() }
 
-        discoveredDevicesFlow.emit(DiscoveredDevice(address = "192.168.1.50", macAddress = "AABBCCDDEEFF"))
-        advanceUntilIdle()
+        advanceTimeBy(6_000L)
+        viewModel.startDiscoveryServiceTimed(timeMillis = 10_000L)
+        runCurrent()
 
-        coVerify(timeout = 2000) {
-            deviceFirstContactService.fetchAndUpsertDevice("192.168.1.50")
-        }
-    }
+        // Advance past the first timer's 10s mark; discovery must still be running
+        advanceTimeBy(5_000L)
+        verify(exactly = 0) { discoveryService.stop() }
 
-    @Test
-    fun discoveredDeviceWithoutMacAddressFallsBackToFetchAndUpsert() = runTest {
-        coEvery { deviceFirstContactService.tryUpdateAddress(null, "192.168.1.50") } returns false
-
-        discoveredDevicesFlow.emit(DiscoveredDevice(address = "192.168.1.50", macAddress = null))
-        advanceUntilIdle()
-
-        coVerify(timeout = 2000) {
-            deviceFirstContactService.fetchAndUpsertDevice("192.168.1.50")
-        }
+        // Advance to complete the second 10s timer
+        advanceTimeBy(5_000L)
+        runCurrent()
+        verify(exactly = 1) { discoveryService.stop() }
     }
 }

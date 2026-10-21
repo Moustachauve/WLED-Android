@@ -293,4 +293,41 @@ class DeviceFirstContactServiceTest {
         assertEquals(0, deviceDao.updateAddressCalls)
         assertTrue(updatedCallbackDevices.isEmpty())
     }
+
+    @Test
+    fun processDiscoveredDeviceUsesFastPathWithoutNetworkCallWhenMacExists() = runTest {
+        deviceRepository.insert(
+            Device(macAddress = "aabbccddeeff", address = "192.168.1.10", originalName = "WLED Living Room"),
+        )
+        val engine = respondingWith(infoJson())
+        val service = makeService(engine)
+
+        service.processDiscoveredDevice(DiscoveredDevice(address = "192.168.1.50", macAddress = "aabbccddeeff"))
+
+        assertEquals("192.168.1.50", deviceRepository.findDeviceByMacAddress("aabbccddeeff")?.address)
+        assertTrue(engine.requests.isEmpty())
+    }
+
+    @Test
+    fun processDiscoveredDeviceFallsBackToFetchAndUpsertWhenMacIsUnknownOrNull() = runTest {
+        val engine = respondingWith(infoJson(name = "Discovered Lamp", mac = "aabbccddeeff"))
+        val service = makeService(engine)
+
+        service.processDiscoveredDevice(DiscoveredDevice(address = "192.168.1.50", macAddress = null))
+
+        val stored = deviceRepository.findDeviceByMacAddress("aabbccddeeff")
+        assertEquals("192.168.1.50", stored?.address)
+        assertEquals("Discovered Lamp", stored?.originalName)
+        assertEquals(1, engine.requests.size)
+    }
+
+    @Test
+    fun processDiscoveredDeviceSwallowsNetworkErrorsGracefully() = runTest {
+        val engine = RecordingEngine { throw FakeTransportException() }
+        val service = makeService(engine)
+
+        service.processDiscoveredDevice(rawAddress = "192.168.1.50", macAddress = null)
+
+        assertTrue(deviceDao.devices.isEmpty())
+    }
 }

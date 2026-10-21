@@ -36,6 +36,7 @@ import okio.Path.Companion.toPath
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
@@ -128,7 +129,15 @@ val appModule: Module = module {
     viewModelOf(::ThemeViewModel)
     viewModelOf(::UpdateInstallingViewModel)
     viewModelOf(::DeviceEditViewModel)
-    viewModelOf(::DeviceListDetailViewModel)
+    viewModel {
+        DeviceListDetailViewModel(
+            preferencesRepository = get(),
+            networkManager = get(),
+            deviceFirstContactService = get(),
+            discoveryService = get(),
+            ioDispatcher = get(IO_DISPATCHER),
+        )
+    }
     viewModelOf(::DeviceWebsocketListViewModel)
     viewModelOf(::DeviceAddViewModel)
 }

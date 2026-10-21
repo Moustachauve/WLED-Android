@@ -106,6 +106,33 @@ class DeviceFirstContactService(
         return true
     }
 
+    /**
+     * Processes a device discovered on the local network via mDNS/Bonjour.
+     *
+     * Attempts the fast database-only address update first when a MAC address is known,
+     * falling back to fetching device info over HTTP and upserting the device record.
+     * Network or persistence failures are logged rather than thrown so discovery loops
+     * continue uninterrupted.
+     */
+    suspend fun processDiscoveredDevice(device: DiscoveredDevice) {
+        processDiscoveredDevice(rawAddress = device.address, macAddress = device.macAddress)
+    }
+
+    /**
+     * Convenience overload of [processDiscoveredDevice] taking raw address and optional MAC address.
+     */
+    suspend fun processDiscoveredDevice(rawAddress: String, macAddress: String?) {
+        try {
+            if (!tryUpdateAddress(macAddress = macAddress, rawAddress = rawAddress)) {
+                fetchAndUpsertDevice(rawAddress = rawAddress)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            logger.e(e) { "Failed to fetch/upsert discovered device at $rawAddress" }
+        }
+    }
+
     private suspend fun createDevice(macAddress: String, address: String, info: Info): Device {
         logger.d { "Creating new device entry for MAC: $macAddress at address: $address" }
         val deviceRepositoryStr = getRepositoryFromInfo(info)

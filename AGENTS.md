@@ -74,7 +74,7 @@ SKIP_KMP_BUILD=1 xcodebuild test \
     *   `repository/` - `DeviceRepository`, `VersionWithAssetsRepository`, `UserPreferencesRepository`, Room `DevicesDatabase` & migrations (`repository/migrations/`).
     *   `service/` - `DeviceConnectionManager`, `DeviceFirstContactService`, `NetworkConnectivityManager`, `DeviceDiscovery`, WebSockets (`service/websocket/`), HTTP APIs (`service/api/`), and OTA/release services (`service/update/`).
     *   `util/` - Multiplatform utilities and extensions.
-*   `shared/src/androidMain/` & `shared/src/iosMain/` - Platform implementations (`AndroidDeviceDiscovery`, `IosDeviceDiscovery`, platform Ktor engines, Room builders, `KoinIos.kt`).
+*   `shared/src/androidMain/` & `shared/src/iosMain/` - Platform implementations (`AndroidDeviceDiscovery`, `AndroidNetworkConnectivityManager`, `IosNetworkConnectivityManager`, platform Ktor engines, Room builders, `KoinIos.kt`).
 *   `app/src/main/java/ca/cgagnier/wlednativeandroid/` - Native Android app:
     *   `di/` - Android Koin module (`AppModule.kt`).
     *   `domain/` - Android-specific use cases and `ChangelogProvider`.

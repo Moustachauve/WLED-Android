@@ -9,6 +9,7 @@ struct DeviceWebsocketListViewModelTests {
     let database: AppDatabase
     let repository: DeviceRepository
     let userDefaults: UserDefaults
+    let discoveryService: FakeDiscoveryService
 
     init() throws {
         self.database = AppDatabase(inMemory: true)
@@ -17,6 +18,7 @@ struct DeviceWebsocketListViewModelTests {
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
         self.userDefaults = defaults
+        self.discoveryService = FakeDiscoveryService()
     }
 
     @Test func testInitialLoadingAndSorting() async throws {
@@ -213,12 +215,93 @@ struct DeviceWebsocketListViewModelTests {
         #expect(remaining == nil)
     }
 
+    @Test func testOfflineGracePeriodKeepsRecentlySeenDisconnectedDeviceOnline() async throws {
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000.0)
+        // Seen 20 seconds ago (within 60s grace period)
+        let device = Device(
+            macAddress: "10",
+            address: "192.168.1.10",
+            isHidden: false,
+            originalName: "Grace Period Device",
+            lastSeen: nowMs - 20_000
+        )
+        try await repository.insert(device: device)
+
+        let viewModel = makeViewModel()
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
+
+        database.deviceConnectionManager.updateDeviceState(
+            deviceWithState: Shared.DeviceWithState(
+                device: device,
+                stateInfo: nil,
+                websocketStatus: .disconnected,
+                updateVersionTag: nil
+            )
+        )
+        try await waitUntil { viewModel.onlineDevices.count == 1 }
+        #expect(viewModel.onlineDevices.count == 1)
+        #expect(viewModel.offlineDevices.isEmpty)
+
+        // Advance evaluation time past the 60s grace period
+        let futureDate = Date(timeIntervalSince1970: Double(nowMs + 50_000) / 1000.0)
+        viewModel.updateFilteredDevices(currentTime: futureDate)
+
+        #expect(viewModel.onlineDevices.isEmpty)
+        #expect(viewModel.offlineDevices.count == 1)
+    }
+
+    @Test func testLocalNetworkPermissionCallbackUpdatesDeniedState() {
+        let viewModel = makeViewModel()
+        #expect(viewModel.localNetworkDenied == false)
+
+        discoveryService.onLocalNetworkPermissionChanged?(false)
+        #expect(viewModel.localNetworkDenied == true)
+
+        discoveryService.onLocalNetworkPermissionChanged?(true)
+        #expect(viewModel.localNetworkDenied == false)
+    }
+
+    @Test func testStartDiscoveryAndOnPauseStopDiscovery() {
+        let viewModel = makeViewModel()
+
+        viewModel.startDiscovery()
+        #expect(discoveryService.scanCallCount == 1)
+
+        viewModel.onPause()
+        #expect(discoveryService.stopCallCount == 1)
+    }
+
+    @Test func testDiscoveredDeviceUpdatesExistingDeviceAddressViaFastPath() async throws {
+        let device = Device(
+            macAddress: "aabbccddeeff",
+            address: "192.168.1.10",
+            isHidden: false,
+            originalName: "Known Device",
+            lastSeen: 0
+        )
+        try await repository.insert(device: device)
+
+        let viewModel = makeViewModel()
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
+
+        discoveryService.onDeviceDiscovered?("192.168.1.250", "aabbccddeeff")
+
+        try await waitUntil {
+            try await repository.findDeviceByMacAddress(address: "aabbccddeeff")?.address == "192.168.1.250"
+        }
+        let updated = try await repository.findDeviceByMacAddress(address: "aabbccddeeff")
+        #expect(updated?.address == "192.168.1.250")
+    }
+
     // MARK: - Helpers
 
     private func makeViewModel(database: AppDatabase? = nil) -> DeviceWebsocketListViewModel {
         DeviceWebsocketListViewModel(
             database: database ?? self.database,
-            userDefaults: userDefaults
+            userDefaults: userDefaults,
+            discoveryService: discoveryService
         )
     }
 
@@ -266,5 +349,21 @@ struct DeviceWebsocketListViewModelTests {
             try await Task.sleep(for: .milliseconds(20))
         }
         Issue.record("Timed out after \(timeout) waiting for condition")
+    }
+}
+
+@MainActor
+final class FakeDiscoveryService: DeviceDiscovering {
+    var onDeviceDiscovered: ((_ address: String, _ macAddress: String?) -> Void)?
+    var onLocalNetworkPermissionChanged: ((_ isGranted: Bool) -> Void)?
+    private(set) var scanCallCount = 0
+    private(set) var stopCallCount = 0
+
+    func scan(duration: Duration?) {
+        scanCallCount += 1
+    }
+
+    func stop() {
+        stopCallCount += 1
     }
 }
