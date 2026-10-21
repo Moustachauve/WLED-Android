@@ -48,7 +48,8 @@ struct DeviceListView: View {
                 .sheet(isPresented: $showSettingsSheet) {
                     Settings(
                         showHiddenDevices: $viewModel.showHiddenDevices,
-                        showOfflineDevices: $viewModel.showOfflineDevices
+                        showOfflineDevicesLast: $viewModel.showOfflineDevicesLast,
+                        theme: $viewModel.theme
                     )
                 }
                 .navigationBarTitleDisplayMode(.inline)
@@ -56,6 +57,9 @@ struct DeviceListView: View {
             detailView
         }
         .navigationSplitViewStyle(.balanced)
+        .onChange(of: viewModel.theme, initial: true) { _, newTheme in
+            newTheme.applyToWindows()
+        }
         .task {
             await viewModel.observe()
         }
@@ -109,22 +113,26 @@ struct DeviceListView: View {
                     }
                 }
 
-                if !viewModel.onlineDevices.isEmpty {
-                    deviceRows(for: viewModel.onlineDevices)
-                }
-
-                // Offline Devices
-                if !viewModel.offlineDevices.isEmpty && viewModel.showOfflineDevices {
-                    Section(header: Text("Offline Devices")) {
-                        deviceRows(for: viewModel.offlineDevices)
+                if viewModel.showOfflineDevicesLast {
+                    if !viewModel.onlineDevices.isEmpty {
+                        deviceRows(for: viewModel.onlineDevices)
                     }
+
+                    // Offline Devices
+                    if !viewModel.offlineDevices.isEmpty {
+                        Section(header: Text("Offline Devices")) {
+                            deviceRows(for: viewModel.offlineDevices)
+                        }
+                    }
+                } else if !viewModel.visibleDevices.isEmpty {
+                    deviceRows(for: viewModel.visibleDevices)
                 }
             }
             .listStyle(.plain)
             .refreshable(action: refreshList)
             .animation(.default, value: viewModel.localNetworkDenied)
 
-            if viewModel.onlineDevices.isEmpty && viewModel.offlineDevices.isEmpty && !viewModel.localNetworkDenied {
+            if viewModel.visibleDevices.isEmpty && !viewModel.localNetworkDenied {
                 EmptyDeviceListView(
                     addDeviceButtonActive: $addDeviceButtonActive,
                     showHiddenDevices: $viewModel.showHiddenDevices,
@@ -133,8 +141,10 @@ struct DeviceListView: View {
                 .transition(.opacity)
             }
         }
+        .animation(.default, value: viewModel.visibleDevices)
         .animation(.default, value: viewModel.onlineDevices)
         .animation(.default, value: viewModel.offlineDevices)
+        .animation(.default, value: viewModel.showOfflineDevicesLast)
         .animation(.easeInOut, value: viewModel.showHiddenDevices)
         .navigationTitle("Device List")
     }
@@ -235,20 +245,6 @@ struct DeviceListView: View {
                 Label("Hide Hidden Devices", systemImage: "eye.slash")
             } else {
                 Label("Show Hidden Devices", systemImage: "eye")
-            }
-        }
-    }
-
-    var hideOfflineButton: some View {
-        Button {
-            withAnimation {
-                viewModel.showOfflineDevices.toggle()
-            }
-        } label: {
-            if viewModel.showOfflineDevices {
-                Label("Hide Offline Devices", systemImage: "wifi")
-            } else {
-                Label("Show Offline Devices", systemImage: "wifi.slash")
             }
         }
     }

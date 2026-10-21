@@ -6,10 +6,12 @@
 //
 
 import SwiftUI
+import Shared
 
 struct Settings: View {
     @Binding var showHiddenDevices: Bool
-    @Binding var showOfflineDevices: Bool
+    @Binding var showOfflineDevicesLast: Bool
+    @Binding var theme: ThemeSettings
 
     // Environment to dismiss the sheet
     @Environment(\.dismiss) private var dismiss
@@ -22,9 +24,20 @@ struct Settings: View {
                         Label("Show Hidden Devices", systemImage: "eye")
                     }
 
-                    Toggle(isOn: $showOfflineDevices) {
-                        Label("Show Offline Devices", systemImage: "wifi.slash")
+                    Toggle(isOn: $showOfflineDevicesLast) {
+                        Label("Show Offline Devices Last", systemImage: "wifi.slash")
                     }
+                }
+
+                Section("Theme") {
+                    Picker("Theme", selection: $theme) {
+                        ForEach(ThemeSettings.allCases) { option in
+                            Text(LocalizedStringKey(option.nameKey))
+                                .tag(option)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
                 }
 
                 Section {
@@ -57,13 +70,14 @@ struct Settings: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
 }
 
 #Preview {
     Settings(
-        showHiddenDevices: .constant(true), showOfflineDevices: .constant(true)
+        showHiddenDevices: .constant(true),
+        showOfflineDevicesLast: .constant(true),
+        theme: .constant(.auto)
     )
 }

@@ -17,6 +17,7 @@ final class DeviceWebsocketListViewModel {
 
     // The list of devices with their live state, exposed to the UI
     var allDevicesWithState: [DeviceWithState] = []
+    var visibleDevices: [DeviceWithState] = []
     var onlineDevices: [DeviceWithState] = []
     var offlineDevices: [DeviceWithState] = []
 
@@ -29,14 +30,36 @@ final class DeviceWebsocketListViewModel {
     // Preferences
     var showHiddenDevices: Bool = false {
         didSet {
-            userDefaults.set(showHiddenDevices, forKey: "DeviceListView.showHiddenDevices")
+            guard showHiddenDevices != oldValue else { return }
             updateFilteredDevices(currentTime: Date())
+            guard !isSyncingPreferences else { return }
+            let showHidden = showHiddenDevices
+            let repository = userPreferencesRepository
+            Task {
+                try? await repository.updateShowHiddenDevices(showHiddenDevices: showHidden)
+            }
         }
     }
 
-    var showOfflineDevices: Bool = true {
+    var showOfflineDevicesLast: Bool = true {
         didSet {
-            userDefaults.set(showOfflineDevices, forKey: "DeviceListView.showOfflineDevices")
+            guard showOfflineDevicesLast != oldValue, !isSyncingPreferences else { return }
+            let showOfflineLast = showOfflineDevicesLast
+            let repository = userPreferencesRepository
+            Task {
+                try? await repository.updateShowOfflineDeviceLast(showOfflineDeviceLast: showOfflineLast)
+            }
+        }
+    }
+
+    var theme: ThemeSettings = .auto {
+        didSet {
+            guard theme != oldValue, !isSyncingPreferences else { return }
+            let selectedTheme = theme
+            let repository = userPreferencesRepository
+            Task {
+                try? await repository.updateThemeMode(themeSettings: selectedTheme)
+            }
         }
     }
 
@@ -45,11 +68,12 @@ final class DeviceWebsocketListViewModel {
     private let connectionManager: DeviceConnectionManager
     private let database: AppDatabase
     private let deviceFirstContactService: DeviceFirstContactService
-    private let userDefaults: UserDefaults
+    private let userPreferencesRepository: UserPreferencesRepository
     @ObservationIgnored private let discoveryService: any DeviceDiscovering
 
     @ObservationIgnored private var deviceMap: [String: DeviceWithState] = [:]
     @ObservationIgnored private var latestSharedDevices: [Shared.DeviceWithState] = []
+    @ObservationIgnored private var isSyncingPreferences = false
 
     /// Amount of time (in milliseconds) after a device becomes offline before it is considered offline.
     private static let offlineGracePeriodMs: Int64 = 60_000
@@ -59,13 +83,12 @@ final class DeviceWebsocketListViewModel {
     init(
         connectionManager: DeviceConnectionManager? = nil,
         database: AppDatabase = .shared,
-        userDefaults: UserDefaults = .standard,
         discoveryService: (any DeviceDiscovering)? = nil
     ) {
         self.database = database
         self.connectionManager = connectionManager ?? database.deviceConnectionManager
         self.deviceFirstContactService = database.deviceFirstContactService
-        self.userDefaults = userDefaults
+        self.userPreferencesRepository = database.userPreferencesRepository
 
         let resolvedDiscoveryService = discoveryService ?? DiscoveryService()
         self.discoveryService = resolvedDiscoveryService
@@ -76,23 +99,18 @@ final class DeviceWebsocketListViewModel {
         resolvedDiscoveryService.onLocalNetworkPermissionChanged = { [weak self] isGranted in
             self?.localNetworkDenied = !isGranted
         }
-
-        // Load preferences
-        self.showHiddenDevices = userDefaults.bool(forKey: "DeviceListView.showHiddenDevices")
-        if userDefaults.object(forKey: "DeviceListView.showOfflineDevices") == nil {
-            self.showOfflineDevices = true
-        } else {
-            self.showOfflineDevices = userDefaults.bool(forKey: "DeviceListView.showOfflineDevices")
-        }
     }
 
     // MARK: - Setup and loading
 
-    /// Observes device states, connection pause status, and offline grace-period timers
+    /// Observes device states, user preferences, connection pause status, and offline grace-period timers
     /// for as long as the caller's structured task remains active.
     func observe() async {
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.observeDevices() }
+            group.addTask { await self.observeShowHiddenDevices() }
+            group.addTask { await self.observeShowOfflineDevicesLast() }
+            group.addTask { await self.observeThemeMode() }
             group.addTask { await self.observePausedState() }
             group.addTask { await self.runOfflineGracePeriodTimer() }
         }
@@ -103,6 +121,36 @@ final class DeviceWebsocketListViewModel {
         for await devices in connectionManager.allDevicesWithState {
             guard !Task.isCancelled else { break }
             syncDevicesWithState(devices)
+        }
+    }
+
+    private func observeShowHiddenDevices() async {
+        await database.waitUntilReady()
+        for await showHidden in userPreferencesRepository.showHiddenDevices {
+            guard !Task.isCancelled else { break }
+            isSyncingPreferences = true
+            showHiddenDevices = showHidden.boolValue
+            isSyncingPreferences = false
+        }
+    }
+
+    private func observeShowOfflineDevicesLast() async {
+        await database.waitUntilReady()
+        for await showOfflineLast in userPreferencesRepository.showOfflineDevicesLast {
+            guard !Task.isCancelled else { break }
+            isSyncingPreferences = true
+            showOfflineDevicesLast = showOfflineLast.boolValue
+            isSyncingPreferences = false
+        }
+    }
+
+    private func observeThemeMode() async {
+        await database.waitUntilReady()
+        for await currentTheme in userPreferencesRepository.themeMode {
+            guard !Task.isCancelled else { break }
+            isSyncingPreferences = true
+            theme = currentTheme
+            isSyncingPreferences = false
         }
     }
 
@@ -210,10 +258,14 @@ final class DeviceWebsocketListViewModel {
             currentTimeMillis: currentTimeMillis,
             offlineGracePeriodMs: Self.offlineGracePeriodMs
         )
+        let visible = partitioned.visible.compactMap { deviceMap[$0.device.macAddress] }
         let online = partitioned.online.compactMap { deviceMap[$0.device.macAddress] }
         let offline = partitioned.offline.compactMap { deviceMap[$0.device.macAddress] }
 
         // Only update if content changed to avoid unnecessary SwiftUI view body evaluations
+        if self.visibleDevices != visible {
+            self.visibleDevices = visible
+        }
         if self.onlineDevices != online {
             self.onlineDevices = online
         }

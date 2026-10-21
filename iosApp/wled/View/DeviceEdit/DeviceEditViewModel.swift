@@ -6,12 +6,13 @@
 //
 
 import Foundation
-import Combine
+import Observation
 import OSLog
 import Shared
 
 @MainActor
-class DeviceEditViewModel: ObservableObject {
+@Observable
+final class DeviceEditViewModel {
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native",
         category: "DeviceEditViewModel"
@@ -19,86 +20,78 @@ class DeviceEditViewModel: ObservableObject {
 
     private let database: AppDatabase
     private let deviceRepository: DeviceRepository
+    private let customNameDebounceDuration: Duration
 
-    private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private var customNameDebounceTask: Task<Void, Never>?
 
-    @Published var device: DeviceWithState
+    var device: DeviceWithState
 
-    @Published var customName: String = ""
-    @Published var hideDevice: Bool = false
-    @Published var branch: Branch = .unknown
+    var customName: String = "" {
+        didSet {
+            guard customName != oldValue else { return }
+            scheduleCustomNameSave(customName)
+        }
+    }
 
-    @Published var isCheckingForUpdates: Bool = false
+    var hideDevice: Bool = false {
+        didSet {
+            guard hideDevice != oldValue, device.device.isHidden != hideDevice else { return }
+            let isHidden = hideDevice
+            device.device = device.device.copy(isHidden: isHidden)
+            persist { repository, mac in
+                try await repository.updateIsHidden(macAddress: mac, isHidden: isHidden)
+            }
+        }
+    }
+
+    var branch: Branch = .unknown {
+        didSet {
+            guard branch != oldValue, device.device.branch != branch else { return }
+            let newBranch = branch
+            // Changing branch also clears the skipped version (done atomically by updateBranch)
+            device.device = device.device.copy(skipUpdateTag: "", branch: newBranch)
+            persist { repository, mac in
+                try await repository.updateBranch(macAddress: mac, branch: newBranch)
+            }
+        }
+    }
+
+    var isCheckingForUpdates: Bool = false
 
     init(
         device: DeviceWithState,
-        database: AppDatabase = .shared
+        database: AppDatabase = .shared,
+        customNameDebounceDuration: Duration = .milliseconds(500)
     ) {
         self.database = database
         self.deviceRepository = database.deviceRepository
+        self.customNameDebounceDuration = customNameDebounceDuration
         self.device = device
-        customName = device.device.customName
-        hideDevice = device.device.isHidden
-        branch = device.device.branch
-
-        setupCustomNameDebouncedListener()
-        setupHideDeviceListener()
-        setupBranchListener()
+        self.customName = device.device.customName
+        self.hideDevice = device.device.isHidden
+        self.branch = device.device.branch
     }
 
     // MARK: - Form change listeners
 
-    /// Saves the custom name every seconds when there are changes to the value
-    private func setupCustomNameDebouncedListener() {
-        $customName
-            .debounce(for: .seconds(0.5), scheduler: RunLoop.main)
-            .sink { [weak self] newCustomName in
-                guard let self = self else { return }
-
-                // Check if the value actually changed from the saved value
-                // to prevent saving when the view first loads
-                if self.device.device.customName != newCustomName {
-                    self.device.device = self.device.device.copy(customName: newCustomName)
-                    self.persist { repository, mac in
-                        try await repository.updateCustomName(macAddress: mac, customName: newCustomName)
-                    }
-                }
+    /// Debounces custom name edits before persisting to the repository.
+    private func scheduleCustomNameSave(_ newCustomName: String) {
+        customNameDebounceTask?.cancel()
+        let duration = customNameDebounceDuration
+        customNameDebounceTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: duration)
+            } catch {
+                return
             }
-            .store(in: &cancellables)
-    }
+            guard let self, !Task.isCancelled else { return }
+            guard self.device.device.customName != newCustomName else { return }
 
-    private func setupHideDeviceListener() {
-        $hideDevice
-            .removeDuplicates() // Only fire if the bool actually flips
-            .sink { [weak self] isHidden in
-                guard let self = self else { return }
-
-                // Check against the source of truth to prevent loops
-                if self.device.device.isHidden != isHidden {
-                    self.device.device = self.device.device.copy(isHidden: isHidden)
-                    self.persist { repository, mac in
-                        try await repository.updateIsHidden(macAddress: mac, isHidden: isHidden)
-                    }
-                }
+            self.device.device = self.device.device.copy(customName: newCustomName)
+            self.persist { repository, mac in
+                try await repository.updateCustomName(macAddress: mac, customName: newCustomName)
             }
-            .store(in: &cancellables)
-    }
-
-    private func setupBranchListener() {
-        $branch
-            .removeDuplicates()
-            .sink { [weak self] newBranch in
-                guard let self = self else { return }
-
-                if self.device.device.branch != newBranch {
-                    // Changing branch also clears the skipped version (done atomically by updateBranch)
-                    self.device.device = self.device.device.copy(skipUpdateTag: "", branch: newBranch)
-                    self.persist { repository, mac in
-                        try await repository.updateBranch(macAddress: mac, branch: newBranch)
-                    }
-                }
-            }
-            .store(in: &cancellables)
+        }
     }
 
     // MARK: - Public API

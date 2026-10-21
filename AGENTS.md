@@ -92,4 +92,4 @@ SKIP_KMP_BUILD=1 xcodebuild test \
 *   `gradle/libs.versions.toml` - Version catalog for all dependencies and plugins.
 *   `config/detekt/detekt.yml` & `app/detekt-baseline.xml` - Detekt configuration and legacy baseline.
 *   `iosApp/.swiftlint.yml` - SwiftLint configuration.
-*   `app/src/main/assets/changelog/dev.md` - Development changelog for user-facing changes (see [CONTRIBUTING.md](CONTRIBUTING.md)).
+*   `app/src/main/assets/changelog/dev.md` & `iosApp/wled/changelog/dev.md` - Development changelogs for user-facing changes on Android and iOS (always update the corresponding file(s) — or both when a feature applies to both platforms; see [CONTRIBUTING.md](CONTRIBUTING.md)).

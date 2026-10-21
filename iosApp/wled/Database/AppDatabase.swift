@@ -4,8 +4,7 @@ import Shared
 
 final class AppDatabase: Sendable {
     static let shared = AppDatabase()
-    // Bumped to _v2 after migrating releases from Core Data to Room so upgrading users fetch immediately.
-    static let dateLastUpdateKey = "lastUpdateReleasesDate_v2"
+    private static let oneDayMilliseconds: Int64 = 24 * 60 * 60 * 1000
 
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native",
@@ -53,7 +52,8 @@ final class AppDatabase: Sendable {
         let repository = container.deviceRepository
         self.deviceRepository = repository
         self.versionWithAssetsRepository = container.versionWithAssetsRepository
-        self.userPreferencesRepository = container.userPreferencesRepository
+        let userPrefsRepo = container.userPreferencesRepository
+        self.userPreferencesRepository = userPrefsRepo
         let relService = container.releaseService
         self.releaseService = relService
         self.deviceUpdateManager = container.deviceUpdateManager
@@ -73,6 +73,16 @@ final class AppDatabase: Sendable {
                     return
                 } catch {
                     Self.logger.error("Core Data to Room migration failed: \(error.localizedDescription)")
+                }
+
+                do {
+                    try await UserDefaultsToDataStoreMigrator.migrateIfNeeded(
+                        repository: userPrefsRepo
+                    )
+                } catch is CancellationError {
+                    return
+                } catch {
+                    Self.logger.error("UserDefaults to DataStore migration failed: \(error.localizedDescription)")
                 }
             }
             do {
@@ -98,15 +108,12 @@ final class AppDatabase: Sendable {
 
     /// Refreshes available GitHub releases for all repositories used by known devices,
     /// throttled to at most once every 24 hours.
-    func refreshVersionsIfNeeded(userDefaults: UserDefaults = .standard) async {
+    func refreshVersionsIfNeeded() async {
         await waitUntilReady()
-        let lastRefreshTimestamp = userDefaults.double(forKey: Self.dateLastUpdateKey)
-        if lastRefreshTimestamp > 0 {
-            let lastRefreshDate = Date(timeIntervalSince1970: lastRefreshTimestamp)
-            if let nextRefreshDate = Calendar.current.date(byAdding: .day, value: 1, to: lastRefreshDate),
-               Date() <= nextRefreshDate {
-                return
-            }
+        let nowMillis = Int64(Date().timeIntervalSince1970 * 1000.0)
+        if let lastCheckDate = await firstValue(from: userPreferencesRepository.lastUpdateCheckDate),
+           nowMillis < lastCheckDate.int64Value {
+            return
         }
         Self.logger.info("Refreshing available releases from GitHub")
         do {
@@ -116,11 +123,22 @@ final class AppDatabase: Sendable {
             )
             if allSucceeded.boolValue {
                 deviceConnectionManager.recheckUpdates()
-                userDefaults.set(Date().timeIntervalSince1970, forKey: Self.dateLastUpdateKey)
+                try await userPreferencesRepository.updateLastUpdateCheckDate(
+                    lastUpdateCheckDate: nowMillis + Self.oneDayMilliseconds
+                )
             }
         } catch {
             Self.logger.error("Failed to refresh releases: \(error.localizedDescription)")
         }
+    }
+
+    private func firstValue<S: AsyncSequence>(from sequence: S) async -> S.Element? {
+        do {
+            for try await value in sequence {
+                return value
+            }
+        } catch {}
+        return nil
     }
 
     /// Forces a refresh of GitHub releases for the repository associated with `device`.
@@ -158,3 +176,4 @@ extension DeviceConnectionManager: @retroactive @unchecked Sendable {}
 extension DeviceUpdateService: @retroactive @unchecked Sendable {}
 extension DeviceFirstContactService: @retroactive @unchecked Sendable {}
 extension AddressValidator: @retroactive @unchecked Sendable {}
+extension ThemeSettings: @retroactive @unchecked Sendable {}

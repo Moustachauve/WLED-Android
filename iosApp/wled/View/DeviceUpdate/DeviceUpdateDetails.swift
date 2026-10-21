@@ -110,7 +110,7 @@ struct DeviceUpdateDetails: View {
 }
 
 #Preview {
-    NavigationView {
+    NavigationStack {
         DeviceUpdateDetails(
             device: PreviewData.deviceWithUpdate,
             database: PreviewData.database

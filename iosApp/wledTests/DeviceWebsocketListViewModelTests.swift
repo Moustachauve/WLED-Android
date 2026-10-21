@@ -8,16 +8,11 @@ struct DeviceWebsocketListViewModelTests {
 
     let database: AppDatabase
     let repository: DeviceRepository
-    let userDefaults: UserDefaults
     let discoveryService: FakeDiscoveryService
 
-    init() throws {
+    init() {
         self.database = AppDatabase(inMemory: true)
         self.repository = database.deviceRepository
-        let suiteName = "DeviceWebsocketListViewModelTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defaults.removePersistentDomain(forName: suiteName)
-        self.userDefaults = defaults
         self.discoveryService = FakeDiscoveryService()
     }
 
@@ -295,14 +290,46 @@ struct DeviceWebsocketListViewModelTests {
         #expect(updated?.address == "192.168.1.250")
     }
 
+    @Test func testUserPreferencesSyncBetweenViewModelAndRepository() async throws {
+        let device = createDevice(name: "Hidden Device", mac: "11", isHidden: true)
+        try await repository.insert(device: device)
+
+        let viewModel = makeViewModel()
+        let observationTask = try await startObserving(viewModel, expectedCount: 1)
+        defer { observationTask.cancel() }
+
+        viewModel.showHiddenDevices = true
+        viewModel.showOfflineDevicesLast = false
+        viewModel.theme = .dark
+
+        try await waitUntil {
+            let showHidden = await firstValue(from: database.userPreferencesRepository.showHiddenDevices)?.boolValue
+            let showOfflineLast = await firstValue(
+                from: database.userPreferencesRepository.showOfflineDevicesLast
+            )?.boolValue
+            let currentTheme = await firstValue(from: database.userPreferencesRepository.themeMode)
+            return showHidden == true && showOfflineLast == false && currentTheme == .dark
+        }
+
+        #expect(viewModel.visibleDevices.map(\.device.displayName) == ["Hidden Device"])
+    }
+
     // MARK: - Helpers
 
     private func makeViewModel(database: AppDatabase? = nil) -> DeviceWebsocketListViewModel {
         DeviceWebsocketListViewModel(
             database: database ?? self.database,
-            userDefaults: userDefaults,
             discoveryService: discoveryService
         )
+    }
+
+    private func firstValue<S: AsyncSequence>(from sequence: S) async -> S.Element? {
+        do {
+            for try await value in sequence {
+                return value
+            }
+        } catch {}
+        return nil
     }
 
     private func makeFastPauseDatabase(delayMs: Int64 = 50) -> AppDatabase {

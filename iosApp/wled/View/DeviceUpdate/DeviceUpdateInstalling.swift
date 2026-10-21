@@ -1,10 +1,12 @@
 import SwiftUI
 import Shared
 
-struct DeviceUpdateInstalling: View {
-    @Environment(\.presentationMode) var presentationMode
+private typealias State = SwiftUI.State
 
-    @StateObject var viewModel = DeviceUpdateInstallingViewModel()
+struct DeviceUpdateInstalling: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var viewModel = DeviceUpdateInstallingViewModel()
     var device: DeviceWithState
     let version: VersionWithAssets
     var database: AppDatabase = .shared
@@ -49,7 +51,7 @@ struct DeviceUpdateInstalling: View {
                         name: .didCompleteUpdateInstall,
                         object: nil
                     )
-                    presentationMode.wrappedValue.dismiss()
+                    dismiss()
                 } label: {
                     Text(dismissButtonText)
                         .buttonStyle(.plain)

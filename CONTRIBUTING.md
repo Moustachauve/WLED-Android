@@ -96,5 +96,8 @@ If you are fixing a critical bug in production:
 3. **Important:** You must also merge these changes back into `dev` to ensure the bug doesn't reappear in the next release.
 
 ## Updating the Changelog
-When your Android Pull Request introduces a new feature or an important bug fix, please update the development changelog file located at `app/src/main/assets/changelog/dev.md`. 
-**Do not** create new versioned files (like `7.2.0.md`) or edit production changelogs for new PRs. Keeping `dev.md` up to date ensures all new features are correctly aggregated for the next release and displayed clearly for beta testers!
+When your Pull Request introduces a new user-facing feature or an important bug fix, please update the development changelog file(s):
+- **Android:** `app/src/main/assets/changelog/dev.md`
+- **iOS:** `iosApp/wled/changelog/dev.md`
+
+When a feature or fix applies to both platforms, remember to update **both** `dev.md` files! **Do not** create new versioned files (like `7.2.0.md`) or edit production changelogs for new PRs. Keeping `dev.md` up to date ensures all new features are correctly aggregated for the next release and displayed clearly for beta testers!

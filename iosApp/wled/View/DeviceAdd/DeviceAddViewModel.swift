@@ -6,14 +6,15 @@
 //
 
 import Foundation
-import Combine
+import Observation
 import Shared
 
 @MainActor
-final class DeviceAddViewModel: ObservableObject {
+@Observable
+final class DeviceAddViewModel {
 
-    @Published var address: String = ""
-    @Published var currentStep: Step = .form()
+    var address: String = ""
+    var currentStep: Step = .form()
     private let firstContactService: DeviceFirstContactService
     private let addressValidator: AddressValidator
 

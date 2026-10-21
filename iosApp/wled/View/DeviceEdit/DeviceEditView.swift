@@ -4,7 +4,7 @@ import Shared
 private typealias State = SwiftUI.State
 
 struct DeviceEditView: View {
-    @StateObject private var viewModel: DeviceEditViewModel
+    @State private var viewModel: DeviceEditViewModel
     private var device: DeviceWithState
     private let database: AppDatabase
 
@@ -12,7 +12,7 @@ struct DeviceEditView: View {
         device: DeviceWithState,
         database: AppDatabase = .shared
     ) {
-        _viewModel = StateObject(wrappedValue: DeviceEditViewModel(
+        _viewModel = State(wrappedValue: DeviceEditViewModel(
             device: device,
             database: database
         ))

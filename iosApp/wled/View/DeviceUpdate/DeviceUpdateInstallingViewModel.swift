@@ -6,12 +6,13 @@
 //
 
 import Foundation
-import Combine
+import Observation
 import OSLog
 import Shared
 
 @MainActor
-class DeviceUpdateInstallingViewModel: ObservableObject {
+@Observable
+final class DeviceUpdateInstallingViewModel {
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native",
         category: "DeviceUpdateInstallingViewModel"
@@ -25,7 +26,7 @@ class DeviceUpdateInstallingViewModel: ObservableObject {
         case failed(versionName: String, error: String)
     }
 
-    @Published var status: UpdateStatus = .idle
+    var status: UpdateStatus = .idle
 
     func startUpdateProcess(
         device: DeviceWithState,

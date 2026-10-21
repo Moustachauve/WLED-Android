@@ -1,13 +1,15 @@
 import SwiftUI
 import Shared
 
+private typealias State = SwiftUI.State
+
 struct DeviceAddView: View {
     @Environment(\.dismiss) var dismiss
 
-    @ObservedObject private var viewModel = DeviceAddViewModel()
+    @State private var viewModel = DeviceAddViewModel()
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack {
                 switch viewModel.currentStep {
                 case .form(let errorMessage):
@@ -51,7 +53,7 @@ struct DeviceAddView: View {
 
 struct DeviceAddStep1FormView: View {
 
-    @ObservedObject var viewModel: DeviceAddViewModel
+    @Bindable var viewModel: DeviceAddViewModel
     @FocusState private var focusedField: Field?
 
     let errorMessage: String
