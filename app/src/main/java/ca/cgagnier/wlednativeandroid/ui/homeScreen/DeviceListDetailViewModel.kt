@@ -2,8 +2,8 @@ package ca.cgagnier.wlednativeandroid.ui.homeScreen
 
 import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
@@ -26,12 +26,14 @@ private const val TAG = "DeviceListDetailViewModel"
 private const val SUBSCRIPTION_TIMEOUT_MS = 5000L
 private const val DEFAULT_DISCOVERY_DURATION_MS = 10_000L
 
+@Suppress("LongParameterList") // DI constructor requires multiple dependencies
 class DeviceListDetailViewModel(
     private val preferencesRepository: UserPreferencesRepository,
     networkManager: NetworkConnectivityManager,
     private val deviceFirstContactService: DeviceFirstContactService,
     private val discoveryService: DeviceDiscovery,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val processLifecycle: Lifecycle? = null,
 ) : ViewModel(),
     DefaultLifecycleObserver {
     val isWLEDCaptivePortal = networkManager.isWLEDCaptivePortal
@@ -51,12 +53,7 @@ class DeviceListDetailViewModel(
     init {
         // This ensures onResume/onPause are called only when the APP goes background/foreground,
         // not when the screen rotates.
-        @Suppress("TooGenericExceptionCaught") // ProcessLifecycleOwner may throw in unit test environments
-        try {
-            ProcessLifecycleOwner.get().lifecycle.addObserver(this)
-        } catch (e: Exception) {
-            Log.w(TAG, "ProcessLifecycleOwner not available: ${e.message}")
-        }
+        processLifecycle?.addObserver(this)
         viewModelScope.launch {
             discoveryService.discoveredDevices.collect { device ->
                 deviceDiscovered(device)
@@ -78,12 +75,7 @@ class DeviceListDetailViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        @Suppress("TooGenericExceptionCaught") // ProcessLifecycleOwner may throw in unit test environments
-        try {
-            ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
-        } catch (e: Exception) {
-            Log.w(TAG, "ProcessLifecycleOwner not available during onCleared: ${e.message}")
-        }
+        processLifecycle?.removeObserver(this)
         stopDiscoveryService()
     }
 

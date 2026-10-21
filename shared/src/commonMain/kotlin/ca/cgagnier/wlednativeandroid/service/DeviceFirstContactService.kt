@@ -126,9 +126,7 @@ class DeviceFirstContactService(
             if (!tryUpdateAddress(macAddress = macAddress, rawAddress = rawAddress)) {
                 fetchAndUpsertDevice(rawAddress = rawAddress)
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+        } catch (e: DeviceFirstContactException) {
             logger.e(e) { "Failed to fetch/upsert discovered device at $rawAddress" }
         }
     }

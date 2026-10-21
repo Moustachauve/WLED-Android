@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.di
 
 import android.content.Context
 import android.net.ConnectivityManager
+import androidx.lifecycle.Lifecycle
 import ca.cgagnier.wlednativeandroid.domain.AddressValidator
 import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
 import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManagerConfig
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.io.TempDir
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
+import org.koin.dsl.module
 import org.koin.test.KoinTest
 import org.koin.test.get
 import java.io.File
@@ -48,7 +50,12 @@ class KoinModuleTest : KoinTest {
 
         startKoin {
             androidContext(mockContext)
-            modules(appModule)
+            modules(
+                appModule,
+                module {
+                    single<Lifecycle> { mockk(relaxed = true) }
+                },
+            )
         }
     }
 

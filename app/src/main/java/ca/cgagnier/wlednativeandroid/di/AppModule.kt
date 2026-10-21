@@ -2,6 +2,8 @@ package ca.cgagnier.wlednativeandroid.di
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.dataStoreFile
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
 import ca.cgagnier.wlednativeandroid.domain.ChangelogProvider
 import ca.cgagnier.wlednativeandroid.domain.DeepLinkHandler
 import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
@@ -95,6 +97,10 @@ val appModule: Module = module {
         AndroidDeviceDiscovery(androidContext())
     }
 
+    single<Lifecycle> {
+        ProcessLifecycleOwner.get().lifecycle
+    }
+
     singleOf(::DeepLinkHandler)
     singleOf(::ChangelogProvider)
     single {
@@ -136,6 +142,7 @@ val appModule: Module = module {
             deviceFirstContactService = get(),
             discoveryService = get(),
             ioDispatcher = get(IO_DISPATCHER),
+            processLifecycle = getOrNull<Lifecycle>(),
         )
     }
     viewModelOf(::DeviceWebsocketListViewModel)
