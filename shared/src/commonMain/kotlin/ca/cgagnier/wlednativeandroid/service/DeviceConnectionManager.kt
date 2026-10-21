@@ -681,6 +681,4 @@ class DeviceConnectionManager(
         }
         toDestroy.forEach { it.destroy() }
     }
-
-    companion object
 }

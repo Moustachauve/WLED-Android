@@ -1,83 +1,67 @@
 package ca.cgagnier.wlednativeandroid.di
 
-import androidx.datastore.core.DataStore
-import ca.cgagnier.wlednativeandroid.domain.AddressValidator
-import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
-import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
-import ca.cgagnier.wlednativeandroid.repository.UserPreferences
-import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
-import ca.cgagnier.wlednativeandroid.repository.createInMemoryDatabase
-import ca.cgagnier.wlednativeandroid.repository.createUserPreferencesDataStore
-import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
-import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
+import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManagerConfig
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
-import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
-import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
+import ca.cgagnier.wlednativeandroid.service.api.create
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketClientFactory
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
-import okio.FileSystem
-import okio.Path
-import org.koin.core.context.startKoin
-import org.koin.core.context.stopKoin
-import org.koin.dsl.module
-import org.koin.test.KoinTest
-import org.koin.test.get
-import kotlin.random.Random
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
+import kotlin.test.assertSame
 
-class KoinIosTest : KoinTest {
-
-    private lateinit var tempPath: Path
-
-    @BeforeTest
-    fun setUp() {
-        tempPath = FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "test_user_prefs_${Random.nextLong()}.json"
-        startKoin {
-            modules(
-                iosPlatformModule,
-                module {
-                    single<DevicesDatabase> { DevicesDatabase.createInMemoryDatabase() }
-                    single<DataStore<UserPreferences>> {
-                        createUserPreferencesDataStore(producePath = { tempPath })
-                    }
-                },
-            )
-        }
-    }
-
-    @AfterTest
-    fun tearDown() {
-        stopKoin()
-        FileSystem.SYSTEM.delete(tempPath, mustExist = false)
-    }
+class KoinIosTest {
 
     @Test
     fun resolveAllIosDependencies() {
-        assertNotNull(get<DeviceRepository>())
-        assertNotNull(get<UserPreferencesRepository>())
-        assertNotNull(get<DeviceConnectionManager>())
-        assertNotNull(get<DeviceFirstContactService>())
-        assertNotNull(get<AddressValidator>())
-        assertNotNull(get<DeviceUpdateManager>())
-        assertNotNull(get<GithubApi>())
-        assertNotNull(get<DeviceApiFactory>())
-        assertNotNull(get<WebsocketClientFactory>())
-        assertNotNull(get<HttpClient>())
-        assertNotNull(get<CoroutineScope>())
-        assertNotNull(KoinHelper.deviceRepository)
-        assertNotNull(KoinHelper.repositoryDao)
-        assertNotNull(KoinHelper.versionWithAssetsRepository)
-        assertNotNull(KoinHelper.userPreferencesRepository)
-        assertNotNull(KoinHelper.deviceConnectionManager)
-        assertNotNull(KoinHelper.deviceFirstContactService)
-        assertNotNull(KoinHelper.addressValidator)
-        assertNotNull(KoinHelper.releaseService)
-        assertNotNull(KoinHelper.deviceUpdateManager)
-        assertNotNull(KoinHelper.githubApi)
-        assertNotNull(KoinHelper.deviceApiFactory)
+        val container = KoinContainer.inMemory()
+        try {
+            assertNotNull(container.database)
+            assertNotNull(container.deviceRepository)
+            assertNotNull(container.repositoryDao)
+            assertNotNull(container.versionWithAssetsRepository)
+            assertNotNull(container.userPreferencesRepository)
+            assertNotNull(container.deviceConnectionManager)
+            assertNotNull(container.deviceFirstContactService)
+            assertNotNull(container.addressValidator)
+            assertNotNull(container.releaseService)
+            assertNotNull(container.deviceUpdateManager)
+            assertNotNull(container.githubApi)
+            assertNotNull(container.deviceApiFactory)
+            assertNotNull(container.koin.get<DeviceConnectionManagerConfig>())
+            assertNotNull(container.koin.get<WebsocketClientFactory>())
+            assertNotNull(container.koin.get<HttpClient>())
+            assertNotNull(container.koin.get<CoroutineScope>())
+        } finally {
+            container.close()
+        }
+    }
+
+    @Test
+    fun inMemoryContainersAreIsolatedAndShareSingletonsInternally() {
+        val containerA = KoinContainer.inMemory()
+        val containerB = KoinContainer.inMemory()
+        try {
+            assertSame(containerA.deviceRepository, containerA.deviceRepository)
+            assertSame(containerA.deviceConnectionManager, containerA.deviceConnectionManager)
+            assertNotSame(containerA.database, containerB.database)
+            assertNotSame(containerA.deviceRepository, containerB.deviceRepository)
+            assertNotSame(containerA.deviceConnectionManager, containerB.deviceConnectionManager)
+        } finally {
+            containerA.close()
+            containerB.close()
+        }
+    }
+
+    @Test
+    fun inMemoryContainerAppliesCustomDeviceApiFactoryOverride() {
+        val customFactory = DeviceApiFactory.create { }
+        val container = KoinContainer.inMemory(deviceApiFactory = customFactory)
+        try {
+            assertSame(customFactory, container.deviceApiFactory)
+        } finally {
+            container.close()
+        }
     }
 }

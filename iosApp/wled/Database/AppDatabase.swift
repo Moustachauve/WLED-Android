@@ -12,17 +12,20 @@ final class AppDatabase: Sendable {
         category: "AppDatabase"
     )
 
+    private let koinContainer: KoinContainer
     let database: DevicesDatabase
     let deviceRepository: DeviceRepository
     // Computed because `any RepositoryDao` (an Obj-C protocol existential) is not Sendable in Swift 6;
-    // Room's generated `database.repositoryDao()` returns a lazy singleton instance.
-    var repositoryDao: any RepositoryDao { database.repositoryDao() }
+    // Koin's `repositoryDao` binding returns a singleton instance.
+    var repositoryDao: any RepositoryDao { koinContainer.repositoryDao }
     let versionWithAssetsRepository: VersionWithAssetsRepository
+    let userPreferencesRepository: UserPreferencesRepository
     let releaseService: ReleaseService
     let deviceUpdateManager: DeviceUpdateManager
     let githubApi: GithubApi
     let deviceApiFactory: DeviceApiFactory
     let deviceFirstContactService: DeviceFirstContactService
+    let addressValidator: AddressValidator
     let deviceConnectionManager: DeviceConnectionManager
 
     /// Completes once legacy Core Data devices have been imported and built-in repositories synced into Room.
@@ -35,45 +38,30 @@ final class AppDatabase: Sendable {
         config: DeviceConnectionManagerConfig? = nil,
         deviceApiFactory: DeviceApiFactory? = nil
     ) {
-        let db: DevicesDatabase
+        let container: KoinContainer
         if inMemory {
-            db = DevicesDatabase.companion.createInMemoryDatabase()
+            container = KoinContainer.companion.inMemory(
+                connectionFactory: connectionFactory,
+                config: config,
+                deviceApiFactory: deviceApiFactory
+            )
         } else {
-            db = DevicesDatabase.companion.createDatabase()
+            container = KoinContainer.companion.production()
         }
-        self.database = db
-
-        let repository = db.createDeviceRepository()
+        self.koinContainer = container
+        self.database = container.database
+        let repository = container.deviceRepository
         self.deviceRepository = repository
-
-        let repoDao = db.repositoryDao()
-
-        let versionRepo = db.createVersionWithAssetsRepository()
-        self.versionWithAssetsRepository = versionRepo
-
-        let relService = ReleaseService(
-            versionWithAssetsRepository: versionRepo,
-            repositoryDao: repoDao
-        )
+        self.versionWithAssetsRepository = container.versionWithAssetsRepository
+        self.userPreferencesRepository = container.userPreferencesRepository
+        let relService = container.releaseService
         self.releaseService = relService
-        let updateManager = DeviceUpdateManager(releaseService: relService)
-        self.deviceUpdateManager = updateManager
-        self.githubApi = GithubApi.companion.create()
-        let apiFactory = deviceApiFactory ?? DeviceApiFactory.companion.create()
-        self.deviceApiFactory = apiFactory
-        self.deviceFirstContactService = DeviceFirstContactService(
-            repositoryDao: repoDao,
-            repository: repository,
-            deviceApiFactory: apiFactory
-        )
-
-        let effectiveConnectionFactory = connectionFactory ?? (inMemory ? NoOpDeviceConnectionFactory.shared : nil)
-        self.deviceConnectionManager = DeviceConnectionManager.companion.create(
-            database: db,
-            connectionFactory: effectiveConnectionFactory,
-            config: config,
-            updateTagResolver: updateManager
-        )
+        self.deviceUpdateManager = container.deviceUpdateManager
+        self.githubApi = container.githubApi
+        self.deviceApiFactory = container.deviceApiFactory
+        self.deviceFirstContactService = container.deviceFirstContactService
+        self.addressValidator = container.addressValidator
+        self.deviceConnectionManager = container.deviceConnectionManager
 
         self.readyTask = Task {
             if !inMemory {
@@ -81,12 +69,16 @@ final class AppDatabase: Sendable {
                     try await CoreDataToRoomMigrator.migrateIfNeeded(
                         repository: repository
                     )
+                } catch is CancellationError {
+                    return
                 } catch {
                     Self.logger.error("Core Data to Room migration failed: \(error.localizedDescription)")
                 }
             }
             do {
                 try await relService.syncBuiltInRepositories()
+            } catch is CancellationError {
+                return
             } catch {
                 Self.logger.error("Failed to sync built-in repositories: \(error.localizedDescription)")
             }
@@ -94,7 +86,8 @@ final class AppDatabase: Sendable {
     }
 
     deinit {
-        deviceConnectionManager.destroy()
+        readyTask.cancel()
+        koinContainer.close()
     }
 
     /// Suspends until the database is ready to be read from and written to.
@@ -146,8 +139,10 @@ final class AppDatabase: Sendable {
     }
 }
 
+extension KoinContainer: @retroactive @unchecked Sendable {}
 extension DeviceRepository: @retroactive @unchecked Sendable {}
 extension VersionWithAssetsRepository: @retroactive @unchecked Sendable {}
+extension UserPreferencesRepository: @retroactive @unchecked Sendable {}
 extension ReleaseService: @retroactive @unchecked Sendable {}
 extension DeviceUpdateManager: @retroactive @unchecked Sendable {}
 extension GithubApi: @retroactive @unchecked Sendable {}

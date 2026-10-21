@@ -12,11 +12,12 @@ import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 
-internal val sharedNetworkModule: Module = module {
-    single<Json> { defaultJson }
-    singleOf(::DeviceApiFactory)
-    single { WebsocketClientFactory(get(), get(), get(IO_DISPATCHER)) }
-    single<DeviceConnectionFactory> { get<WebsocketClientFactory>() }
-    single<GithubApiEndpoints> { KtorGithubApiEndpoints(get()) }
-    singleOf(::GithubApi)
-}
+internal val sharedNetworkModule: Module
+    get() = module {
+        single<Json> { defaultJson }
+        singleOf(::DeviceApiFactory)
+        single { WebsocketClientFactory(get(), get(), get(IO_DISPATCHER)) }
+        single<DeviceConnectionFactory> { get<WebsocketClientFactory>() }
+        single<GithubApiEndpoints> { KtorGithubApiEndpoints(get()) }
+        singleOf(::GithubApi)
+    }

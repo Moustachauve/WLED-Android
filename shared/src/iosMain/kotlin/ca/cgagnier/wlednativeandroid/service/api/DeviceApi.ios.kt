@@ -42,13 +42,6 @@ internal fun DeviceApiFactory.Companion.createHttpClient(
 }
 
 /**
- * Creates the production [DeviceApiFactory] backed by the Darwin engine.
- *
- * Callers should create one instance and share it so all requests reuse the same `NSURLSession`.
- */
-fun DeviceApiFactory.Companion.create(): DeviceApiFactory = DeviceApiFactory(createHttpClient())
-
-/**
  * Creates a [DeviceApiFactory] backed by the Darwin engine, applying [configureSession] to the
  * underlying `NSURLSessionConfiguration` after the defaults, e.g. to register a stub `URLProtocol`
  * in tests.

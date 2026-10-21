@@ -19,7 +19,7 @@ final class DeviceAddViewModel: ObservableObject {
 
     init(
         firstContactService: DeviceFirstContactService = AppDatabase.shared.deviceFirstContactService,
-        addressValidator: AddressValidator = AddressValidator()
+        addressValidator: AddressValidator = AppDatabase.shared.addressValidator
     ) {
         self.firstContactService = firstContactService
         self.addressValidator = addressValidator
