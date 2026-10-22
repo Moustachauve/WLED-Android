@@ -48,8 +48,8 @@ struct DeviceListViewSnapshotTests {
         assertSnapshot(
             of: view,
             as: .image(
+                drawHierarchyInKeyWindow: true,
                 precision: 0.99,
-                perceptualPrecision: 0.98,
                 layout: .device(config: .iPhone13Pro),
                 traits: UITraitCollection(userInterfaceStyle: style)
             ),
