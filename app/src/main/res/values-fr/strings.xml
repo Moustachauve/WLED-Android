@@ -131,6 +131,8 @@
 
     <!-- Changelog -->
     <string name="changelog_title">Nouveautés</string>
+    <string name="changelog_version">Version %1$s</string>
+    <string name="changelog_version_dev">Dev</string>
     <string name="changelog_dismiss_button">Génial</string>
     <string name="show_changelog">Afficher les nouveautés</string>
 

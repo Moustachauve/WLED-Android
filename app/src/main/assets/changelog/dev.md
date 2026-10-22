@@ -3,5 +3,3 @@ Automatically see release notes after an app update or revisit them anytime from
 
 ### Other Improvements & Fixes
 - Several bug fixes and performance improvements behind the scenes.
-
-Enjoy your lights!

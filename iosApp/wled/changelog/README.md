@@ -5,10 +5,11 @@ This directory contains markdown versions of the iOS "What's New" release notes.
 ## Rules
 
 1. Files should be named with their version in SemVer format. Examples: `7.1.0.md`, `v7.1.0.md` or `v8.0.0-beta.md`.
-2. Do not include large headers inside the Markdown since the app automatically prepends a header with the version name.
-3. Keep it brief and focused on new features!
-4. It's recommended to include an empty line between bullets or paragraphs for better readability when rendered.
-5. Keep the latest changelog up to date with your changes when creating a new PR (and also update `app/src/main/assets/changelog/dev.md` if the change applies to Android as well).
+2. Do not include `#` version headers inside the Markdown since the app automatically displays a header with the version name on each card.
+3. Prefer `###` section titles with short, playful descriptions over bullet lists that start with bold words (avoid `- **Feature**: ...`). Bullet lists under a `###` title are fine if a large feature needs sub-items.
+4. Group minor features, small tweaks, and bug fixes at the bottom under `### Other Improvements` (or `### Other Improvements & Fixes` when bug fixes are included) using plain bullet points.
+5. Do not use emojis in headings or at the beginning of list items.
+6. Keep the latest changelog up to date with your changes when creating a new PR (and also update `app/src/main/assets/changelog/dev.md` if the change applies to Android as well).
 
 ## Development Changelog
 

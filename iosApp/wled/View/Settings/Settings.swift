@@ -12,6 +12,7 @@ struct Settings: View {
     @Binding var showHiddenDevices: Bool
     @Binding var showOfflineDevicesLast: Bool
     @Binding var theme: ThemeSettings
+    var onShowChangelog: (() -> Void)?
 
     // Environment to dismiss the sheet
     @Environment(\.dismiss) private var dismiss
@@ -41,6 +42,14 @@ struct Settings: View {
                 }
 
                 Section {
+                    if let onShowChangelog {
+                        Button {
+                            onShowChangelog()
+                        } label: {
+                            Label("Show Changelog", systemImage: "sparkles")
+                        }
+                    }
+
                     if let url = URL(string: "https://kno.wled.ge/") {
                         Link(destination: url) {
                             Label("WLED Documentation", systemImage: "questionmark.circle")

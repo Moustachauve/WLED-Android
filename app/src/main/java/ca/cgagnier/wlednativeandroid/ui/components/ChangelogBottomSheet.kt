@@ -219,8 +219,13 @@ private fun ChangelogVersionCard(versionChangelog: VersionChangelog, modifier: M
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
+            val displayVersion = if (versionChangelog.isDev) {
+                stringResource(id = R.string.changelog_version_dev)
+            } else {
+                versionChangelog.version
+            }
             Text(
-                text = versionChangelog.version,
+                text = stringResource(id = R.string.changelog_version, displayVersion),
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontFamily = PixelifySansFontFamily,
                     fontWeight = FontWeight.Bold,

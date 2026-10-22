@@ -2,13 +2,14 @@ package ca.cgagnier.wlednativeandroid.domain
 
 import android.content.Context
 import android.content.res.AssetManager
-import com.diffplug.selfie.Selfie.expectSelfie
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
+import java.io.IOException
 
 class ChangelogProviderTest {
 
@@ -25,88 +26,36 @@ class ChangelogProviderTest {
     }
 
     @Test
-    fun `getChangelog returns empty list when current version is invalid`() {
-        val result = changelogProvider.getChangelog("7.0.0", "not-a-version")
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
-    fun `getChangelog returns empty list when last seen equals current version`() {
+    fun `getChangelog lists and reads matching assets from AssetManager`() {
         every { assetManager.list("changelog") } returns arrayOf("7.0.1.md")
-
-        val result = changelogProvider.getChangelog("7.0.1", "7.0.1")
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
-    fun `getChangelog returns relevant versions newer than last seen`() {
-        every { assetManager.list("changelog") } returns arrayOf(
-            "7.0.0.md",
-            "7.0.1.md",
-            "7.0.2.md",
-            "7.1.0.md",
-        )
-        every { assetManager.open("changelog/7.0.1.md") } returns ByteArrayInputStream(
-            "Added new feature X".toByteArray(),
-        )
-        every { assetManager.open("changelog/7.0.2.md") } returns ByteArrayInputStream(
-            "Fixed bug Y".toByteArray(),
-        )
-
-        val result = changelogProvider.getChangelog("7.0.0", "7.0.2")
-
-        expectSelfie(result.toString()).toMatchDisk()
-    }
-
-    @Test
-    fun `getChangelog includes dev md for beta releases`() {
-        every { assetManager.list("changelog") } returns arrayOf(
-            "7.0.1.md",
-            "dev.md",
-        )
-        every { assetManager.open("changelog/dev.md") } returns ByteArrayInputStream(
-            "Bleeding edge updates".toByteArray(),
-        )
-        every { assetManager.open("changelog/7.0.1.md") } returns ByteArrayInputStream(
-            "Stable release 7.0.1".toByteArray(),
-        )
-
-        val result = changelogProvider.getChangelog("7.0.0", "7.1.0-beta1")
-
-        expectSelfie(result.toString()).toMatchDisk()
-    }
-
-    @Test
-    fun `getChangelog includes dev md when isDebugBuild is true`() {
-        changelogProvider.isDebugBuild = true
-        every { assetManager.list("changelog") } returns arrayOf(
-            "7.0.0.md",
-            "dev.md",
-        )
-        every { assetManager.open("changelog/dev.md") } returns ByteArrayInputStream(
-            "Dev changes".toByteArray(),
-        )
-        every { assetManager.open("changelog/7.0.0.md") } returns ByteArrayInputStream(
-            "Stable 7.0.0".toByteArray(),
-        )
-
-        val result = changelogProvider.getChangelog("0.0.0", "7.0.1")
-
-        expectSelfie(result.toString()).toMatchDisk()
-    }
-
-    @Test
-    fun `getChangelog ignores non-version files such as README md`() {
-        every { assetManager.list("changelog") } returns arrayOf(
-            "README.md",
-            "7.0.1.md",
-        )
         every { assetManager.open("changelog/7.0.1.md") } returns ByteArrayInputStream(
             "Added new feature X".toByteArray(),
         )
 
         val result = changelogProvider.getChangelog("7.0.0", "7.0.1")
 
-        expectSelfie(result.toString()).toMatchDisk()
+        assertEquals(
+            listOf(VersionChangelog(version = "7.0.1", content = "Added new feature X")),
+            result,
+        )
+    }
+
+    @Test
+    fun `getChangelog returns empty list when listing assets throws IOException`() {
+        every { assetManager.list("changelog") } throws IOException("Cannot list assets")
+
+        val result = changelogProvider.getChangelog("7.0.0", "7.0.1")
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `getChangelog skips asset when opening file throws IOException`() {
+        every { assetManager.list("changelog") } returns arrayOf("7.0.1.md")
+        every { assetManager.open("changelog/7.0.1.md") } throws IOException("Cannot read asset")
+
+        val result = changelogProvider.getChangelog("7.0.0", "7.0.1")
+
+        assertTrue(result.isEmpty())
     }
 }

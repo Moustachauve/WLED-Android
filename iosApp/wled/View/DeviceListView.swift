@@ -7,6 +7,7 @@ struct DeviceListView: View {
 
     // MARK: - Properties
     @State private var viewModel: DeviceWebsocketListViewModel
+    @State private var changelogViewModel: ChangelogViewModel
 
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
@@ -14,6 +15,7 @@ struct DeviceListView: View {
 
     @State private var addDeviceButtonActive: Bool = false
     @State private var showSettingsSheet: Bool = false
+    @State private var pendingShowChangelog: Bool = false
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
 
     @AppStorage("lastSelectedDeviceMac") private var lastSelectedDeviceMac: String = ""
@@ -24,8 +26,12 @@ struct DeviceListView: View {
 
     // MARK: - init
 
-    init(viewModel: DeviceWebsocketListViewModel) {
+    init(
+        viewModel: DeviceWebsocketListViewModel,
+        changelogViewModel: ChangelogViewModel = ChangelogViewModel()
+    ) {
         _viewModel = State(wrappedValue: viewModel)
+        _changelogViewModel = State(wrappedValue: changelogViewModel)
     }
 
     // Allow injecting a specific database (defaulting to shared for the actual app)
@@ -37,7 +43,8 @@ struct DeviceListView: View {
             connectionManager: connectionManager,
             database: database
         )
-        self.init(viewModel: viewModel)
+        let changelogViewModel = ChangelogViewModel(database: database)
+        self.init(viewModel: viewModel, changelogViewModel: changelogViewModel)
     }
 
     // MARK: - Body
@@ -49,11 +56,39 @@ struct DeviceListView: View {
                 .sheet(isPresented: $addDeviceButtonActive) {
                     DeviceAddView()
                 }
-                .sheet(isPresented: $showSettingsSheet) {
-                    Settings(
-                        showHiddenDevices: $viewModel.showHiddenDevices,
-                        showOfflineDevicesLast: $viewModel.showOfflineDevicesLast,
-                        theme: $viewModel.theme
+                .sheet(
+                    isPresented: $showSettingsSheet,
+                    onDismiss: {
+                        if pendingShowChangelog {
+                            pendingShowChangelog = false
+                            changelogViewModel.showAllChangelogs()
+                        }
+                    },
+                    content: {
+                        Settings(
+                            showHiddenDevices: $viewModel.showHiddenDevices,
+                            showOfflineDevicesLast: $viewModel.showOfflineDevicesLast,
+                            theme: $viewModel.theme,
+                            onShowChangelog: {
+                                pendingShowChangelog = true
+                                showSettingsSheet = false
+                            }
+                        )
+                    }
+                )
+                .sheet(
+                    isPresented: Binding(
+                        get: { !changelogViewModel.changelogs.isEmpty },
+                        set: { isPresented in
+                            if !isPresented {
+                                dismissChangelog()
+                            }
+                        }
+                    )
+                ) {
+                    ChangelogSheetView(
+                        changelogs: changelogViewModel.changelogs,
+                        onDismiss: dismissChangelog
                     )
                 }
                 .navigationBarTitleDisplayMode(.inline)
@@ -65,7 +100,9 @@ struct DeviceListView: View {
             newTheme.applyToWindows()
         }
         .task {
-            await viewModel.observe()
+            async let observeTask: Void = viewModel.observe()
+            async let changelogTask: Void = changelogViewModel.checkChangelog()
+            _ = await (observeTask, changelogTask)
         }
         .onAppear(perform: appearAction)
         .onChange(of: scenePhase) { _, newPhase in
@@ -264,6 +301,12 @@ struct DeviceListView: View {
     private func appearAction() {
         viewModel.onResume()
         viewModel.startDiscovery()
+    }
+
+    private func dismissChangelog() {
+        Task {
+            await changelogViewModel.dismiss()
+        }
     }
 
     private func deleteItems(device: Device) {

@@ -52,7 +52,7 @@ class ChangelogBottomSheetScreenshotTest {
     companion object {
         private val SAMPLE_CHANGELOGS = listOf(
             VersionChangelog(
-                version = "Version Dev",
+                version = "dev",
                 content = """
                     ### What's New Changelog
                     Automatically see release notes in *per-version* cards after an app update, or revisit them anytime from Settings.
@@ -60,9 +60,10 @@ class ChangelogBottomSheetScreenshotTest {
                     ### To the Moon and Beyond!
                     Added over-the-air (`OTA`) firmware update support for **QuinLED** and **MoonModules** boards.
                 """.trimIndent(),
+                isDev = true,
             ),
             VersionChangelog(
-                version = "Version 7.0.0",
+                version = "7.0.0",
                 content = """
                     ### Shiny New Widgets
                     Control lights without even opening the app! These redesigned widgets are interactive and sync in *real-time* over `WebSocket`.

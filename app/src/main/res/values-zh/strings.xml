@@ -129,6 +129,8 @@
 
     <!-- Changelog -->
     <string name="changelog_title">更新内容</string>
+    <string name="changelog_version">版本 %1$s</string>
+    <string name="changelog_version_dev">Dev</string>
     <string name="changelog_dismiss_button">太棒了</string>
     <string name="show_changelog">查看更新日志</string>
 

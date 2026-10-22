@@ -133,6 +133,8 @@
 
     <!-- Changelog -->
     <string name="changelog_title">What\'s new</string>
+    <string name="changelog_version">Version %1$s</string>
+    <string name="changelog_version_dev">Dev</string>
     <string name="changelog_dismiss_button">Awesome</string>
     <string name="show_changelog">Show changelog</string>
 
