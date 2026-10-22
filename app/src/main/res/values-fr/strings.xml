@@ -47,7 +47,6 @@
     <string name="dark">Sombre</string>
     <string name="system_default">Par défaut</string>
     <string name="listing_options">Options de la liste</string>
-    <string name="discovering_devices">Découverte d\'appareil en cours</string>
     <string name="automatically_discover_new_devices">Découvrir les nouveaux appareils automatiquement</string>
     <string name="show_hidden_devices">Afficher les appareils cachés</string>
     <string name="hide_hidden_devices">Cacher les appareils cachés</string>
@@ -76,12 +75,10 @@
     <string name="device_update_disclaimer_part2">Si quelqu\'un a installé cet appareil pour vous, vous devriez confirmer avec eux qu\'il n\'y a pas de risque à installer cette nouvelle version.</string>
     <string name="device_update_disclaimer_part3">WLED n\'est pas responsable si quelque chose ne fonctionne plus dû à une mise à jour.</string>
     <string name="install_update">Installer la mise à jour</string>
-    <string name="ota_install_failed_device_locked">Votre appareil est peut-être protégé par un NIP ou un mot de passe.</string>
     <string name="no_compatible_version_found">Aucune version compatible</string>
     <string name="no_compatible_version_found_details">Aucune version compatible avec votre appareil n\'a pu être trouvé. Vous devrez faire une installation manuelle.</string>
     <string name="show_error">Afficher l\'erreur</string>
     <string name="hide_error">Cacher l\'erreur</string>
-    <string name="unknown_error">Erreur inconnue</string>
     <string name="success">Succès!</string>
     <string name="update_channel">Variante de MàJ</string>
     <string name="update_source">Source de mise à jour</string>

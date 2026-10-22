@@ -29,6 +29,8 @@ android {
 
     androidResources {
         localeFilters += listOf("de", "en", "fr", "zh")
+        ignoreAssetsPattern =
+            "!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:!README.md"
     }
 
     sourceSets {

@@ -46,7 +46,6 @@
     <string name="dark">Dunkel</string>
     <string name="system_default">Systemeinstellungen</string>
     <string name="listing_options">Listenoptionen</string>
-    <string name="discovering_devices">Suche Geräte</string>
     <string name="automatically_discover_new_devices">Neue Geräte automatisch erkennen</string>
     <string name="show_hidden_devices">Verborgene Geräte anzeigen</string>
     <string name="hide_hidden_devices">Verborgene Geräte ausblenden</string>
@@ -77,12 +76,10 @@
     <string name="device_update_disclaimer_part2">Wenn jemand dieses Gerät für dich installiert hat, solltest du diese Person fragen, ob ein Update des Geräts in Ordnung ist.</string>
     <string name="device_update_disclaimer_part3">WLED ist nicht verantwortlich, wenn durch ein Update etwas schiefgeht.</string>
     <string name="install_update">Update installieren</string>
-    <string name="ota_install_failed_device_locked">Dein Gerät könnte durch eine PIN geschützt oder gesperrt sein.</string>
     <string name="no_compatible_version_found">Keine kompatible Version gefunden</string>
     <string name="no_compatible_version_found_details">Es wurde keine Version gefunden, die mit deinem Gerät kompatibel ist. Du musst dein Gerät manuell aktualisieren.</string>
     <string name="show_error">Fehler anzeigen</string>
     <string name="hide_error">Fehler verbergen</string>
-    <string name="unknown_error">Unbekannter Fehler</string>
     <string name="success">Erfolg!</string>
     <string name="update_channel">Update-Kanal</string>
     <string name="update_source">Update-Quelle</string>

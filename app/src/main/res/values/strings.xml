@@ -47,7 +47,6 @@
     <string name="dark">Dark</string>
     <string name="system_default">System default</string>
     <string name="listing_options">Listing Options</string>
-    <string name="discovering_devices">Discovering Devices</string>
     <string name="automatically_discover_new_devices">Automatically Discover New Devices</string>
     <string name="show_hidden_devices">Show Hidden Devices</string>
     <string name="hide_hidden_devices">Hide Hidden Devices</string>
@@ -78,12 +77,10 @@
     <string name="device_update_disclaimer_part2">If someone installed this device for you, you should maybe ask them if it is alright to update the device to a new version.</string>
     <string name="device_update_disclaimer_part3">WLED is not responsible if something goes wrong due to an update.</string>
     <string name="install_update">Install Update</string>
-    <string name="ota_install_failed_device_locked">Your device might be PIN protected or locked with a passphrase.</string>
     <string name="no_compatible_version_found">No Compatible Version Found</string>
     <string name="no_compatible_version_found_details">No version that is compatible with your device could be found. You will need to manually update your device.</string>
     <string name="show_error">Show Error</string>
     <string name="hide_error">Hide Error</string>
-    <string name="unknown_error">Unknown Error</string>
     <string name="success">Success!</string>
     <string name="update_channel">Update Channel</string>
     <string name="update_source">Update Source</string>

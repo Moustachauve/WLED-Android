@@ -306,6 +306,7 @@ struct DeviceListView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     // Ensure some data exists in the preview context
     // swiftlint:disable redundant_discardable_let
@@ -319,3 +320,4 @@ struct DeviceListView: View {
         database: PreviewData.database
     )
 }
+#endif
