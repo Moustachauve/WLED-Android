@@ -11,6 +11,7 @@ excluded:
   - build
   - .build
   - DerivedData
+  - wledTests/__Snapshots__
 
 # Disabled rules
 disabled_rules:

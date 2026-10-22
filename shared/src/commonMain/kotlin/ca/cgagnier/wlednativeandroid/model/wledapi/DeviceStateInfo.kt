@@ -44,7 +44,7 @@ data class DeviceStateInfo(@SerialName("state") val state: State, @SerialName("i
                 version = version,
                 name = name,
                 leds = Leds(count = DEFAULT_MOCK_LED_COUNT),
-                wifi = Wifi(signal = DEFAULT_MOCK_SIGNAL),
+                wifi = Wifi(rssi = DEFAULT_MOCK_SIGNAL, signal = DEFAULT_MOCK_SIGNAL),
             ),
         )
     }

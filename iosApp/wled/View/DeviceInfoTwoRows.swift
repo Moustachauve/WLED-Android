@@ -148,6 +148,7 @@ struct OfflineSinceText: View {
 
 // MARK: DeviceInfoTwoRows preview
 
+#if DEBUG
 struct DeviceInfoTwoRows_Previews: PreviewProvider {
 
     // Let's display a device with only one bar of signal
@@ -170,6 +171,7 @@ struct DeviceInfoTwoRows_Previews: PreviewProvider {
         .previewLayout(.sizeThatFits)
     }
 }
+#endif
 
 // MARK: OfflineSinceText preview
 

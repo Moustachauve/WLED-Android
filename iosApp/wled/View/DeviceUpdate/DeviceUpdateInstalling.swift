@@ -169,6 +169,7 @@ extension Notification.Name {
     }
 }
 
+#if DEBUG
 #Preview {
     DeviceUpdateInstalling(
         device: PreviewData.deviceWithUpdate,
@@ -176,3 +177,4 @@ extension Notification.Name {
         database: PreviewData.database
     )
 }
+#endif

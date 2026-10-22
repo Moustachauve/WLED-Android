@@ -157,8 +157,10 @@ struct DeviceUpdateAvailable: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         DeviceEditView(device: PreviewData.onlineDevice, database: PreviewData.database)
     }
 }
+#endif

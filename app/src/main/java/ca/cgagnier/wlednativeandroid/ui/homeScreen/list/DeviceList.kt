@@ -45,7 +45,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.R
+import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
+import ca.cgagnier.wlednativeandroid.service.websocket.PartitionedDevices
 import ca.cgagnier.wlednativeandroid.service.websocket.getApModeDeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.partitionDevices
 import ca.cgagnier.wlednativeandroid.ui.components.DeviceInfoTwoRows
@@ -55,6 +57,28 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 private const val TAG = "screen_DeviceList"
+
+data class DeviceListState(
+    val allDevices: List<DeviceWithState>,
+    val selectedDevice: DeviceWithState? = null,
+    val isWLEDCaptivePortal: Boolean = false,
+    val showOfflineDevicesLast: Boolean = true,
+    val showHiddenDevices: Boolean = false,
+    val isInitialLoading: Boolean = false,
+    val currentTime: Long = 0L,
+)
+
+data class DeviceListActions(
+    val onItemClick: (DeviceWithState) -> Unit = {},
+    val onItemEdit: (DeviceWithState) -> Unit = {},
+    val onAddDevice: () -> Unit = {},
+    val onShowHiddenDevices: () -> Unit = {},
+    val onRefresh: () -> Unit = {},
+    val onOpenDrawer: () -> Unit = {},
+    val onPowerSwitchToggle: (DeviceWithState, Boolean) -> Unit = { _, _ -> },
+    val onBrightnessChanged: (DeviceWithState, Int) -> Unit = { _, _ -> },
+    val onDeleteDevice: (Device) -> Unit = {},
+)
 
 @Composable
 fun DeviceList(
@@ -71,8 +95,6 @@ fun DeviceList(
     val allDevices by viewModel.allDevicesWithState.collectAsStateWithLifecycle()
     val showOfflineDevicesLast by viewModel.showOfflineDevicesLast.collectAsStateWithLifecycle()
     val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
-
-    val listState = rememberLazyListState()
 
     var isInitialLoading by rememberSaveable { mutableStateOf(true) }
 
@@ -95,16 +117,44 @@ fun DeviceList(
         }
     }
 
-    val partitioned = remember(allDevices, showHiddenDevices, currentTime) {
-        partitionDevices(
-            devices = allDevices,
+    DeviceListContent(
+        state = DeviceListState(
+            allDevices = allDevices,
+            selectedDevice = selectedDevice,
+            isWLEDCaptivePortal = isWLEDCaptivePortal,
+            showOfflineDevicesLast = showOfflineDevicesLast,
             showHiddenDevices = showHiddenDevices,
-            currentTimeMillis = currentTime,
+            isInitialLoading = isInitialLoading,
+            currentTime = currentTime,
+        ),
+        actions = DeviceListActions(
+            onItemClick = onItemClick,
+            onItemEdit = onItemEdit,
+            onAddDevice = onAddDevice,
+            onShowHiddenDevices = onShowHiddenDevices,
+            onRefresh = {
+                onRefresh()
+                viewModel.refreshOfflineDevices()
+            },
+            onOpenDrawer = onOpenDrawer,
+            onPowerSwitchToggle = viewModel::setDevicePower,
+            onBrightnessChanged = viewModel::setBrightness,
+            onDeleteDevice = viewModel::deleteDevice,
+        ),
+    )
+}
+
+@Composable
+fun DeviceListContent(state: DeviceListState, actions: DeviceListActions = DeviceListActions()) {
+    val listState = rememberLazyListState()
+
+    val partitioned = remember(state.allDevices, state.showHiddenDevices, state.currentTime) {
+        partitionDevices(
+            devices = state.allDevices,
+            showHiddenDevices = state.showHiddenDevices,
+            currentTimeMillis = state.currentTime,
         )
     }
-    val visibleDevices = partitioned.visible
-    val onlineDevices = partitioned.online
-    val offlineDevices = partitioned.offline
 
     val pullToRefreshState = rememberPullToRefreshState()
     var isRefreshing by remember { mutableStateOf(false) }
@@ -113,8 +163,7 @@ fun DeviceList(
 
     val refresh: () -> Unit = {
         isRefreshing = true
-        onRefresh()
-        viewModel.refreshOfflineDevices()
+        actions.onRefresh()
         coroutineScope.launch {
             delay(1800)
             isRefreshing = false
@@ -124,8 +173,8 @@ fun DeviceList(
     Scaffold(
         topBar = {
             DeviceListAppBar(
-                onOpenDrawer = onOpenDrawer,
-                onAddDevice = onAddDevice,
+                onOpenDrawer = actions.onOpenDrawer,
+                onAddDevice = actions.onAddDevice,
             )
         },
     ) { innerPadding ->
@@ -142,70 +191,11 @@ fun DeviceList(
                     .padding(horizontal = 6.dp)
                     .clip(shape = MaterialTheme.shapes.large),
             ) {
-                // First invisible item to keep the scroll at the top if the list changes under it.
-                // This is a "hack" suggested here: https://issuetracker.google.com/issues/234223556#comment2
-                item(key = "first_invisible") {
-                    Spacer(
-                        Modifier
-                            .padding(1.dp)
-                            .height(0.dp),
-                    )
-                }
-                if (visibleDevices.isEmpty() && !isWLEDCaptivePortal) {
-                    // Don't show the empty page during the initial load to improve the user
-                    // experience.
-                    if (isInitialLoading) {
-                        items(3) {
-                            SkeletonDeviceRow()
-                        }
-                    } else {
-                        item(key = "no_devices") {
-                            NoDevicesItem(
-                                modifier = Modifier.fillParentMaxSize(),
-                                shouldShowHiddenDevices = visibleDevices.isEmpty() && allDevices.isNotEmpty(),
-                                onAddDevice = onAddDevice,
-                                onShowHiddenDevices = onShowHiddenDevices,
-                            )
-                        }
-                    }
-                } else {
-                    if (isWLEDCaptivePortal) {
-                        item(key = "captive_portal") {
-                            val device = getApModeDeviceWithState()
-                            DeviceAPListItem(
-                                isSelected = device.device.macAddress == selectedDevice?.device?.macAddress,
-                                onClick = { onItemClick(device) },
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
-                    }
-                    if (showOfflineDevicesLast) {
-                        onlineOfflineDevicesList(
-                            onlineDevices = onlineDevices,
-                            offlineDevices = offlineDevices,
-                            selectedDevice = selectedDevice,
-                            currentTime = currentTime,
-                            onItemClick = onItemClick,
-                            onItemEdit = onItemEdit,
-                            viewModel = viewModel,
-                        )
-                    } else {
-                        allDevicesList(
-                            devices = visibleDevices,
-                            selectedDevice = selectedDevice,
-                            currentTime = currentTime,
-                            onItemClick = onItemClick,
-                            onItemEdit = onItemEdit,
-                            viewModel = viewModel,
-                        )
-                    }
-
-                    // This spacer is so that the last item of the list can be scrolled a bit
-                    // further than just the bottom of the screen.
-                    item(key = "end_spacer_buffer") {
-                        Spacer(Modifier.padding(42.dp))
-                    }
-                }
+                deviceListItems(
+                    state = state,
+                    partitioned = partitioned,
+                    actions = actions,
+                )
             }
 
             // This should help prevent weird scrolling when devices switches between online and
@@ -223,13 +213,78 @@ fun DeviceList(
     }
 }
 
+private fun LazyListScope.deviceListItems(
+    state: DeviceListState,
+    partitioned: PartitionedDevices,
+    actions: DeviceListActions,
+) {
+    // First invisible item to keep the scroll at the top if the list changes under it.
+    // This is a "hack" suggested here: https://issuetracker.google.com/issues/234223556#comment2
+    item(key = "first_invisible") {
+        Spacer(
+            Modifier
+                .padding(1.dp)
+                .height(0.dp),
+        )
+    }
+    if (partitioned.visible.isEmpty() && !state.isWLEDCaptivePortal) {
+        // Don't show the empty page during the initial load to improve the user
+        // experience.
+        if (state.isInitialLoading) {
+            items(3) {
+                SkeletonDeviceRow()
+            }
+        } else {
+            item(key = "no_devices") {
+                NoDevicesItem(
+                    modifier = Modifier.fillParentMaxSize(),
+                    shouldShowHiddenDevices = partitioned.visible.isEmpty() && state.allDevices.isNotEmpty(),
+                    onAddDevice = actions.onAddDevice,
+                    onShowHiddenDevices = actions.onShowHiddenDevices,
+                )
+            }
+        }
+    } else {
+        if (state.isWLEDCaptivePortal) {
+            item(key = "captive_portal") {
+                val device = getApModeDeviceWithState()
+                DeviceAPListItem(
+                    isSelected = device.device.macAddress == state.selectedDevice?.device?.macAddress,
+                    onClick = { actions.onItemClick(device) },
+                    modifier = Modifier.animateItem(),
+                )
+            }
+        }
+        if (state.showOfflineDevicesLast) {
+            onlineOfflineDevicesList(
+                onlineDevices = partitioned.online,
+                offlineDevices = partitioned.offline,
+                selectedDevice = state.selectedDevice,
+                currentTime = state.currentTime,
+                actions = actions,
+            )
+        } else {
+            allDevicesList(
+                devices = partitioned.visible,
+                selectedDevice = state.selectedDevice,
+                currentTime = state.currentTime,
+                actions = actions,
+            )
+        }
+
+        // This spacer is so that the last item of the list can be scrolled a bit
+        // further than just the bottom of the screen.
+        item(key = "end_spacer_buffer") {
+            Spacer(Modifier.padding(42.dp))
+        }
+    }
+}
+
 fun LazyListScope.allDevicesList(
     devices: List<DeviceWithState>,
     selectedDevice: DeviceWithState?,
     currentTime: Long,
-    onItemClick: (DeviceWithState) -> Unit,
-    onItemEdit: (DeviceWithState) -> Unit,
-    viewModel: DeviceWebsocketListViewModel,
+    actions: DeviceListActions,
 ) {
     itemsIndexed(
         devices,
@@ -240,9 +295,7 @@ fun LazyListScope.allDevicesList(
             device = device,
             isSelected = device.device.macAddress == selectedDevice?.device?.macAddress,
             currentTime = currentTime,
-            onClick = onItemClick,
-            onEdit = onItemEdit,
-            viewModel = viewModel,
+            actions = actions,
         )
     }
 }
@@ -252,9 +305,7 @@ fun LazyListScope.onlineOfflineDevicesList(
     offlineDevices: List<DeviceWithState>,
     selectedDevice: DeviceWithState?,
     currentTime: Long,
-    onItemClick: (DeviceWithState) -> Unit,
-    onItemEdit: (DeviceWithState) -> Unit,
-    viewModel: DeviceWebsocketListViewModel,
+    actions: DeviceListActions,
 ) {
     itemsIndexed(
         onlineDevices,
@@ -265,9 +316,7 @@ fun LazyListScope.onlineOfflineDevicesList(
             device = device,
             isSelected = device.device.macAddress == selectedDevice?.device?.macAddress,
             currentTime = currentTime,
-            onClick = onItemClick,
-            onEdit = onItemEdit,
-            viewModel = viewModel,
+            actions = actions,
         )
     }
     if (offlineDevices.isNotEmpty()) {
@@ -283,9 +332,7 @@ fun LazyListScope.onlineOfflineDevicesList(
                 device = device,
                 isSelected = device.device.macAddress == selectedDevice?.device?.macAddress,
                 currentTime = currentTime,
-                onClick = onItemClick,
-                onEdit = onItemEdit,
-                viewModel = viewModel,
+                actions = actions,
             )
         }
     }
@@ -296,9 +343,7 @@ fun LazyItemScope.DeviceRow(
     device: DeviceWithState,
     isSelected: Boolean,
     currentTime: Long = 0,
-    onClick: (DeviceWithState) -> Unit,
-    onEdit: (DeviceWithState) -> Unit,
-    viewModel: DeviceWebsocketListViewModel,
+    actions: DeviceListActions,
 ) {
     val coroutineScope = rememberCoroutineScope()
     var isConfirmingDelete by remember { mutableStateOf(false) }
@@ -310,7 +355,7 @@ fun LazyItemScope.DeviceRow(
         device = device,
         isSelected = isSelected,
         currentTime = currentTime,
-        onClick = { onClick(device) },
+        onClick = { actions.onItemClick(device) },
         swipeToDismissBoxState = swipeDismissState,
         onDismiss = { direction ->
             if (direction == SwipeToDismissBoxValue.EndToStart) {
@@ -318,15 +363,15 @@ fun LazyItemScope.DeviceRow(
             } else if (direction == SwipeToDismissBoxValue.StartToEnd) {
                 coroutineScope.launch {
                     swipeDismissState.reset()
-                    onEdit(device)
+                    actions.onItemEdit(device)
                 }
             }
         },
         onPowerSwitchToggle = { isOn ->
-            viewModel.setDevicePower(device, isOn)
+            actions.onPowerSwitchToggle(device, isOn)
         },
         onBrightnessChanged = { brightness ->
-            viewModel.setBrightness(device, brightness)
+            actions.onBrightnessChanged(device, brightness)
         },
         modifier = Modifier.animateItem(),
     )
@@ -341,7 +386,7 @@ fun LazyItemScope.DeviceRow(
             coroutineScope.launch {
                 swipeDismissState.reset()
                 isConfirmingDelete = false
-                viewModel.deleteDevice(device.device)
+                actions.onDeleteDevice(device.device)
             }
         }, onDismiss = {
             isConfirmingDelete = false
