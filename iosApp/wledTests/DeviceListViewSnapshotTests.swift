@@ -11,16 +11,11 @@ struct DeviceListViewSnapshotTests {
 
     let database: AppDatabase
     let repository: DeviceRepository
-    let userDefaults: UserDefaults
     let discoveryService: FakeDiscoveryService
 
-    init() throws {
+    init() {
         self.database = AppDatabase(inMemory: true)
         self.repository = database.deviceRepository
-        let suiteName = "DeviceListViewSnapshotTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defaults.removePersistentDomain(forName: suiteName)
-        self.userDefaults = defaults
         self.discoveryService = FakeDiscoveryService()
     }
 
@@ -90,7 +85,6 @@ struct DeviceListViewSnapshotTests {
 
         let viewModel = DeviceWebsocketListViewModel(
             database: database,
-            userDefaults: userDefaults,
             discoveryService: discoveryService
         )
 
