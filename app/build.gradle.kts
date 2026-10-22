@@ -207,3 +207,9 @@ tasks.withType<Test>().configureEach {
         events("passed", "skipped", "failed")
     }
 }
+
+tasks.withType<com.android.compose.screenshot.tasks.PreviewScreenshotValidationTask>().configureEach {
+    // Allow up to 0.2% pixel difference to account for sub-pixel anti-aliasing differences
+    // on scaled drawables across host platforms (e.g., macOS ARM64 vs Linux x86_64 in CI).
+    testEngineInput.threshold.set(0.002f)
+}
