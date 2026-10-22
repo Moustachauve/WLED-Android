@@ -37,8 +37,8 @@ jobs:
         with:
           cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
 
-      - name: Run unit tests
-        run: ./gradlew :app:testDebugUnitTest :shared:testAndroidHostTest
+      - name: Run unit and screenshot tests
+        run: ./gradlew :app:testDebugUnitTest :app:validateDebugScreenshotTest :shared:testAndroidHostTest
 
       - name: Upload Test Results
         if: always()
@@ -47,6 +47,7 @@ jobs:
           name: test-results
           path: |
             app/build/reports/tests/
+            app/build/reports/screenshotTest/
             shared/build/reports/tests/testAndroidHostTest/
           if-no-files-found: ignore
           retention-days: 7

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.google.protobuf)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.screenshot)
     id("kotlin-parcelize")
 }
 
@@ -81,6 +82,7 @@ android {
             it.useJUnitPlatform()
         }
     }
+    experimentalProperties["android.experimental.enableScreenshotTest"] = true
 }
 
 dependencies {
@@ -156,6 +158,9 @@ dependencies {
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.koin.test)
+    screenshotTestImplementation(composeBom)
+    screenshotTestImplementation(libs.screenshot.validation.api)
+    screenshotTestImplementation(libs.androidx.ui.tooling)
 }
 
 protobuf {
@@ -180,7 +185,11 @@ protobuf {
 }
 
 tasks.withType<Test>().configureEach {
-    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
+    if (name.contains("ScreenshotTest", ignoreCase = true)) {
+        maxParallelForks = 1
+    } else {
+        maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
+    }
     // Pass -Pselfie command-line property to the test runner environment and system properties
     val selfieProp = providers.gradleProperty("selfie")
     if (selfieProp.isPresent) {
@@ -197,4 +206,10 @@ tasks.withType<Test>().configureEach {
     testLogging {
         events("passed", "skipped", "failed")
     }
+}
+
+tasks.withType<com.android.compose.screenshot.tasks.PreviewScreenshotValidationTask>().configureEach {
+    // Allow up to 0.2% pixel difference to account for sub-pixel anti-aliasing differences
+    // on scaled drawables across host platforms (e.g., macOS ARM64 vs Linux x86_64 in CI).
+    testEngineInput.threshold.set(0.002f)
 }
