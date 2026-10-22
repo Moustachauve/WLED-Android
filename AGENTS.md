@@ -92,4 +92,7 @@ SKIP_KMP_BUILD=1 xcodebuild test \
 *   `gradle/libs.versions.toml` - Version catalog for all dependencies and plugins.
 *   `config/detekt/detekt.yml` & `app/detekt-baseline.xml` - Detekt configuration and legacy baseline.
 *   `iosApp/.swiftlint.yml` - SwiftLint configuration.
-*   `app/src/main/assets/changelog/dev.md` & `iosApp/wled/changelog/dev.md` - Development changelogs for user-facing changes on Android and iOS (always update the corresponding file(s) — or both when a feature applies to both platforms; see [CONTRIBUTING.md](CONTRIBUTING.md)).
+*   `app/src/main/assets/changelog/dev.md` & `iosApp/wled/changelog/dev.md` - Development changelogs for user-facing changes on Android and iOS (always update the corresponding file(s) — or both when a feature applies to both platforms; see [CONTRIBUTING.md](CONTRIBUTING.md)):
+    *   Prefer `###` section headings with short, playful descriptions over bullet lists that start with bold words (`- **Feature**: ...`). Bullet lists under a `###` heading are fine when a larger feature needs sub-items.
+    *   Group minor features, small tweaks, and bug fixes at the end under `### Other Improvements` (or `### Other Improvements & Fixes` when bug fixes are included) using plain bullet points.
+    *   Do not use emojis in headings or at the beginning of list items.

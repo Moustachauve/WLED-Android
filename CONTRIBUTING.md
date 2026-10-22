@@ -101,3 +101,8 @@ When your Pull Request introduces a new user-facing feature or an important bug 
 - **iOS:** `iosApp/wled/changelog/dev.md`
 
 When a feature or fix applies to both platforms, remember to update **both** `dev.md` files! **Do not** create new versioned files (like `7.2.0.md`) or edit production changelogs for new PRs. Keeping `dev.md` up to date ensures all new features are correctly aggregated for the next release and displayed clearly for beta testers!
+
+### Changelog Style Guidelines
+- **Section Headings over Bolded Bullet Lists:** Prefer `###` section titles with short, playful descriptions over bullet lists that start with bold words (e.g., avoid `- **Feature**: description`). Bullet lists under a `###` title are fine if a major feature needs sub-items.
+- **Minor Features & Fixes:** Group minor features, small tweaks, and bug fixes at the bottom under `### Other Improvements` (or `### Other Improvements & Fixes` when bug fixes are included) using plain bullet points.
+- **No Emojis:** Do not use emojis in headings or at the beginning of list items.

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.BuildConfig
 import ca.cgagnier.wlednativeandroid.domain.ChangelogProvider
+import ca.cgagnier.wlednativeandroid.domain.VersionChangelog
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,8 +17,8 @@ class ChangelogViewModel(
     private val changelogProvider: ChangelogProvider,
 ) : ViewModel() {
 
-    private val _changelogContent = MutableStateFlow<String?>(null)
-    val changelogContent: StateFlow<String?> = _changelogContent.asStateFlow()
+    private val _changelogs = MutableStateFlow<List<VersionChangelog>>(emptyList())
+    val changelogs: StateFlow<List<VersionChangelog>> = _changelogs.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -40,12 +41,12 @@ class ChangelogViewModel(
             return
         }
 
-        val content = changelogProvider.getChangelog(lastSeenVersion, currentVersion)
+        val entries = changelogProvider.getChangelog(lastSeenVersion, currentVersion)
 
-        if (!content.isNullOrEmpty()) {
-            _changelogContent.value = content
+        if (entries.isNotEmpty()) {
+            _changelogs.value = entries
         } else {
-            // No changelogs to show, but version has changed, save logic so we don`t check again.
+            // No changelogs to show, but version has changed, save logic so we don't check again.
             userPreferencesRepository.updateLastChangelogVersionSeen(currentVersion)
         }
     }
@@ -53,15 +54,15 @@ class ChangelogViewModel(
     fun dismiss() {
         viewModelScope.launch {
             userPreferencesRepository.updateLastChangelogVersionSeen(BuildConfig.VERSION_NAME)
-            _changelogContent.value = null
+            _changelogs.value = emptyList()
         }
     }
 
     fun showAllChangelogs() {
         viewModelScope.launch {
-            val content = changelogProvider.getChangelog("0.0.0", BuildConfig.VERSION_NAME)
-            if (!content.isNullOrEmpty()) {
-                _changelogContent.value = content
+            val entries = changelogProvider.getChangelog("0.0.0", BuildConfig.VERSION_NAME)
+            if (entries.isNotEmpty()) {
+                _changelogs.value = entries
             }
         }
     }

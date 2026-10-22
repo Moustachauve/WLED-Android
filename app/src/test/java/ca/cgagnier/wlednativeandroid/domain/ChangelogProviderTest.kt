@@ -5,8 +5,7 @@ import android.content.res.AssetManager
 import com.diffplug.selfie.Selfie.expectSelfie
 import io.mockk.every
 import io.mockk.mockk
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
@@ -20,21 +19,23 @@ class ChangelogProviderTest {
     @BeforeEach
     fun setUp() {
         every { context.assets } returns assetManager
-        changelogProvider = ChangelogProvider(context)
+        changelogProvider = ChangelogProvider(context).apply {
+            isDebugBuild = false
+        }
     }
 
     @Test
-    fun `getChangelog returns null when current version is invalid`() {
+    fun `getChangelog returns empty list when current version is invalid`() {
         val result = changelogProvider.getChangelog("7.0.0", "not-a-version")
-        assertNull(result)
+        assertTrue(result.isEmpty())
     }
 
     @Test
-    fun `getChangelog returns null when last seen equals current version`() {
+    fun `getChangelog returns empty list when last seen equals current version`() {
         every { assetManager.list("changelog") } returns arrayOf("7.0.1.md")
 
         val result = changelogProvider.getChangelog("7.0.1", "7.0.1")
-        assertNull(result)
+        assertTrue(result.isEmpty())
     }
 
     @Test
@@ -54,8 +55,7 @@ class ChangelogProviderTest {
 
         val result = changelogProvider.getChangelog("7.0.0", "7.0.2")
 
-        assertNotNull(result)
-        expectSelfie(result!!).toMatchDisk()
+        expectSelfie(result.toString()).toMatchDisk()
     }
 
     @Test
@@ -73,8 +73,26 @@ class ChangelogProviderTest {
 
         val result = changelogProvider.getChangelog("7.0.0", "7.1.0-beta1")
 
-        assertNotNull(result)
-        expectSelfie(result!!).toMatchDisk()
+        expectSelfie(result.toString()).toMatchDisk()
+    }
+
+    @Test
+    fun `getChangelog includes dev md when isDebugBuild is true`() {
+        changelogProvider.isDebugBuild = true
+        every { assetManager.list("changelog") } returns arrayOf(
+            "7.0.0.md",
+            "dev.md",
+        )
+        every { assetManager.open("changelog/dev.md") } returns ByteArrayInputStream(
+            "Dev changes".toByteArray(),
+        )
+        every { assetManager.open("changelog/7.0.0.md") } returns ByteArrayInputStream(
+            "Stable 7.0.0".toByteArray(),
+        )
+
+        val result = changelogProvider.getChangelog("0.0.0", "7.0.1")
+
+        expectSelfie(result.toString()).toMatchDisk()
     }
 
     @Test
@@ -89,7 +107,6 @@ class ChangelogProviderTest {
 
         val result = changelogProvider.getChangelog("7.0.0", "7.0.1")
 
-        assertNotNull(result)
-        expectSelfie(result!!).toMatchDisk()
+        expectSelfie(result.toString()).toMatchDisk()
     }
 }

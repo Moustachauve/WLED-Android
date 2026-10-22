@@ -35,8 +35,8 @@
 		8813CE392EE9178D00B0A987 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
 				changelog/README.md,
+				Info.plist,
 			);
 			target = C9A9E5BC2918D1C3005B5C22 /* WLED */;
 		};

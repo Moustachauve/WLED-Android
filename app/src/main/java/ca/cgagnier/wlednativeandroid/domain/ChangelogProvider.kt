@@ -1,6 +1,7 @@
 package ca.cgagnier.wlednativeandroid.domain
 
 import android.content.Context
+import ca.cgagnier.wlednativeandroid.BuildConfig
 import co.touchlab.kermit.Logger
 import io.github.z4kn4fein.semver.toVersion
 import io.github.z4kn4fein.semver.toVersionOrNull
@@ -10,17 +11,21 @@ import io.github.z4kn4fein.semver.Version as SemVersion
 private const val TAG = "ChangelogProvider"
 private val logger = Logger.withTag(TAG)
 
+data class VersionChangelog(val version: String, val content: String)
+
 class ChangelogProvider(private val context: Context) {
-    fun getChangelog(lastSeenVersionStr: String, currentVersionStr: String): String? {
+    internal var isDebugBuild: Boolean = BuildConfig.DEBUG
+
+    fun getChangelog(lastSeenVersionStr: String, currentVersionStr: String): List<VersionChangelog> {
         val lastSeenVersion = parseSemverSafe(lastSeenVersionStr) ?: DEFAULT_VERSION
-        val currentVersion = parseSemverSafe(currentVersionStr) ?: return null
+        val currentVersion = parseSemverSafe(currentVersionStr) ?: return emptyList()
 
         val validChangelogs = getValidChangelogs(lastSeenVersion, currentVersion)
         if (validChangelogs.isEmpty()) {
-            return null
+            return emptyList()
         }
 
-        return buildChangelogContent(validChangelogs)
+        return buildChangelogEntries(validChangelogs)
     }
 
     private fun parseSemverSafe(versionStr: String): SemVersion? {
@@ -39,12 +44,13 @@ class ChangelogProvider(private val context: Context) {
             return emptyList()
         }
 
-        val hasBeta = currentVersion.preRelease?.contains("beta", ignoreCase = true) == true
+        val shouldIncludeDev = isDebugBuild ||
+            currentVersion.preRelease?.contains("beta", ignoreCase = true) == true
         val validFiles = mutableListOf<ChangelogFile>()
 
         val devFilename = files.firstOrNull { it.equals("dev.md", ignoreCase = true) }
-        if (hasBeta && devFilename != null) {
-            validFiles.add(ChangelogFile("999.0.0".toVersion(strict = false), devFilename, "Dev"))
+        if (shouldIncludeDev && devFilename != null) {
+            validFiles.add(ChangelogFile(DEV_VERSION, devFilename, "Dev"))
         }
 
         validFiles.addAll(
@@ -59,45 +65,41 @@ class ChangelogProvider(private val context: Context) {
                 val versionPart = filename.removeSuffix(MARKDOWN_EXTENSION)
                 val fileVersion = parseSemverSafe(versionPart)
 
-                if (fileVersion != null &&
-                    fileVersion > lastSeenVersion &&
-                    fileVersion <= currentVersion
+                if (fileVersion == null ||
+                    fileVersion <= lastSeenVersion ||
+                    fileVersion > currentVersion
                 ) {
-                    ChangelogFile(fileVersion, filename)
-                } else {
-                    null
+                    return@mapNotNull null
                 }
+
+                ChangelogFile(fileVersion, filename)
             },
         )
 
         return validFiles.sortedByDescending { it.fileVersion }
     }
 
-    private fun buildChangelogContent(validChangelogs: List<ChangelogFile>): String {
-        val stringBuilder = StringBuilder()
-
-        validChangelogs.forEachIndexed { index, changelogFile ->
+    private fun buildChangelogEntries(validChangelogs: List<ChangelogFile>): List<VersionChangelog> =
+        validChangelogs.mapNotNull { changelogFile ->
             try {
                 val content = context.assets.open("$CHANGELOG_DIR/${changelogFile.filename}")
                     .bufferedReader()
                     .use { it.readText() }
+                    .trim()
 
-                stringBuilder.append("# Version ${changelogFile.displayVersion}\n\n")
-                // Add double newlines before headers in the content for better spacing
-                val spacedContent = content.trim().replace(Regex("(?m)^(#{1,6} )"), "\n$1")
-                stringBuilder.append(spacedContent)
-                stringBuilder.append("\n\n")
-
-                if (index < validChangelogs.size - 1) {
-                    stringBuilder.append("<br/>\n\n---\n\n<br/>\n\n")
+                if (content.isEmpty()) {
+                    return@mapNotNull null
                 }
+
+                VersionChangelog(
+                    version = "Version ${changelogFile.displayVersion}",
+                    content = content,
+                )
             } catch (e: IOException) {
                 logger.e(e) { "Failed to read ${changelogFile.filename}" }
+                null
             }
         }
-
-        return stringBuilder.toString().trim()
-    }
 
     private data class ChangelogFile(
         val fileVersion: SemVersion,
@@ -109,5 +111,6 @@ class ChangelogProvider(private val context: Context) {
         private const val CHANGELOG_DIR = "changelog"
         private const val MARKDOWN_EXTENSION = ".md"
         private val DEFAULT_VERSION = "0.0.0".toVersion(strict = false)
+        private val DEV_VERSION = "999.0.0".toVersion(strict = false)
     }
 }
