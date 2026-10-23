@@ -100,7 +100,7 @@ private fun wledMarkdownTypography() = markdownTypography(
     ),
     h2 = MaterialTheme.typography.titleMedium.copy(
         fontSize = 20.sp,
-        lineHeight = 22.sp,
+        lineHeight = 26.sp,
         fontWeight = FontWeight.ExtraBold,
         color = MaterialTheme.colorScheme.secondary,
     ),

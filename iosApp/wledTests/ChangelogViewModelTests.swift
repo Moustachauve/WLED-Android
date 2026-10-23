@@ -43,6 +43,39 @@ struct ChangelogViewModelTests {
         #expect(await readStoredVersion() == "7.0.1")
     }
 
+    @Test func checkChangelogDoesNotPresentWhenLastSeenEqualsCurrentVersion() async throws {
+        try await database.userPreferencesRepository.updateLastChangelogVersionSeen(version: "7.0.1")
+        let provider = StubChangelogProvider(
+            result: [VersionChangelog(version: "7.0.1", content: "New features", isDev: false)]
+        )
+        let viewModel = ChangelogViewModel(
+            database: database,
+            changelogProvider: provider,
+            currentVersion: "7.0.1"
+        )
+
+        await viewModel.checkChangelog()
+
+        #expect(viewModel.changelogs.isEmpty)
+        #expect(provider.recordedCalls.isEmpty)
+    }
+
+    @Test func checkChangelogSavesCurrentVersionWhenProviderReturnsEmpty() async throws {
+        try await database.userPreferencesRepository.updateLastChangelogVersionSeen(version: "7.0.0")
+        let provider = StubChangelogProvider(result: [])
+        let viewModel = ChangelogViewModel(
+            database: database,
+            changelogProvider: provider,
+            currentVersion: "7.0.1"
+        )
+
+        await viewModel.checkChangelog()
+
+        #expect(viewModel.changelogs.isEmpty)
+        #expect(provider.recordedCalls.count == 1)
+        #expect(await readStoredVersion() == "7.0.1")
+    }
+
     @Test func checkChangelogPresentsContentWhenUpgradingVersion() async throws {
         try await database.userPreferencesRepository.updateLastChangelogVersionSeen(version: "7.0.0")
         let provider = StubChangelogProvider(

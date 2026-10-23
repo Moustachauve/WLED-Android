@@ -11,11 +11,6 @@ struct ChangelogSheetView: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
-    init(changelogs: [VersionChangelog], onDismiss: @escaping () -> Void) {
-        self.changelogs = changelogs
-        self.onDismiss = onDismiss
-    }
-
     var body: some View {
         let palette = ChangelogColorPalette.forScheme(colorScheme)
         let titleText = String(localized: "What's new")
@@ -51,9 +46,9 @@ struct ChangelogSheetView: View {
                         .padding(.vertical, 4)
                 }
                 .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
                 .tint(palette.primary.swiftUIColor)
                 .foregroundStyle(palette.onPrimary.swiftUIColor)
-                .clipShape(Capsule())
                 .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
                 .padding(.trailing, 12)
                 .padding(.bottom, 16)
@@ -67,17 +62,12 @@ struct ChangelogSheetView: View {
         .presentationDetents([.large])
     }
 
-    static func buildSteppedGradientTitle(
+    private static func buildSteppedGradientTitle(
         text: String,
         stops: [ChangelogRGBColor]
     ) -> AttributedString {
-        guard !text.isEmpty, !stops.isEmpty else {
+        guard !text.isEmpty else {
             return AttributedString(text)
-        }
-        if stops.count == 1 {
-            var attributed = AttributedString(text)
-            attributed.foregroundColor = stops[0].swiftUIColor
-            return attributed
         }
 
         let nonWhitespaceCount = text.filter { !$0.isWhitespace }.count
@@ -118,6 +108,11 @@ private struct ChangelogVersionCardView: View {
     let entry: VersionChangelog
     let palette: ChangelogColorPalette
 
+    @ScaledMetric(relativeTo: .subheadline) private var bodyFontSize: CGFloat = 14
+    @ScaledMetric(relativeTo: .title2) private var h1FontSize: CGFloat = 22
+    @ScaledMetric(relativeTo: .title3) private var h2FontSize: CGFloat = 18
+    @ScaledMetric(relativeTo: .headline) private var h3FontSize: CGFloat = 16
+
     var body: some View {
         let displayVersion = entry.isDev ? String(localized: "Dev") : entry.version
 
@@ -130,14 +125,14 @@ private struct ChangelogVersionCardView: View {
 
             Markdown(entry.content)
                 .markdownTextStyle {
-                    FontSize(14)
+                    FontSize(bodyFontSize)
                 }
                 .markdownBlockStyle(\.heading1) { configuration in
                     configuration.label
                         .markdownTextStyle {
                             FontFamily(.custom(ChangelogSheetView.postScriptFontName))
                             FontWeight(.bold)
-                            FontSize(22)
+                            FontSize(h1FontSize)
                             ForegroundColor(palette.primary.swiftUIColor)
                         }
                         .markdownMargin(top: 6, bottom: 4)
@@ -146,7 +141,7 @@ private struct ChangelogVersionCardView: View {
                     configuration.label
                         .markdownTextStyle {
                             FontWeight(.heavy)
-                            FontSize(18)
+                            FontSize(h2FontSize)
                             ForegroundColor(palette.secondary.swiftUIColor)
                         }
                         .markdownMargin(top: 8, bottom: 4)
@@ -155,7 +150,7 @@ private struct ChangelogVersionCardView: View {
                     configuration.label
                         .markdownTextStyle {
                             FontWeight(.bold)
-                            FontSize(16)
+                            FontSize(h3FontSize)
                             ForegroundColor(palette.tertiary.swiftUIColor)
                         }
                         .markdownMargin(top: 8, bottom: 2)
