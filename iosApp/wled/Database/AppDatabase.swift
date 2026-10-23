@@ -111,7 +111,7 @@ final class AppDatabase: Sendable {
     func refreshVersionsIfNeeded() async {
         await waitUntilReady()
         let nowMillis = Int64(Date().timeIntervalSince1970 * 1000.0)
-        if let lastCheckDate = await firstValue(from: userPreferencesRepository.lastUpdateCheckDate),
+        if let lastCheckDate = await userPreferencesRepository.lastUpdateCheckDate.firstValue(),
            nowMillis < lastCheckDate.int64Value {
             return
         }
@@ -130,15 +130,6 @@ final class AppDatabase: Sendable {
         } catch {
             Self.logger.error("Failed to refresh releases: \(error.localizedDescription)")
         }
-    }
-
-    private func firstValue<S: AsyncSequence>(from sequence: S) async -> S.Element? {
-        do {
-            for try await value in sequence {
-                return value
-            }
-        } catch {}
-        return nil
     }
 
     /// Forces a refresh of GitHub releases for the repository associated with `device`.

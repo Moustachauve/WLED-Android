@@ -246,27 +246,6 @@ struct DeviceWebsocketListViewModelTests {
         #expect(viewModel.offlineDevices.count == 1)
     }
 
-    @Test func testLocalNetworkPermissionCallbackUpdatesDeniedState() {
-        let viewModel = makeViewModel()
-        #expect(viewModel.localNetworkDenied == false)
-
-        discoveryService.onLocalNetworkPermissionChanged?(false)
-        #expect(viewModel.localNetworkDenied == true)
-
-        discoveryService.onLocalNetworkPermissionChanged?(true)
-        #expect(viewModel.localNetworkDenied == false)
-    }
-
-    @Test func testStartDiscoveryAndOnPauseStopDiscovery() {
-        let viewModel = makeViewModel()
-
-        viewModel.startDiscovery()
-        #expect(discoveryService.scanCallCount == 1)
-
-        viewModel.onPause()
-        #expect(discoveryService.stopCallCount == 1)
-    }
-
     @Test func testDiscoveredDeviceUpdatesExistingDeviceAddressViaFastPath() async throws {
         let device = Device(
             macAddress: "aabbccddeeff",
@@ -301,14 +280,15 @@ struct DeviceWebsocketListViewModelTests {
         viewModel.showHiddenDevices = true
         viewModel.showOfflineDevicesLast = false
         viewModel.theme = .dark
+        viewModel.autoDiscovery = false
 
         try await waitUntil {
-            let showHidden = await firstValue(from: database.userPreferencesRepository.showHiddenDevices)?.boolValue
-            let showOfflineLast = await firstValue(
-                from: database.userPreferencesRepository.showOfflineDevicesLast
-            )?.boolValue
-            let currentTheme = await firstValue(from: database.userPreferencesRepository.themeMode)
-            return showHidden == true && showOfflineLast == false && currentTheme == .dark
+            let preferences = database.userPreferencesRepository
+            let showHidden = await preferences.showHiddenDevices.firstValue()?.boolValue
+            let showOfflineLast = await preferences.showOfflineDevicesLast.firstValue()?.boolValue
+            let currentTheme = await preferences.themeMode.firstValue()
+            let autoDiscovery = await preferences.autoDiscovery.firstValue()?.boolValue
+            return showHidden == true && showOfflineLast == false && currentTheme == .dark && autoDiscovery == false
         }
 
         #expect(viewModel.visibleDevices.map(\.device.displayName) == ["Hidden Device"])
@@ -321,15 +301,6 @@ struct DeviceWebsocketListViewModelTests {
             database: database ?? self.database,
             discoveryService: discoveryService
         )
-    }
-
-    private func firstValue<S: AsyncSequence>(from sequence: S) async -> S.Element? {
-        do {
-            for try await value in sequence {
-                return value
-            }
-        } catch {}
-        return nil
     }
 
     private func makeFastPauseDatabase(delayMs: Int64 = 50) -> AppDatabase {
@@ -362,35 +333,5 @@ struct DeviceWebsocketListViewModelTests {
         }
         try await waitUntil { viewModel.allDevicesWithState.count == expectedCount }
         return task
-    }
-
-    /// Polls `condition` until it's true or the timeout elapses (resilient against CI scheduling delays).
-    private func waitUntil(
-        timeout: Duration = .seconds(10),
-        _ condition: () async throws -> Bool
-    ) async throws {
-        let clock = ContinuousClock()
-        let deadline = clock.now + timeout
-        while clock.now < deadline {
-            if try await condition() { return }
-            try await Task.sleep(for: .milliseconds(20))
-        }
-        Issue.record("Timed out after \(timeout) waiting for condition")
-    }
-}
-
-@MainActor
-final class FakeDiscoveryService: DeviceDiscovering {
-    var onDeviceDiscovered: ((_ address: String, _ macAddress: String?) -> Void)?
-    var onLocalNetworkPermissionChanged: ((_ isGranted: Bool) -> Void)?
-    private(set) var scanCallCount = 0
-    private(set) var stopCallCount = 0
-
-    func scan(duration: Duration?) {
-        scanCallCount += 1
-    }
-
-    func stop() {
-        stopCallCount += 1
     }
 }

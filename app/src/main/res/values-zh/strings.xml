@@ -44,6 +44,7 @@
     <string name="system_default">系统默认</string>
     <string name="listing_options">列表选项</string>
     <string name="automatically_discover_new_devices">自动寻找新设备</string>
+    <string name="automatically_discover_new_devices_description">打开应用时在您的网络中搜索新的 WLED 设备。关闭后，可在设备列表下拉进行搜索，或通过 IP 地址添加设备。</string>
     <string name="show_hidden_devices">显示已隐藏的设备</string>
     <string name="hide_hidden_devices">隐藏已隐藏的设备</string>
     <string name="show_offline_devices_last">离线设备显示在底部</string>

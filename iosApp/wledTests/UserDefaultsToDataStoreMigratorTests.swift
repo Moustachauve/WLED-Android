@@ -35,9 +35,9 @@ struct UserDefaultsToDataStoreMigratorTests {
         #expect(testUserDefaults.object(forKey: UserDefaultsToDataStoreMigrator.legacyShowOfflineDevicesKey) == nil)
         #expect(testUserDefaults.object(forKey: UserDefaultsToDataStoreMigrator.legacyLastUpdateReleasesDateKey) == nil)
 
-        let showHidden = await firstValue(from: repository.showHiddenDevices)?.boolValue
-        let showOfflineLast = await firstValue(from: repository.showOfflineDevicesLast)?.boolValue
-        let lastUpdateCheck = await firstValue(from: repository.lastUpdateCheckDate)?.int64Value
+        let showHidden = await repository.showHiddenDevices.firstValue()?.boolValue
+        let showOfflineLast = await repository.showOfflineDevicesLast.firstValue()?.boolValue
+        let lastUpdateCheck = await repository.lastUpdateCheckDate.firstValue()?.int64Value
         #expect(showHidden == true)
         #expect(showOfflineLast == false)
         let expectedNextCheckMs = Int64(lastRefreshSeconds * 1000.0) + 86_400_000
@@ -53,16 +53,7 @@ struct UserDefaultsToDataStoreMigratorTests {
             userDefaults: testUserDefaults
         )
 
-        let showHidden = await firstValue(from: repository.showHiddenDevices)?.boolValue
+        let showHidden = await repository.showHiddenDevices.firstValue()?.boolValue
         #expect(showHidden == false)
-    }
-
-    private func firstValue<S: AsyncSequence>(from sequence: S) async -> S.Element? {
-        do {
-            for try await value in sequence {
-                return value
-            }
-        } catch {}
-        return nil
     }
 }

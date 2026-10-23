@@ -12,7 +12,11 @@ struct Settings: View {
     @Binding var showHiddenDevices: Bool
     @Binding var showOfflineDevicesLast: Bool
     @Binding var theme: ThemeSettings
+    @Binding var autoDiscovery: Bool
     var onShowChangelog: (() -> Void)?
+    /// Injectable so snapshot tests don't change with every release.
+    var appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    var buildNumber: String = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1.0"
 
     // Environment to dismiss the sheet
     @Environment(\.dismiss) private var dismiss
@@ -28,6 +32,16 @@ struct Settings: View {
                     Toggle(isOn: $showOfflineDevicesLast) {
                         Label("Show Offline Devices Last", systemImage: "wifi.slash")
                     }
+                }
+
+                Section {
+                    Toggle(isOn: $autoDiscovery) {
+                        Label("Automatically Discover New Devices", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                } footer: {
+                    Text(
+                        "Searches your network for new WLED devices when the app opens. When off, pull down on the device list to search, or add a device by its IP address."
+                    )
                 }
 
                 Section("Theme") {
@@ -59,11 +73,8 @@ struct Settings: View {
                     Text("About")
                 } footer: {
                     VStack(alignment: .center) {
-                        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-                        let bundleVersion = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1.0"
-
                         Text("Made by Moustachauve")
-                        Text("Version \(version) (\(bundleVersion))")
+                        Text("Version \(appVersion) (\(buildNumber))")
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -87,6 +98,7 @@ struct Settings: View {
     Settings(
         showHiddenDevices: .constant(true),
         showOfflineDevicesLast: .constant(true),
-        theme: .constant(.auto)
+        theme: .constant(.auto),
+        autoDiscovery: .constant(true)
     )
 }
