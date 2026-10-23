@@ -226,13 +226,11 @@ private fun ChangelogVersionCard(versionChangelog: VersionChangelog, modifier: M
             }
             Text(
                 text = stringResource(id = R.string.changelog_version, displayVersion),
-                style = MaterialTheme.typography.headlineSmall.copy(
+                style = MaterialTheme.typography.headlineMedium.copy(
                     fontFamily = PixelifySansFontFamily,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = (-0.2).sp,
                 ),
-                modifier = Modifier.padding(bottom = 4.dp),
             )
             WledMarkdown(
                 content = versionChangelog.content,
