@@ -48,6 +48,7 @@
     <string name="system_default">System default</string>
     <string name="listing_options">Listing Options</string>
     <string name="automatically_discover_new_devices">Automatically Discover New Devices</string>
+    <string name="automatically_discover_new_devices_description">Searches your network for new WLED devices when the app opens. When off, pull down on the device list to search, or add a device by its IP address.</string>
     <string name="show_hidden_devices">Show Hidden Devices</string>
     <string name="hide_hidden_devices">Hide Hidden Devices</string>
     <string name="show_offline_devices_last">Show Offline Devices Last</string>

@@ -69,6 +69,7 @@ struct DeviceListView: View {
                             showHiddenDevices: $viewModel.showHiddenDevices,
                             showOfflineDevicesLast: $viewModel.showOfflineDevicesLast,
                             theme: $viewModel.theme,
+                            autoDiscovery: $viewModel.autoDiscovery,
                             onShowChangelog: {
                                 pendingShowChangelog = true
                                 showSettingsSheet = false
@@ -300,7 +301,6 @@ struct DeviceListView: View {
 
     private func appearAction() {
         viewModel.onResume()
-        viewModel.startDiscovery()
     }
 
     private func dismissChangelog() {

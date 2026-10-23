@@ -47,6 +47,7 @@
     <string name="system_default">Systemeinstellungen</string>
     <string name="listing_options">Listenoptionen</string>
     <string name="automatically_discover_new_devices">Neue Geräte automatisch erkennen</string>
+    <string name="automatically_discover_new_devices_description">Sucht beim Öffnen der App in deinem Netzwerk nach neuen WLED-Geräten. Wenn deaktiviert, ziehe die Geräteliste nach unten, um zu suchen, oder füge ein Gerät über seine IP-Adresse hinzu.</string>
     <string name="show_hidden_devices">Verborgene Geräte anzeigen</string>
     <string name="hide_hidden_devices">Verborgene Geräte ausblenden</string>
     <string name="show_offline_devices_last">Zeige Geräte, die offline sind, als letztes an</string>

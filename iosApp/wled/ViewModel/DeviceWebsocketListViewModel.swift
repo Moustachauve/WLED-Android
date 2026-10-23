@@ -34,10 +34,7 @@ final class DeviceWebsocketListViewModel {
             updateFilteredDevices(currentTime: Date())
             guard !isSyncingPreferences else { return }
             let showHidden = showHiddenDevices
-            let repository = userPreferencesRepository
-            Task {
-                try? await repository.updateShowHiddenDevices(showHiddenDevices: showHidden)
-            }
+            persistPreference { try await $0.updateShowHiddenDevices(showHiddenDevices: showHidden) }
         }
     }
 
@@ -45,10 +42,7 @@ final class DeviceWebsocketListViewModel {
         didSet {
             guard showOfflineDevicesLast != oldValue, !isSyncingPreferences else { return }
             let showOfflineLast = showOfflineDevicesLast
-            let repository = userPreferencesRepository
-            Task {
-                try? await repository.updateShowOfflineDeviceLast(showOfflineDeviceLast: showOfflineLast)
-            }
+            persistPreference { try await $0.updateShowOfflineDeviceLast(showOfflineDeviceLast: showOfflineLast) }
         }
     }
 
@@ -56,9 +50,22 @@ final class DeviceWebsocketListViewModel {
         didSet {
             guard theme != oldValue, !isSyncingPreferences else { return }
             let selectedTheme = theme
-            let repository = userPreferencesRepository
-            Task {
-                try? await repository.updateThemeMode(themeSettings: selectedTheme)
+            persistPreference { try await $0.updateThemeMode(themeSettings: selectedTheme) }
+        }
+    }
+
+    /// Whether devices are discovered automatically when the app comes to the foreground.
+    /// Toggling it from the UI scans right away when enabled and stops any scan in progress when disabled.
+    var autoDiscovery: Bool = true {
+        didSet {
+            guard autoDiscovery != oldValue, !isSyncingPreferences else { return }
+            let enabled = autoDiscovery
+            persistPreference { try await $0.updateAutoDiscovery(autoDiscover: enabled) }
+            cancelAutoDiscovery()
+            if enabled {
+                startDiscovery()
+            } else {
+                stopDiscovery()
             }
         }
     }
@@ -74,6 +81,7 @@ final class DeviceWebsocketListViewModel {
     @ObservationIgnored private var deviceMap: [String: DeviceWithState] = [:]
     @ObservationIgnored private var latestSharedDevices: [Shared.DeviceWithState] = []
     @ObservationIgnored private var isSyncingPreferences = false
+    @ObservationIgnored private var autoDiscoveryTask: Task<Void, Never>?
 
     /// Amount of time (in milliseconds) after a device becomes offline before it is considered offline.
     private static let offlineGracePeriodMs: Int64 = 60_000
@@ -111,6 +119,7 @@ final class DeviceWebsocketListViewModel {
             group.addTask { await self.observeShowHiddenDevices() }
             group.addTask { await self.observeShowOfflineDevicesLast() }
             group.addTask { await self.observeThemeMode() }
+            group.addTask { await self.observeAutoDiscovery() }
             group.addTask { await self.observePausedState() }
             group.addTask { await self.runOfflineGracePeriodTimer() }
         }
@@ -125,32 +134,44 @@ final class DeviceWebsocketListViewModel {
     }
 
     private func observeShowHiddenDevices() async {
-        await database.waitUntilReady()
-        for await showHidden in userPreferencesRepository.showHiddenDevices {
-            guard !Task.isCancelled else { break }
-            isSyncingPreferences = true
-            showHiddenDevices = showHidden.boolValue
-            isSyncingPreferences = false
-        }
+        await observePreference(userPreferencesRepository.showHiddenDevices) { showHiddenDevices = $0.boolValue }
     }
 
     private func observeShowOfflineDevicesLast() async {
-        await database.waitUntilReady()
-        for await showOfflineLast in userPreferencesRepository.showOfflineDevicesLast {
-            guard !Task.isCancelled else { break }
-            isSyncingPreferences = true
-            showOfflineDevicesLast = showOfflineLast.boolValue
-            isSyncingPreferences = false
+        await observePreference(userPreferencesRepository.showOfflineDevicesLast) {
+            showOfflineDevicesLast = $0.boolValue
         }
     }
 
     private func observeThemeMode() async {
+        await observePreference(userPreferencesRepository.themeMode) { theme = $0 }
+    }
+
+    private func observeAutoDiscovery() async {
+        await observePreference(userPreferencesRepository.autoDiscovery) { autoDiscovery = $0.boolValue }
+    }
+
+    /// Mirrors a persisted preference into a local property without echoing the change back to the repository.
+    private func observePreference<Element>(
+        _ preference: some AsyncSequence<Element, Never>,
+        apply: (Element) -> Void
+    ) async {
         await database.waitUntilReady()
-        for await currentTheme in userPreferencesRepository.themeMode {
+        for await value in preference {
             guard !Task.isCancelled else { break }
             isSyncingPreferences = true
-            theme = currentTheme
+            apply(value)
             isSyncingPreferences = false
+        }
+    }
+
+    /// Persists a preference change made from the UI in the background.
+    private func persistPreference(
+        _ update: @escaping @Sendable (UserPreferencesRepository) async throws -> Void
+    ) {
+        let repository = userPreferencesRepository
+        Task {
+            try? await update(repository)
         }
     }
 
@@ -213,12 +234,21 @@ final class DeviceWebsocketListViewModel {
     // MARK: - Lifecycle (Call these from App ScenePhase)
 
     func onPause() {
+        cancelAutoDiscovery()
         discoveryService.stop()
         connectionManager.onPause()
     }
 
-    func onResume() {
+    /// Resumes device connections and starts automatic discovery if the user has it enabled.
+    ///
+    /// - Returns: The pending auto-discovery task, so callers (tests) can await its completion.
+    @discardableResult
+    func onResume() -> Task<Void, Never> {
         connectionManager.onResume()
+        cancelAutoDiscovery()
+        let task = Task { await startAutoDiscoveryIfEnabled() }
+        autoDiscoveryTask = task
+        return task
     }
 
     // MARK: - Actions
@@ -276,12 +306,33 @@ final class DeviceWebsocketListViewModel {
 
     // MARK: - Discovery Logic
 
+    /// Starts a timed scan regardless of the auto-discovery preference (e.g. pull-to-refresh).
     func startDiscovery() {
         discoveryService.scan()
     }
 
     func stopDiscovery() {
         discoveryService.stop()
+    }
+
+    /// Starts a timed scan only if the user has automatic discovery enabled.
+    ///
+    /// Waits for the database to be ready so legacy preferences have been migrated before being read.
+    func startAutoDiscoveryIfEnabled() async {
+        await database.waitUntilReady()
+        let isEnabled = await userPreferencesRepository.autoDiscovery.firstValue()?.boolValue ?? true
+        guard !Task.isCancelled else { return }
+        guard isEnabled else {
+            Self.logger.info("Automatic discovery disabled, skipping scan")
+            return
+        }
+        startDiscovery()
+    }
+
+    /// Cancels a pending auto-discovery (e.g. still waiting for the database) before it can start scanning.
+    private func cancelAutoDiscovery() {
+        autoDiscoveryTask?.cancel()
+        autoDiscoveryTask = nil
     }
 
     /// Opens the app's Settings page where the user can toggle Local Network permission.

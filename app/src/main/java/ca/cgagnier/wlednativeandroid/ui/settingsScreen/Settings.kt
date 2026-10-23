@@ -23,7 +23,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -36,7 +38,42 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun Settings(navigateUp: () -> Unit, viewModel: SettingsViewModel = koinViewModel()) {
     val settingsState by viewModel.settingsState.collectAsStateWithLifecycle()
+    val actions = remember(viewModel) {
+        SettingsActions(
+            setShowHiddenDevices = { viewModel.setShowHiddenDevices(it) },
+            setAutoDiscover = { viewModel.setAutoDiscover(it) },
+            setShowOfflineDevicesLast = { viewModel.setShowOfflineDevicesLast(it) },
+            setTheme = { viewModel.setTheme(it) },
+        )
+    }
+    SettingsContent(
+        settingsState = settingsState,
+        actions = actions,
+        navigateUp = navigateUp,
+    )
+}
+
+/**
+ * Callbacks invoked when the user changes a setting. Grouped so [SettingsContent] stays stateless
+ * and easy to render in previews and screenshot tests.
+ */
+@Immutable
+data class SettingsActions(
+    val setShowHiddenDevices: (Boolean) -> Unit = {},
+    val setAutoDiscover: (Boolean) -> Unit = {},
+    val setShowOfflineDevicesLast: (Boolean) -> Unit = {},
+    val setTheme: (ThemeSettings) -> Unit = {},
+)
+
+@Composable
+fun SettingsContent(
+    settingsState: SettingsState,
+    navigateUp: () -> Unit,
+    modifier: Modifier = Modifier,
+    actions: SettingsActions = SettingsActions(),
+) {
     Scaffold(
+        modifier = modifier,
         topBar = {
             DeviceSettingsAppBar(
                 navigateUp = navigateUp,
@@ -59,27 +96,18 @@ fun Settings(navigateUp: () -> Unit, viewModel: SettingsViewModel = koinViewMode
                         showHiddenDevices = settingsState.showHiddenDevices,
                         isAutoDiscoveryEnabled = settingsState.isAutoDiscoveryEnabled,
                         showOfflineDevicesLast = settingsState.showOfflineLast,
-                        setShowHiddenDevices = {
-                            viewModel.setShowHiddenDevices(it)
-                        },
-                        setAutoDiscover = {
-                            viewModel.setAutoDiscover(it)
-                        },
-                        setShowOfflineDevicesLast = {
-                            viewModel.setShowOfflineDevicesLast(it)
-                        },
+                        setShowHiddenDevices = actions.setShowHiddenDevices,
+                        setAutoDiscover = actions.setAutoDiscover,
+                        setShowOfflineDevicesLast = actions.setShowOfflineDevicesLast,
                     )
                 },
                 secondColumn = {
                     ThemeOptions(
                         currentTheme = settingsState.theme,
-                        setTheme = {
-                            viewModel.setTheme(it)
-                        },
+                        setTheme = actions.setTheme,
                     )
                 },
             )
-            // }
         }
     }
 }
@@ -103,16 +131,25 @@ fun DeviceSettingsAppBar(modifier: Modifier = Modifier, navigateUp: () -> Unit) 
 }
 
 @Composable
-fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit, description: String? = null) {
     Row(
         modifier = Modifier.clickable { onCheckedChange(!checked) },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (description != null) {
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
+        }
         Switch(checked, onCheckedChange = onCheckedChange)
     }
 }
@@ -158,6 +195,7 @@ fun ListingOptions(
                 label = stringResource(R.string.automatically_discover_new_devices),
                 checked = isAutoDiscoveryEnabled,
                 onCheckedChange = setAutoDiscover,
+                description = stringResource(R.string.automatically_discover_new_devices_description),
             )
             SwitchRow(
                 label = stringResource(R.string.show_offline_devices_last),

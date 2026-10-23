@@ -77,17 +77,4 @@ struct DeviceEditViewModelTests {
         #expect(wrapper.device.branch == .beta)
         #expect(wrapper.device.skipUpdateTag == "")
     }
-
-    private func waitUntil(
-        timeout: Duration = .seconds(5),
-        _ condition: () async throws -> Bool
-    ) async throws {
-        let clock = ContinuousClock()
-        let deadline = clock.now + timeout
-        while clock.now < deadline {
-            if try await condition() { return }
-            try await Task.sleep(for: .milliseconds(20))
-        }
-        Issue.record("Timed out after \(timeout) waiting for condition")
-    }
 }

@@ -18,6 +18,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -51,20 +53,21 @@ class DeviceListDetailViewModel(
     private var timedDiscoveryJob: Job? = null
 
     init {
-        // This ensures onResume/onPause are called only when the APP goes background/foreground,
-        // not when the screen rotates.
-        processLifecycle?.addObserver(this)
         viewModelScope.launch {
             discoveryService.discoveredDevices.collect { device ->
                 deviceDiscovered(device)
             }
         }
+        observeAutoDiscoveryChanges()
+        // This ensures onResume/onPause are called only when the APP goes background/foreground,
+        // not when the screen rotates.
+        processLifecycle?.addObserver(this)
     }
 
     override fun onResume(owner: LifecycleOwner) {
         super.onResume(owner)
-        Log.i(TAG, "App in foreground, starting discovery")
-        startDiscoveryServiceTimed()
+        Log.i(TAG, "App in foreground, starting discovery if enabled")
+        startAutoDiscoveryIfEnabled()
     }
 
     override fun onPause(owner: LifecycleOwner) {
@@ -79,22 +82,49 @@ class DeviceListDetailViewModel(
         stopDiscoveryService()
     }
 
-    private fun startDiscoveryService() {
-        Log.i(TAG, "Start device discovery")
-        discoveryService.start()
-    }
+    /**
+     * Starts a timed discovery regardless of the auto-discovery preference. Used for explicit user
+     * actions such as pull-to-refresh.
+     */
+    fun startDiscoveryServiceTimed(timeMillis: Long = DEFAULT_DISCOVERY_DURATION_MS): Job =
+        launchTimedDiscovery(timeMillis) { true }
 
-    fun startDiscoveryServiceTimed(timeMillis: Long = DEFAULT_DISCOVERY_DURATION_MS): Job {
+    /**
+     * Starts a timed discovery only if the user has automatic discovery enabled. The preference is
+     * read inside the job so that a quick [onPause] cancels it before discovery ever starts.
+     */
+    private fun startAutoDiscoveryIfEnabled(timeMillis: Long = DEFAULT_DISCOVERY_DURATION_MS): Job =
+        launchTimedDiscovery(timeMillis) {
+            preferencesRepository.autoDiscovery.first().also { enabled ->
+                if (!enabled) Log.i(TAG, "Automatic discovery disabled, skipping")
+            }
+        }
+
+    private fun launchTimedDiscovery(timeMillis: Long, shouldStart: suspend () -> Boolean): Job {
         timedDiscoveryJob?.cancel()
         val job = viewModelScope.launch(ioDispatcher) {
+            if (!shouldStart()) return@launch
             Log.i(TAG, "Starting timed device discovery")
-            startDiscoveryService()
+            discoveryService.start()
             delay(timeMillis)
             Log.i(TAG, "Timed device discovery elapsed, stopping discovery")
             discoveryService.stop()
         }
         timedDiscoveryJob = job
         return job
+    }
+
+    /**
+     * Reacts to the user toggling automatic discovery in Settings: enabling it scans right away,
+     * disabling it stops any scan in progress. The first emission (current value) is skipped since
+     * [onResume] already handles the initial state.
+     */
+    private fun observeAutoDiscoveryChanges() {
+        viewModelScope.launch {
+            preferencesRepository.autoDiscovery.drop(1).collect { enabled ->
+                if (enabled) startDiscoveryServiceTimed() else stopDiscoveryService()
+            }
+        }
     }
 
     fun stopDiscoveryService() {
