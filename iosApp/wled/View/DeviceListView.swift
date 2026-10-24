@@ -15,6 +15,7 @@ struct DeviceListView: View {
 
     @State private var addDeviceButtonActive: Bool = false
     @State private var showSettingsSheet: Bool = false
+    @State private var showSoundSyncSheet: Bool = false
     @State private var pendingShowChangelog: Bool = false
     @State private var devicePendingDeletion: DeviceWithState?
     @State private var pendingDeepLinkMac: String?
@@ -81,6 +82,14 @@ struct DeviceListView: View {
                         )
                     }
                 )
+                .sheet(isPresented: $showSoundSyncSheet) {
+                    SoundSyncView(
+                        viewModel: SoundSyncViewModel(
+                            userPreferencesRepository: viewModel.userPreferencesRepository,
+                            deviceRepository: viewModel.deviceRepository
+                        )
+                    )
+                }
                 .sheet(
                     isPresented: Binding(
                         get: { !changelogViewModel.changelogs.isEmpty },
@@ -300,7 +309,14 @@ private extension DeviceListView {
                 Label("Add Device", systemImage: "plus")
             }
 
-            // 2. Settings Button
+            // 2. Sound Sync Button
+            Button {
+                showSoundSyncSheet.toggle()
+            } label: {
+                Label("Sound Sync", systemImage: "waveform")
+            }
+
+            // 3. Settings Button
             Button {
                 showSettingsSheet.toggle()
             } label: {

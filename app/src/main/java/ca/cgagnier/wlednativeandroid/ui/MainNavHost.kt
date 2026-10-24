@@ -11,6 +11,7 @@ import androidx.navigation3.ui.NavDisplay
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.DeviceListDetail
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.DeviceListDetailActions
 import ca.cgagnier.wlednativeandroid.ui.settingsScreen.Settings
+import ca.cgagnier.wlednativeandroid.ui.soundsync.SoundSyncScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -18,6 +19,9 @@ data object DeviceListDetailKey : NavKey
 
 @Serializable
 data object SettingsKey : NavKey
+
+@Serializable
+data object SoundSyncKey : NavKey
 
 @Composable
 fun MainNavHost(
@@ -44,12 +48,24 @@ fun MainNavHost(
                         openSettings = {
                             backStack.add(SettingsKey)
                         },
+                        openSoundSync = {
+                            backStack.add(SoundSyncKey)
+                        },
                         openChangelogs = openChangelogs,
                     ),
                 )
             }
             entry<SettingsKey> {
                 Settings(
+                    navigateUp = {
+                        if (backStack.size > 1) {
+                            backStack.removeAt(backStack.lastIndex)
+                        }
+                    },
+                )
+            }
+            entry<SoundSyncKey> {
+                SoundSyncScreen(
                     navigateUp = {
                         if (backStack.size > 1) {
                             backStack.removeAt(backStack.lastIndex)

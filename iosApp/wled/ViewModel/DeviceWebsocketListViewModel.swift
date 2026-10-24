@@ -75,8 +75,11 @@ final class DeviceWebsocketListViewModel {
     private let connectionManager: DeviceConnectionManager
     private let database: AppDatabase
     private let deviceFirstContactService: DeviceFirstContactService
-    private let userPreferencesRepository: UserPreferencesRepository
+    let userPreferencesRepository: UserPreferencesRepository
     @ObservationIgnored private let discoveryService: any DeviceDiscovering
+
+    /// Exposes the device repository for features that need the device list (e.g. Sound Sync).
+    var deviceRepository: DeviceRepository { database.deviceRepository }
 
     @ObservationIgnored private var deviceMap: [String: DeviceWithState] = [:]
     @ObservationIgnored private var latestSharedDevices: [Shared.DeviceWithState] = []
