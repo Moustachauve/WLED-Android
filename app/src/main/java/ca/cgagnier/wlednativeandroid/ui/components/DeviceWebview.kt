@@ -85,7 +85,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
-import ca.cgagnier.wlednativeandroid.FileUploadContract
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.ui.MainActivity
@@ -102,6 +101,38 @@ import java.util.Date
 import java.util.Locale
 
 private const val TAG = "ui.components.DeviceWebView"
+
+/**
+ * Workaround for Chromium not firing onShowFileChooser when a file input
+ * with `display:none` is clicked programmatically (common pattern in WLED's
+ * web UI, e.g. pixelforge.htm). Makes hidden file inputs "rendered" (tiny,
+ * off-screen, nearly invisible) before the original click fires.
+ */
+private val FILE_INPUT_CLICK_FIX_JS = """
+    (function() {
+        if (window.__wledFileInputFixed) return;
+        window.__wledFileInputFixed = true;
+        const originalClick = HTMLInputElement.prototype.click;
+        HTMLInputElement.prototype.click = function() {
+            if (this.type === 'file') {
+                const cs = window.getComputedStyle(this);
+                if (cs.display === 'none' || cs.visibility === 'hidden') {
+                    this.style.display = 'block';
+                    this.style.visibility = 'visible';
+                    this.style.opacity = '0.01';
+                    this.style.position = 'absolute';
+                    this.style.left = '-9999px';
+                    this.style.width = '1px';
+                    this.style.height = '1px';
+                    this.style.overflow = 'hidden';
+                    this.style.pointerEvents = 'none';
+                    this.style.zIndex = '-9999';
+                }
+            }
+            return originalClick.call(this);
+        };
+    })();
+""".trimIndent()
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -323,6 +354,7 @@ class CustomWebViewClient : WebViewClient() {
         if (url != "about:blank") {
             state.loadingState = Finished
         }
+        view.evaluateJavascript(FILE_INPUT_CLICK_FIX_JS, null)
     }
 
     override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
@@ -379,23 +411,9 @@ class CustomWebChromeClient(private val context: Context) : WebChromeClient() {
     ): Boolean {
         val activity = context as MainActivity
         activity.uploadMessage = filePathCallback
-        // activity.fileUploadContract.type = fileChooserParams.acceptTypes[0]
-        val contract = activity.fileUpload.contract as FileUploadContract
-        contract.type = getMimeType(fileChooserParams.acceptTypes)
         activity.fileUpload.launch(123)
 
         return true
-    }
-
-    private fun getMimeType(acceptTypes: Array<String>): String {
-        for (type in acceptTypes) {
-            return when (type) {
-                ".json" -> "application/json"
-                ".css" -> "text/css"
-                else -> continue
-            }
-        }
-        return "application/octet-stream"
     }
 }
 
