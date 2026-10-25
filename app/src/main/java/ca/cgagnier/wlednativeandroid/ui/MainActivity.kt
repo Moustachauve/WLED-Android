@@ -1,10 +1,7 @@
 package ca.cgagnier.wlednativeandroid.ui
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.webkit.ValueCallback
-import android.webkit.WebChromeClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -31,8 +28,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import ca.cgagnier.wlednativeandroid.FileUploadContract
-import ca.cgagnier.wlednativeandroid.FileUploadContractResult
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.ui.components.ChangelogBottomSheet
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
@@ -42,19 +37,6 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModel()
     private val changelogViewModel: ChangelogViewModel by viewModel()
-
-    // For WebView file upload support
-    var uploadMessage: ValueCallback<Array<Uri>>? = null
-    val fileUpload =
-        registerForActivityResult(FileUploadContract()) { result: FileUploadContractResult ->
-            uploadMessage?.onReceiveValue(
-                WebChromeClient.FileChooserParams.parseResult(
-                    result.resultCode,
-                    result.intent,
-                ),
-            )
-            uploadMessage = null
-        }
 
     private var navigationEvent by mutableStateOf<NavigationEvent?>(null)
 
