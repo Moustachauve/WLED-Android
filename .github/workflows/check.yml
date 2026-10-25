@@ -47,10 +47,28 @@ jobs:
           name: test-results
           path: |
             app/build/reports/tests/
-            app/build/reports/screenshotTest/
             shared/build/reports/tests/testAndroidHostTest/
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Upload Screenshot Diffs
+        if: failure()
+        id: screenshot-artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshot-test-diffs
+          path: |
+            app/build/reports/screenshotTest/preview/debug/
+            app/build/outputs/screenshotTest-results/preview/debug/diffs/
+            app/build/outputs/screenshotTest-results/preview/debug/rendered/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Add Screenshot Failure Summary
+        if: failure() && steps.screenshot-artifact.outputs.artifact-url != ''
+        run: |
+          echo "### Screenshot Test Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "Download [\`screenshot-test-diffs\`](${{ steps.screenshot-artifact.outputs.artifact-url }}) to inspect the HTML diff report and rendered/diff PNGs." >> "$GITHUB_STEP_SUMMARY"
 
   test-ios:
     name: Run Unit Tests & Build (iOS)
