@@ -188,31 +188,43 @@ private fun DrawerSheetContent(
 ) {
     DrawerContent(
         showHiddenDevices = showHiddenDevices,
-        addDevice = {
-            coroutineScope.launch {
-                viewModel.showAddDeviceDialog()
-                drawerState.close()
-            }
-        },
-        toggleShowHiddenDevices = {
-            coroutineScope.launch {
-                viewModel.toggleShowHiddenDevices()
-                drawerState.close()
-            }
-        },
-        openSettings = {
-            coroutineScope.launch {
-                actions.openSettings()
-                drawerState.close()
-            }
-        },
-        openChangelogs = {
-            coroutineScope.launch {
-                actions.openChangelogs()
-                drawerState.close()
-            }
-        },
+        actions = DrawerActions(
+            addDevice = {
+                coroutineScope.launch {
+                    viewModel.showAddDeviceDialog()
+                    drawerState.close()
+                }
+            },
+            toggleShowHiddenDevices = {
+                coroutineScope.launch {
+                    viewModel.toggleShowHiddenDevices()
+                    drawerState.close()
+                }
+            },
+            openSettings = {
+                coroutineScope.launch {
+                    actions.openSettings()
+                    drawerState.close()
+                }
+            },
+            openSoundSync = {
+                coroutineScope.launch {
+                    actions.openSoundSync()
+                    drawerState.close()
+                }
+            },
+            openChangelogs = {
+                coroutineScope.launch {
+                    actions.openChangelogs()
+                    drawerState.close()
+                }
+            },
+        ),
     )
 }
 
-data class DeviceListDetailActions(val openSettings: () -> Unit, val openChangelogs: () -> Unit = {})
+data class DeviceListDetailActions(
+    val openSettings: () -> Unit,
+    val openSoundSync: () -> Unit = {},
+    val openChangelogs: () -> Unit = {},
+)

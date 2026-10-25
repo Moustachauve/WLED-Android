@@ -16,4 +16,7 @@ data class UserPreferences(
     val dateLastWritten: Long = 0L,
     val showHiddenDevices: Boolean = false,
     val lastChangelogVersionSeen: String = "",
+    val soundSyncSourceType: String = "MICROPHONE",
+    val soundSyncGain: Float = 1.0f,
+    val soundSyncAgcEnabled: Boolean = false,
 )

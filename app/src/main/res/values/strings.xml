@@ -139,4 +139,29 @@
     <string name="changelog_dismiss_button">Awesome</string>
     <string name="show_changelog">Show changelog</string>
 
+    <!-- Sound Sync -->
+    <string name="sound_sync">Sound Sync</string>
+    <string name="sound_sync_description">Send audio-reactive data to your WLED devices using UDP Sound Sync. Devices must be set to Receive mode in their audio sync settings.</string>
+    <string name="sound_sync_audio_source">Audio Source</string>
+    <string name="sound_sync_source_microphone">Microphone</string>
+    <string name="sound_sync_source_music">Music</string>
+    <string name="sound_sync_gain">Gain</string>
+    <string name="sound_sync_agc">Automatic Gain Control</string>
+    <string name="sound_sync_start">Start Sound Sync</string>
+    <string name="sound_sync_stop">Stop Sound Sync</string>
+    <string name="sound_sync_running">Sound sync is running</string>
+    <string name="sound_sync_permission_required">Record audio permission is required for sound sync</string>
+    <string name="sound_sync_grant_permission">Grant Permission</string>
+    <string name="sound_sync_error">Sound sync error: %1$s</string>
+    <string name="sound_sync_fft_visualization">Frequency visualization</string>
+    <string name="sound_sync_sample_level">Sample level</string>
+    <string name="sound_sync_notification_title">Sound Sync Active</string>
+    <string name="sound_sync_notification_text">Sending audio data to WLED devices</string>
+    <string name="sound_sync_notification_stop">Stop</string>
+    <string name="sound_sync_notification_channel">Sound Sync</string>
+    <string name="sound_sync_notification_channel_description">Shows when sound sync is active</string>
+    <string name="sound_sync_error_permission">Record audio permission is required</string>
+    <string name="sound_sync_error_create_source">Failed to create audio source</string>
+    <string name="sound_sync_error_capture">Failed to start audio capture. Your device may not support system audio capture.</string>
+
 </resources>

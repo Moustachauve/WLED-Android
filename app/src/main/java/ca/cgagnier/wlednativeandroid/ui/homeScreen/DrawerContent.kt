@@ -33,13 +33,7 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.util.openUriSafely
 
 @Composable
-internal fun DrawerContent(
-    showHiddenDevices: Boolean,
-    addDevice: () -> Unit,
-    toggleShowHiddenDevices: () -> Unit,
-    openSettings: () -> Unit,
-    openChangelogs: () -> Unit,
-) {
+internal fun DrawerContent(showHiddenDevices: Boolean, actions: DrawerActions) {
     val uriHandler = LocalUriHandler.current
     val scrollState = rememberScrollState()
 
@@ -47,7 +41,7 @@ internal fun DrawerContent(
         modifier = Modifier.verticalScroll(scrollState),
     ) {
         DrawerHeader()
-        DrawerMainActions(addDevice, showHiddenDevices, toggleShowHiddenDevices, openSettings, openChangelogs)
+        DrawerMainActions(showHiddenDevices, actions)
         HorizontalDivider(modifier = Modifier.padding(12.dp))
         DrawerExternalLinks(uriHandler)
         Spacer(Modifier.height(24.dp))
@@ -71,13 +65,7 @@ private fun DrawerHeader() {
 }
 
 @Composable
-private fun DrawerMainActions(
-    addDevice: () -> Unit,
-    showHiddenDevices: Boolean,
-    toggleShowHiddenDevices: () -> Unit,
-    openSettings: () -> Unit,
-    openChangelogs: () -> Unit,
-) {
+private fun DrawerMainActions(showHiddenDevices: Boolean, actions: DrawerActions) {
     NavigationDrawerItem(
         label = { Text(text = stringResource(R.string.add_a_device)) },
         icon = {
@@ -87,10 +75,10 @@ private fun DrawerMainActions(
             )
         },
         selected = false,
-        onClick = addDevice,
+        onClick = actions.addDevice,
         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
     )
-    ToggleHiddenDeviceButton(showHiddenDevices, toggleShowHiddenDevices)
+    ToggleHiddenDeviceButton(showHiddenDevices, actions.toggleShowHiddenDevices)
     NavigationDrawerItem(
         label = { Text(text = stringResource(R.string.show_changelog)) },
         icon = {
@@ -100,7 +88,7 @@ private fun DrawerMainActions(
             )
         },
         selected = false,
-        onClick = openChangelogs,
+        onClick = actions.openChangelogs,
         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
     )
     NavigationDrawerItem(
@@ -112,7 +100,19 @@ private fun DrawerMainActions(
             )
         },
         selected = false,
-        onClick = openSettings,
+        onClick = actions.openSettings,
+        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+    )
+    NavigationDrawerItem(
+        label = { Text(text = stringResource(R.string.sound_sync)) },
+        icon = {
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_graphic_eq_24),
+                contentDescription = stringResource(R.string.sound_sync),
+            )
+        },
+        selected = false,
+        onClick = actions.openSoundSync,
         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
     )
 }

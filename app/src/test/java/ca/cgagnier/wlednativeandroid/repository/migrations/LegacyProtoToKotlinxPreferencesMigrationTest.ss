@@ -11,7 +11,10 @@
   "lastUpdateCheckDate": 1705000000,
   "dateLastWritten": 1705000100,
   "showHiddenDevices": true,
-  "lastChangelogVersionSeen": "2.1.0"
+  "lastChangelogVersionSeen": "2.1.0",
+  "soundSyncSourceType": "MICROPHONE",
+  "soundSyncGain": 1.0,
+  "soundSyncAgcEnabled": false
 }
 ╔═ migrate_withV0LegacyProto_setsExpectedDefaultsAndResetsDataSharingFlags ═╗
 {
@@ -26,6 +29,9 @@
   "lastUpdateCheckDate": 0,
   "dateLastWritten": 0,
   "showHiddenDevices": false,
-  "lastChangelogVersionSeen": ""
+  "lastChangelogVersionSeen": "",
+  "soundSyncSourceType": "MICROPHONE",
+  "soundSyncGain": 1.0,
+  "soundSyncAgcEnabled": false
 }
 ╔═ [end of file] ═╗

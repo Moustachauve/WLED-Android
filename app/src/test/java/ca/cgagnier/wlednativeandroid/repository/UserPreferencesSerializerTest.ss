@@ -11,7 +11,10 @@
   "lastUpdateCheckDate": 0,
   "dateLastWritten": 0,
   "showHiddenDevices": false,
-  "lastChangelogVersionSeen": ""
+  "lastChangelogVersionSeen": "",
+  "soundSyncSourceType": "MICROPHONE",
+  "soundSyncGain": 1.0,
+  "soundSyncAgcEnabled": false
 }
 ╔═ readFrom_partialJson_usesDefaultValuesForMissingFields ═╗
 {
@@ -26,7 +29,10 @@
   "lastUpdateCheckDate": 0,
   "dateLastWritten": 0,
   "showHiddenDevices": false,
-  "lastChangelogVersionSeen": ""
+  "lastChangelogVersionSeen": "",
+  "soundSyncSourceType": "MICROPHONE",
+  "soundSyncGain": 1.0,
+  "soundSyncAgcEnabled": false
 }
 ╔═ readFrom_unknownKeys_ignoresThemGracefully ═╗
 {
@@ -41,7 +47,10 @@
   "lastUpdateCheckDate": 0,
   "dateLastWritten": 0,
   "showHiddenDevices": false,
-  "lastChangelogVersionSeen": ""
+  "lastChangelogVersionSeen": "",
+  "soundSyncSourceType": "MICROPHONE",
+  "soundSyncGain": 1.0,
+  "soundSyncAgcEnabled": false
 }
 ╔═ roundTrip_serializesAndDeserializesCorrectly ═╗
 {
@@ -56,6 +65,9 @@
   "lastUpdateCheckDate": 1710000000,
   "dateLastWritten": 1710000010,
   "showHiddenDevices": true,
-  "lastChangelogVersionSeen": "1.5.0"
+  "lastChangelogVersionSeen": "1.5.0",
+  "soundSyncSourceType": "MICROPHONE",
+  "soundSyncGain": 1.0,
+  "soundSyncAgcEnabled": false
 }
 ╔═ [end of file] ═╗
