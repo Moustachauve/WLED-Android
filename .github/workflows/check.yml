@@ -37,8 +37,13 @@ jobs:
         with:
           cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
 
-      - name: Run unit and screenshot tests
-        run: ./gradlew :app:testDebugUnitTest :app:validateDebugScreenshotTest :shared:testAndroidHostTest
+      - name: Run unit tests
+        run: ./gradlew :app:testDebugUnitTest :shared:testAndroidHostTest --continue
+
+      - name: Run screenshot tests
+        if: always() && !cancelled()
+        id: screenshot-tests
+        run: ./gradlew :app:validateDebugScreenshotTest
 
       - name: Upload Test Results
         if: always()
@@ -52,7 +57,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Screenshot Diffs
-        if: failure()
+        if: failure() && steps.screenshot-tests.outcome == 'failure'
         id: screenshot-artifact
         uses: actions/upload-artifact@v7
         with:
@@ -65,10 +70,14 @@ jobs:
           retention-days: 7
 
       - name: Add Screenshot Failure Summary
-        if: failure() && steps.screenshot-artifact.outputs.artifact-url != ''
+        if: failure() && steps.screenshot-tests.outcome == 'failure' && steps.screenshot-artifact.outputs.artifact-url != ''
+        env:
+          ARTIFACT_URL: ${{ steps.screenshot-artifact.outputs.artifact-url }}
         run: |
-          echo "### Screenshot Test Results" >> "$GITHUB_STEP_SUMMARY"
-          echo "Download [\`screenshot-test-diffs\`](${{ steps.screenshot-artifact.outputs.artifact-url }}) to inspect the HTML diff report and rendered/diff PNGs." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Screenshot Test Results"
+            echo "Download [\`screenshot-test-diffs\`](${ARTIFACT_URL}) to inspect the HTML diff report and rendered/diff PNGs."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   test-ios:
     name: Run Unit Tests & Build (iOS)
