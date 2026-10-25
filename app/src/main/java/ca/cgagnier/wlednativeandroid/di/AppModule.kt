@@ -133,8 +133,28 @@ val appModule: Module = module {
     viewModelOf(::SettingsViewModel)
     viewModelOf(::ChangelogViewModel)
     viewModelOf(::ThemeViewModel)
-    viewModelOf(::UpdateInstallingViewModel)
-    viewModelOf(::DeviceEditViewModel)
+    viewModel {
+        UpdateInstallingViewModel(
+            deviceRepository = get(),
+            repositoryDao = get(),
+            deviceApiFactory = get(),
+            githubApi = get(),
+            ioDispatcher = get(IO_DISPATCHER),
+        )
+    }
+    viewModel {
+        DeviceEditViewModel(
+            deviceRepository = get(),
+            repositoryDao = get(),
+            versionWithAssetsRepository = get(),
+            githubApi = get(),
+            releaseService = get(),
+            deviceConnectionManager = get(),
+            widgetManager = get(),
+            applicationContext = androidContext(),
+            ioDispatcher = get(IO_DISPATCHER),
+        )
+    }
     viewModel {
         DeviceListDetailViewModel(
             preferencesRepository = get(),

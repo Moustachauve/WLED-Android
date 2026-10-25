@@ -19,10 +19,6 @@ class DeviceRepository(private val deviceDao: DeviceDao) : DeviceStore {
         deviceDao.insert(device)
     }
 
-    suspend fun update(device: Device) {
-        deviceDao.update(device)
-    }
-
     suspend fun updateAddress(macAddress: String, address: String) = deviceDao.updateAddress(macAddress, address)
 
     override suspend fun updateOriginalName(macAddress: String, originalName: String) =
