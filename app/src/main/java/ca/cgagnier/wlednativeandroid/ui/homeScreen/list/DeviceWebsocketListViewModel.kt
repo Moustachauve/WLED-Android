@@ -62,8 +62,4 @@ class DeviceWebsocketListViewModel(
             deviceConnectionManager.deleteDevice(device)
         }
     }
-
-    fun updateDeviceState(deviceWithState: DeviceWithState) {
-        deviceConnectionManager.updateDeviceState(deviceWithState)
-    }
 }

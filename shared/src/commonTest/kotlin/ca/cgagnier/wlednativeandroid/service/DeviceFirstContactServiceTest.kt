@@ -34,10 +34,6 @@ class DeviceFirstContactServiceTest {
             devices[device.macAddress.lowercase()] = device
         }
 
-        override suspend fun update(device: Device) {
-            devices[device.macAddress.lowercase()] = device
-        }
-
         override suspend fun updateAddress(macAddress: String, address: String) {
             updateAddressException?.let { throw it }
             updateAddressCalls++

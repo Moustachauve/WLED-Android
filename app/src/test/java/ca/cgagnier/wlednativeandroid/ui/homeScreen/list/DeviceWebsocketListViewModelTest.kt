@@ -121,13 +121,4 @@ class DeviceWebsocketListViewModelTest {
 
         coVerify { deviceConnectionManager.deleteDevice(sampleDevice) }
     }
-
-    @Test
-    fun `updateDeviceState delegates to connection manager`() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-
-        viewModel.updateDeviceState(sampleDeviceWithState)
-
-        verify { deviceConnectionManager.updateDeviceState(sampleDeviceWithState) }
-    }
 }

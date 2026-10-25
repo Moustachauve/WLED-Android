@@ -16,6 +16,7 @@ import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -43,6 +44,7 @@ class DeviceEditViewModel(
     private val deviceConnectionManager: DeviceConnectionManager,
     private val widgetManager: WledWidgetManager,
     private val applicationContext: Context,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
     private val updateDetailsVersion = MutableStateFlow<VersionWithAssets?>(null)
@@ -79,32 +81,31 @@ class DeviceEditViewModel(
     )
 
     /** Loads the [Repository] for the given [repositoryId] from the database. */
-    fun loadRepository(repositoryId: Long) = viewModelScope.launch(Dispatchers.IO) {
+    fun loadRepository(repositoryId: Long) = viewModelScope.launch(ioDispatcher) {
         repository.value = repositoryDao.getRepositoryById(repositoryId)
     }
 
     /** Persists a new custom name for the [device] and updates any active widgets. */
-    fun updateCustomName(device: Device, name: String) = viewModelScope.launch(Dispatchers.IO) {
-        val updatedDevice = device.copy(customName = name)
+    fun updateCustomName(device: Device, name: String) = viewModelScope.launch(ioDispatcher) {
         Log.d(TAG, "updateCustomName: $name")
-        deviceRepository.update(updatedDevice)
-        widgetManager.updateWidgetDeviceDetails(applicationContext, updatedDevice)
+        deviceRepository.updateCustomName(device.macAddress, name)
+        widgetManager.updateWidgetDeviceDetails(applicationContext, device.copy(customName = name))
     }
 
     /** Toggles the hidden-from-list flag on [device]. */
-    fun updateDeviceHidden(device: Device, isHidden: Boolean) = viewModelScope.launch(Dispatchers.IO) {
+    fun updateDeviceHidden(device: Device, isHidden: Boolean) = viewModelScope.launch(ioDispatcher) {
         Log.d(TAG, "updateDeviceHidden: ${device.originalName}, isHidden: $isHidden")
-        deviceRepository.update(device.copy(isHidden = isHidden))
+        deviceRepository.updateIsHidden(device.macAddress, isHidden)
     }
 
     /** Changes the update [branch] (stable / beta) for the [device]. */
-    fun updateDeviceBranch(device: Device, branch: Branch) = viewModelScope.launch(Dispatchers.IO) {
+    fun updateDeviceBranch(device: Device, branch: Branch) = viewModelScope.launch(ioDispatcher) {
         Log.d(TAG, "updateDeviceBranch: ${device.originalName}, updateChannel: $branch")
-        deviceRepository.update(device.copy(branch = branch))
+        deviceRepository.updateBranch(device.macAddress, branch)
     }
 
     /** Fetches and shows the release details for a specific [version] tag. */
-    fun showUpdateDetails(repositoryId: Long, version: String) = viewModelScope.launch(Dispatchers.IO) {
+    fun showUpdateDetails(repositoryId: Long, version: String) = viewModelScope.launch(ioDispatcher) {
         updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(repositoryId, version)
     }
 
@@ -114,9 +115,9 @@ class DeviceEditViewModel(
     }
 
     /** Marks the given [version] as skipped for [device] and closes the dialog. */
-    fun skipUpdate(device: Device, version: VersionWithAssets) = viewModelScope.launch(Dispatchers.IO) {
+    fun skipUpdate(device: Device, version: VersionWithAssets) = viewModelScope.launch(ioDispatcher) {
         Log.d(TAG, "Saving skipUpdateTag")
-        deviceRepository.update(device.copy(skipUpdateTag = version.version.tagName))
+        deviceRepository.updateSkipUpdateTag(device.macAddress, version.version.tagName)
         updateDetailsVersion.value = null
     }
 
@@ -141,21 +142,16 @@ class DeviceEditViewModel(
      */
     fun stopUpdateInstall(
         device: DeviceWithState? = null,
-        version: VersionWithAssets? = null,
+        version: VersionWithAssets? = updateInstallVersion.value,
         wasSuccessful: Boolean = false,
-    ): DeviceWithState? {
+    ) {
         updateInstallVersion.value = null
-        val currentStateInfo = device?.stateInfo
-        if (!wasSuccessful || currentStateInfo == null || version == null) {
-            return null
+        if (!wasSuccessful || device == null || version == null) {
+            return
         }
-        val installedTag = version.version.tagName.removePrefix("v")
-        val updatedStateInfo = currentStateInfo.copy(
-            info = currentStateInfo.info.copy(version = installedTag),
-        )
-        return device.copy(
-            stateInfo = updatedStateInfo,
-            updateVersionTag = null,
+        deviceConnectionManager.markUpdateInstalled(
+            macAddress = device.device.macAddress,
+            installedVersionTag = version.version.tagName,
         )
     }
 
@@ -164,10 +160,9 @@ class DeviceEditViewModel(
      * versions from GitHub.
      */
     fun checkForUpdates(device: Device) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             isCheckingUpdates.value = true
-            val updatedDevice = device.copy(skipUpdateTag = "")
-            deviceRepository.update(updatedDevice)
+            deviceRepository.updateSkipUpdateTag(device.macAddress, "")
             try {
                 releaseService.refreshVersionsForDevice(githubApi, device)
                 deviceConnectionManager.recheckUpdates()

@@ -85,7 +85,6 @@ fun DeviceEdit(
     canNavigateBack: Boolean,
     navigateUp: () -> Unit,
     viewModel: DeviceEditViewModel = koinViewModel(),
-    onDeviceUpdated: ((DeviceWithState) -> Unit)? = null,
 ) {
     val vmState by viewModel.uiState.collectAsState()
 
@@ -118,10 +117,7 @@ fun DeviceEdit(
             viewModel.startUpdateInstall(version)
         },
         onInstallFinished = { wasSuccessful ->
-            val updated = viewModel.stopUpdateInstall(device, uiState.updateInstallVersion, wasSuccessful)
-            if (updated != null) {
-                onDeviceUpdated?.invoke(updated)
-            }
+            viewModel.stopUpdateInstall(device = device, wasSuccessful = wasSuccessful)
         },
     )
 

@@ -15,6 +15,7 @@ import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateService
 import ca.cgagnier.wlednativeandroid.service.update.invoke
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +32,7 @@ class UpdateInstallingViewModel(
     private val repositoryDao: RepositoryDao,
     private val deviceApiFactory: DeviceApiFactory,
     private val githubApi: GithubApi,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private var updateStarted = false
 
@@ -98,7 +100,7 @@ class UpdateInstallingViewModel(
         downloadAsset(updateService)
     }
 
-    private fun downloadAsset(updateService: DeviceUpdateService) = viewModelScope.launch(Dispatchers.IO) {
+    private fun downloadAsset(updateService: DeviceUpdateService) = viewModelScope.launch(ioDispatcher) {
         if (updateService.isAssetFileCached()) {
             Log.d(TAG, "asset '${updateService.getAssetName()}' is already downloaded, reusing")
             installUpdate(updateService)
@@ -170,6 +172,7 @@ class UpdateInstallingViewModel(
                     step = UpdateInstallingStep.Done,
                 )
             }
+            updateDeviceUpdated()
         } else {
             Log.d(TAG, "OTA Failed, code ${response.code}")
             val errorString = "${response.code}: ${getHtmlErrorMessage(response)}"
@@ -181,7 +184,6 @@ class UpdateInstallingViewModel(
                 )
             }
         }
-        updateDeviceUpdated()
     }
 
     private fun onSoftwareUpdateError(e: Exception) {
@@ -200,13 +202,10 @@ class UpdateInstallingViewModel(
     /**
      * Updates the properties of a device after a software update was done.
      */
-    private fun updateDeviceUpdated() = viewModelScope.launch(Dispatchers.IO) {
+    private fun updateDeviceUpdated() = viewModelScope.launch(ioDispatcher) {
         val device = device.value ?: return@launch
         Log.d(TAG, "Resetting skipUpdateTag")
-        val updatedDevice = device.device.copy(
-            skipUpdateTag = "",
-        )
-        deviceRepository.update(updatedDevice)
+        deviceRepository.updateSkipUpdateTag(device.device.macAddress, "")
     }
 
     private fun getHtmlErrorMessage(response: ApiResponse<String>): String {

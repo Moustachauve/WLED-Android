@@ -5,7 +5,6 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
 import ca.cgagnier.wlednativeandroid.model.Branch
 import ca.cgagnier.wlednativeandroid.model.Device
 import kotlinx.coroutines.flow.Flow
@@ -14,9 +13,6 @@ import kotlinx.coroutines.flow.Flow
 interface DeviceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(device: Device)
-
-    @Update
-    suspend fun update(device: Device)
 
     @Query("UPDATE Device2 SET address = :address WHERE macAddress = :macAddress")
     suspend fun updateAddress(macAddress: String, address: String)
