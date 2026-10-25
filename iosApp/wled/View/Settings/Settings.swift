@@ -39,9 +39,7 @@ struct Settings: View {
                         Label("Automatically Discover New Devices", systemImage: "antenna.radiowaves.left.and.right")
                     }
                 } footer: {
-                    Text(
-                        "Searches your network for new WLED devices when the app opens. When off, pull down on the device list to search, or add a device by its IP address."
-                    )
+                    Text("When disabled, pull down on the device list to scan manually.")
                 }
 
                 Section("Theme") {

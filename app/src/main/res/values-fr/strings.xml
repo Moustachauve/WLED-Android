@@ -48,7 +48,7 @@
     <string name="system_default">Par défaut</string>
     <string name="listing_options">Options de la liste</string>
     <string name="automatically_discover_new_devices">Découvrir les nouveaux appareils automatiquement</string>
-    <string name="automatically_discover_new_devices_description">Recherche les nouveaux appareils WLED sur votre réseau à l\'ouverture de l\'application. Lorsque désactivé, glissez vers le bas sur la liste des appareils pour lancer une recherche, ou ajoutez un appareil avec son adresse IP.</string>
+    <string name="automatically_discover_new_devices_description">Lorsque désactivé, glissez vers le bas sur la liste des appareils pour rechercher manuellement.</string>
     <string name="show_hidden_devices">Afficher les appareils cachés</string>
     <string name="hide_hidden_devices">Cacher les appareils cachés</string>
     <string name="show_offline_devices_last">Afficher les appareils hors-ligne en dernier</string>
