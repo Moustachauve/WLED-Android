@@ -1605,7 +1605,7 @@
         "fr-CA" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Basculer ${device} sur ${isOn}"
+            "value" : "Mettre ${device} sur ${isOn}"
           }
         }
       }
@@ -2018,6 +2018,25 @@
           }
         }
       }
+    },
+    "Unable to reach %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to reach %@."
+          }
+        },
+        "fr-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de joindre %@."
+          }
+        }
+      }
+    },
+    "%@" : {
+      "shouldTranslate" : false
     }
   },
   "version" : "1.1"

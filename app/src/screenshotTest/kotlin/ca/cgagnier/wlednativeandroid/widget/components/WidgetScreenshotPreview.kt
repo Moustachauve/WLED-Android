@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ca.cgagnier.wlednativeandroid.R
+import ca.cgagnier.wlednativeandroid.widget.DEFAULT_QUICK_ACTION_LABELS
 import ca.cgagnier.wlednativeandroid.widget.WidgetStateData
 import ca.cgagnier.wlednativeandroid.widget.brightenColor
 
@@ -50,9 +51,10 @@ private val QUICK_ACTION_SEPARATOR_PADDING = 6.dp
  * Compose UI mirror of [ca.cgagnier.wlednativeandroid.widget.WidgetContent] used for deterministic
  * host-side screenshot testing (`com.android.compose.screenshot`).
  *
- * Glance widgets render via `RemoteViews` and embed a native `Chronometer` inside `AndroidRemoteViews`,
- * which cannot be inflated by the JVM Compose Preview screenshot renderer. This composable uses the
- * exact same [WidgetStateData], [createWidgetColorScheme], vector drawables, and layout geometry.
+ * Glance widgets render via `RemoteViews` (`AndroidRemoteViews` for `Chronometer` and `<shape>`
+ * XML drawables for the power button glow/fill/outline), which cannot be inflated by the JVM
+ * Compose Preview `painterResource` renderer. Keep this composable in sync when modifying
+ * [ca.cgagnier.wlednativeandroid.widget.WidgetContent] or [PowerButton].
  */
 @Composable
 internal fun WidgetScreenshotCard(
@@ -60,7 +62,7 @@ internal fun WidgetScreenshotCard(
     isDark: Boolean = false,
     isNarrow: Boolean = false,
     elapsedTimeText: String = "0:00",
-    quickActionLabels: List<String> = listOf("a1", "b2", "c3", "d4"),
+    quickActionLabels: List<String> = DEFAULT_QUICK_ACTION_LABELS,
 ) {
     val colorScheme = createWidgetColorScheme(data, isDark = isDark)
 
@@ -115,7 +117,6 @@ private fun WidgetWideBody(data: WidgetStateData, quickActionLabels: List<String
             WidgetPowerButton(isOn = data.isOn)
         }
         if (data.quickActionsEnabled && quickActionLabels.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(6.dp))
             WidgetQuickActionRow(labels = quickActionLabels)
         }
     }
@@ -218,7 +219,8 @@ private fun WidgetPowerButton(isOn: Boolean) {
             )
             Box(
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(36.dp)
+                    .padding(1.dp)
                     .border(2.dp, outlineColor, CircleShape),
             )
             Image(

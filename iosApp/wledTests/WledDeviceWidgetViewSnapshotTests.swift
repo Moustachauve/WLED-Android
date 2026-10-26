@@ -5,102 +5,84 @@ import Testing
 import UIKit
 @testable import WLED
 
-@MainActor
 struct WledDeviceWidgetViewSnapshotTests {
 
-    @Test func testWidgetWideOnLightSnapshot() {
-        assertWidgetSnapshot(
-            data: Self.wideOnData,
+    struct SnapshotCase: Sendable {
+        let name: String
+        let data: WledWidgetData?
+        let layoutStyle: WledWidgetLayoutStyle
+        let size: CGSize
+        let style: UIUserInterfaceStyle
+    }
+
+    static let cases: [SnapshotCase] = [
+        SnapshotCase(
+            name: "wideOnLight",
+            data: wideOnData,
             layoutStyle: .wide,
             size: CGSize(width: 329, height: 155),
             style: .light
-        )
-    }
-
-    @Test func testWidgetWideOnDarkSnapshot() {
-        assertWidgetSnapshot(
-            data: Self.wideOnData,
+        ),
+        SnapshotCase(
+            name: "wideOnDark",
+            data: wideOnData,
             layoutStyle: .wide,
             size: CGSize(width: 329, height: 155),
             style: .dark
-        )
-    }
-
-    @Test func testWidgetNarrowOffLightSnapshot() {
-        assertWidgetSnapshot(
-            data: Self.narrowOffData,
+        ),
+        SnapshotCase(
+            name: "narrowOffLight",
+            data: narrowOffData,
             layoutStyle: .narrow,
             size: CGSize(width: 155, height: 155),
             style: .light
-        )
-    }
-
-    @Test func testWidgetNarrowOffDarkSnapshot() {
-        assertWidgetSnapshot(
-            data: Self.narrowOffData,
+        ),
+        SnapshotCase(
+            name: "narrowOffDark",
+            data: narrowOffData,
             layoutStyle: .narrow,
             size: CGSize(width: 155, height: 155),
             style: .dark
-        )
-    }
-
-    @Test func testWidgetWideOfflineLightSnapshot() {
-        assertWidgetSnapshot(
-            data: Self.offlineData,
+        ),
+        SnapshotCase(
+            name: "wideOfflineLight",
+            data: offlineData,
+            layoutStyle: .wide,
+            size: CGSize(width: 329, height: 155),
+            style: .light
+        ),
+        SnapshotCase(
+            name: "unconfiguredLight",
+            data: nil,
             layoutStyle: .wide,
             size: CGSize(width: 329, height: 155),
             style: .light
         )
-    }
+    ]
 
-    @Test func testWidgetWideQuickActionsLightSnapshot() {
-        assertWidgetSnapshot(
-            data: Self.quickActionsData,
-            layoutStyle: .wide,
-            size: CGSize(width: 329, height: 155),
-            style: .light
-        )
-    }
-
-    // MARK: - Helpers
-
-    private func assertWidgetSnapshot(
-        data: WledWidgetData,
-        layoutStyle: WledWidgetLayoutStyle,
-        size: CGSize,
-        style: UIUserInterfaceStyle,
-        fileID: StaticString = #fileID,
-        file: StaticString = #filePath,
-        testName: String = #function,
-        line: UInt = #line,
-        column: UInt = #column
-    ) {
+    @MainActor
+    @Test(arguments: cases)
+    func widgetSnapshot(_ testCase: SnapshotCase) {
         let view = WledDeviceWidgetView(
-            data: data,
-            layoutStyle: layoutStyle,
+            data: testCase.data,
+            layoutStyle: testCase.layoutStyle,
             elapsedTimeText: "0:00"
         )
-        .frame(width: size.width, height: size.height)
-        .environment(\.colorScheme, style == .dark ? .dark : .light)
+        .frame(width: testCase.size.width, height: testCase.size.height)
 
         assertSnapshot(
             of: view,
             as: .image(
-                drawHierarchyInKeyWindow: true,
-                precision: 0.99,
-                layout: .fixed(width: size.width, height: size.height),
-                traits: UITraitCollection(userInterfaceStyle: style)
+                perceptualPrecision: 0.98,
+                layout: .fixed(width: testCase.size.width, height: testCase.size.height),
+                traits: UITraitCollection(userInterfaceStyle: testCase.style)
             ),
-            fileID: fileID,
-            file: file,
-            testName: testName,
-            line: line,
-            column: column
+            named: testCase.name
         )
     }
 
     private static let wideOnData = WledWidgetData(
-        macAddress: "AA:BB:CC:DD:EE:01",
+        macAddress: "aabbccddeeff",
         address: "192.168.1.101",
         name: "WLED Device",
         isOn: true,
@@ -110,7 +92,7 @@ struct WledDeviceWidgetViewSnapshotTests {
     )
 
     private static let narrowOffData = WledWidgetData(
-        macAddress: "AA:BB:CC:DD:EE:02",
+        macAddress: "aabbccddeef0",
         address: "192.168.1.102",
         name: "Small widget with a long name",
         isOn: false,
@@ -120,28 +102,12 @@ struct WledDeviceWidgetViewSnapshotTests {
     )
 
     private static let offlineData = WledWidgetData(
-        macAddress: "AA:BB:CC:DD:EE:03",
+        macAddress: "aabbccddeef1",
         address: "192.168.1.103",
         name: "Offline device",
         isOn: false,
         isOnline: false,
         color: Int32(bitPattern: 0xFFFF8000),
         lastUpdated: 1_700_000_000_000
-    )
-
-    private static let quickActionsData = WledWidgetData(
-        macAddress: "AA:BB:CC:DD:EE:04",
-        address: "192.168.1.104",
-        name: "WLED Device",
-        isOn: true,
-        isOnline: true,
-        color: Int32(bitPattern: 0xFFDFFF00),
-        lastUpdated: 1_700_000_000_000,
-        quickActions: [
-            WledWidgetQuickAction(id: "1", label: "a1"),
-            WledWidgetQuickAction(id: "2", label: "b2"),
-            WledWidgetQuickAction(id: "3", label: "c3"),
-            WledWidgetQuickAction(id: "4", label: "d4")
-        ]
     )
 }

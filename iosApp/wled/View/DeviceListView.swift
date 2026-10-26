@@ -17,6 +17,7 @@ struct DeviceListView: View {
     @State private var showSettingsSheet: Bool = false
     @State private var pendingShowChangelog: Bool = false
     @State private var devicePendingDeletion: DeviceWithState?
+    @State private var pendingDeepLinkMac: String?
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
 
     @AppStorage("lastSelectedDeviceMac") private var lastSelectedDeviceMac: String = ""
@@ -143,6 +144,11 @@ struct DeviceListView: View {
             }
         }
         .onChange(of: viewModel.allDevicesWithState) { _, devices in
+            if let pendingMac = pendingDeepLinkMac,
+               selectDevice(withMacAddress: pendingMac, from: devices) {
+                pendingDeepLinkMac = nil
+                return
+            }
             restoreLastSelection(from: devices)
         }
         .onChange(of: navigation.selection) { _, newSelection in
@@ -313,29 +319,27 @@ private extension DeviceListView {
     }
 
     func handleOpenURL(_ url: URL) {
-        guard url.scheme?.lowercased() == "wled" else { return }
-        // Support `wled://device/<macAddress>`, `wled://AA:BB:CC:DD:EE:FF`, `wled://AABBCCDDEEFF`, or `wled://192.168.1.50`
-        let rawHost = url.host(percentEncoded: false) ?? url.host ?? ""
-        let rawPath = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let rawIdentifier: String
-        if rawHost.isEmpty || rawHost.caseInsensitiveCompare("device") == .orderedSame {
-            rawIdentifier = rawPath
+        guard let macAddress = WledWidgetData.parseDeepLinkMacAddress(url) else { return }
+        if selectDevice(withMacAddress: macAddress, from: viewModel.allDevicesWithState) {
+            pendingDeepLinkMac = nil
         } else {
-            rawIdentifier = "\(rawHost)\(rawPath.isEmpty ? "" : ":\(rawPath)")"
+            pendingDeepLinkMac = macAddress
         }
-        let identifier = rawIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !identifier.isEmpty else { return }
+    }
 
-        let normalizedIdentifier = identifier.replacingOccurrences(of: ":", with: "").lowercased()
-        if let matchingDevice = viewModel.allDevicesWithState.first(where: { candidate in
+    @discardableResult
+    func selectDevice(withMacAddress macAddress: String, from devices: [DeviceWithState]) -> Bool {
+        let normalizedTarget = macAddress.replacingOccurrences(of: ":", with: "").lowercased()
+        guard let matchingDevice = devices.first(where: { candidate in
             let normalizedMac = candidate.device.macAddress.replacingOccurrences(of: ":", with: "").lowercased()
-            return normalizedMac == normalizedIdentifier
-                || candidate.device.address.caseInsensitiveCompare(identifier) == .orderedSame
-        }) {
-            withAnimation {
-                navigation.select(matchingDevice)
-            }
+            return normalizedMac == normalizedTarget
+        }) else {
+            return false
         }
+        withAnimation {
+            navigation.select(matchingDevice)
+        }
+        return true
     }
 
     func openEditDevice(_ device: DeviceWithState) {
