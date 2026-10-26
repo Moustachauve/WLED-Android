@@ -88,7 +88,7 @@ struct DeviceEditViewModelTests {
         let wrapper = DeviceWithState(initialDevice: initial)
         let viewModel = DeviceEditViewModel(device: wrapper, database: database)
 
-        await viewModel.loadRepository()
+        await viewModel.loadRepository(id: initial.repositoryId)
 
         #expect(viewModel.repository?.ownerAndRepo == Repository.companion.DEFAULT_OWNER_REPO)
     }
