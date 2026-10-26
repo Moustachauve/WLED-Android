@@ -10,10 +10,10 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.WidgetSnapshot
+import ca.cgagnier.wlednativeandroid.model.createWidgetSnapshotFromState
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
-import ca.cgagnier.wlednativeandroid.ui.theme.getColorFromDeviceState
 import ca.cgagnier.wlednativeandroid.widget.components.getDeviceName
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -151,13 +151,23 @@ class WledWidgetManager internal constructor(
 
         val body = response.body
         if (response.isSuccessful && body != null) {
-            val newData = widgetData.copy(
-                address = targetAddress,
-                name = getDeviceName(device, context.getString(R.string.default_device_name)),
-                isOn = body.isOn ?: jsonPost.isOn ?: widgetData.isOn,
-                color = getColorFromDeviceState(body),
+            val snapshot = createWidgetSnapshotFromState(
+                device = device,
+                targetAddress = targetAddress,
+                defaultName = context.getString(R.string.default_device_name),
+                state = body,
                 isOnline = true,
-                lastUpdated = System.currentTimeMillis(),
+                fallbackIsOn = jsonPost.isOn ?: widgetData.isOn,
+                fallbackColor = android.graphics.Color.WHITE,
+                now = System.currentTimeMillis(),
+            )
+            val newData = widgetData.copy(
+                address = snapshot.address,
+                name = snapshot.name,
+                isOn = snapshot.isOn,
+                color = snapshot.color,
+                isOnline = snapshot.isOnline,
+                lastUpdated = snapshot.lastUpdated,
             )
             updateWidgetsForMacAddress(context, widgetData.macAddress, newData)
         } else {

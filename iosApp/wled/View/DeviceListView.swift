@@ -127,6 +127,9 @@ struct DeviceListView: View {
             _ = await (observeTask, changelogTask)
         }
         .onAppear(perform: appearAction)
+        .onOpenURL { url in
+            handleOpenURL(url)
+        }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
@@ -307,6 +310,32 @@ private extension DeviceListView {
 
     func appearAction() {
         viewModel.onResume()
+    }
+
+    func handleOpenURL(_ url: URL) {
+        guard url.scheme?.lowercased() == "wled" else { return }
+        // Support `wled://device/<macAddress>`, `wled://AA:BB:CC:DD:EE:FF`, `wled://AABBCCDDEEFF`, or `wled://192.168.1.50`
+        let rawHost = url.host(percentEncoded: false) ?? url.host ?? ""
+        let rawPath = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let rawIdentifier: String
+        if rawHost.isEmpty || rawHost.caseInsensitiveCompare("device") == .orderedSame {
+            rawIdentifier = rawPath
+        } else {
+            rawIdentifier = "\(rawHost)\(rawPath.isEmpty ? "" : ":\(rawPath)")"
+        }
+        let identifier = rawIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !identifier.isEmpty else { return }
+
+        let normalizedIdentifier = identifier.replacingOccurrences(of: ":", with: "").lowercased()
+        if let matchingDevice = viewModel.allDevicesWithState.first(where: { candidate in
+            let normalizedMac = candidate.device.macAddress.replacingOccurrences(of: ":", with: "").lowercased()
+            return normalizedMac == normalizedIdentifier
+                || candidate.device.address.caseInsensitiveCompare(identifier) == .orderedSame
+        }) {
+            withAnimation {
+                navigation.select(matchingDevice)
+            }
+        }
     }
 
     func openEditDevice(_ device: DeviceWithState) {

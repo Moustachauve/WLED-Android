@@ -31,10 +31,29 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
 
     private static func stub(recording request: URLRequest) -> Stub? {
         guard let host = request.url?.host else { return nil }
+        let recorded = materializedRequest(request)
         return state.withLock {
-            $0.recordedRequests[host, default: []].append(request)
+            $0.recordedRequests[host, default: []].append(recorded)
             return $0.stubs[host]
         }
+    }
+
+    private static func materializedRequest(_ request: URLRequest) -> URLRequest {
+        guard request.httpBody == nil, let stream = request.httpBodyStream else { return request }
+        var copy = request
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        let bufferSize = 4096
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer { buffer.deallocate() }
+        while stream.hasBytesAvailable {
+            let read = stream.read(buffer, maxLength: bufferSize)
+            guard read > 0 else { break }
+            data.append(buffer, count: read)
+        }
+        copy.httpBody = data
+        return copy
     }
 
     // MARK: - URLProtocol

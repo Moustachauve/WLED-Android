@@ -13,6 +13,9 @@ Prefer a quieter network? Turn off "Automatically Discover New Devices" in Setti
 ### Custom Firmware Updates
 Added OTA update support for **QuinLED** and **MoonModules** boards alongside official WLED releases.
 
+### Siri & Shortcuts Support
+Control your WLED lights from Siri, the Shortcuts app, or the Action button — toggle power, turn lights on or off, or set brightness from 0% to 100%.
+
 ### Smoother Connections & Discovery
 Unified real-time WebSocket management, faster mDNS device discovery, and a 60-second offline grace period so devices don't flicker into the offline list during brief reconnects.
 
@@ -21,3 +24,4 @@ Unified real-time WebSocket management, faster mDNS device discovery, and a 60-s
 - Added an Edit swipe action and a confirmation prompt before deleting devices from the list.
 - Added the firmware update source repository and offline update status to the Edit Device screen.
 - Added a live download progress bar when installing firmware updates.
+- Added `wled://` deep link support to open a specific device directly.
