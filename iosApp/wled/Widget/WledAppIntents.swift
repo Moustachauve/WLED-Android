@@ -1,6 +1,7 @@
 import AppIntents
 import Foundation
 import Shared
+import WidgetKit
 
 /// Errors thrown by WLED App Intents when a target device cannot be reached.
 enum WledIntentError: Error, CustomLocalizedStringResourceConvertible {
@@ -140,6 +141,21 @@ struct RefreshDeviceWidgetIntent: AppIntent {
             await WledWidgetController.shared.refreshDevice(macAddress: device.id, fallbackAddress: device.address)
         )
         return .result()
+    }
+}
+
+/// Widget configuration intent allowing the user to select which WLED device a Home Screen widget controls.
+struct SelectWledDeviceWidgetIntent: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "Single Device"
+    static let description = IntentDescription("Control a single WLED device")
+
+    @Parameter(title: "Device")
+    var device: WledDeviceEntity?
+
+    init() {}
+
+    init(device: WledDeviceEntity?) {
+        self.device = device
     }
 }
 

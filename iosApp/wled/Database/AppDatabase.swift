@@ -4,7 +4,9 @@ import Shared
 
 final class AppDatabase: Sendable {
     static let shared = AppDatabase()
+    #if !WIDGET_EXTENSION
     private static let oneDayMilliseconds: Int64 = 24 * 60 * 60 * 1000
+    #endif
 
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native",
@@ -14,6 +16,8 @@ final class AppDatabase: Sendable {
     private let koinContainer: KoinContainer
     let database: DevicesDatabase
     let deviceRepository: DeviceRepository
+    let deviceApiFactory: DeviceApiFactory
+    #if !WIDGET_EXTENSION
     // Computed because `any RepositoryDao` (an Obj-C protocol existential) is not Sendable in Swift 6;
     // Koin's `repositoryDao` binding returns a singleton instance.
     var repositoryDao: any RepositoryDao { koinContainer.repositoryDao }
@@ -22,10 +26,10 @@ final class AppDatabase: Sendable {
     let releaseService: ReleaseService
     let deviceUpdateManager: DeviceUpdateManager
     let githubApi: GithubApi
-    let deviceApiFactory: DeviceApiFactory
     let deviceFirstContactService: DeviceFirstContactService
     let addressValidator: AddressValidator
     let deviceConnectionManager: DeviceConnectionManager
+    #endif
 
     /// Completes once legacy Core Data devices have been imported and built-in repositories synced into Room.
     private let readyTask: Task<Void, Never>
@@ -51,6 +55,8 @@ final class AppDatabase: Sendable {
         self.database = container.database
         let repository = container.deviceRepository
         self.deviceRepository = repository
+        self.deviceApiFactory = container.deviceApiFactory
+        #if !WIDGET_EXTENSION
         self.versionWithAssetsRepository = container.versionWithAssetsRepository
         let userPrefsRepo = container.userPreferencesRepository
         self.userPreferencesRepository = userPrefsRepo
@@ -58,7 +64,6 @@ final class AppDatabase: Sendable {
         self.releaseService = relService
         self.deviceUpdateManager = container.deviceUpdateManager
         self.githubApi = container.githubApi
-        self.deviceApiFactory = container.deviceApiFactory
         self.deviceFirstContactService = container.deviceFirstContactService
         self.addressValidator = container.addressValidator
         self.deviceConnectionManager = container.deviceConnectionManager
@@ -93,6 +98,9 @@ final class AppDatabase: Sendable {
                 Self.logger.error("Failed to sync built-in repositories: \(error.localizedDescription)")
             }
         }
+        #else
+        self.readyTask = Task {}
+        #endif
     }
 
     deinit {
@@ -106,6 +114,7 @@ final class AppDatabase: Sendable {
         await readyTask.value
     }
 
+    #if !WIDGET_EXTENSION
     /// Refreshes available GitHub releases for all repositories used by known devices,
     /// throttled to at most once every 24 hours.
     func refreshVersionsIfNeeded() async {
@@ -146,6 +155,7 @@ final class AppDatabase: Sendable {
             Self.logger.error("Failed to refresh releases for device: \(error.localizedDescription)")
         }
     }
+    #endif
 }
 
 extension KoinContainer: @retroactive @unchecked Sendable {}

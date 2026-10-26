@@ -18,14 +18,27 @@ struct WledWidgetController: Sendable {
     )
 
     private let database: AppDatabase
+    private let snapshotStore: WledWidgetSnapshotStore
 
-    init(database: AppDatabase = .shared) {
+    init(
+        database: AppDatabase = .shared,
+        snapshotStore: WledWidgetSnapshotStore = .shared
+    ) {
         self.database = database
+        self.snapshotStore = snapshotStore
     }
 
     /// Refreshes the state of a device over HTTP and returns an updated `WidgetSnapshot`.
-    func refreshDevice(macAddress: String, fallbackAddress: String? = nil) async -> WidgetSnapshot? {
-        await sendRequest(macAddress: macAddress, fallbackAddress: fallbackAddress)
+    func refreshDevice(
+        macAddress: String,
+        fallbackAddress: String? = nil,
+        reloadTimelines: Bool = true
+    ) async -> WidgetSnapshot? {
+        await sendRequest(
+            macAddress: macAddress,
+            fallbackAddress: fallbackAddress,
+            reloadTimelines: reloadTimelines
+        )
     }
 
     /// Explicitly turns a device on or off and returns the updated `WidgetSnapshot`.
@@ -33,7 +46,7 @@ struct WledWidgetController: Sendable {
         macAddress: String,
         isOn: Bool,
         fallbackAddress: String? = nil,
-        fallbackIsOn: Bool = false
+        fallbackIsOn: Bool? = nil
     ) async -> WidgetSnapshot? {
         await sendRequest(
             macAddress: macAddress,
@@ -45,8 +58,17 @@ struct WledWidgetController: Sendable {
 
     /// Fetches the current device state and toggles its power on or off.
     func togglePower(macAddress: String, fallbackAddress: String? = nil) async -> WidgetSnapshot? {
-        let current = await refreshDevice(macAddress: macAddress, fallbackAddress: fallbackAddress)
-        guard let current, current.isOnline else { return current }
+        let current = await refreshDevice(
+            macAddress: macAddress,
+            fallbackAddress: fallbackAddress,
+            reloadTimelines: false
+        )
+        guard let current, current.isOnline else {
+            if current != nil {
+                snapshotStore.reloadTimelines()
+            }
+            return current
+        }
         return await setPower(
             macAddress: macAddress,
             isOn: !current.isOn,
@@ -76,12 +98,15 @@ struct WledWidgetController: Sendable {
         fallbackAddress: String?,
         desiredIsOn: Bool? = nil,
         desiredBrightness: Int32? = nil,
-        fallbackIsOn: Bool = false
+        fallbackIsOn: Bool? = nil,
+        reloadTimelines: Bool = true
     ) async -> WidgetSnapshot? {
         await database.waitUntilReady()
         let device = try? await database.deviceRepository.findDeviceByMacAddress(address: macAddress)
+        let cached = snapshotStore.load(macAddress: macAddress)
 
-        guard let targetAddress = device?.address ?? fallbackAddress, !targetAddress.isEmpty else {
+        guard let targetAddress = device?.address ?? fallbackAddress ?? cached?.address,
+              !targetAddress.isEmpty else {
             Self.logger.warning("No address found for device MAC \(macAddress)")
             return nil
         }
@@ -99,17 +124,20 @@ struct WledWidgetController: Sendable {
         )
         let state = (response?.isSuccessful == true) ? response?.body : nil
         let isOnline = state != nil
+        let effectiveFallbackIsOn = fallbackIsOn ?? cached?.isOn ?? false
 
-        return WidgetSnapshotKt.createWidgetSnapshotFromState(
+        let snapshot = WidgetSnapshotKt.createWidgetSnapshotFromState(
             device: device,
             targetAddress: targetAddress,
             defaultName: Device.defaultDisplayName,
             state: state,
             isOnline: isOnline,
             macAddress: macAddress,
-            fallbackIsOn: isOnline ? (desiredIsOn ?? fallbackIsOn) : fallbackIsOn,
-            fallbackColor: -1,
+            fallbackIsOn: isOnline ? (desiredIsOn ?? effectiveFallbackIsOn) : effectiveFallbackIsOn,
+            fallbackColor: cached?.color ?? -1,
             now: Int64(Date().timeIntervalSince1970 * 1000)
         )
+        snapshotStore.save(snapshot, reloadTimelines: reloadTimelines)
+        return snapshot
     }
 }

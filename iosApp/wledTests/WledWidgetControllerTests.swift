@@ -6,10 +6,16 @@ import Testing
 struct WledWidgetControllerTests {
 
     let host = "wled-\(UUID().uuidString.lowercased()).test"
-    let mac = "aabbccddeeff"
+    let mac = "mac-\(UUID().uuidString.lowercased())"
     let database = AppDatabase(inMemory: true, deviceApiFactory: .stubbed)
+    let snapshotStore = WledWidgetSnapshotStore(
+        userDefaults: UserDefaults(suiteName: "test-\(UUID().uuidString)"),
+        onReloadTimelines: {}
+    )
     var repository: DeviceRepository { database.deviceRepository }
-    var controller: WledWidgetController { WledWidgetController(database: database) }
+    var controller: WledWidgetController {
+        WledWidgetController(database: database, snapshotStore: snapshotStore)
+    }
 
     private func insertDevice(customName: String = "Desk Lamp") async throws {
         await database.waitUntilReady()
@@ -150,5 +156,28 @@ struct WledWidgetControllerTests {
 
         #expect(StubURLProtocol.requests(for: host).count == 1)
         #expect(snapshot?.isOnline == false)
+    }
+
+    @Test func refreshDevicePreservesCachedIsOnAndColorWhenRequestFails() async throws {
+        try await insertDevice()
+        let cachedColor = Int32(bitPattern: 0xFF00BFFF)
+        snapshotStore.save(
+            WledWidgetData(
+                macAddress: mac,
+                address: host,
+                name: "Desk Lamp",
+                isOn: true,
+                isOnline: true,
+                color: cachedColor
+            ),
+            reloadTimelines: false
+        )
+        StubURLProtocol.register(.failure(.cannotConnectToHost), for: host)
+
+        let snapshot = await controller.refreshDevice(macAddress: mac)
+
+        #expect(snapshot?.isOnline == false)
+        #expect(snapshot?.isOn == true)
+        #expect(snapshot?.color == cachedColor)
     }
 }
