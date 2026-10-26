@@ -10,7 +10,9 @@ import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class WidgetSnapshotTest {
 
@@ -106,5 +108,48 @@ class WidgetSnapshotTest {
         val state = State(segment = listOf(Segment(colors = listOf(listOf(255, 255, 255, 0, 1)))))
         val color = getColorFromState(state)
         assertNull(color)
+    }
+
+    @Test
+    fun createWidgetSnapshotFromStateUsesFallbackFieldsWhenOfflineWithoutState() {
+        val device = Device(
+            macAddress = "AA:BB:CC:DD:EE:02",
+            address = "192.168.1.102",
+            customName = " ",
+            originalName = "Kitchen Strip",
+        )
+
+        val snapshot = createWidgetSnapshotFromState(
+            device = device,
+            targetAddress = "10.0.0.2",
+            defaultName = "(New Device)",
+            state = null,
+            isOnline = false,
+            fallbackIsOn = true,
+            fallbackColor = 0xFFFF0000.toInt(),
+            now = 1_000L,
+        )
+
+        assertEquals("Kitchen Strip", snapshot.name)
+        assertEquals("10.0.0.2", snapshot.address)
+        assertTrue(snapshot.isOn)
+        assertFalse(snapshot.isOnline)
+        assertEquals(0xFFFF0000.toInt(), snapshot.color)
+    }
+
+    @Test
+    fun createWidgetSnapshotFromStateUsesDefaultNameWhenDeviceIsNull() {
+        val snapshot = createWidgetSnapshotFromState(
+            device = null,
+            targetAddress = "10.0.0.3",
+            defaultName = "(New Device)",
+            state = null,
+            isOnline = false,
+            now = 2_000L,
+        )
+
+        assertEquals("", snapshot.macAddress)
+        assertEquals("10.0.0.3", snapshot.address)
+        assertEquals("(New Device)", snapshot.name)
     }
 }

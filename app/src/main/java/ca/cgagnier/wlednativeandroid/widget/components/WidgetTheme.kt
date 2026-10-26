@@ -23,11 +23,9 @@ fun WLEDWidgetTheme(widgetState: WidgetStateData, content: @Composable () -> Uni
 }
 
 /**
- * Creates a [ColorProviders] for the widget themed with the device's current LED color.
- *
- * @param widgetState The state of the widget.
+ * Creates a Material 3 [ColorScheme] for a widget based on the device's current state and LED color.
  */
-private fun createDeviceColorProviders(widgetState: WidgetStateData): ColorProviders {
+internal fun createWidgetColorScheme(widgetState: WidgetStateData, isDark: Boolean): ColorScheme {
     val style = when {
         !widgetState.isOnline -> PaletteStyle.Neutral
         !widgetState.isOn -> PaletteStyle.TonalSpot
@@ -39,22 +37,29 @@ private fun createDeviceColorProviders(widgetState: WidgetStateData): ColorProvi
         Color.White
     }
 
-    val lightScheme: ColorScheme = dynamicColorScheme(
-        seedColor = seedColor,
-        isDark = false,
-        style = style,
-        specVersion = ColorSpec.SpecVersion.SPEC_2025,
-    )
-
-    val darkScheme: ColorScheme = dynamicColorScheme(
-        seedColor = seedColor,
-        isDark = true,
-        style = style,
-        isAmoled = true, // Use deeper/more saturated colors for dark mode
-    )
-
-    return createColorProviders(
-        light = lightScheme,
-        dark = darkScheme,
-    )
+    return if (isDark) {
+        dynamicColorScheme(
+            seedColor = seedColor,
+            isDark = true,
+            style = style,
+            isAmoled = true, // Use deeper/more saturated colors for dark mode
+        )
+    } else {
+        dynamicColorScheme(
+            seedColor = seedColor,
+            isDark = false,
+            style = style,
+            specVersion = ColorSpec.SpecVersion.SPEC_2025,
+        )
+    }
 }
+
+/**
+ * Creates a [ColorProviders] for the widget themed with the device's current LED color.
+ *
+ * @param widgetState The state of the widget.
+ */
+private fun createDeviceColorProviders(widgetState: WidgetStateData): ColorProviders = createColorProviders(
+    light = createWidgetColorScheme(widgetState, isDark = false),
+    dark = createWidgetColorScheme(widgetState, isDark = true),
+)

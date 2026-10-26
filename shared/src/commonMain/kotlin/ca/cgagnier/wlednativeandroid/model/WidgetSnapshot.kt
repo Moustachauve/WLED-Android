@@ -28,17 +28,42 @@ fun DeviceWithState.toWidgetSnapshot(
     defaultName: String = "",
     fallbackColor: Int = -1,
     now: Long = currentTimeMillis(),
+): WidgetSnapshot = createWidgetSnapshotFromState(
+    device = device,
+    targetAddress = device.address,
+    defaultName = defaultName,
+    state = stateInfo?.state,
+    isOnline = isOnline,
+    fallbackColor = fallbackColor,
+    now = now,
+)
+
+/**
+ * Projects a [Device] and optional [State] into a [WidgetSnapshot].
+ *
+ * Shared by live WebSocket state projection ([toWidgetSnapshot]) and direct HTTP widget/shortcut
+ * refreshes on Android and iOS.
+ */
+@Suppress("LongParameterList")
+fun createWidgetSnapshotFromState(
+    device: Device?,
+    targetAddress: String,
+    defaultName: String,
+    state: State?,
+    isOnline: Boolean,
+    fallbackIsOn: Boolean = false,
+    fallbackColor: Int = -1,
+    now: Long = currentTimeMillis(),
 ): WidgetSnapshot {
-    val state = stateInfo?.state
     val color = getColorFromState(state) ?: fallbackColor
-    val resolvedName = device.customName.trim().ifBlank {
-        device.originalName.trim().ifBlank { defaultName }
-    }
+    val resolvedName = device?.customName?.trim()?.takeIf { it.isNotEmpty() }
+        ?: device?.originalName?.trim()?.takeIf { it.isNotEmpty() }
+        ?: defaultName
     return WidgetSnapshot(
-        macAddress = device.macAddress,
-        address = device.address,
+        macAddress = device?.macAddress ?: "",
+        address = targetAddress,
         name = resolvedName,
-        isOn = state?.isOn ?: false,
+        isOn = state?.isOn ?: fallbackIsOn,
         isOnline = isOnline,
         color = color,
         brightness = state?.brightness,
