@@ -1,5 +1,12 @@
 import Foundation
+import Shared
 import Synchronization
+
+extension DeviceApiFactory {
+    static let stubbed = DeviceApiFactory.companion.create { configuration in
+        configuration.protocolClasses = [StubURLProtocol.self]
+    }
+}
 
 /// `URLProtocol` that serves canned responses so networking code can be tested without a real device.
 ///
@@ -44,13 +51,11 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
         stream.open()
         defer { stream.close() }
         var data = Data()
-        let bufferSize = 4096
-        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-        defer { buffer.deallocate() }
+        var buffer = [UInt8](repeating: 0, count: 4096)
         while stream.hasBytesAvailable {
-            let read = stream.read(buffer, maxLength: bufferSize)
+            let read = stream.read(&buffer, maxLength: buffer.count)
             guard read > 0 else { break }
-            data.append(buffer, count: read)
+            data.append(contentsOf: buffer[..<read])
         }
         copy.httpBody = data
         return copy

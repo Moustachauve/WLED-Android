@@ -9,13 +9,9 @@ import Shared
 /// Core business logic is covered in `:shared` (`DeviceFirstContactServiceTest.kt`).
 struct DeviceFirstContactServiceTests {
 
-    private static let apiFactory = DeviceApiFactory.companion.create { configuration in
-        configuration.protocolClasses = [StubURLProtocol.self]
-    }
-
     /// Unique per test so stubs never collide when tests run in parallel.
     let host = "wled-\(UUID().uuidString.lowercased()).test"
-    let database = AppDatabase(inMemory: true, deviceApiFactory: Self.apiFactory)
+    let database = AppDatabase(inMemory: true, deviceApiFactory: .stubbed)
     var repository: DeviceRepository { database.deviceRepository }
     var service: DeviceFirstContactService { database.deviceFirstContactService }
 

@@ -44,7 +44,6 @@ import ca.cgagnier.wlednativeandroid.widget.components.WLEDWidgetTheme
 import kotlinx.serialization.json.Json
 
 val WIDGET_DATA_KEY = stringPreferencesKey("widget_data")
-internal val DEFAULT_QUICK_ACTION_LABELS = listOf("a1", "b2", "c3", "d4")
 private val NARROW_WIDGET_WIDTH_THRESHOLD = 160.dp
 private val WIDGET_SAFE_PADDING = 12.dp
 
@@ -143,9 +142,12 @@ internal fun DeviceWidgetContentWide(data: WidgetStateData) {
             // TODO: Add a way for users to configure quick actions
             if (data.quickActionsEnabled) {
                 QuickActionButtons(
-                    items = DEFAULT_QUICK_ACTION_LABELS.map { label ->
-                        QuickActionItem(label = label, onClick = actionRunCallback<RefreshAction>())
-                    },
+                    items = listOf(
+                        QuickActionItem(label = "a1", onClick = actionRunCallback<RefreshAction>()),
+                        QuickActionItem(label = "b2", onClick = actionRunCallback<RefreshAction>()),
+                        QuickActionItem(label = "c3", onClick = actionRunCallback<RefreshAction>()),
+                        QuickActionItem(label = "d4", onClick = actionRunCallback<RefreshAction>()),
+                    ),
                 )
             }
         }

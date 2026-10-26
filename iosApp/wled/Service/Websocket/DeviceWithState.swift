@@ -64,33 +64,16 @@ final class DeviceWithState: Identifiable {
     // MARK: Color handling
 
     var currentColor: Color {
-        let colorInt = device.getColor(state: stateInfo?.state)
-        let activeColor = colorFromHex(rgbValue: Int(colorInt))
+        let uiColor = UIColor(rgb: Int(device.getColor(state: stateInfo?.state)))
 
         if isOnline {
-            return activeColor
+            return Color(uiColor)
         }
 
-        // Convert to UIColor to easily extract HSB values
-        let uiColor = UIColor(activeColor)
-        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        uiColor.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        let hsba = uiColor.hsbaComponents ?? HSBA(h: 0, s: 0, b: 0, a: 1)
 
         // Return a new Color with 0 saturation (Gray), preserving brightness
-        return Color(hue: h, saturation: 0, brightness: b, opacity: Double(a))
-    }
-
-    private func colorFromHex(rgbValue: Int, alpha: Double? = 1.0) -> Color {
-        // &  binary AND operator to zero out other color values
-        // >>  bitwise right shift operator
-        // Divide by 0xFF because UIColor takes CGFloats between 0.0 and 1.0
-
-        let red =   CGFloat((rgbValue & 0xFF0000) >> 16) / 0xFF
-        let green = CGFloat((rgbValue & 0x00FF00) >> 8) / 0xFF
-        let blue =  CGFloat(rgbValue & 0x0000FF) / 0xFF
-        let alpha = CGFloat(alpha ?? 1.0)
-
-        return Color(UIColor(red: red, green: green, blue: blue, alpha: alpha))
+        return Color(hue: hsba.h, saturation: 0, brightness: hsba.b, opacity: Double(hsba.a))
     }
 }
 

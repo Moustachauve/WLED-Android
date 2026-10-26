@@ -35,61 +35,37 @@ struct WledDeviceWidgetView: View {
     // MARK: - Configured Content
 
     private func configuredContent(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
-                switch layoutStyle {
-                case .wide:
-                    wideContent(data: data, palette: palette)
-                case .narrow:
-                    narrowContent(data: data, palette: palette)
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(12)
+        let isWide = layoutStyle == .wide
+        let layout = isWide
+            ? AnyLayout(HStackLayout(alignment: .center, spacing: 8))
+            : AnyLayout(VStackLayout(alignment: .center, spacing: 6))
 
+        return layout {
+            if isWide {
+                deviceDetailsColumn(data: data, palette: palette)
+                powerButton(data: data, palette: palette)
+            } else {
+                powerButton(data: data, palette: palette)
+                deviceDetailsColumn(data: data, palette: palette)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(12)
+        .overlay(alignment: .topTrailing) {
             refreshButton(data: data, palette: palette)
+        }
+        .overlay(alignment: .bottomTrailing) {
             elapsedTimeBadge(data: data, palette: palette)
         }
         .widgetURL(data.deepLinkURL)
     }
 
-    private func wideContent(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
-        HStack(alignment: .center, spacing: 8) {
-            deviceDetailsColumn(
-                data: data,
-                palette: palette,
-                alignment: .leading,
-                showAddress: true
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            powerButton(data: data, palette: palette)
-        }
-    }
-
-    private func narrowContent(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
-        VStack(alignment: .center, spacing: 6) {
-            powerButton(data: data, palette: palette)
-
-            deviceDetailsColumn(
-                data: data,
-                palette: palette,
-                alignment: .center,
-                showAddress: false
-            )
-            .frame(maxWidth: .infinity, alignment: .center)
-        }
-    }
-
     private func deviceDetailsColumn(
         data: WledWidgetData,
-        palette: WledWidgetPalette,
-        alignment: HorizontalAlignment,
-        showAddress: Bool
+        palette: WledWidgetPalette
     ) -> some View {
-        VStack(alignment: alignment, spacing: 2) {
+        let showAddress = layoutStyle == .wide
+        return VStack(alignment: showAddress ? .leading : .center, spacing: 2) {
             Text(data.name)
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(palette.onSurface)
@@ -106,13 +82,10 @@ struct WledDeviceWidgetView: View {
                 }
 
                 if !data.isOnline {
-                    if showAddress {
-                        Spacer()
-                            .frame(width: 4)
-                    }
                     Image(systemName: "wifi.slash")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(palette.error)
+                        .padding(.leading, showAddress ? 4 : 0)
                         .accessibilityHidden(true)
                     Text("Offline")
                         .font(.system(size: 12))
@@ -121,6 +94,7 @@ struct WledDeviceWidgetView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: showAddress ? .leading : .center)
     }
 
     private func powerButton(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
@@ -145,16 +119,11 @@ struct WledDeviceWidgetView: View {
                     Circle()
                         .strokeBorder(palette.glow, lineWidth: 2)
                         .frame(width: 36, height: 36)
-
-                    Image(systemName: "power")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(palette.onPrimary)
-                } else {
-                    Image(systemName: "power")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                        .frame(width: 48, height: 48)
                 }
+
+                Image(systemName: "power")
+                    .font(.system(size: 15, weight: data.isOn ? .bold : .semibold))
+                    .foregroundStyle(data.isOn ? palette.onPrimary : palette.onSurfaceVariant)
             }
             .frame(width: 48, height: 48)
             .contentShape(Circle())
@@ -169,7 +138,6 @@ struct WledDeviceWidgetView: View {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(palette.outline)
-                .padding(4)
                 .frame(width: 20, height: 20)
         }
         .buttonStyle(.plain)
@@ -180,30 +148,19 @@ struct WledDeviceWidgetView: View {
     @ViewBuilder
     private func elapsedTimeBadge(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
         if elapsedTimeText != nil || data.lastUpdated > 0 {
-            VStack {
-                Spacer()
-                HStack(spacing: 2) {
-                    Spacer()
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 8))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                        .accessibilityHidden(true)
-                    if let elapsedTimeText {
-                        Text(elapsedTimeText)
-                            .font(.system(size: 8))
-                            .foregroundStyle(palette.onSurfaceVariant)
-                    } else {
-                        Text(
-                            Date(timeIntervalSince1970: TimeInterval(data.lastUpdated) / 1000.0),
-                            style: .timer
-                        )
-                        .font(.system(size: 8))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                    }
+            HStack(spacing: 2) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .accessibilityHidden(true)
+                if let elapsedTimeText {
+                    Text(elapsedTimeText)
+                } else {
+                    Text(data.lastUpdatedDate, style: .timer)
                 }
-                .padding(.bottom, 4)
-                .padding(.trailing, 20)
             }
+            .font(.system(size: 8))
+            .foregroundStyle(palette.onSurfaceVariant)
+            .padding(.bottom, 4)
+            .padding(.trailing, 20)
             .allowsHitTesting(false)
         }
     }
@@ -211,14 +168,12 @@ struct WledDeviceWidgetView: View {
     // MARK: - Unconfigured Content
 
     private func unconfiguredContent(palette: WledWidgetPalette) -> some View {
-        VStack {
-            Text("Please configure")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(palette.error)
-                .multilineTextAlignment(.center)
-                .padding(8)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        Text("Please configure")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(palette.error)
+            .multilineTextAlignment(.center)
+            .padding(8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -226,7 +181,6 @@ struct WledDeviceWidgetView: View {
 /// mirroring Android's `WidgetTheme.kt` (`createWidgetColorScheme`).
 private struct WledWidgetPalette {
     let background: Color
-    let surfaceContainer: Color
     let onSurface: Color
     let onSurfaceVariant: Color
     let primary: Color
@@ -250,11 +204,6 @@ private struct WledWidgetPalette {
                 saturation: isOnline ? min(saturation * 0.55, 0.45) : 0.04,
                 brightness: bgBrightness
             )
-            self.surfaceContainer = Color(
-                hue: hue,
-                saturation: isOnline ? min(saturation * 0.65, 0.50) : 0.05,
-                brightness: bgBrightness + 0.09
-            )
             self.onSurface = Color(white: 0.95)
             self.onSurfaceVariant = Color(white: 0.72)
             self.primary = Color(hue: hue, saturation: max(saturation * 0.75, 0.35), brightness: 0.90)
@@ -268,11 +217,6 @@ private struct WledWidgetPalette {
                 hue: hue,
                 saturation: isOnline ? min(saturation * 0.28, 0.25) : 0.02,
                 brightness: bgBrightness
-            )
-            self.surfaceContainer = Color(
-                hue: hue,
-                saturation: isOnline ? min(saturation * 0.38, 0.32) : 0.03,
-                brightness: 0.85
             )
             self.onSurface = Color(white: 0.12)
             self.onSurfaceVariant = Color(white: 0.35)

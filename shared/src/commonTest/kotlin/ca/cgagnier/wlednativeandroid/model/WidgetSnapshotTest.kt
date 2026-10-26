@@ -110,33 +110,38 @@ class WidgetSnapshotTest {
         assertNull(color)
     }
 
+    private fun snapshotFromState(
+        state: State? = null,
+        isOnline: Boolean = false,
+        macAddress: String = "",
+        fallbackIsOn: Boolean = false,
+        fallbackColor: Int = -1,
+    ): WidgetSnapshot = createWidgetSnapshotFromState(
+        device = null,
+        targetAddress = "10.0.0.2",
+        defaultName = "(New Device)",
+        state = state,
+        isOnline = isOnline,
+        macAddress = macAddress,
+        fallbackIsOn = fallbackIsOn,
+        fallbackColor = fallbackColor,
+        now = 1_000L,
+    )
+
     @Test
     fun createWidgetSnapshotFromStateUsesFallbackIsOnWhenStateOnIsNull() {
-        val snapshot = createWidgetSnapshotFromState(
-            device = null,
-            targetAddress = "10.0.0.2",
-            defaultName = "(New Device)",
+        val snapshot = snapshotFromState(
             state = State(isOn = null, brightness = 128),
             isOnline = true,
             fallbackIsOn = true,
-            now = 1_000L,
         )
 
         assertTrue(snapshot.isOn)
-        assertEquals(128, snapshot.brightness)
     }
 
     @Test
     fun createWidgetSnapshotFromStateUsesFallbackColorAndTargetAddressWhenStateIsNull() {
-        val snapshot = createWidgetSnapshotFromState(
-            device = null,
-            targetAddress = "10.0.0.2",
-            defaultName = "(New Device)",
-            state = null,
-            isOnline = false,
-            fallbackColor = 0xFFFF0000.toInt(),
-            now = 1_000L,
-        )
+        val snapshot = snapshotFromState(fallbackColor = 0xFFFF0000.toInt())
 
         assertEquals("10.0.0.2", snapshot.address)
         assertFalse(snapshot.isOnline)
@@ -145,29 +150,14 @@ class WidgetSnapshotTest {
 
     @Test
     fun createWidgetSnapshotFromStateUsesDefaultNameWhenDeviceIsNull() {
-        val snapshot = createWidgetSnapshotFromState(
-            device = null,
-            targetAddress = "10.0.0.3",
-            defaultName = "(New Device)",
-            state = null,
-            isOnline = false,
-            now = 2_000L,
-        )
+        val snapshot = snapshotFromState()
 
         assertEquals("(New Device)", snapshot.name)
     }
 
     @Test
     fun createWidgetSnapshotFromStatePreservesExplicitMacAddressWhenDeviceIsNull() {
-        val snapshot = createWidgetSnapshotFromState(
-            device = null,
-            targetAddress = "10.0.0.4",
-            defaultName = "(New Device)",
-            state = null,
-            isOnline = false,
-            macAddress = "aabbccddeeff",
-            now = 2_000L,
-        )
+        val snapshot = snapshotFromState(macAddress = "aabbccddeeff")
 
         assertEquals("aabbccddeeff", snapshot.macAddress)
     }

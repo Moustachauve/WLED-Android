@@ -26,17 +26,11 @@ struct WledWidgetController: Sendable {
     /// Refreshes the state of a device over HTTP and returns an updated `WidgetSnapshot`.
     func refreshDevice(
         macAddress: String,
-        fallbackAddress: String? = nil,
-        fallbackIsOn: Bool = false,
-        fallbackColor: Int32 = -1
+        fallbackAddress: String? = nil
     ) async -> WidgetSnapshot? {
         await sendRequest(
             macAddress: macAddress,
-            fallbackAddress: fallbackAddress,
-            payload: RequestPayload(
-                fallbackIsOn: fallbackIsOn,
-                fallbackColor: fallbackColor
-            )
+            fallbackAddress: fallbackAddress
         )
     }
 
@@ -50,10 +44,8 @@ struct WledWidgetController: Sendable {
         await sendRequest(
             macAddress: macAddress,
             fallbackAddress: fallbackAddress,
-            payload: RequestPayload(
-                desiredIsOn: isOn,
-                fallbackIsOn: fallbackIsOn
-            )
+            desiredIsOn: isOn,
+            fallbackIsOn: fallbackIsOn
         )
     }
 
@@ -81,35 +73,26 @@ struct WledWidgetController: Sendable {
     func setBrightness(
         macAddress: String,
         percent: Int,
-        fallbackAddress: String? = nil,
-        fallbackIsOn: Bool = false
+        fallbackAddress: String? = nil
     ) async -> WidgetSnapshot? {
         let wledBrightness = BrightnessUtilsKt.percentToBrightness(percent: Float(percent))
         let shouldTurnOn = wledBrightness > 0
         return await sendRequest(
             macAddress: macAddress,
             fallbackAddress: fallbackAddress,
-            payload: RequestPayload(
-                desiredIsOn: shouldTurnOn,
-                desiredBrightness: wledBrightness,
-                fallbackIsOn: fallbackIsOn
-            )
+            desiredIsOn: shouldTurnOn,
+            desiredBrightness: wledBrightness
         )
     }
 
     // MARK: - Private Helpers
 
-    private struct RequestPayload {
-        var desiredIsOn: Bool?
-        var desiredBrightness: Int32?
-        var fallbackIsOn: Bool = false
-        var fallbackColor: Int32 = -1
-    }
-
     private func sendRequest(
         macAddress: String,
         fallbackAddress: String?,
-        payload: RequestPayload
+        desiredIsOn: Bool? = nil,
+        desiredBrightness: Int32? = nil,
+        fallbackIsOn: Bool = false
     ) async -> WidgetSnapshot? {
         await database.waitUntilReady()
         let device: Device?
@@ -125,49 +108,38 @@ struct WledWidgetController: Sendable {
             return nil
         }
 
-        let resolvedMac = device?.macAddress ?? macAddress
-        let defaultName = String(localized: "(New Device)")
-        let now = Int64(Date().timeIntervalSince1970 * 1000)
         let api = database.deviceApiFactory.create(
             address: targetAddress,
             timeout: Self.requestTimeoutSeconds
         )
 
+        var state: State?
         do {
             let response = try await api.postJson(
                 state: JsonPost(
-                    isOn: payload.desiredIsOn.map { KotlinBoolean(bool: $0) },
-                    brightness: payload.desiredBrightness.map { KotlinInt(int: $0) },
+                    isOn: desiredIsOn.map { KotlinBoolean(bool: $0) },
+                    brightness: desiredBrightness.map { KotlinInt(int: $0) },
                     verbose: true
                 )
             )
-            if response.isSuccessful, let state = response.body {
-                return WidgetSnapshotKt.createWidgetSnapshotFromState(
-                    device: device,
-                    targetAddress: targetAddress,
-                    defaultName: defaultName,
-                    state: state,
-                    isOnline: true,
-                    macAddress: resolvedMac,
-                    fallbackIsOn: payload.desiredIsOn ?? payload.fallbackIsOn,
-                    fallbackColor: payload.fallbackColor,
-                    now: now
-                )
+            if response.isSuccessful {
+                state = response.body
             }
         } catch {
             Self.logger.error("Widget request failed for \(targetAddress): \(error.localizedDescription)")
         }
 
+        let isOnline = state != nil
         return WidgetSnapshotKt.createWidgetSnapshotFromState(
             device: device,
             targetAddress: targetAddress,
-            defaultName: defaultName,
-            state: nil,
-            isOnline: false,
-            macAddress: resolvedMac,
-            fallbackIsOn: payload.fallbackIsOn,
-            fallbackColor: payload.fallbackColor,
-            now: now
+            defaultName: Device.defaultDisplayName,
+            state: state,
+            isOnline: isOnline,
+            macAddress: macAddress,
+            fallbackIsOn: isOnline ? (desiredIsOn ?? fallbackIsOn) : fallbackIsOn,
+            fallbackColor: -1,
+            now: Int64(Date().timeIntervalSince1970 * 1000)
         )
     }
 }

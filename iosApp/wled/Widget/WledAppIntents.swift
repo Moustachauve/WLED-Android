@@ -14,6 +14,14 @@ enum WledIntentError: Error, CustomLocalizedStringResourceConvertible {
     }
 }
 
+private extension WledDeviceEntity {
+    func requireReachable(_ snapshot: WidgetSnapshot?) throws {
+        guard let snapshot, snapshot.isOnline else {
+            throw WledIntentError.deviceUnreachable(name: name)
+        }
+    }
+}
+
 /// Toggles a WLED device's power on or off from Widgets, Shortcuts, Siri, or Control Center.
 struct ToggleDevicePowerIntent: AppIntent {
     static let title: LocalizedStringResource = "Toggle WLED Power"
@@ -29,13 +37,9 @@ struct ToggleDevicePowerIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        let snapshot = await WledWidgetController.shared.togglePower(
-            macAddress: device.id,
-            fallbackAddress: device.address
+        try device.requireReachable(
+            await WledWidgetController.shared.togglePower(macAddress: device.id, fallbackAddress: device.address)
         )
-        guard let snapshot, snapshot.isOnline else {
-            throw WledIntentError.deviceUnreachable(name: device.name)
-        }
         return .result()
     }
 }
@@ -67,14 +71,13 @@ struct SetDevicePowerIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        let snapshot = await WledWidgetController.shared.setPower(
-            macAddress: device.id,
-            isOn: isOn,
-            fallbackAddress: device.address
+        try device.requireReachable(
+            await WledWidgetController.shared.setPower(
+                macAddress: device.id,
+                isOn: isOn,
+                fallbackAddress: device.address
+            )
         )
-        guard let snapshot, snapshot.isOnline else {
-            throw WledIntentError.deviceUnreachable(name: device.name)
-        }
         return .result()
     }
 }
@@ -107,14 +110,13 @@ struct SetDeviceBrightnessIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        let snapshot = await WledWidgetController.shared.setBrightness(
-            macAddress: device.id,
-            percent: brightnessPercent,
-            fallbackAddress: device.address
+        try device.requireReachable(
+            await WledWidgetController.shared.setBrightness(
+                macAddress: device.id,
+                percent: brightnessPercent,
+                fallbackAddress: device.address
+            )
         )
-        guard let snapshot, snapshot.isOnline else {
-            throw WledIntentError.deviceUnreachable(name: device.name)
-        }
         return .result()
     }
 }
@@ -134,13 +136,9 @@ struct RefreshDeviceWidgetIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        let snapshot = await WledWidgetController.shared.refreshDevice(
-            macAddress: device.id,
-            fallbackAddress: device.address
+        try device.requireReachable(
+            await WledWidgetController.shared.refreshDevice(macAddress: device.id, fallbackAddress: device.address)
         )
-        guard let snapshot, snapshot.isOnline else {
-            throw WledIntentError.deviceUnreachable(name: device.name)
-        }
         return .result()
     }
 }

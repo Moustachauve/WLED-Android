@@ -29,10 +29,10 @@ import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.lifecycle.lifecycleScope
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.resolveDeviceName
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.ui.components.deviceName
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
-import ca.cgagnier.wlednativeandroid.widget.components.getDeviceName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -83,7 +83,7 @@ class WledWidgetConfigureActivity : ComponentActivity() {
             val widgetData = WidgetStateData(
                 macAddress = device.macAddress,
                 address = device.address,
-                name = getDeviceName(device, getString(R.string.default_device_name)),
+                name = resolveDeviceName(device, getString(R.string.default_device_name)),
                 isOn = false,
                 lastUpdated = System.currentTimeMillis(),
             )
