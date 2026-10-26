@@ -80,6 +80,7 @@ final class DeviceWebsocketListViewModel {
 
     @ObservationIgnored private var deviceMap: [String: DeviceWithState] = [:]
     @ObservationIgnored private var latestSharedDevices: [Shared.DeviceWithState] = []
+    @ObservationIgnored private let widgetSnapshotStore: WledWidgetSnapshotStore
     @ObservationIgnored private var isSyncingPreferences = false
     @ObservationIgnored private var autoDiscoveryTask: Task<Void, Never>?
 
@@ -91,12 +92,14 @@ final class DeviceWebsocketListViewModel {
     init(
         connectionManager: DeviceConnectionManager? = nil,
         database: AppDatabase = .shared,
-        discoveryService: (any DeviceDiscovering)? = nil
+        discoveryService: (any DeviceDiscovering)? = nil,
+        widgetSnapshotStore: WledWidgetSnapshotStore = .shared
     ) {
         self.database = database
         self.connectionManager = connectionManager ?? database.deviceConnectionManager
         self.deviceFirstContactService = database.deviceFirstContactService
         self.userPreferencesRepository = database.userPreferencesRepository
+        self.widgetSnapshotStore = widgetSnapshotStore
 
         let resolvedDiscoveryService = discoveryService ?? DiscoveryService()
         self.discoveryService = resolvedDiscoveryService
@@ -229,6 +232,7 @@ final class DeviceWebsocketListViewModel {
 
         self.allDevicesWithState = updatedList
         self.updateFilteredDevices(currentTime: Date())
+        self.widgetSnapshotStore.sync(devices: sharedDevices)
     }
 
     // MARK: - Lifecycle (Call these from App ScenePhase)
@@ -275,8 +279,10 @@ final class DeviceWebsocketListViewModel {
 
     func deleteDevice(_ device: Device) {
         let manager = connectionManager
+        let snapshotStore = widgetSnapshotStore
         Task {
             try? await manager.deleteDevice(device: device)
+            snapshotStore.remove(macAddress: device.macAddress)
         }
     }
 

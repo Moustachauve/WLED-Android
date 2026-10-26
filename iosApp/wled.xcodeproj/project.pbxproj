@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		884FA9392F027B6100097D56 /* wled_native_data.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 884FA9082F027B6100097D56 /* wled_native_data.xcdatamodeld */; };
+		88WIDGET0000000000000011 /* WLEDWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 88WIDGET0000000000000002 /* WLEDWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		88WIDGET0000000000000013 /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = 88WIDGET0000000000000012 /* Shared */; };
 		C948F4982B3D2B330092C4B1 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = C948F4972B3D2B330092C4B1 /* MarkdownUI */; };
 		C9LOCAL000000000000000003 /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = C9LOCAL000000000000000002 /* Shared */; };
 		C9SNAP000000000000000003 /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = C9SNAP000000000000000002 /* SnapshotTesting */; };
@@ -21,12 +23,34 @@
 			remoteGlobalIDString = C9A9E5BC2918D1C3005B5C22;
 			remoteInfo = WLED;
 		};
+		88WIDGET0000000000000008 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C9A9E5B52918D1C3005B5C22 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 88WIDGET0000000000000001;
+			remoteInfo = WLEDWidgets;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		88WIDGET0000000000000010 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				88WIDGET0000000000000011 /* WLEDWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		882CC9132F05CFE00080567C /* WLEDTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WLEDTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		884FA90A2F027B6100097D56 /* v2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = v2.xcdatamodel; sourceTree = "<group>"; };
 		884FA90B2F027B6100097D56 /* wled_native_data.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = wled_native_data.xcdatamodel; sourceTree = "<group>"; };
+		88WIDGET0000000000000002 /* WLEDWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WLEDWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		C9A9E5BD2918D1C3005B5C22 /* WLED.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WLED.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C9C4B47E2AC0050500791D20 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -40,11 +64,36 @@
 			);
 			target = C9A9E5BC2918D1C3005B5C22 /* WLED */;
 		};
+		88WIDGET0000000000000003 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Database/AppDatabase.swift,
+				Localizable.xcstrings,
+				Service/DeviceApi/DeviceExtensions.swift,
+				"View/Color+Extensions.swift",
+				Widget/WledAppIntents.swift,
+				Widget/WledDeviceEntity.swift,
+				Widget/WledDeviceWidgetTimelineProvider.swift,
+				Widget/WledDeviceWidgetView.swift,
+				Widget/WledWidgetController.swift,
+				Widget/WledWidgetData.swift,
+				Widget/WledWidgetSnapshotStore.swift,
+			);
+			target = 88WIDGET0000000000000001 /* WLEDWidgets */;
+		};
+		88WIDGET0000000000000005 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 88WIDGET0000000000000001 /* WLEDWidgets */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		8813CE002EE9178D00B0A987 /* wled */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (8813CE392EE9178D00B0A987 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = wled; sourceTree = "<group>"; };
+		8813CE002EE9178D00B0A987 /* wled */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (8813CE392EE9178D00B0A987 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 88WIDGET0000000000000003 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = wled; sourceTree = "<group>"; };
 		882CC9142F05CFE00080567C /* wledTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = wledTests; sourceTree = "<group>"; };
+		88WIDGET0000000000000004 /* WLEDWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (88WIDGET0000000000000005 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = WLEDWidgets; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,6 +102,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				C9SNAP000000000000000003 /* SnapshotTesting in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		88WIDGET0000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				88WIDGET0000000000000013 /* Shared in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -82,6 +139,7 @@
 				884FA9472F02811C00097D56 /* Data */,
 				C9C4B47E2AC0050500791D20 /* README.md */,
 				8813CE002EE9178D00B0A987 /* wled */,
+				88WIDGET0000000000000004 /* WLEDWidgets */,
 				882CC9142F05CFE00080567C /* wledTests */,
 				C9A9E5BE2918D1C3005B5C22 /* Products */,
 			);
@@ -91,6 +149,7 @@
 			isa = PBXGroup;
 			children = (
 				C9A9E5BD2918D1C3005B5C22 /* WLED.app */,
+				88WIDGET0000000000000002 /* WLEDWidgets.appex */,
 				882CC9132F05CFE00080567C /* WLEDTests.xctest */,
 			);
 			name = Products;
@@ -123,6 +182,29 @@
 			productReference = 882CC9132F05CFE00080567C /* WLEDTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		88WIDGET0000000000000001 /* WLEDWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 88WIDGET0000000000000016 /* Build configuration list for PBXNativeTarget "WLEDWidgets" */;
+			buildPhases = (
+				88WIDGET0000000000000007 /* Sources */,
+				88WIDGET0000000000000006 /* Frameworks */,
+				88WIDGET0000000000000009 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				88WIDGET0000000000000004 /* WLEDWidgets */,
+			);
+			name = WLEDWidgets;
+			packageProductDependencies = (
+				88WIDGET0000000000000012 /* Shared */,
+			);
+			productName = WLEDWidgets;
+			productReference = 88WIDGET0000000000000002 /* WLEDWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		C9A9E5BC2918D1C3005B5C22 /* WLED */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = C9A9E5D12918D1C4005B5C22 /* Build configuration list for PBXNativeTarget "WLED" */;
@@ -131,11 +213,13 @@
 				C9A9E5B92918D1C3005B5C22 /* Sources */,
 				C9A9E5BA2918D1C3005B5C22 /* Frameworks */,
 				C9A9E5BB2918D1C3005B5C22 /* Resources */,
+				88WIDGET0000000000000010 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				8849FA232F710B1B008ACEC3 /* PBXTargetDependency */,
+				88WIDGET0000000000000017 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				8813CE002EE9178D00B0A987 /* wled */,
@@ -163,6 +247,9 @@
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = C9A9E5BC2918D1C3005B5C22;
 					};
+					88WIDGET0000000000000001 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					C9A9E5BC2918D1C3005B5C22 = {
 						CreatedOnToolsVersion = 14.1;
 					};
@@ -189,6 +276,7 @@
 			projectRoot = "";
 			targets = (
 				C9A9E5BC2918D1C3005B5C22 /* WLED */,
+				88WIDGET0000000000000001 /* WLEDWidgets */,
 				882CC9122F05CFE00080567C /* WLEDTests */,
 			);
 		};
@@ -196,6 +284,13 @@
 
 /* Begin PBXResourcesBuildPhase section */
 		882CC9112F05CFE00080567C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		88WIDGET0000000000000009 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -241,6 +336,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		88WIDGET0000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C9A9E5B92918D1C3005B5C22 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -260,6 +362,11 @@
 		8849FA232F710B1B008ACEC3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			productRef = 8849FA222F710B1B008ACEC3 /* SwiftLintBuildToolPlugin */;
+		};
+		88WIDGET0000000000000017 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 88WIDGET0000000000000001 /* WLEDWidgets */;
+			targetProxy = 88WIDGET0000000000000008 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -310,6 +417,70 @@
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WLED.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/WLED";
+			};
+			name = Release;
+		};
+		88WIDGET0000000000000014 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = WLEDWidgets/WLEDWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RWLNCUSDCJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WLEDWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WLED;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "WLED uses the local network to connect to WLED devices around you.";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 7.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "ca.cgagnier.wled-native.widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG WIDGET_EXTENSION $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		88WIDGET0000000000000015 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = WLEDWidgets/WLEDWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RWLNCUSDCJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WLEDWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WLED;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "WLED uses the local network to connect to WLED devices around you.";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 7.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "ca.cgagnier.wled-native.widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -452,12 +623,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = wled/WLED.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"wled/View/Preview\"";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = wled/Info.plist;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "WLED uses the local network to connect to WLED devices around you.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
@@ -485,12 +659,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = wled/WLED.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"wled/View/Preview\"";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = wled/Info.plist;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "WLED uses the local network to connect to WLED devices around you.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
@@ -521,6 +698,15 @@
 			buildConfigurations = (
 				882CC9192F05CFE00080567C /* Debug */,
 				882CC91A2F05CFE00080567C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		88WIDGET0000000000000016 /* Build configuration list for PBXNativeTarget "WLEDWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				88WIDGET0000000000000014 /* Debug */,
+				88WIDGET0000000000000015 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -584,6 +770,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 8849F9052F710909008ACEC3 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */;
 			productName = "plugin:SwiftLintBuildToolPlugin";
+		};
+		88WIDGET0000000000000012 /* Shared */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C9LOCAL000000000000000001 /* XCLocalSwiftPackageReference "SharedPackage" */;
+			productName = Shared;
 		};
 		C948F4972B3D2B330092C4B1 /* MarkdownUI */ = {
 			isa = XCSwiftPackageProductDependency;

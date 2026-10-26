@@ -3,6 +3,7 @@
 # Directories to include during linting
 included:
   - wled
+  - WLEDWidgets
   - wledTests
 
 # Directories to exclude from linting
