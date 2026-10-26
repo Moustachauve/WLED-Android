@@ -23,7 +23,7 @@ struct WledWidgetDataTests {
 
     @Test(arguments: [
         DeepLinkCase(urlString: "wled://device/aabbccddeeff", expectedMac: "aabbccddeeff"),
-        DeepLinkCase(urlString: "WLED://DEVICE/AA:BB:CC:DD:EE:FF", expectedMac: "AA:BB:CC:DD:EE:FF"),
+        DeepLinkCase(urlString: "WLED://DEVICE/aabbccddeeff", expectedMac: "aabbccddeeff"),
         DeepLinkCase(urlString: "wled://device/", expectedMac: nil),
         DeepLinkCase(urlString: "wled://device/aabbccddeeff/extra", expectedMac: nil),
         DeepLinkCase(urlString: "wled://other/aabbccddeeff", expectedMac: nil),

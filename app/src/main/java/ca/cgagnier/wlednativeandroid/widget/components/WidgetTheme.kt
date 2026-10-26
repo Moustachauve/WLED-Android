@@ -23,9 +23,11 @@ fun WLEDWidgetTheme(widgetState: WidgetStateData, content: @Composable () -> Uni
 }
 
 /**
- * Creates a Material 3 [ColorScheme] for a widget based on the device's current state and LED color.
+ * Creates a [ColorProviders] for the widget themed with the device's current LED color.
+ *
+ * @param widgetState The state of the widget.
  */
-private fun createWidgetColorScheme(widgetState: WidgetStateData, isDark: Boolean): ColorScheme {
+private fun createDeviceColorProviders(widgetState: WidgetStateData): ColorProviders {
     val style = when {
         !widgetState.isOnline -> PaletteStyle.Neutral
         !widgetState.isOn -> PaletteStyle.TonalSpot
@@ -37,21 +39,22 @@ private fun createWidgetColorScheme(widgetState: WidgetStateData, isDark: Boolea
         Color.White
     }
 
-    return dynamicColorScheme(
+    val lightScheme: ColorScheme = dynamicColorScheme(
         seedColor = seedColor,
-        isDark = isDark,
+        isDark = false,
         style = style,
-        isAmoled = isDark, // Use deeper/more saturated colors for dark mode
-        specVersion = if (isDark) ColorSpec.SpecVersion.Default else ColorSpec.SpecVersion.SPEC_2025,
+        specVersion = ColorSpec.SpecVersion.SPEC_2025,
+    )
+
+    val darkScheme: ColorScheme = dynamicColorScheme(
+        seedColor = seedColor,
+        isDark = true,
+        style = style,
+        isAmoled = true, // Use deeper/more saturated colors for dark mode
+    )
+
+    return createColorProviders(
+        light = lightScheme,
+        dark = darkScheme,
     )
 }
-
-/**
- * Creates a [ColorProviders] for the widget themed with the device's current LED color.
- *
- * @param widgetState The state of the widget.
- */
-private fun createDeviceColorProviders(widgetState: WidgetStateData): ColorProviders = createColorProviders(
-    light = createWidgetColorScheme(widgetState, isDark = false),
-    dark = createWidgetColorScheme(widgetState, isDark = true),
-)

@@ -144,10 +144,11 @@ struct DeviceListView: View {
             }
         }
         .onChange(of: viewModel.allDevicesWithState) { _, devices in
-            if let pendingMac = pendingDeepLinkMac,
-               selectDevice(withMacAddress: pendingMac, from: devices) {
+            if let pendingMac = pendingDeepLinkMac, !devices.isEmpty {
                 pendingDeepLinkMac = nil
-                return
+                if selectDevice(withMacAddress: pendingMac, from: devices) {
+                    return
+                }
             }
             restoreLastSelection(from: devices)
         }
@@ -320,12 +321,12 @@ private extension DeviceListView {
 
     func handleOpenURL(_ url: URL) {
         guard let macAddress = WledWidgetData.parseDeepLinkMacAddress(url) else { return }
-        pendingDeepLinkMac = selectDevice(withMacAddress: macAddress, from: viewModel.allDevicesWithState)
+        let devices = viewModel.allDevicesWithState
+        pendingDeepLinkMac = (selectDevice(withMacAddress: macAddress, from: devices) || !devices.isEmpty)
             ? nil
             : macAddress
     }
 
-    @discardableResult
     func selectDevice(withMacAddress macAddress: String, from devices: [DeviceWithState]) -> Bool {
         guard let matchingDevice = devices.first(where: { $0.device.macAddress == macAddress }) else {
             return false

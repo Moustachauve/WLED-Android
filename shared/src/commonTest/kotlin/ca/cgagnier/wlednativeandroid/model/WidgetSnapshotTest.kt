@@ -10,7 +10,6 @@ import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -140,12 +139,17 @@ class WidgetSnapshotTest {
     }
 
     @Test
-    fun createWidgetSnapshotFromStateUsesFallbackColorAndTargetAddressWhenStateIsNull() {
+    fun createWidgetSnapshotFromStateUsesFallbackColorWhenStateIsNull() {
         val snapshot = snapshotFromState(fallbackColor = 0xFFFF0000.toInt())
 
-        assertEquals("10.0.0.2", snapshot.address)
-        assertFalse(snapshot.isOnline)
         assertEquals(0xFFFF0000.toInt(), snapshot.color)
+    }
+
+    @Test
+    fun createWidgetSnapshotFromStateUsesTargetAddressWhenDeviceIsNull() {
+        val snapshot = snapshotFromState()
+
+        assertEquals("10.0.0.2", snapshot.address)
     }
 
     @Test

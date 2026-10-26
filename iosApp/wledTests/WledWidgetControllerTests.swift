@@ -22,7 +22,7 @@ struct WledWidgetControllerTests {
         try await repository.insert(device: device)
     }
 
-    private func stubState(isOn: Bool, brightness: Int = 180) {
+    private func stateStub(isOn: Bool, brightness: Int = 180) -> StubURLProtocol.Stub {
         let body = """
         {
           "on": \(isOn),
@@ -30,7 +30,11 @@ struct WledWidgetControllerTests {
           "seg": [{"col": [[0, 191, 255]]}]
         }
         """
-        StubURLProtocol.register(.http(statusCode: 200, body: body), for: host)
+        return .http(statusCode: 200, body: body)
+    }
+
+    private func stubState(isOn: Bool, brightness: Int = 180) {
+        StubURLProtocol.register(stateStub(isOn: isOn, brightness: brightness), for: host)
     }
 
     private func postedPayloads() throws -> [[String: Any]] {
@@ -128,13 +132,14 @@ struct WledWidgetControllerTests {
 
     @Test func togglePowerPostsInvertedStateWhenDeviceIsOnline() async throws {
         try await insertDevice()
-        stubState(isOn: true)
+        StubURLProtocol.register([stateStub(isOn: true), stateStub(isOn: false)], for: host)
 
-        _ = await controller.togglePower(macAddress: mac)
+        let snapshot = await controller.togglePower(macAddress: mac)
 
         let payloads = try postedPayloads()
         #expect(payloads.count == 2)
         #expect(payloads.last?["on"] as? Bool == false)
+        #expect(snapshot?.isOn == false)
     }
 
     @Test func togglePowerSkipsSetPowerWhenDeviceIsOffline() async throws {

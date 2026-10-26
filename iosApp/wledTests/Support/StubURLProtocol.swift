@@ -22,14 +22,18 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
     }
 
     private struct State: Sendable {
-        var stubs: [String: Stub] = [:]
+        var stubs: [String: [Stub]] = [:]
         var recordedRequests: [String: [URLRequest]] = [:]
     }
 
     private static let state = Mutex(State())
 
     static func register(_ stub: Stub, for host: String) {
-        state.withLock { $0.stubs[host] = stub }
+        register([stub], for: host)
+    }
+
+    static func register(_ stubs: [Stub], for host: String) {
+        state.withLock { $0.stubs[host] = stubs }
     }
 
     static func requests(for host: String) -> [URLRequest] {
@@ -41,7 +45,14 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
         let recorded = materializedRequest(request)
         return state.withLock {
             $0.recordedRequests[host, default: []].append(recorded)
-            return $0.stubs[host]
+            guard var hostStubs = $0.stubs[host], let next = hostStubs.first else {
+                return nil
+            }
+            if hostStubs.count > 1 {
+                hostStubs.removeFirst()
+                $0.stubs[host] = hostStubs
+            }
+            return next
         }
     }
 
