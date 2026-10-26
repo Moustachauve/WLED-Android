@@ -20,7 +20,7 @@ final class DeviceUpdateInstallingViewModel {
 
     enum UpdateStatus: Equatable {
         case idle
-        case downloading(versionName: String)
+        case downloading(versionName: String, progress: Int)
         case installing(versionName: String)
         case completed
         case failed(versionName: String, error: String)
@@ -53,9 +53,16 @@ final class DeviceUpdateInstallingViewModel {
         let downloadFailedMessage = String(localized: "Download failed")
         do {
             if !updateService.isAssetFileCached() {
-                status = .downloading(versionName: assetName)
+                status = .downloading(versionName: assetName, progress: 0)
                 var didFinishDownload = false
                 for await downloadState in updateService.downloadBinary(repositoryDao: database.repositoryDao) {
+                    if let downloading = downloadState as? DownloadState.Downloading {
+                        status = .downloading(
+                            versionName: assetName,
+                            progress: Int(downloading.progress)
+                        )
+                        continue
+                    }
                     if let failed = downloadState as? DownloadState.Failed {
                         status = .failed(
                             versionName: assetName,

@@ -57,6 +57,7 @@ final class DeviceEditViewModel {
     }
 
     var isCheckingForUpdates: Bool = false
+    var repository: Repository?
 
     init(
         device: DeviceWithState,
@@ -95,6 +96,15 @@ final class DeviceEditViewModel {
     }
 
     // MARK: - Public API
+
+    func loadRepository() async {
+        await database.waitUntilReady()
+        do {
+            repository = try await database.repositoryDao.getRepositoryById(id: device.device.repositoryId)
+        } catch {
+            Self.logger.error("Failed to load repository: \(error.localizedDescription)")
+        }
+    }
 
     func checkForUpdate() async {
         isCheckingForUpdates = true
