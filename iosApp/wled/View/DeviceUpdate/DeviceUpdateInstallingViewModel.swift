@@ -57,10 +57,13 @@ final class DeviceUpdateInstallingViewModel {
                 var didFinishDownload = false
                 for await downloadState in updateService.downloadBinary(repositoryDao: database.repositoryDao) {
                     if let downloading = downloadState as? DownloadState.Downloading {
-                        status = .downloading(
+                        let newStatus = UpdateStatus.downloading(
                             versionName: assetName,
                             progress: Int(downloading.progress)
                         )
+                        if status != newStatus {
+                            status = newStatus
+                        }
                         continue
                     }
                     if let failed = downloadState as? DownloadState.Failed {

@@ -97,10 +97,11 @@ final class DeviceEditViewModel {
 
     // MARK: - Public API
 
-    func loadRepository() async {
+    func loadRepository(id: Int64? = nil) async {
+        let repositoryId = id ?? device.device.repositoryId
         await database.waitUntilReady()
         do {
-            repository = try await database.repositoryDao.getRepositoryById(id: device.device.repositoryId)
+            repository = try await database.repositoryDao.getRepositoryById(id: repositoryId)
         } catch {
             Self.logger.error("Failed to load repository: \(error.localizedDescription)")
         }

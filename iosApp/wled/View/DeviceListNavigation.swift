@@ -15,6 +15,7 @@ final class DeviceListNavigation {
 
     /// Route requested together with a selection change, waiting for the split view's reset.
     private var routeAwaitingSplitViewReset: [DeviceDetailRoute]?
+    @ObservationIgnored private var resetExpiryTask: Task<Void, Never>?
 
     init(selection: DeviceWithState? = nil) {
         self.selection = selection
@@ -29,29 +30,43 @@ final class DeviceListNavigation {
 
     /// Shows the device's main (webview) screen.
     func select(_ device: DeviceWithState) {
-        routeAwaitingSplitViewReset = nil
+        clearPendingReset()
         selection = device
         detailPath = []
     }
 
     /// Shows the device's edit screen, on top of its webview.
     func openEdit(_ device: DeviceWithState) {
+        clearPendingReset()
         let editPath: [DeviceDetailRoute] = [.edit(deviceId: device.id)]
-        routeAwaitingSplitViewReset = selection == device ? nil : editPath
+        if selection != nil && selection != device {
+            routeAwaitingSplitViewReset = editPath
+            resetExpiryTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled else { return }
+                self?.routeAwaitingSplitViewReset = nil
+            }
+        }
         selection = device
         detailPath = editPath
     }
 
     func clearSelection() {
-        routeAwaitingSplitViewReset = nil
+        clearPendingReset()
         selection = nil
         detailPath = []
+    }
+
+    private func clearPendingReset() {
+        resetExpiryTask?.cancel()
+        resetExpiryTask = nil
+        routeAwaitingSplitViewReset = nil
     }
 
     private func handleDetailPathWrite(_ newPath: [DeviceDetailRoute]) {
         detailPath = newPath
         guard newPath.isEmpty, let pendingPath = routeAwaitingSplitViewReset else { return }
-        routeAwaitingSplitViewReset = nil
+        clearPendingReset()
         let deviceId = selection?.id
         // This write comes from inside the split view's update, so a task enqueued now is
         // guaranteed to run after the reset has been applied to the navigation stack.
