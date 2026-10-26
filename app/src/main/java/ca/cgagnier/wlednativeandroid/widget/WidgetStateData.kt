@@ -29,9 +29,12 @@ data class WidgetStateData(
     companion object {
         fun fromSnapshot(snapshot: WidgetSnapshot): WidgetStateData = WidgetStateData(
             macAddress = snapshot.macAddress,
-            address = "",
-            name = "",
-            isOn = false,
-        ).withSnapshot(snapshot)
+            address = snapshot.address,
+            name = snapshot.name,
+            isOn = snapshot.isOn,
+            isOnline = snapshot.isOnline,
+            color = snapshot.color,
+            lastUpdated = snapshot.lastUpdated,
+        )
     }
 }

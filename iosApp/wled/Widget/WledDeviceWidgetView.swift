@@ -28,6 +28,8 @@ struct WledDeviceWidgetView: View {
                 unconfiguredContent(palette: palette)
             }
         }
+        // `.containerBackground(for: .widget)` is ignored outside WidgetKit (in-app previews and snapshot tests),
+        // so `.background(palette.background)` ensures the background renders in both contexts.
         .background(palette.background)
         .containerBackground(palette.background, for: .widget)
     }
@@ -139,9 +141,10 @@ struct WledDeviceWidgetView: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(palette.outline)
                 .frame(width: 20, height: 20)
+                .padding(8)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(8)
         .accessibilityLabel(Text("Refresh"))
     }
 
@@ -150,11 +153,12 @@ struct WledDeviceWidgetView: View {
         if elapsedTimeText != nil || data.lastUpdated > 0 {
             HStack(spacing: 2) {
                 Image(systemName: "clock.arrow.circlepath")
-                    .accessibilityHidden(true)
                 if let elapsedTimeText {
                     Text(elapsedTimeText)
                 } else {
                     Text(data.lastUpdatedDate, style: .timer)
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
                 }
             }
             .font(.system(size: 8))
@@ -162,6 +166,7 @@ struct WledDeviceWidgetView: View {
             .padding(.bottom, 4)
             .padding(.trailing, 20)
             .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
     }
 

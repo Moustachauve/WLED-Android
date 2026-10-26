@@ -36,12 +36,12 @@ struct WledDeviceWidgetViewSnapshotTests {
     }
 
     static let cases: [SnapshotCase] = [
-        SnapshotCase("wideOnLight", data: wideOnData, layoutStyle: .wide, style: .light),
-        SnapshotCase("wideOnDark", data: wideOnData, layoutStyle: .wide, style: .dark),
-        SnapshotCase("narrowOffLight", data: narrowOffData, layoutStyle: .narrow, style: .light),
+        SnapshotCase("wideOnLight", data: wideOnData),
+        SnapshotCase("wideOnDark", data: wideOnData, style: .dark),
+        SnapshotCase("narrowOffLight", data: narrowOffData, layoutStyle: .narrow),
         SnapshotCase("narrowOffDark", data: narrowOffData, layoutStyle: .narrow, style: .dark),
-        SnapshotCase("wideOfflineLight", data: offlineData, layoutStyle: .wide, style: .light),
-        SnapshotCase("unconfiguredLight", data: nil, layoutStyle: .wide, style: .light)
+        SnapshotCase("wideOfflineLight", data: offlineData),
+        SnapshotCase("unconfiguredLight", data: nil)
     ]
 
     @MainActor

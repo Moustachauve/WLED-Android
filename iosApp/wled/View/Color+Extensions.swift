@@ -9,11 +9,11 @@ struct HSBA {
 }
 
 extension UIColor {
-    convenience init(rgb: Int, alpha: CGFloat = 1.0) {
+    convenience init(rgb: Int) {
         let red = CGFloat((rgb >> 16) & 0xFF) / 255.0
         let green = CGFloat((rgb >> 8) & 0xFF) / 255.0
         let blue = CGFloat(rgb & 0xFF) / 255.0
-        self.init(red: red, green: green, blue: blue, alpha: alpha)
+        self.init(red: red, green: green, blue: blue, alpha: 1.0)
     }
 
     var hsbaComponents: HSBA? {

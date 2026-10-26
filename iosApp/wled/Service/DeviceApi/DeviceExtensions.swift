@@ -7,13 +7,7 @@ extension Device {
     }
 
     var displayName: String {
-        if !customName.isEmpty {
-            return customName
-        }
-        if !originalName.isEmpty {
-            return originalName
-        }
-        return Self.defaultDisplayName
+        WidgetSnapshotKt.resolveDeviceName(device: self, defaultName: Self.defaultDisplayName)
     }
 
     /// Swift-friendly initializer mirroring the Kotlin default arguments, which aren't exported to Swift.
