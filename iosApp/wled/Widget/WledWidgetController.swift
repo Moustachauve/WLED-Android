@@ -24,14 +24,8 @@ struct WledWidgetController: Sendable {
     }
 
     /// Refreshes the state of a device over HTTP and returns an updated `WidgetSnapshot`.
-    func refreshDevice(
-        macAddress: String,
-        fallbackAddress: String? = nil
-    ) async -> WidgetSnapshot? {
-        await sendRequest(
-            macAddress: macAddress,
-            fallbackAddress: fallbackAddress
-        )
+    func refreshDevice(macAddress: String, fallbackAddress: String? = nil) async -> WidgetSnapshot? {
+        await sendRequest(macAddress: macAddress, fallbackAddress: fallbackAddress)
     }
 
     /// Explicitly turns a device on or off and returns the updated `WidgetSnapshot`.
@@ -50,14 +44,7 @@ struct WledWidgetController: Sendable {
     }
 
     /// Fetches the current device state and toggles its power on or off.
-    ///
-    /// Note: `:shared`'s `JsonPost.isOn` is a `Boolean?` rather than WLED's `"t"` toggle literal,
-    /// so we first fetch the live state (short-circuiting immediately if the device is unreachable)
-    /// and then post the inverted boolean state.
-    func togglePower(
-        macAddress: String,
-        fallbackAddress: String? = nil
-    ) async -> WidgetSnapshot? {
+    func togglePower(macAddress: String, fallbackAddress: String? = nil) async -> WidgetSnapshot? {
         let current = await refreshDevice(macAddress: macAddress, fallbackAddress: fallbackAddress)
         guard let current, current.isOnline else { return current }
         return await setPower(
@@ -76,16 +63,13 @@ struct WledWidgetController: Sendable {
         fallbackAddress: String? = nil
     ) async -> WidgetSnapshot? {
         let wledBrightness = BrightnessUtilsKt.percentToBrightness(percent: Float(percent))
-        let shouldTurnOn = wledBrightness > 0
         return await sendRequest(
             macAddress: macAddress,
             fallbackAddress: fallbackAddress,
-            desiredIsOn: shouldTurnOn,
+            desiredIsOn: wledBrightness > 0,
             desiredBrightness: wledBrightness
         )
     }
-
-    // MARK: - Private Helpers
 
     private func sendRequest(
         macAddress: String,
@@ -95,13 +79,7 @@ struct WledWidgetController: Sendable {
         fallbackIsOn: Bool = false
     ) async -> WidgetSnapshot? {
         await database.waitUntilReady()
-        let device: Device?
-        do {
-            device = try await database.deviceRepository.findDeviceByMacAddress(address: macAddress)
-        } catch {
-            Self.logger.error("Failed to look up device MAC \(macAddress): \(error.localizedDescription)")
-            device = nil
-        }
+        let device = try? await database.deviceRepository.findDeviceByMacAddress(address: macAddress)
 
         guard let targetAddress = device?.address ?? fallbackAddress, !targetAddress.isEmpty else {
             Self.logger.warning("No address found for device MAC \(macAddress)")
@@ -112,24 +90,16 @@ struct WledWidgetController: Sendable {
             address: targetAddress,
             timeout: Self.requestTimeoutSeconds
         )
-
-        var state: State?
-        do {
-            let response = try await api.postJson(
-                state: JsonPost(
-                    isOn: desiredIsOn.map { KotlinBoolean(bool: $0) },
-                    brightness: desiredBrightness.map { KotlinInt(int: $0) },
-                    verbose: true
-                )
+        let response = try? await api.postJson(
+            state: JsonPost(
+                isOn: desiredIsOn.map(KotlinBoolean.init(bool:)),
+                brightness: desiredBrightness.map(KotlinInt.init(int:)),
+                verbose: true
             )
-            if response.isSuccessful {
-                state = response.body
-            }
-        } catch {
-            Self.logger.error("Widget request failed for \(targetAddress): \(error.localizedDescription)")
-        }
-
+        )
+        let state = (response?.isSuccessful == true) ? response?.body : nil
         let isOnline = state != nil
+
         return WidgetSnapshotKt.createWidgetSnapshotFromState(
             device: device,
             targetAddress: targetAddress,
