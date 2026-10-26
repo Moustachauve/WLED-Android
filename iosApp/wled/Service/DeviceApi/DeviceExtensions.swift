@@ -2,6 +2,10 @@ import Foundation
 import Shared
 
 extension Device {
+    static var defaultDisplayName: String {
+        String(localized: "(New Device)")
+    }
+
     var displayName: String {
         if !customName.isEmpty {
             return customName
@@ -9,7 +13,7 @@ extension Device {
         if !originalName.isEmpty {
             return originalName
         }
-        return String(localized: "(New Device)")
+        return Self.defaultDisplayName
     }
 
     /// Swift-friendly initializer mirroring the Kotlin default arguments, which aren't exported to Swift.

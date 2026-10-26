@@ -3,7 +3,7 @@ import Foundation
 import Shared
 
 /// AppEntity representing a saved WLED device for Shortcuts, Siri, Control Center, and Widgets.
-struct WledDeviceEntity: AppEntity, Identifiable, Hashable, Sendable {
+struct WledDeviceEntity: AppEntity, Hashable, Sendable {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "WLED Device")
     static let defaultQuery = WledDeviceEntityQuery()
 
@@ -11,18 +11,6 @@ struct WledDeviceEntity: AppEntity, Identifiable, Hashable, Sendable {
     let id: String
     let name: String
     let address: String
-
-    init(id: String, name: String, address: String) {
-        self.id = id
-        self.name = name
-        self.address = address
-    }
-
-    init(device: Device) {
-        self.id = device.macAddress
-        self.name = device.displayName
-        self.address = device.address
-    }
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
@@ -33,20 +21,24 @@ struct WledDeviceEntity: AppEntity, Identifiable, Hashable, Sendable {
     }
 }
 
+extension WledDeviceEntity {
+    init(device: Device) {
+        self.init(
+            id: device.macAddress,
+            name: device.displayName,
+            address: device.address
+        )
+    }
+}
+
 /// Entity query resolving `WledDeviceEntity` instances from the shared Room `DeviceRepository`.
 struct WledDeviceEntityQuery: EntityStringQuery {
     func entities(for identifiers: [WledDeviceEntity.ID]) async throws -> [WledDeviceEntity] {
         await AppDatabase.shared.waitUntilReady()
-        var results: [WledDeviceEntity] = []
-        results.reserveCapacity(identifiers.count)
-        for identifier in identifiers {
-            if let device = try await AppDatabase.shared.deviceRepository.findDeviceByMacAddress(
-                address: identifier
-            ) {
-                results.append(WledDeviceEntity(device: device))
-            }
-        }
-        return results
+        let ids = Set(identifiers)
+        return try await AppDatabase.shared.deviceRepository.getAllDevices()
+            .filter { ids.contains($0.macAddress) }
+            .map(WledDeviceEntity.init(device:))
     }
 
     func entities(matching string: String) async throws -> [WledDeviceEntity] {

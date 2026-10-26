@@ -320,20 +320,14 @@ private extension DeviceListView {
 
     func handleOpenURL(_ url: URL) {
         guard let macAddress = WledWidgetData.parseDeepLinkMacAddress(url) else { return }
-        if selectDevice(withMacAddress: macAddress, from: viewModel.allDevicesWithState) {
-            pendingDeepLinkMac = nil
-        } else {
-            pendingDeepLinkMac = macAddress
-        }
+        pendingDeepLinkMac = selectDevice(withMacAddress: macAddress, from: viewModel.allDevicesWithState)
+            ? nil
+            : macAddress
     }
 
     @discardableResult
     func selectDevice(withMacAddress macAddress: String, from devices: [DeviceWithState]) -> Bool {
-        let normalizedTarget = macAddress.replacingOccurrences(of: ":", with: "").lowercased()
-        guard let matchingDevice = devices.first(where: { candidate in
-            let normalizedMac = candidate.device.macAddress.replacingOccurrences(of: ":", with: "").lowercased()
-            return normalizedMac == normalizedTarget
-        }) else {
+        guard let matchingDevice = devices.first(where: { $0.device.macAddress == macAddress }) else {
             return false
         }
         withAnimation {

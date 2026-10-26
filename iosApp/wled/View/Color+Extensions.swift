@@ -1,22 +1,33 @@
 import SwiftUI
 import UIKit
 
-extension Color {
-    private struct HSBA {
-        var h: CGFloat
-        var s: CGFloat
-        var b: CGFloat
-        var a: CGFloat
+struct HSBA {
+    var h: CGFloat
+    var s: CGFloat
+    var b: CGFloat
+    var a: CGFloat
+}
+
+extension UIColor {
+    convenience init(rgb: Int, alpha: CGFloat = 1.0) {
+        let red = CGFloat((rgb >> 16) & 0xFF) / 255.0
+        let green = CGFloat((rgb >> 8) & 0xFF) / 255.0
+        let blue = CGFloat(rgb & 0xFF) / 255.0
+        self.init(red: red, green: green, blue: blue, alpha: alpha)
     }
 
-    private var hsbaComponents: HSBA? {
-        let uiColor = UIColor(self)
+    var hsbaComponents: HSBA? {
         var h = CGFloat(0), s = CGFloat(0), b = CGFloat(0), a = CGFloat(0)
-
-        guard uiColor.getHue(&h, saturation: &s, brightness: &b, alpha: &a) else {
+        guard getHue(&h, saturation: &s, brightness: &b, alpha: &a) else {
             return nil
         }
         return HSBA(h: h, s: s, b: b, a: a)
+    }
+}
+
+extension Color {
+    private var hsbaComponents: HSBA? {
+        UIColor(self).hsbaComponents
     }
 
     /// Fixes the color if it is too dark or too bright depending of the dark/light theme

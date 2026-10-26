@@ -25,7 +25,7 @@ fun WLEDWidgetTheme(widgetState: WidgetStateData, content: @Composable () -> Uni
 /**
  * Creates a Material 3 [ColorScheme] for a widget based on the device's current state and LED color.
  */
-internal fun createWidgetColorScheme(widgetState: WidgetStateData, isDark: Boolean): ColorScheme {
+private fun createWidgetColorScheme(widgetState: WidgetStateData, isDark: Boolean): ColorScheme {
     val style = when {
         !widgetState.isOnline -> PaletteStyle.Neutral
         !widgetState.isOn -> PaletteStyle.TonalSpot
@@ -37,21 +37,13 @@ internal fun createWidgetColorScheme(widgetState: WidgetStateData, isDark: Boole
         Color.White
     }
 
-    return if (isDark) {
-        dynamicColorScheme(
-            seedColor = seedColor,
-            isDark = true,
-            style = style,
-            isAmoled = true, // Use deeper/more saturated colors for dark mode
-        )
-    } else {
-        dynamicColorScheme(
-            seedColor = seedColor,
-            isDark = false,
-            style = style,
-            specVersion = ColorSpec.SpecVersion.SPEC_2025,
-        )
-    }
+    return dynamicColorScheme(
+        seedColor = seedColor,
+        isDark = isDark,
+        style = style,
+        isAmoled = isDark, // Use deeper/more saturated colors for dark mode
+        specVersion = if (isDark) ColorSpec.SpecVersion.Default else ColorSpec.SpecVersion.SPEC_2025,
+    )
 }
 
 /**

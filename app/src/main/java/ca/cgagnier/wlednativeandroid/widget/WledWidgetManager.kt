@@ -11,10 +11,10 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.WidgetSnapshot
 import ca.cgagnier.wlednativeandroid.model.createWidgetSnapshotFromState
+import ca.cgagnier.wlednativeandroid.model.resolveDeviceName
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
-import ca.cgagnier.wlednativeandroid.widget.components.getDeviceName
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerializationException
@@ -87,15 +87,7 @@ class WledWidgetManager internal constructor(
     suspend fun updateWidgetsFromSnapshot(context: Context, snapshot: WidgetSnapshot) {
         // Create a complete, authoritative state from scratch
         // This ensures all widgets for the device get the exact same state
-        val newData = WidgetStateData(
-            macAddress = snapshot.macAddress,
-            address = snapshot.address,
-            name = snapshot.name,
-            isOn = snapshot.isOn,
-            isOnline = snapshot.isOnline,
-            color = snapshot.color,
-            lastUpdated = snapshot.lastUpdated,
-        )
+        val newData = WidgetStateData.fromSnapshot(snapshot)
 
         Log.d(TAG, "Updating widgets from snapshot for MAC ${snapshot.macAddress}")
         updateWidgetsForMacAddress(context, snapshot.macAddress, newData)
@@ -160,17 +152,8 @@ class WledWidgetManager internal constructor(
                 macAddress = widgetData.macAddress,
                 fallbackIsOn = jsonPost.isOn ?: widgetData.isOn,
                 fallbackColor = android.graphics.Color.WHITE,
-                now = System.currentTimeMillis(),
             )
-            val newData = widgetData.copy(
-                address = snapshot.address,
-                name = snapshot.name,
-                isOn = snapshot.isOn,
-                color = snapshot.color,
-                isOnline = snapshot.isOnline,
-                lastUpdated = snapshot.lastUpdated,
-            )
-            updateWidgetsForMacAddress(context, widgetData.macAddress, newData)
+            updateWidgetsForMacAddress(context, widgetData.macAddress, widgetData.withSnapshot(snapshot))
         } else {
             val newData = widgetData.copy(isOnline = false, lastUpdated = System.currentTimeMillis())
             updateWidgetsForMacAddress(context, widgetData.macAddress, newData)
@@ -200,7 +183,7 @@ class WledWidgetManager internal constructor(
      */
     suspend fun updateWidgetDeviceDetails(context: Context, device: Device) {
         val glanceIds = widgetStorage.getGlanceIds(context)
-        val displayName = getDeviceName(device, context.getString(R.string.default_device_name))
+        val displayName = resolveDeviceName(device, context.getString(R.string.default_device_name))
 
         glanceIds.forEach { glanceId ->
             val widgetState = widgetStorage.getWidgetState(context, glanceId) ?: return@forEach
