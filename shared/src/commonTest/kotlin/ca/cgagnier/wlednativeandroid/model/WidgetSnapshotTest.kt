@@ -111,28 +111,34 @@ class WidgetSnapshotTest {
     }
 
     @Test
-    fun createWidgetSnapshotFromStateUsesFallbackFieldsWhenOfflineWithoutState() {
-        val device = Device(
-            macAddress = "AA:BB:CC:DD:EE:02",
-            address = "192.168.1.102",
-            customName = " ",
-            originalName = "Kitchen Strip",
+    fun createWidgetSnapshotFromStateUsesFallbackIsOnWhenStateOnIsNull() {
+        val snapshot = createWidgetSnapshotFromState(
+            device = null,
+            targetAddress = "10.0.0.2",
+            defaultName = "(New Device)",
+            state = State(isOn = null, brightness = 128),
+            isOnline = true,
+            fallbackIsOn = true,
+            now = 1_000L,
         )
 
+        assertTrue(snapshot.isOn)
+        assertEquals(128, snapshot.brightness)
+    }
+
+    @Test
+    fun createWidgetSnapshotFromStateUsesFallbackColorAndTargetAddressWhenStateIsNull() {
         val snapshot = createWidgetSnapshotFromState(
-            device = device,
+            device = null,
             targetAddress = "10.0.0.2",
             defaultName = "(New Device)",
             state = null,
             isOnline = false,
-            fallbackIsOn = true,
             fallbackColor = 0xFFFF0000.toInt(),
             now = 1_000L,
         )
 
-        assertEquals("Kitchen Strip", snapshot.name)
         assertEquals("10.0.0.2", snapshot.address)
-        assertTrue(snapshot.isOn)
         assertFalse(snapshot.isOnline)
         assertEquals(0xFFFF0000.toInt(), snapshot.color)
     }
@@ -148,8 +154,21 @@ class WidgetSnapshotTest {
             now = 2_000L,
         )
 
-        assertEquals("", snapshot.macAddress)
-        assertEquals("10.0.0.3", snapshot.address)
         assertEquals("(New Device)", snapshot.name)
+    }
+
+    @Test
+    fun createWidgetSnapshotFromStatePreservesExplicitMacAddressWhenDeviceIsNull() {
+        val snapshot = createWidgetSnapshotFromState(
+            device = null,
+            targetAddress = "10.0.0.4",
+            defaultName = "(New Device)",
+            state = null,
+            isOnline = false,
+            macAddress = "aabbccddeeff",
+            now = 2_000L,
+        )
+
+        assertEquals("aabbccddeeff", snapshot.macAddress)
     }
 }

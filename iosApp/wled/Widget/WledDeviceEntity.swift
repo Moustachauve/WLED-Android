@@ -26,8 +26,8 @@ struct WledDeviceEntity: AppEntity, Identifiable, Hashable, Sendable {
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
-            title: LocalizedStringResource(stringLiteral: name),
-            subtitle: LocalizedStringResource(stringLiteral: address),
+            title: "\(name)",
+            subtitle: "\(address)",
             image: .init(systemName: "lightbulb.led.fill")
         )
     }
@@ -37,11 +37,16 @@ struct WledDeviceEntity: AppEntity, Identifiable, Hashable, Sendable {
 struct WledDeviceEntityQuery: EntityStringQuery {
     func entities(for identifiers: [WledDeviceEntity.ID]) async throws -> [WledDeviceEntity] {
         await AppDatabase.shared.waitUntilReady()
-        let idSet = Set(identifiers)
-        let devices = try await AppDatabase.shared.deviceRepository.getAllDevices()
-        return devices
-            .filter { idSet.contains($0.macAddress) }
-            .map(WledDeviceEntity.init(device:))
+        var results: [WledDeviceEntity] = []
+        results.reserveCapacity(identifiers.count)
+        for identifier in identifiers {
+            if let device = try await AppDatabase.shared.deviceRepository.findDeviceByMacAddress(
+                address: identifier
+            ) {
+                results.append(WledDeviceEntity(device: device))
+            }
+        }
+        return results
     }
 
     func entities(matching string: String) async throws -> [WledDeviceEntity] {

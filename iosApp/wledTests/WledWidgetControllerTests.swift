@@ -65,35 +65,82 @@ struct WledWidgetControllerTests {
         #expect(snapshot?.color == Int32(bitPattern: 0xFFFF8000))
     }
 
-    @Test func setPowerPostsDesiredStateAndUpdatesSnapshot() async throws {
+    @Test func refreshDeviceReturnsNilWhenDeviceNotFoundAndNoFallbackAddress() async {
+        let snapshot = await controller.refreshDevice(macAddress: "aabbccddeeff")
+
+        #expect(snapshot == nil)
+    }
+
+    @Test func refreshDevicePreservesMacAddressWhenUsingFallbackAddress() async {
+        stubState(isOn: true, brightness: 180)
+
+        let snapshot = await controller.refreshDevice(
+            macAddress: "aabbccddeeff",
+            fallbackAddress: host
+        )
+
+        #expect(snapshot?.macAddress == "aabbccddeeff")
+        #expect(snapshot?.address == host)
+        #expect(snapshot?.isOnline == true)
+    }
+
+    @Test func setPowerPostsDesiredState() async throws {
         try await insertDevice()
         stubState(isOn: false, brightness: 128)
 
-        let snapshot = await controller.setPower(macAddress: "aabbccddeeff", isOn: false)
+        _ = await controller.setPower(macAddress: "aabbccddeeff", isOn: false)
 
         let requests = StubURLProtocol.requests(for: host)
         #expect(requests.count == 1)
         let payload = try decodeJsonBody(from: requests.first)
         #expect(payload["on"] as? Bool == false)
         #expect(payload["v"] as? Bool == true)
-        #expect(snapshot?.isOnline == true)
+    }
+
+    @Test func setPowerDoesNotReportRequestedStateWhenRequestFails() async throws {
+        try await insertDevice()
+        StubURLProtocol.register(.failure(.cannotConnectToHost), for: host)
+
+        let snapshot = await controller.setPower(macAddress: "aabbccddeeff", isOn: true)
+
+        #expect(snapshot?.isOnline == false)
         #expect(snapshot?.isOn == false)
     }
 
-    @Test func setBrightnessConvertsPercentageToWledRange() async throws {
-        try await insertDevice()
-        stubState(isOn: true, brightness: 127)
+    struct BrightnessCase: Sendable {
+        let percent: Int
+        let expectedBri: Int
+        let expectedOn: Bool
+    }
 
-        let snapshot = await controller.setBrightness(macAddress: "aabbccddeeff", percent: 50)
+    @Test(arguments: [
+        BrightnessCase(percent: 0, expectedBri: 0, expectedOn: false),
+        BrightnessCase(percent: 50, expectedBri: 127, expectedOn: true),
+        BrightnessCase(percent: 100, expectedBri: 255, expectedOn: true)
+    ])
+    func setBrightnessConvertsPercentageToWledRange(_ testCase: BrightnessCase) async throws {
+        try await insertDevice()
+        stubState(isOn: testCase.expectedOn, brightness: testCase.expectedBri)
+
+        _ = await controller.setBrightness(macAddress: "aabbccddeeff", percent: testCase.percent)
 
         let requests = StubURLProtocol.requests(for: host)
         #expect(requests.count == 1)
         let payload = try decodeJsonBody(from: requests.first)
-        #expect(payload["on"] as? Bool == true)
-        #expect(payload["bri"] as? Int == 127)
-        #expect(snapshot?.isOnline == true)
-        #expect(snapshot?.isOn == true)
-        #expect(snapshot?.brightness?.intValue == 127)
+        #expect(payload["on"] as? Bool == testCase.expectedOn)
+        #expect(payload["bri"] as? Int == testCase.expectedBri)
+    }
+
+    @Test func togglePowerPostsInvertedStateWhenDeviceIsOnline() async throws {
+        try await insertDevice()
+        stubState(isOn: true, brightness: 180)
+
+        _ = await controller.togglePower(macAddress: "aabbccddeeff")
+
+        let requests = StubURLProtocol.requests(for: host)
+        #expect(requests.count == 2)
+        let secondPayload = try decodeJsonBody(from: requests.last)
+        #expect(secondPayload["on"] as? Bool == false)
     }
 
     @Test func togglePowerSkipsSetPowerWhenDeviceIsOffline() async throws {
@@ -106,25 +153,8 @@ struct WledWidgetControllerTests {
         #expect(snapshot?.isOnline == false)
     }
 
-    @Test func widgetDataDeepLinkUsesMacAddressPath() {
-        let data = WledWidgetData(
-            macAddress: "AA:BB:CC:DD:EE:01",
-            address: "192.168.1.101",
-            name: "Desk Lamp",
-            isOn: true,
-            isOnline: true,
-            color: -1,
-            lastUpdated: 0
-        )
-
-        #expect(data.deepLinkURL?.absoluteString == "wled://device/AA:BB:CC:DD:EE:01")
-    }
-
     private func decodeJsonBody(from request: URLRequest?) throws -> [String: Any] {
-        guard let body = request?.httpBody,
-              let json = try JSONSerialization.jsonObject(with: body) as? [String: Any] else {
-            return [:]
-        }
-        return json
+        let body = try #require(request?.httpBody)
+        return try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
     }
 }

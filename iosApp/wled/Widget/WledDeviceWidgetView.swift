@@ -1,5 +1,5 @@
+import AppIntents
 import SwiftUI
-import UIKit
 import WidgetKit
 
 /// Layout family for the WLED widget view, matching Android's narrow (compact) and wide (row) modes.
@@ -14,10 +14,9 @@ struct WledDeviceWidgetView: View {
 
     let data: WledWidgetData?
     var layoutStyle: WledWidgetLayoutStyle = .wide
-    var elapsedTimeText: String? = "0:00"
-    var onTogglePower: ((Bool) -> Void)?
-    var onRefresh: (() -> Void)?
-    var onQuickAction: ((WledWidgetQuickAction) -> Void)?
+    /// Optional fixed elapsed-time string used by snapshot tests; when `nil`, renders a live timer
+    /// from `data.lastUpdated`.
+    var elapsedTimeText: String?
 
     var body: some View {
         let palette = WledWidgetPalette(data: data, colorScheme: colorScheme)
@@ -29,6 +28,8 @@ struct WledDeviceWidgetView: View {
                 unconfiguredContent(palette: palette)
             }
         }
+        .background(palette.background)
+        .containerBackground(palette.background, for: .widget)
     }
 
     // MARK: - Configured Content
@@ -47,34 +48,24 @@ struct WledDeviceWidgetView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(12)
-            .background(palette.background, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
 
-            refreshButton(palette: palette)
-
-            if let elapsedTimeText {
-                elapsedTimeBadge(text: elapsedTimeText, palette: palette)
-            }
+            refreshButton(data: data, palette: palette)
+            elapsedTimeBadge(data: data, palette: palette)
         }
         .widgetURL(data.deepLinkURL)
     }
 
     private func wideContent(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .center, spacing: 8) {
-                deviceDetailsColumn(
-                    data: data,
-                    palette: palette,
-                    alignment: .leading,
-                    showAddress: true
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
+        HStack(alignment: .center, spacing: 8) {
+            deviceDetailsColumn(
+                data: data,
+                palette: palette,
+                alignment: .leading,
+                showAddress: true
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-                powerButton(data: data, palette: palette)
-            }
-
-            if !data.quickActions.isEmpty {
-                quickActionsRow(actions: data.quickActions, palette: palette)
-            }
+            powerButton(data: data, palette: palette)
         }
     }
 
@@ -88,6 +79,7 @@ struct WledDeviceWidgetView: View {
                 alignment: .center,
                 showAddress: false
             )
+            .frame(maxWidth: .infinity, alignment: .center)
         }
     }
 
@@ -102,6 +94,7 @@ struct WledDeviceWidgetView: View {
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(palette.onSurface)
                 .lineLimit(1)
+                .truncationMode(.tail)
 
             HStack(spacing: 4) {
                 if showAddress {
@@ -109,6 +102,7 @@ struct WledDeviceWidgetView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(palette.onSurfaceVariant)
                         .lineLimit(1)
+                        .truncationMode(.tail)
                 }
 
                 if !data.isOnline {
@@ -119,6 +113,7 @@ struct WledDeviceWidgetView: View {
                     Image(systemName: "wifi.slash")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(palette.error)
+                        .accessibilityHidden(true)
                     Text("Offline")
                         .font(.system(size: 12))
                         .foregroundStyle(palette.onSurfaceVariant)
@@ -129,15 +124,13 @@ struct WledDeviceWidgetView: View {
     }
 
     private func powerButton(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
-        Button {
-            onTogglePower?(!data.isOn)
-        } label: {
+        Button(intent: ToggleDevicePowerIntent(device: data.deviceEntity)) {
             ZStack {
                 if data.isOn {
                     Circle()
                         .fill(
                             RadialGradient(
-                                colors: [palette.glow, palette.glow.opacity(0)],
+                                colors: [palette.glow, palette.glow.opacity(0.0)],
                                 center: .center,
                                 startRadius: 4,
                                 endRadius: 24
@@ -150,7 +143,7 @@ struct WledDeviceWidgetView: View {
                         .frame(width: 32, height: 32)
 
                     Circle()
-                        .strokeBorder(palette.outlineGlow, lineWidth: 2)
+                        .strokeBorder(palette.glow, lineWidth: 2)
                         .frame(width: 36, height: 36)
 
                     Image(systemName: "power")
@@ -171,35 +164,8 @@ struct WledDeviceWidgetView: View {
         .accessibilityValue(data.isOn ? Text("On") : Text("Off"))
     }
 
-    private func quickActionsRow(actions: [WledWidgetQuickAction], palette: WledWidgetPalette) -> some View {
-        HStack(spacing: 0) {
-            ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
-                if index > 0 {
-                    Rectangle()
-                        .fill(palette.outline)
-                        .frame(width: 1)
-                        .padding(.vertical, 6)
-                }
-
-                Button {
-                    onQuickAction?(action)
-                } label: {
-                    Text(action.label)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(palette.onSurface)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .frame(height: 28)
-        .background(palette.surfaceContainer, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-
-    private func refreshButton(palette: WledWidgetPalette) -> some View {
-        Button {
-            onRefresh?()
-        } label: {
+    private func refreshButton(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
+        Button(intent: RefreshDeviceWidgetIntent(device: data.deviceEntity)) {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(palette.outline)
@@ -211,52 +177,61 @@ struct WledDeviceWidgetView: View {
         .accessibilityLabel(Text("Refresh"))
     }
 
-    private func elapsedTimeBadge(text: String, palette: WledWidgetPalette) -> some View {
-        VStack {
-            Spacer()
-            HStack(spacing: 2) {
+    @ViewBuilder
+    private func elapsedTimeBadge(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
+        if elapsedTimeText != nil || data.lastUpdated > 0 {
+            VStack {
                 Spacer()
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.system(size: 8))
-                    .foregroundStyle(palette.onSurfaceVariant)
-                Text(text)
-                    .font(.system(size: 8))
-                    .foregroundStyle(palette.onSurfaceVariant)
+                HStack(spacing: 2) {
+                    Spacer()
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 8))
+                        .foregroundStyle(palette.onSurfaceVariant)
+                        .accessibilityHidden(true)
+                    if let elapsedTimeText {
+                        Text(elapsedTimeText)
+                            .font(.system(size: 8))
+                            .foregroundStyle(palette.onSurfaceVariant)
+                    } else {
+                        Text(
+                            Date(timeIntervalSince1970: TimeInterval(data.lastUpdated) / 1000.0),
+                            style: .timer
+                        )
+                        .font(.system(size: 8))
+                        .foregroundStyle(palette.onSurfaceVariant)
+                    }
+                }
+                .padding(.bottom, 4)
+                .padding(.trailing, 20)
             }
-            .padding(.bottom, 4)
-            .padding(.trailing, 20)
+            .allowsHitTesting(false)
         }
-        .allowsHitTesting(false)
     }
 
     // MARK: - Unconfigured Content
 
     private func unconfiguredContent(palette: WledWidgetPalette) -> some View {
         VStack {
-            Spacer()
             Text("Please configure")
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(palette.error)
                 .multilineTextAlignment(.center)
-            Spacer()
+                .padding(8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(8)
-        .background(palette.background, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
-// MARK: - Dynamic Widget Palette
-
+/// Dynamic tonal color palette derived from the WLED device's active LED color,
+/// mirroring Android's `WidgetTheme.kt` (`createWidgetColorScheme`).
 private struct WledWidgetPalette {
     let background: Color
     let surfaceContainer: Color
+    let onSurface: Color
+    let onSurfaceVariant: Color
     let primary: Color
     let onPrimary: Color
     let glow: Color
-    let outlineGlow: Color
-    let onSurface: Color
-    let onSurfaceVariant: Color
     let outline: Color
     let error: Color
 
@@ -264,81 +239,48 @@ private struct WledWidgetPalette {
         let isDark = colorScheme == .dark
         let isOnline = data?.isOnline ?? false
         let isOn = data?.isOn ?? false
-        let seedUIColor = UIColor(data?.seedColor ?? .white)
-
-        var hue: CGFloat = 0
-        var saturation: CGFloat = 0
-        var brightness: CGFloat = 0
-        var alpha: CGFloat = 0
-        seedUIColor.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
-
-        let effectiveSaturation: CGFloat
-        if !isOnline {
-            effectiveSaturation = 0.0
-        } else if !isOn {
-            effectiveSaturation = min(saturation, 0.35)
-        } else {
-            effectiveSaturation = max(saturation, 0.65)
-        }
+        let (hue, rawSat) = data?.hueAndSaturation ?? (0, 0)
+        let isActiveAccent = isOnline && isOn
+        let saturation = isActiveAccent ? max(rawSat, 0.25) : min(rawSat, 0.12)
 
         if isDark {
+            let bgBrightness = isActiveAccent ? 0.22 : 0.16
             self.background = Color(
-                hue: Double(hue),
-                saturation: Double(effectiveSaturation * 0.45),
-                brightness: isOnline && isOn ? 0.22 : 0.16
+                hue: hue,
+                saturation: isOnline ? min(saturation * 0.55, 0.45) : 0.04,
+                brightness: bgBrightness
             )
             self.surfaceContainer = Color(
-                hue: Double(hue),
-                saturation: Double(effectiveSaturation * 0.35),
-                brightness: 0.28
+                hue: hue,
+                saturation: isOnline ? min(saturation * 0.65, 0.50) : 0.05,
+                brightness: bgBrightness + 0.09
             )
-            self.primary = Color(
-                hue: Double(hue),
-                saturation: Double(effectiveSaturation * 0.75),
-                brightness: 0.88
-            )
-            self.onPrimary = Color(
-                hue: Double(hue),
-                saturation: Double(effectiveSaturation * 0.8),
-                brightness: 0.18
-            )
-            self.glow = Color(
-                hue: Double(hue),
-                saturation: Double(effectiveSaturation * 0.3),
-                brightness: 0.98
-            )
-            self.outlineGlow = self.glow
-            self.onSurface = Color(white: 0.94)
-            self.onSurfaceVariant = Color(white: 0.76)
-            self.outline = Color(white: 0.58)
+            self.onSurface = Color(white: 0.95)
+            self.onSurfaceVariant = Color(white: 0.72)
+            self.primary = Color(hue: hue, saturation: max(saturation * 0.75, 0.35), brightness: 0.90)
+            self.onPrimary = Color(hue: hue, saturation: min(saturation, 0.85), brightness: 0.18)
+            self.glow = Color(hue: hue, saturation: min(saturation * 0.45, 0.45), brightness: 0.98)
+            self.outline = Color(white: 0.50)
             self.error = Color(red: 1.0, green: 0.45, blue: 0.42)
         } else {
+            let bgBrightness = isActiveAccent ? 0.95 : 0.92
             self.background = Color(
-                hue: Double(hue),
-                saturation: Double(effectiveSaturation * 0.22),
-                brightness: isOnline ? 0.93 : 0.92
+                hue: hue,
+                saturation: isOnline ? min(saturation * 0.28, 0.25) : 0.02,
+                brightness: bgBrightness
             )
             self.surfaceContainer = Color(
-                hue: Double(hue),
-                saturation: Double(effectiveSaturation * 0.30),
-                brightness: 0.86
+                hue: hue,
+                saturation: isOnline ? min(saturation * 0.38, 0.32) : 0.03,
+                brightness: 0.85
             )
-            self.primary = Color(
-                hue: Double(hue),
-                saturation: Double(effectiveSaturation * 0.85),
-                brightness: 0.52
-            )
-            self.onPrimary = .white
-            self.glow = Color(
-                hue: Double(hue),
-                saturation: Double(effectiveSaturation * 0.25),
-                brightness: 0.98
-            )
-            self.outlineGlow = self.glow
             self.onSurface = Color(white: 0.12)
-            self.onSurfaceVariant = Color(white: 0.32)
+            self.onSurfaceVariant = Color(white: 0.35)
+            self.primary = Color(hue: hue, saturation: max(saturation * 0.85, 0.55), brightness: 0.52)
+            self.onPrimary = .white
+            self.glow = Color(hue: hue, saturation: min(saturation * 0.30, 0.30), brightness: 0.98)
             self.outline = Color(white: 0.48)
-            self.error = Color(red: 0.75, green: 0.15, blue: 0.15)
+            self.error = Color(red: 0.78, green: 0.16, blue: 0.16)
         }
     }
 }

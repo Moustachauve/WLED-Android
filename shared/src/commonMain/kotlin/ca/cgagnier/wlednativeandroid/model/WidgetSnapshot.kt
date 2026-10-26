@@ -39,6 +39,17 @@ fun DeviceWithState.toWidgetSnapshot(
 )
 
 /**
+ * Resolves the display name for a [Device] following the hierarchy:
+ * 1. Custom name (if not blank)
+ * 2. Original name (if not blank)
+ * 3. [defaultName]
+ */
+fun resolveDeviceName(device: Device?, defaultName: String): String =
+    device?.customName?.trim()?.takeIf { it.isNotEmpty() }
+        ?: device?.originalName?.trim()?.takeIf { it.isNotEmpty() }
+        ?: defaultName
+
+/**
  * Projects a [Device] and optional [State] into a [WidgetSnapshot].
  *
  * Shared by live WebSocket state projection ([toWidgetSnapshot]) and direct HTTP widget/shortcut
@@ -51,16 +62,15 @@ fun createWidgetSnapshotFromState(
     defaultName: String,
     state: State?,
     isOnline: Boolean,
+    macAddress: String = device?.macAddress ?: "",
     fallbackIsOn: Boolean = false,
     fallbackColor: Int = -1,
     now: Long = currentTimeMillis(),
 ): WidgetSnapshot {
     val color = getColorFromState(state) ?: fallbackColor
-    val resolvedName = device?.customName?.trim()?.takeIf { it.isNotEmpty() }
-        ?: device?.originalName?.trim()?.takeIf { it.isNotEmpty() }
-        ?: defaultName
+    val resolvedName = resolveDeviceName(device, defaultName)
     return WidgetSnapshot(
-        macAddress = device?.macAddress ?: "",
+        macAddress = macAddress,
         address = targetAddress,
         name = resolvedName,
         isOn = state?.isOn ?: fallbackIsOn,

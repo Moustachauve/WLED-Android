@@ -44,19 +44,24 @@ struct WledWidgetController: Sendable {
     func setPower(
         macAddress: String,
         isOn: Bool,
-        fallbackAddress: String? = nil
+        fallbackAddress: String? = nil,
+        fallbackIsOn: Bool = false
     ) async -> WidgetSnapshot? {
         await sendRequest(
             macAddress: macAddress,
             fallbackAddress: fallbackAddress,
             payload: RequestPayload(
                 desiredIsOn: isOn,
-                fallbackIsOn: isOn
+                fallbackIsOn: fallbackIsOn
             )
         )
     }
 
     /// Fetches the current device state and toggles its power on or off.
+    ///
+    /// Note: `:shared`'s `JsonPost.isOn` is a `Boolean?` rather than WLED's `"t"` toggle literal,
+    /// so we first fetch the live state (short-circuiting immediately if the device is unreachable)
+    /// and then post the inverted boolean state.
     func togglePower(
         macAddress: String,
         fallbackAddress: String? = nil
@@ -66,7 +71,8 @@ struct WledWidgetController: Sendable {
         return await setPower(
             macAddress: macAddress,
             isOn: !current.isOn,
-            fallbackAddress: current.address
+            fallbackAddress: current.address,
+            fallbackIsOn: current.isOn
         )
     }
 
@@ -75,7 +81,8 @@ struct WledWidgetController: Sendable {
     func setBrightness(
         macAddress: String,
         percent: Int,
-        fallbackAddress: String? = nil
+        fallbackAddress: String? = nil,
+        fallbackIsOn: Bool = false
     ) async -> WidgetSnapshot? {
         let wledBrightness = BrightnessUtilsKt.percentToBrightness(percent: Float(percent))
         let shouldTurnOn = wledBrightness > 0
@@ -85,7 +92,7 @@ struct WledWidgetController: Sendable {
             payload: RequestPayload(
                 desiredIsOn: shouldTurnOn,
                 desiredBrightness: wledBrightness,
-                fallbackIsOn: shouldTurnOn
+                fallbackIsOn: fallbackIsOn
             )
         )
     }
@@ -105,12 +112,20 @@ struct WledWidgetController: Sendable {
         payload: RequestPayload
     ) async -> WidgetSnapshot? {
         await database.waitUntilReady()
-        let device = try? await database.deviceRepository.findDeviceByMacAddress(address: macAddress)
+        let device: Device?
+        do {
+            device = try await database.deviceRepository.findDeviceByMacAddress(address: macAddress)
+        } catch {
+            Self.logger.error("Failed to look up device MAC \(macAddress): \(error.localizedDescription)")
+            device = nil
+        }
+
         guard let targetAddress = device?.address ?? fallbackAddress, !targetAddress.isEmpty else {
             Self.logger.warning("No address found for device MAC \(macAddress)")
             return nil
         }
 
+        let resolvedMac = device?.macAddress ?? macAddress
         let defaultName = String(localized: "(New Device)")
         let now = Int64(Date().timeIntervalSince1970 * 1000)
         let api = database.deviceApiFactory.create(
@@ -133,6 +148,7 @@ struct WledWidgetController: Sendable {
                     defaultName: defaultName,
                     state: state,
                     isOnline: true,
+                    macAddress: resolvedMac,
                     fallbackIsOn: payload.desiredIsOn ?? payload.fallbackIsOn,
                     fallbackColor: payload.fallbackColor,
                     now: now
@@ -148,6 +164,7 @@ struct WledWidgetController: Sendable {
             defaultName: defaultName,
             state: nil,
             isOnline: false,
+            macAddress: resolvedMac,
             fallbackIsOn: payload.fallbackIsOn,
             fallbackColor: payload.fallbackColor,
             now: now

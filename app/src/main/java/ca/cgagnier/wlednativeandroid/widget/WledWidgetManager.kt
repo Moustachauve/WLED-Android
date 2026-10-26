@@ -157,6 +157,7 @@ class WledWidgetManager internal constructor(
                 defaultName = context.getString(R.string.default_device_name),
                 state = body,
                 isOnline = true,
+                macAddress = widgetData.macAddress,
                 fallbackIsOn = jsonPost.isOn ?: widgetData.isOn,
                 fallbackColor = android.graphics.Color.WHITE,
                 now = System.currentTimeMillis(),
