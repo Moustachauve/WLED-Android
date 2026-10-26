@@ -167,4 +167,3 @@ extension DeviceConnectionManager: @retroactive @unchecked Sendable {}
 extension DeviceUpdateService: @retroactive @unchecked Sendable {}
 extension DeviceFirstContactService: @retroactive @unchecked Sendable {}
 extension AddressValidator: @retroactive @unchecked Sendable {}
-extension ThemeSettings: @retroactive @unchecked Sendable {}

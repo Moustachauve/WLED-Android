@@ -29,7 +29,7 @@ struct DeviceInfoTwoRows: View {
                     .lineLimit(1)
                     .fixedSize()
                     .lineSpacing(0)
-                let signalStrength = Int(device.stateInfo?.info.wifi.signal ?? 0)
+                let signalStrength = device.stateInfo?.info.wifi.signal?.intValue ?? 0
                 Label {
                     Text(
                         device.isOnline ? "Signal Strength: \(signalStrength)" : "Offline"

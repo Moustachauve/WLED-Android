@@ -23,7 +23,8 @@ struct DeviceView: View {
                     showDownloadFinished = true
                 }
                 Task {
-                    try await Task.sleep(for: .seconds(3))
+                    try? await Task.sleep(for: .seconds(3))
+                    guard !Task.isCancelled else { return }
                     withAnimation {
                         showDownloadFinished = false
                     }

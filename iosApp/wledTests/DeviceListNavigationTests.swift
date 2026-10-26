@@ -9,6 +9,7 @@ import UIKit
 @MainActor
 struct DeviceListNavigationTests {
 
+    @MainActor
     private struct Harness {
         let window: UIWindow
         let navigation: DeviceListNavigation
