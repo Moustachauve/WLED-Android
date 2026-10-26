@@ -4,7 +4,7 @@ import UIKit
 
 /// Platform-ready state model for rendering a WLED Home Screen widget on iOS,
 /// mirroring Android's `WidgetStateData` and `:shared`'s `WidgetSnapshot`.
-struct WledWidgetData: Equatable, Sendable {
+struct WledWidgetData: Codable, Equatable, Sendable {
     let macAddress: String
     let address: String
     let name: String
@@ -33,26 +33,47 @@ struct WledWidgetData: Equatable, Sendable {
     }
 
     init(snapshot: WidgetSnapshot) {
-        self.macAddress = snapshot.macAddress
-        self.address = snapshot.address
-        self.name = snapshot.name
-        self.isOn = snapshot.isOn
-        self.isOnline = snapshot.isOnline
-        self.color = snapshot.color
-        self.lastUpdated = snapshot.lastUpdated
+        self.init(
+            macAddress: snapshot.macAddress,
+            address: snapshot.address,
+            name: snapshot.name,
+            isOn: snapshot.isOn,
+            isOnline: snapshot.isOnline,
+            color: snapshot.color,
+            lastUpdated: snapshot.lastUpdated
+        )
     }
 
-    /// `WledDeviceEntity` representation used to wire interactive WidgetKit buttons to App Intents.
+    /// Returns a copy with updated device metadata (`name` and `address`).
+    func updating(name: String, address: String) -> WledWidgetData {
+        WledWidgetData(
+            macAddress: macAddress,
+            address: address,
+            name: name,
+            isOn: isOn,
+            isOnline: isOnline,
+            color: color,
+            lastUpdated: lastUpdated
+        )
+    }
+
+    /// Returns `true` when all visible widget properties (excluding `lastUpdated`) match `other`.
+    func hasSameVisibleState(as other: WledWidgetData) -> Bool {
+        name == other.name &&
+            address == other.address &&
+            isOn == other.isOn &&
+            isOnline == other.isOnline &&
+            color == other.color
+    }
+
     var deviceEntity: WledDeviceEntity {
         WledDeviceEntity(id: macAddress, name: name, address: address)
     }
 
-    /// `Date` representation of `lastUpdated` (stored in epoch milliseconds).
     var lastUpdatedDate: Date {
         Date(timeIntervalSince1970: TimeInterval(lastUpdated) / 1000.0)
     }
 
-    /// Deep link URL (`wled://device/<macAddress>`) that opens this device in the main app.
     var deepLinkURL: URL? {
         guard !macAddress.isEmpty else { return nil }
         var components = URLComponents()
@@ -62,7 +83,6 @@ struct WledWidgetData: Equatable, Sendable {
         return components.url
     }
 
-    /// Parses a canonical `wled://device/<macAddress>` deep link URL and returns the MAC address.
     static func parseDeepLinkMacAddress(_ url: URL) -> String? {
         guard url.scheme?.caseInsensitiveCompare("wled") == .orderedSame,
               let host = url.host(percentEncoded: false),
@@ -75,7 +95,6 @@ struct WledWidgetData: Equatable, Sendable {
         return mac.isEmpty ? nil : mac
     }
 
-    /// Computes Hue and Saturation (`0.0...1.0`) from the 32-bit ARGB `color` integer.
     var hueAndSaturation: (hue: Double, saturation: Double) {
         guard color != -1,
               let hsba = UIColor(rgb: Int(color)).hsbaComponents else {

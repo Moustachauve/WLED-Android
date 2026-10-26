@@ -52,9 +52,7 @@ struct WledDeviceEntityQuery: EntityStringQuery {
 
     func suggestedEntities() async throws -> [WledDeviceEntity] {
         await AppDatabase.shared.waitUntilReady()
-        let devices = try await AppDatabase.shared.deviceRepository.getAllDevices()
-        return devices
-            .filter { !$0.isHidden }
+        return try await AppDatabase.shared.deviceRepository.getAllDevices()
             .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
             .map(WledDeviceEntity.init(device:))
     }
