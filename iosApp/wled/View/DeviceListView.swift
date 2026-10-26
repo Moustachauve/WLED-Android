@@ -272,9 +272,9 @@ struct DeviceListView: View {
 
 // MARK: - Toolbar & Actions
 
-extension DeviceListView {
+private extension DeviceListView {
     @ToolbarContentBuilder
-    private var toolbar: some ToolbarContent {
+    var toolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
             Image(.wledLogoAkemi)
                 .resizable()
@@ -337,6 +337,8 @@ extension DeviceListView {
         viewModel.deleteDevice(device)
     }
 
+    // MARK: - Automatic device selection
+
     func restoreLastSelection(
         from devices: [DeviceWithState],
         currentSizeClass: UserInterfaceSizeClass? = nil
@@ -390,9 +392,11 @@ struct ConfirmDeleteDeviceDialog: View {
                     Spacer()
                     Button("Cancel", role: .cancel, action: onCancel)
                         .buttonStyle(.bordered)
+                        .keyboardShortcut(.cancelAction)
                     Button("Delete", role: .destructive, action: onConfirm)
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
+                        .keyboardShortcut(.defaultAction)
                 }
             }
             .frame(maxWidth: 360)
@@ -400,6 +404,7 @@ struct ConfirmDeleteDeviceDialog: View {
             .padding(.horizontal, 24)
             .accessibilityElement(children: .contain)
             .accessibilityAddTraits(.isModal)
+            .accessibilityAction(.escape, onCancel)
         }
     }
 }

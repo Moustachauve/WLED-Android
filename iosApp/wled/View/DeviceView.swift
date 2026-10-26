@@ -49,6 +49,7 @@ struct DeviceView: View {
             switch route {
             case .edit:
                 DeviceEditView(device: device)
+                    .id(device.id)
             }
         }
         .toolbar { toolbar }

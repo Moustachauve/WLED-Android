@@ -95,14 +95,8 @@ struct DeviceEditView: View {
             .padding()
             .padding(.bottom, 100)
         }
-        .task(id: [device.id, "\(device.device.repositoryId)"]) {
-            if viewModel.device != device {
-                viewModel = DeviceEditViewModel(
-                    device: device,
-                    database: database
-                )
-            }
-            await viewModel.loadRepository()
+        .task(id: device.device.repositoryId) {
+            await viewModel.loadRepository(id: device.device.repositoryId)
         }
         .navigationTitle("Edit Device")
         .navigationBarTitleDisplayMode(.large)
