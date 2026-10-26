@@ -236,4 +236,29 @@ struct DeviceListNavigationTests {
         #expect(harness.navigation.detailPath.isEmpty)
         #expect(detailStackDepth(harness.window) == 1)
     }
+
+    @Test func expiredPendingResetDoesNotReapplyEditRouteOnBack() async throws {
+        let deviceA = WLED.DeviceWithState(initialDevice: Device(
+            macAddress: "AA:BB:CC:DD:EE:01",
+            address: "192.168.1.101",
+            originalName: "Device A"
+        ))
+        let deviceB = WLED.DeviceWithState(initialDevice: Device(
+            macAddress: "AA:BB:CC:DD:EE:02",
+            address: "192.168.1.102",
+            originalName: "Device B"
+        ))
+        let navigation = DeviceListNavigation(
+            selection: deviceA,
+            resetExpiryDuration: .milliseconds(20)
+        )
+
+        navigation.openEdit(deviceB)
+        try await Task.sleep(for: .milliseconds(50))
+
+        navigation.detailPathBinding.wrappedValue = []
+        await Task.yield()
+
+        #expect(navigation.detailPath.isEmpty)
+    }
 }

@@ -10,15 +10,24 @@ import SwiftUI
 @MainActor
 @Observable
 final class DeviceListNavigation {
+    /// Enough time for `NavigationSplitView` to perform its synchronous/next-frame detail path
+    /// reset when `selection` changes, while expiring well before a user could manually tap Back.
+    static let defaultResetExpiryDuration: Duration = .milliseconds(250)
+
     var selection: DeviceWithState?
     private(set) var detailPath: [DeviceDetailRoute] = []
 
     /// Route requested together with a selection change, waiting for the split view's reset.
-    private var routeAwaitingSplitViewReset: [DeviceDetailRoute]?
+    @ObservationIgnored private var routeAwaitingSplitViewReset: [DeviceDetailRoute]?
     @ObservationIgnored private var resetExpiryTask: Task<Void, Never>?
+    @ObservationIgnored private let resetExpiryDuration: Duration
 
-    init(selection: DeviceWithState? = nil) {
+    init(
+        selection: DeviceWithState? = nil,
+        resetExpiryDuration: Duration = defaultResetExpiryDuration
+    ) {
         self.selection = selection
+        self.resetExpiryDuration = resetExpiryDuration
     }
 
     var detailPathBinding: Binding<[DeviceDetailRoute]> {
@@ -41,8 +50,9 @@ final class DeviceListNavigation {
         let editPath: [DeviceDetailRoute] = [.edit(deviceId: device.id)]
         if selection != nil && selection != device {
             routeAwaitingSplitViewReset = editPath
+            let expiryDuration = resetExpiryDuration
             resetExpiryTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .milliseconds(250))
+                try? await Task.sleep(for: expiryDuration)
                 guard !Task.isCancelled else { return }
                 self?.routeAwaitingSplitViewReset = nil
             }

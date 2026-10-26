@@ -24,15 +24,15 @@ struct DeviceUpdateInstalling: View {
 
                 switch viewModel.status {
                 case .idle:
-                    IndeterminateView(statusString: String(localized: "Starting Up"))
+                    UpdateProgressStatusView(statusString: String(localized: "Starting Up"))
                 case .downloading(let versionName, let progress):
-                    IndeterminateView(
+                    UpdateProgressStatusView(
                         statusString: String(localized: "Downloading Version"),
                         versionName: versionName,
                         progress: progress
                     )
                 case .installing(let versionName):
-                    IndeterminateView(
+                    UpdateProgressStatusView(
                         statusString: String(localized: "Installing Update"),
                         versionName: versionName
                     )
@@ -94,9 +94,9 @@ struct DeviceUpdateInstalling: View {
     }
 }
 
-// MARK: - Indeterminate view
+// MARK: - Update progress status view
 
-struct IndeterminateView: View {
+struct UpdateProgressStatusView: View {
     let statusString: String
     var versionName: String = ""
     var progress: Int?

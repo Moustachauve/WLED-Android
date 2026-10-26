@@ -357,11 +357,11 @@ private extension DeviceListView {
 
         // Try to find the last selected device by MAC address
         if let lastDevice = devices.first(where: { $0.device.macAddress == lastSelectedDeviceMac }) {
-            navigation.selection = lastDevice
+            navigation.select(lastDevice)
         }
         // Fallback: Auto-select the first device
         else if let firstDevice = devices.first {
-            navigation.selection = firstDevice
+            navigation.select(firstDevice)
         }
     }
 }
@@ -396,7 +396,6 @@ struct ConfirmDeleteDeviceDialog: View {
                     Button("Delete", role: .destructive, action: onConfirm)
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
-                        .keyboardShortcut(.defaultAction)
                 }
             }
             .frame(maxWidth: 360)
