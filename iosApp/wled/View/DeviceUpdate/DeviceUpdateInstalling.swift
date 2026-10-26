@@ -25,10 +25,11 @@ struct DeviceUpdateInstalling: View {
                 switch viewModel.status {
                 case .idle:
                     IndeterminateView(statusString: String(localized: "Starting Up"))
-                case .downloading(let versionName):
-                    IndeterminateView(
+                case .downloading(let versionName, let progress):
+                    DownloadingView(
                         statusString: String(localized: "Downloading Version"),
-                        versionName: versionName
+                        versionName: versionName,
+                        progress: progress
                     )
                 case .installing(let versionName):
                     IndeterminateView(
@@ -90,6 +91,43 @@ struct DeviceUpdateInstalling: View {
         default:
             return LocalizedStringKey("Cancel")
         }
+    }
+}
+
+// MARK: - Downloading view
+
+struct DownloadingView: View {
+    let statusString: String
+    var versionName: String = ""
+    let progress: Int
+
+    private var clampedProgress: Int {
+        min(max(progress, 0), 100)
+    }
+
+    var body: some View {
+        ProgressView(value: Double(clampedProgress), total: 100) {
+            Text("\(clampedProgress)%")
+                .font(.caption)
+                .monospacedDigit()
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .progressViewStyle(.linear)
+        .padding(.horizontal)
+        .padding(.bottom, 5)
+
+        Text(statusString)
+            .font(.title3)
+            .bold()
+
+        if !versionName.isEmpty {
+            Text(versionName)
+                .font(.callout)
+        }
+
+        Text("Please do not close the app or turn off the device.")
+            .multilineTextAlignment(.center)
+            .padding()
     }
 }
 

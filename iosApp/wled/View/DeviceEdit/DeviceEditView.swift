@@ -57,22 +57,34 @@ struct DeviceEditView: View {
                 }
                 .padding(.bottom)
 
-                if device.stateInfo != nil {
-                    Card {
-                        if (device.availableUpdateVersion ?? "").isEmpty {
-                            DeviceNoUpdateAvailable(
-                                device: device,
-                                isCheckingForUpdates: viewModel.isCheckingForUpdates
-                            ) {
-                                await viewModel.checkForUpdate()
-                            }
-                        } else {
-                            DeviceUpdateAvailable(device: device, database: database)
+                Card {
+                    if !device.isOnline && device.stateInfo == nil {
+                        DeviceOfflineUpdateStatus()
+                    } else if (device.availableUpdateVersion ?? "").isEmpty {
+                        DeviceNoUpdateAvailable(
+                            device: device,
+                            isCheckingForUpdates: viewModel.isCheckingForUpdates
+                        ) {
+                            await viewModel.checkForUpdate()
                         }
+                    } else {
+                        DeviceUpdateAvailable(device: device, database: database)
                     }
-                    .animation(.default, value: device.availableUpdateVersion)
-                    .animation(.default, value: viewModel.isCheckingForUpdates)
+
+                    if let repository = viewModel.repository {
+                        Divider()
+                        HStack {
+                            Text("Update Source")
+                            Spacer()
+                            Text(repository.ownerAndRepo)
+                                .lineLimit(1)
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
                 }
+                .animation(.default, value: device.availableUpdateVersion)
+                .animation(.default, value: viewModel.isCheckingForUpdates)
 
                 Text("Mac Address: \(device.device.macAddress)")
                     .font(.caption)
@@ -83,8 +95,37 @@ struct DeviceEditView: View {
             .padding()
             .padding(.bottom, 100)
         }
+        .task(id: [device.id, "\(device.device.repositoryId)"]) {
+            if viewModel.device != device {
+                viewModel = DeviceEditViewModel(
+                    device: device,
+                    database: database
+                )
+            }
+            await viewModel.loadRepository()
+        }
         .navigationTitle("Edit Device")
         .navigationBarTitleDisplayMode(.large)
+    }
+}
+
+// MARK: - Device Offline Update Status
+
+struct DeviceOfflineUpdateStatus: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "wifi.slash")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Unable to check for updates")
+                    .font(.headline)
+                Text("The device must be online to verify its current version and check for available updates.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

@@ -11,11 +11,12 @@ struct DeviceListView: View {
 
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selection: DeviceWithState?
+    @State private var navigation: DeviceListNavigation
 
     @State private var addDeviceButtonActive: Bool = false
     @State private var showSettingsSheet: Bool = false
     @State private var pendingShowChangelog: Bool = false
+    @State private var devicePendingDeletion: DeviceWithState?
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
 
     @AppStorage("lastSelectedDeviceMac") private var lastSelectedDeviceMac: String = ""
@@ -28,10 +29,12 @@ struct DeviceListView: View {
 
     init(
         viewModel: DeviceWebsocketListViewModel,
-        changelogViewModel: ChangelogViewModel = ChangelogViewModel()
+        changelogViewModel: ChangelogViewModel = ChangelogViewModel(),
+        navigation: DeviceListNavigation = DeviceListNavigation()
     ) {
         _viewModel = State(wrappedValue: viewModel)
         _changelogViewModel = State(wrappedValue: changelogViewModel)
+        _navigation = State(wrappedValue: navigation)
     }
 
     // Allow injecting a specific database (defaulting to shared for the actual app)
@@ -97,6 +100,24 @@ struct DeviceListView: View {
             detailView
         }
         .navigationSplitViewStyle(.balanced)
+        .overlay {
+            if let pendingDevice = devicePendingDeletion {
+                ConfirmDeleteDeviceDialog(
+                    device: pendingDevice,
+                    onConfirm: {
+                        withAnimation {
+                            confirmDelete(device: pendingDevice)
+                        }
+                    },
+                    onCancel: {
+                        withAnimation(.snappy(duration: 0.2)) {
+                            devicePendingDeletion = nil
+                        }
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
         .onChange(of: viewModel.theme, initial: true) { _, newTheme in
             newTheme.applyToWindows()
         }
@@ -121,7 +142,7 @@ struct DeviceListView: View {
         .onChange(of: viewModel.allDevicesWithState) { _, devices in
             restoreLastSelection(from: devices)
         }
-        .onChange(of: selection) { _, newSelection in
+        .onChange(of: navigation.selection) { _, newSelection in
             if let mac = newSelection?.device.macAddress {
                 lastSelectedDeviceMac = mac
             }
@@ -143,7 +164,7 @@ struct DeviceListView: View {
 
     var list: some View {
         ZStack {
-            List(selection: $selection) {
+            List(selection: $navigation.selection) {
                 if viewModel.localNetworkDenied {
                     Section {
                         LocalNetworkWarningView(
@@ -196,7 +217,7 @@ struct DeviceListView: View {
         ForEach(devices) { device in
             DeviceListItemView(
                 device: device,
-                isSelected: selection == device,
+                isSelected: navigation.selection == device,
                 onTogglePower: { isOn in
                     viewModel.setDevicePower(for: device, isOn: isOn)
                 },
@@ -206,33 +227,40 @@ struct DeviceListView: View {
             )
             .onTapGesture {
                 withAnimation {
-                    selection = device
+                    navigation.select(device)
                 }
             }
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
             .buttonStyle(.plain)
-            .swipeActions(allowsFullSwipe: true) {
-                Button(role: .destructive) {
-                    withAnimation {
-                        deleteItems(device: device.device)
-                        let remainingDevices = devices.filter { $0 != device }
-                        // Call restore in case the selected item was deleted, this
-                        // will select another device (most likely the first one)
-                        restoreLastSelection(from: remainingDevices)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                // Intentionally omit `role: .destructive` here so UIKit does not
+                // optimistically collapse and re-insert the row before the user
+                // confirms deletion in `ConfirmDeleteDeviceDialog`.
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        devicePendingDeletion = device
                     }
                 } label: {
                     Label("Delete", systemImage: "trash.fill")
                 }
+                .tint(.red)
+
+                Button {
+                    openEditDevice(device)
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                .tint(.blue)
             }
         }
     }
 
     @ViewBuilder
     private var detailView: some View {
-        if let device = selection {
-            NavigationStack {
+        if let device = navigation.selection {
+            NavigationStack(path: navigation.detailPathBinding) {
                 DeviceView(device: device)
             }
         } else {
@@ -240,9 +268,11 @@ struct DeviceListView: View {
                 .font(.title2)
         }
     }
+}
 
-    // MARK: - Toolbar
+// MARK: - Toolbar & Actions
 
+extension DeviceListView {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
@@ -269,56 +299,45 @@ struct DeviceListView: View {
         }
     }
 
-    var addButton: some View {
-        Button {
-            addDeviceButtonActive.toggle()
-        } label: {
-            Label("Add New Device", systemImage: "plus")
-        }
-    }
-
-    var visibilityButton: some View {
-        Button {
-            withAnimation {
-                viewModel.showHiddenDevices.toggle()
-            }
-        } label: {
-            if viewModel.showHiddenDevices {
-                Label("Hide Hidden Devices", systemImage: "eye.slash")
-            } else {
-                Label("Show Hidden Devices", systemImage: "eye")
-            }
-        }
-    }
-
-    // MARK: - Actions
-
     @Sendable
-    private func refreshList() async {
+    func refreshList() async {
         viewModel.startDiscovery()
         viewModel.refreshOfflineDevices()
     }
 
-    private func appearAction() {
+    func appearAction() {
         viewModel.onResume()
     }
 
-    private func dismissChangelog() {
+    func openEditDevice(_ device: DeviceWithState) {
+        withAnimation {
+            navigation.openEdit(device)
+        }
+    }
+
+    func dismissChangelog() {
         Task {
             await changelogViewModel.dismiss()
         }
     }
 
-    private func deleteItems(device: Device) {
-        if selection?.device == device {
-            selection = nil
+    func confirmDelete(device: DeviceWithState) {
+        devicePendingDeletion = nil
+        deleteItems(device: device.device)
+        let remainingDevices = viewModel.visibleDevices.filter { $0 != device }
+        // Call restore in case the selected item was deleted, this
+        // will select another device (most likely the first one)
+        restoreLastSelection(from: remainingDevices)
+    }
+
+    func deleteItems(device: Device) {
+        if navigation.selection?.device == device {
+            navigation.clearSelection()
         }
         viewModel.deleteDevice(device)
     }
 
-    // MARK: - Automatic device selection
-
-    private func restoreLastSelection(
+    func restoreLastSelection(
         from devices: [DeviceWithState],
         currentSizeClass: UserInterfaceSizeClass? = nil
     ) {
@@ -330,17 +349,57 @@ struct DeviceListView: View {
         // IMPORTANT: Only try to restore if NOTHING is currently selected.
         // This prevents us from overriding a device the user just clicked on,
         // while ensuring we fill the "empty" screen if it appears.
-        guard selection == nil else { return }
+        guard navigation.selection == nil else { return }
         // Ensure there are devices to select
         guard !devices.isEmpty else { return }
 
         // Try to find the last selected device by MAC address
         if let lastDevice = devices.first(where: { $0.device.macAddress == lastSelectedDeviceMac }) {
-            selection = lastDevice
+            navigation.selection = lastDevice
         }
         // Fallback: Auto-select the first device
         else if let firstDevice = devices.first {
-            selection = firstDevice
+            navigation.selection = firstDevice
+        }
+    }
+}
+
+// MARK: - Confirm Delete Dialog
+
+struct ConfirmDeleteDeviceDialog: View {
+    var device: DeviceWithState
+    var onConfirm: () -> Void
+    var onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture(perform: onCancel)
+                .accessibilityHidden(true)
+
+            Card {
+                Text("Delete Device?")
+                    .font(.title3.bold())
+
+                Card(style: .device(color: device.currentColor)) {
+                    DeviceInfoTwoRows(device: device)
+                }
+
+                HStack {
+                    Spacer()
+                    Button("Cancel", role: .cancel, action: onCancel)
+                        .buttonStyle(.bordered)
+                    Button("Delete", role: .destructive, action: onConfirm)
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                }
+            }
+            .frame(maxWidth: 360)
+            .shadow(radius: 20)
+            .padding(.horizontal, 24)
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isModal)
         }
     }
 }

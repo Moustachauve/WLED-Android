@@ -3,14 +3,18 @@ import Shared
 
 private typealias State = SwiftUI.State
 
+/// Screens that can be pushed on top of a device's webview in the detail `NavigationStack`.
+/// Routes carry the device id so that switching devices replaces the pushed screen.
+enum DeviceDetailRoute: Hashable {
+    case edit(deviceId: String)
+}
+
 struct DeviceView: View {
     @Environment(\.colorScheme) var colorScheme
     var device: DeviceWithState
 
     @State var showDownloadFinished = false
     @State var shouldWebViewRefresh = false
-
-    @State var showEditDeviceView = false
 
     var body: some View {
         ZStack {
@@ -41,6 +45,12 @@ struct DeviceView: View {
         }
         .navigationTitle(device.device.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: DeviceDetailRoute.self) { route in
+            switch route {
+            case .edit:
+                DeviceEditView(device: device)
+            }
+        }
         .toolbar { toolbar }
     }
 
@@ -50,9 +60,7 @@ struct DeviceView: View {
             DeviceInfoTwoRows(device: device)
         }
         ToolbarItem(placement: .primaryAction) {
-            NavigationLink {
-                DeviceEditView(device: device)
-            } label: {
+            NavigationLink(value: DeviceDetailRoute.edit(deviceId: device.id)) {
                 Label("Settings", systemImage: "gear")
                 // This badge only works on iOS 26+, but that's fine.
                     .badge(getToolbarBadgeCount())

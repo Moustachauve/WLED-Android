@@ -15,3 +15,9 @@ Added OTA update support for **QuinLED** and **MoonModules** boards alongside of
 
 ### Smoother Connections & Discovery
 Unified real-time WebSocket management, faster mDNS device discovery, and a 60-second offline grace period so devices don't flicker into the offline list during brief reconnects.
+
+### Other Improvements
+- Added a battery level indicator for devices with the battery usermod enabled.
+- Added an Edit swipe action and a confirmation prompt before deleting devices from the list.
+- Added the firmware update source repository and offline update status to the Edit Device screen.
+- Added a live download progress bar when installing firmware updates.

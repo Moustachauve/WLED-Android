@@ -41,6 +41,16 @@ struct DeviceInfoTwoRows: View {
                     )
                 }
                 .labelStyle(.iconOnly)
+                if let batteryPercentage = device.stateInfo?.info.userMods?.batteryPercentage?.doubleValue {
+                    let roundedBattery = Int(batteryPercentage.rounded())
+                    Label {
+                        Text("Battery: \(roundedBattery)%")
+                    } icon: {
+                        Image(systemName: Self.batteryIconName(for: batteryPercentage))
+                            .font(.caption2)
+                    }
+                    .labelStyle(.iconOnly)
+                }
                 if !device.isOnline {
                     OfflineSinceText(device: device)
                         .lineLimit(1)
@@ -95,6 +105,22 @@ struct DeviceInfoTwoRows: View {
             }
         }
         return 0
+    }
+
+    static func batteryIconName(for batteryPercentage: Double) -> String {
+        if batteryPercentage <= 10 {
+            return "battery.0percent"
+        }
+        if batteryPercentage <= 35 {
+            return "battery.25percent"
+        }
+        if batteryPercentage <= 60 {
+            return "battery.50percent"
+        }
+        if batteryPercentage <= 85 {
+            return "battery.75percent"
+        }
+        return "battery.100percent"
     }
 }
 
