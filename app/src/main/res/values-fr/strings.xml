@@ -116,8 +116,9 @@
     <string name="widget_single_device_name">Appareil unique</string>
     <string name="widget_description">Permet de voir et contrôler un seul appareil WLED</string>
     <string name="widget_please_configure">Veuillez configurer</string>
+    <string name="widget_toggle_power">Basculer l\'alimentation</string>
+    <string name="widget_refresh">Rafraîchir</string>
     <string name="select_a_device">Sélectionnez un appareil</string>
-    <string name="last_updated">Dernière mise à jour</string>
 
     <!-- Deep linking -->
     <string name="deep_link_loading">Connexion à l\'appareil…</string>
