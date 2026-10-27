@@ -114,8 +114,9 @@
     <string name="widget_single_device_name">单个设备</string>
     <string name="widget_description">控制单个 WLED 设备</string>
     <string name="widget_please_configure">请配置</string>
+    <string name="widget_toggle_power">切换电源</string>
+    <string name="widget_refresh">刷新</string>
     <string name="select_a_device">选择设备</string>
-    <string name="last_updated">最后更新</string>
 
     <!-- Deep linking -->
     <string name="deep_link_loading">正在连接设备…</string>

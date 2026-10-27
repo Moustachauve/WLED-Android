@@ -23,7 +23,6 @@ import ca.cgagnier.wlednativeandroid.R
 @Composable
 fun ElapsedTimeChronometer(lastUpdated: Long) {
     val context = LocalContext.current
-    // TODO: This text is really hard to read on device with highly saturated colors and light theme
     val textColor = GlanceTheme.colors.onSurfaceVariant.getColor(context).toArgb()
 
     // Calculate the Chronometer base:
@@ -38,7 +37,6 @@ fun ElapsedTimeChronometer(lastUpdated: Long) {
         remoteViews = RemoteViews(context.packageName, R.layout.widget_last_updated).apply {
             setChronometer(R.id.chronometer, chronometerBase, null, true)
             setTextColor(R.id.chronometer, textColor)
-            setInt(R.id.history_icon, "setColorFilter", textColor)
         },
     )
 }

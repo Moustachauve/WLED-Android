@@ -18,15 +18,19 @@ import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
+import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
@@ -34,6 +38,7 @@ import androidx.glance.preview.ExperimentalGlancePreviewApi
 import androidx.glance.preview.Preview
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.widget.components.ElapsedTimeChronometer
@@ -44,8 +49,25 @@ import ca.cgagnier.wlednativeandroid.widget.components.WLEDWidgetTheme
 import kotlinx.serialization.json.Json
 
 val WIDGET_DATA_KEY = stringPreferencesKey("widget_data")
+
 private val NARROW_WIDGET_WIDTH_THRESHOLD = 160.dp
-private val WIDGET_SAFE_PADDING = 12.dp
+private val COMPACT_WIDGET_HEIGHT_THRESHOLD = 90.dp
+private val MULTILINE_TITLE_HEIGHT_THRESHOLD = 104.dp
+
+private val WIDE_HORIZONTAL_PADDING = 16.dp
+private val NARROW_HORIZONTAL_PADDING = 14.dp
+private val STANDARD_VERTICAL_PADDING = 14.dp
+private val COMPACT_VERTICAL_PADDING = 10.dp
+
+private val WIDE_GLOW_WIDTH = 156.dp
+private val NARROW_GLOW_SIZE = 120.dp
+
+private val STATUS_PILL_CORNER_RADIUS = 999.dp
+private val STATUS_PILL_HORIZONTAL_PADDING = 9.dp
+private val STATUS_PILL_VERTICAL_PADDING = 4.dp
+private val STATUS_DOT_SIZE = 7.dp
+private val STATUS_ICON_SIZE = 12.dp
+private val REFRESH_ICON_SIZE = 12.dp
 
 @Composable
 fun WidgetContent(context: Context, appWidgetId: Int) {
@@ -87,7 +109,6 @@ fun WidgetPreviewContent() {
 
 @Composable
 private fun ErrorState(context: Context, appWidgetId: Int) {
-    // Error State: Make it clickable to open the configuration
     val configureIntent = Intent(context, WledWidgetConfigureActivity::class.java).apply {
         putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -96,14 +117,26 @@ private fun ErrorState(context: Context, appWidgetId: Int) {
         modifier = GlanceModifier
             .fillMaxSize()
             .background(GlanceTheme.colors.widgetBackground)
-            .padding(8.dp)
+            .padding(12.dp)
             .clickable(actionStartActivity(configureIntent)),
         verticalAlignment = Alignment.CenterVertically,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Image(
+            provider = ImageProvider(R.drawable.baseline_error_outline_24),
+            contentDescription = null,
+            modifier = GlanceModifier.size(24.dp),
+            colorFilter = ColorFilter.tint(GlanceTheme.colors.error),
+        )
+        Spacer(modifier = GlanceModifier.height(6.dp))
         Text(
             text = context.getString(R.string.widget_please_configure),
-            style = TextStyle(color = GlanceTheme.colors.error),
+            style = TextStyle(
+                color = GlanceTheme.colors.onSurface,
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+            ),
         )
     }
 }
@@ -111,9 +144,6 @@ private fun ErrorState(context: Context, appWidgetId: Int) {
 @Composable
 private fun DeviceWidgetContent(data: WidgetStateData) {
     val size = LocalSize.current
-    // Threshold for switching between narrow and wide layouts.
-    // Standard cell width ~57dp-73dp. 110dp min width in xml implies ~2 cells.
-    // Let's assume < 150dp is narrow (compact), >= 150dp is wide (row).
     val isNarrow = size.width < NARROW_WIDGET_WIDTH_THRESHOLD
 
     if (isNarrow) {
@@ -125,22 +155,43 @@ private fun DeviceWidgetContent(data: WidgetStateData) {
 
 @Composable
 internal fun DeviceWidgetContentWide(data: WidgetStateData) {
-    DeviceWidgetContainer(data) {
+    DeviceWidgetContainer(data = data, isNarrow = false) {
         Column(
             modifier = GlanceModifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(modifier = GlanceModifier.fillMaxWidth()) {
-                DeviceDetailsColumn(
-                    data = data,
-                    modifier = GlanceModifier.defaultWeight(),
-                    showAddress = true,
-                )
-                // Switch stays next to content in Wide mode
-                PowerButton(isOn = data.isOn)
+            Row(
+                modifier = GlanceModifier.defaultWeight().fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = GlanceModifier.defaultWeight().fillMaxHeight(),
+                    horizontalAlignment = Alignment.Start,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        StatusPill(data)
+                        Spacer(modifier = GlanceModifier.width(6.dp))
+                        RefreshTimerButton(
+                            lastUpdated = data.lastUpdated,
+                            isTrailingAligned = false,
+                        )
+                    }
+
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+
+                    DeviceDetailsColumn(
+                        data = data,
+                        isNarrow = false,
+                    )
+                }
+
+                Spacer(modifier = GlanceModifier.width(12.dp))
+
+                PowerButton(isOn = data.isOn, isCompact = false)
             }
             // TODO: Add a way for users to configure quick actions
             if (data.quickActionsEnabled) {
+                Spacer(modifier = GlanceModifier.height(8.dp))
                 QuickActionButtons(
                     items = listOf(
                         QuickActionItem(label = "a1", onClick = actionRunCallback<RefreshAction>()),
@@ -156,135 +207,231 @@ internal fun DeviceWidgetContentWide(data: WidgetStateData) {
 
 @Composable
 private fun DeviceWidgetContentNarrow(data: WidgetStateData) {
-    DeviceWidgetContainer(data) {
+    DeviceWidgetContainer(data = data, isNarrow = true) {
         Column(
             modifier = GlanceModifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalAlignment = Alignment.Start,
         ) {
-            PowerButton(isOn = data.isOn)
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+            ) {
+                PowerButton(isOn = data.isOn, isCompact = true)
+                Spacer(modifier = GlanceModifier.defaultWeight())
+                RefreshTimerButton(
+                    lastUpdated = data.lastUpdated,
+                    isTrailingAligned = true,
+                )
+            }
+
+            Spacer(modifier = GlanceModifier.defaultWeight())
+
             DeviceDetailsColumn(
                 data = data,
-                modifier = GlanceModifier.defaultWeight(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                showAddress = false,
+                isNarrow = true,
             )
         }
     }
 }
 
 @Composable
-private fun DeviceWidgetContainer(data: WidgetStateData, content: @Composable () -> Unit) {
+private fun DeviceWidgetContainer(data: WidgetStateData, isNarrow: Boolean, content: @Composable () -> Unit) {
     val intent = data.toOpenWidgetInAppIntent(LocalContext.current)
+    val size = LocalSize.current
+    val horizontalPadding = if (isNarrow) NARROW_HORIZONTAL_PADDING else WIDE_HORIZONTAL_PADDING
+    val verticalPadding = if (size.height < COMPACT_WIDGET_HEIGHT_THRESHOLD) {
+        COMPACT_VERTICAL_PADDING
+    } else {
+        STANDARD_VERTICAL_PADDING
+    }
 
     Box(
-        modifier = GlanceModifier.fillMaxSize(),
-        contentAlignment = Alignment.TopEnd,
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .background(GlanceTheme.colors.widgetBackground)
+            .clickable(actionStartActivity(intent)),
     ) {
-        Column(
+        if (data.isOnline && data.isOn) {
+            AmbientButtonGlow(isNarrow = isNarrow)
+        }
+
+        Box(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(GlanceTheme.colors.widgetBackground)
-                .padding(WIDGET_SAFE_PADDING)
-                .clickable(actionStartActivity(intent)),
+                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         ) {
-            // Main content takes available space
-            Box(
-                modifier = GlanceModifier.defaultWeight().fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
-                content()
-            }
+            content()
         }
-        RefreshButton()
-        ElapsedTimeChronometerContainer(data.lastUpdated)
     }
 }
 
 @Composable
-private fun DeviceDetailsColumn(
-    data: WidgetStateData,
-    modifier: GlanceModifier = GlanceModifier,
-    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
-    showAddress: Boolean = true,
-) {
+private fun AmbientButtonGlow(isNarrow: Boolean) {
+    if (isNarrow) {
+        Box(
+            modifier = GlanceModifier.fillMaxSize(),
+            contentAlignment = Alignment.TopStart,
+        ) {
+            Image(
+                provider = ImageProvider(R.drawable.widget_ambient_glow_top_start),
+                contentDescription = null,
+                modifier = GlanceModifier.size(NARROW_GLOW_SIZE),
+                contentScale = ContentScale.FillBounds,
+                colorFilter = ColorFilter.tint(GlanceTheme.colors.primary),
+            )
+        }
+    } else {
+        Box(
+            modifier = GlanceModifier.fillMaxSize(),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            Image(
+                provider = ImageProvider(R.drawable.widget_ambient_glow_end),
+                contentDescription = null,
+                modifier = GlanceModifier.width(WIDE_GLOW_WIDTH).fillMaxHeight(),
+                contentScale = ContentScale.FillBounds,
+                colorFilter = ColorFilter.tint(GlanceTheme.colors.primary),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeviceDetailsColumn(data: WidgetStateData, isNarrow: Boolean, modifier: GlanceModifier = GlanceModifier) {
+    val maxTitleLines = if (LocalSize.current.height >= MULTILINE_TITLE_HEIGHT_THRESHOLD) 2 else 1
+    val titleFontSize = if (isNarrow) 14.sp else 16.sp
+
     Column(
-        modifier = modifier,
-        horizontalAlignment = horizontalAlignment,
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.Start,
     ) {
         Text(
             text = data.name,
             style = TextStyle(
                 color = GlanceTheme.colors.onSurface,
                 fontWeight = FontWeight.Bold,
+                fontSize = titleFontSize,
             ),
-            maxLines = 1,
+            maxLines = maxTitleLines,
         )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (showAddress) {
-                Text(
-                    text = data.address,
-                    style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
-                    maxLines = 1,
-                )
-            }
-            if (!data.isOnline) {
-                if (showAddress) {
-                    Spacer(modifier = GlanceModifier.width(8.dp))
-                }
-                Image(
-                    provider = ImageProvider(R.drawable.twotone_signal_wifi_connected_no_internet_0_24),
-                    contentDescription = LocalContext.current.getString(R.string.is_offline),
-                    modifier = GlanceModifier.size(12.dp),
-                    colorFilter = ColorFilter.tint(GlanceTheme.colors.error),
-                )
-                Spacer(modifier = GlanceModifier.width(4.dp))
-                Text(
-                    text = LocalContext.current.getString(R.string.is_offline),
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                        fontSize = 12.sp,
-                    ),
-                    maxLines = 1,
-                )
-            }
+        Spacer(modifier = GlanceModifier.height(2.dp))
+        if (isNarrow) {
+            StatusContent(data)
+        } else {
+            Text(
+                text = data.address,
+                style = TextStyle(
+                    color = GlanceTheme.colors.onSurfaceVariant,
+                    fontSize = 12.sp,
+                ),
+                maxLines = 1,
+            )
         }
     }
 }
 
 @Composable
-private fun RefreshButton(modifier: GlanceModifier = GlanceModifier) {
-    Box(modifier = modifier.padding(8.dp)) {
-        Image(
-            provider = ImageProvider(R.drawable.outline_refresh_24),
-            contentDescription = "Refresh",
-            modifier = GlanceModifier
-                .size(20.dp)
-                .padding(4.dp)
-                .clickable(
-                    actionRunCallback<RefreshAction>(),
-                ),
-            colorFilter = ColorFilter.tint(GlanceTheme.colors.outline),
-        )
+private fun StatusPill(data: WidgetStateData) {
+    Box(
+        modifier = GlanceModifier
+            .background(
+                imageProvider = ImageProvider(R.drawable.widget_pill_background),
+                colorFilter = ColorFilter.tint(GlanceTheme.colors.surfaceVariant),
+            )
+            .cornerRadius(STATUS_PILL_CORNER_RADIUS)
+            .padding(
+                horizontal = STATUS_PILL_HORIZONTAL_PADDING,
+                vertical = STATUS_PILL_VERTICAL_PADDING,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        StatusContent(data)
     }
 }
 
 @Composable
-private fun ElapsedTimeChronometerContainer(lastUpdated: Long) {
-    Box(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            // Small bottom padding to be near the bottom edge, bigger end padding to be safe from the corner radius
-            .padding(bottom = 2.dp, end = 20.dp),
-        contentAlignment = Alignment.BottomEnd,
-    ) {
-        ElapsedTimeChronometer(lastUpdated)
+private fun StatusContent(data: WidgetStateData) {
+    val context = LocalContext.current
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (!data.isOnline) {
+            Image(
+                provider = ImageProvider(R.drawable.twotone_signal_wifi_connected_no_internet_0_24),
+                contentDescription = null,
+                modifier = GlanceModifier.size(STATUS_ICON_SIZE),
+                colorFilter = ColorFilter.tint(GlanceTheme.colors.error),
+            )
+            Spacer(modifier = GlanceModifier.width(4.dp))
+            Text(
+                text = context.getString(R.string.is_offline),
+                style = TextStyle(
+                    color = GlanceTheme.colors.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.sp,
+                ),
+                maxLines = 1,
+            )
+        } else {
+            val dotColor = if (data.isOn) GlanceTheme.colors.primary else GlanceTheme.colors.outline
+            val textColor = if (data.isOn) GlanceTheme.colors.onSurface else GlanceTheme.colors.onSurfaceVariant
+            val statusText = context.getString(
+                if (data.isOn) R.string.control_on else R.string.control_off,
+            )
+
+            Image(
+                provider = ImageProvider(R.drawable.widget_circle_fill),
+                contentDescription = null,
+                modifier = GlanceModifier.size(STATUS_DOT_SIZE),
+                colorFilter = ColorFilter.tint(dotColor),
+            )
+            Spacer(modifier = GlanceModifier.width(5.dp))
+            Text(
+                text = statusText,
+                style = TextStyle(
+                    color = textColor,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.sp,
+                ),
+                maxLines = 1,
+            )
+        }
     }
+}
+
+@Composable
+private fun RefreshTimerButton(lastUpdated: Long, isTrailingAligned: Boolean) {
+    Row(
+        modifier = GlanceModifier
+            .cornerRadius(8.dp)
+            .clickable(actionRunCallback<RefreshAction>())
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (isTrailingAligned) {
+            ElapsedTimeChronometer(lastUpdated)
+            Spacer(modifier = GlanceModifier.width(3.dp))
+            RefreshIcon()
+        } else {
+            RefreshIcon()
+            Spacer(modifier = GlanceModifier.width(3.dp))
+            ElapsedTimeChronometer(lastUpdated)
+        }
+    }
+}
+
+@Composable
+private fun RefreshIcon() {
+    Image(
+        provider = ImageProvider(R.drawable.outline_refresh_24),
+        contentDescription = LocalContext.current.getString(R.string.widget_refresh),
+        modifier = GlanceModifier.size(REFRESH_ICON_SIZE),
+        colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant),
+    )
 }
 
 @Suppress("MagicNumber")
 @OptIn(ExperimentalGlancePreviewApi::class)
-@Preview(widthDp = 200, heightDp = 100)
+@Preview(widthDp = 220, heightDp = 110)
 @Composable
 private fun DeviceWidgetContentPreviewOn() {
     WidgetPreviewContent()
@@ -292,7 +439,7 @@ private fun DeviceWidgetContentPreviewOn() {
 
 @Suppress("MagicNumber")
 @OptIn(ExperimentalGlancePreviewApi::class)
-@Preview(widthDp = 150, heightDp = 100)
+@Preview(widthDp = 140, heightDp = 120)
 @Composable
 private fun DeviceWidgetContentPreviewNarrow() {
     val widgetData = WidgetStateData(
@@ -310,7 +457,7 @@ private fun DeviceWidgetContentPreviewNarrow() {
 
 @Suppress("MagicNumber")
 @OptIn(ExperimentalGlancePreviewApi::class)
-@Preview(widthDp = 200, heightDp = 100)
+@Preview(widthDp = 220, heightDp = 110)
 @Composable
 private fun DeviceWidgetContentPreviewOff() {
     val widgetData = WidgetStateData(
@@ -328,7 +475,7 @@ private fun DeviceWidgetContentPreviewOff() {
 
 @Suppress("MagicNumber")
 @OptIn(ExperimentalGlancePreviewApi::class)
-@Preview(widthDp = 200, heightDp = 100)
+@Preview(widthDp = 220, heightDp = 140)
 @Composable
 private fun DeviceWidgetContentPreviewQuickActions() {
     val widgetData = WidgetStateData(
