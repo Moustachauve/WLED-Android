@@ -4,6 +4,7 @@ import android.content.Context
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.WidgetSnapshot
+import ca.cgagnier.wlednativeandroid.model.WifiSignalLevel
 import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
 import ca.cgagnier.wlednativeandroid.model.wledapi.Info
 import ca.cgagnier.wlednativeandroid.model.wledapi.Leds
@@ -61,6 +62,7 @@ class WidgetStateSyncTest {
         isOn: Boolean = true,
         brightness: Int = 128,
         colors: List<List<Int>>? = listOf(listOf(255, 0, 0)),
+        rssi: Int? = null,
         status: WebsocketStatus = WebsocketStatus.CONNECTED,
         hasStateInfo: Boolean = true,
     ): DeviceWithState {
@@ -74,7 +76,7 @@ class WidgetStateSyncTest {
                 info = Info(
                     version = "0.14.0",
                     leds = Leds(count = 30),
-                    wifi = Wifi(),
+                    wifi = Wifi(rssi = rssi),
                     name = "WLED",
                 ),
             )
@@ -209,5 +211,34 @@ class WidgetStateSyncTest {
 
         coVerify(exactly = 0) { widgetManager.updateWidgetsFromSnapshot(context, any()) }
         coVerify(exactly = 1) { widgetManager.deleteWidgetsForDevice(context, "AA:BB:CC:DD:EE:02") }
+    }
+
+    @Test
+    fun `updates widget when WiFi signal level bucket changes`() = runTest(testDispatcher) {
+        createAndStartSync()
+        devicesFlow.value = listOf(createDeviceWithState(rssi = -55))
+        advanceUntilIdle()
+
+        currentTime += 5_000L
+        devicesFlow.value = listOf(createDeviceWithState(rssi = -85))
+        advanceUntilIdle()
+
+        val snapshots = mutableListOf<WidgetSnapshot>()
+        coVerify(exactly = 2) { widgetManager.updateWidgetsFromSnapshot(context, capture(snapshots)) }
+        assertEquals(WifiSignalLevel.GOOD, snapshots[0].signalLevel)
+        assertEquals(WifiSignalLevel.WEAK, snapshots[1].signalLevel)
+    }
+
+    @Test
+    fun `skips widget update when RSSI changes within the same signal level bucket`() = runTest(testDispatcher) {
+        createAndStartSync()
+        devicesFlow.value = listOf(createDeviceWithState(rssi = -55))
+        advanceUntilIdle()
+
+        currentTime += 5_000L
+        devicesFlow.value = listOf(createDeviceWithState(rssi = -58))
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { widgetManager.updateWidgetsFromSnapshot(context, any()) }
     }
 }

@@ -14,7 +14,7 @@ Prefer a quieter network? Turn off "Automatically Discover New Devices" in Setti
 Added OTA update support for **QuinLED** and **MoonModules** boards alongside official WLED releases.
 
 ### Home Screen Widgets, Siri & Shortcuts
-Add small or medium WLED widgets to your Home Screen to check status, toggle power, or jump straight to a device, and control your lights from Siri, the Shortcuts app, or the Action button — including setting brightness from 0% to 100%.
+Add small or medium WLED widgets to your Home Screen to check status and Wi-Fi signal strength, toggle power, or jump straight to a device, and control your lights from Siri, the Shortcuts app, or the Action button — including setting brightness from 0% to 100%.
 
 ### Smoother Connections & Discovery
 Unified real-time WebSocket management, faster mDNS device discovery, and a 60-second offline grace period so devices don't flicker into the offline list during brief reconnects.

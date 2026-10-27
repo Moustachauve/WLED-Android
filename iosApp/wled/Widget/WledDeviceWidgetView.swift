@@ -1,4 +1,5 @@
 import AppIntents
+import Shared
 import SwiftUI
 import WidgetKit
 
@@ -176,25 +177,32 @@ struct WledDeviceWidgetView: View {
 
     private func statusContent(data: WledWidgetData) -> some View {
         HStack(spacing: 4) {
+            Image(
+                systemName: data.signalLevel.symbolName,
+                variableValue: data.signalLevel.variableValue
+            )
+            .symbolRenderingMode(.hierarchical)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(statusIconStyle(for: data))
+            .widgetAccentable(!data.isOnline || data.isOn)
+            .accessibilityHidden(true)
+
             if !data.isOnline {
-                Image(systemName: "wifi.slash")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.red)
-                    .widgetAccentable()
-                    .accessibilityHidden(true)
                 Text("Offline")
                     .foregroundStyle(.secondary)
             } else {
-                Circle()
-                    .fill(data.isOn ? accentColor(for: data) : Color.secondary.opacity(0.5))
-                    .frame(width: 7, height: 7)
-                    .widgetAccentable(data.isOn)
-                    .accessibilityHidden(true)
                 Text(data.isOn ? "On" : "Off")
                     .foregroundStyle(data.isOn ? .primary : .secondary)
             }
         }
         .lineLimit(1)
+    }
+
+    private func statusIconStyle(for data: WledWidgetData) -> Color {
+        if !data.isOnline {
+            return .red
+        }
+        return data.isOn ? accentColor(for: data) : Color.secondary.opacity(0.5)
     }
 
     private func powerButton(data: WledWidgetData) -> some View {

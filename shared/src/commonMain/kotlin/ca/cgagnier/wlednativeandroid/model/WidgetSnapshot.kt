@@ -18,6 +18,7 @@ data class WidgetSnapshot(
     val isOnline: Boolean,
     val color: Int = -1, // ARGB Int
     val brightness: Int? = null,
+    val signalLevel: WifiSignalLevel = if (isOnline) WifiSignalLevel.GOOD else WifiSignalLevel.OFFLINE,
     val lastUpdated: Long = 0L,
 )
 
@@ -35,6 +36,10 @@ fun DeviceWithState.toWidgetSnapshot(
     state = stateInfo?.state,
     isOnline = isOnline,
     fallbackColor = fallbackColor,
+    fallbackSignalLevel = WifiSignalLevel.fromRssi(
+        rssi = stateInfo?.info?.wifi?.rssi,
+        isOnline = isOnline,
+    ),
     now = now,
 )
 
@@ -65,10 +70,16 @@ fun createWidgetSnapshotFromState(
     macAddress: String = device?.macAddress ?: "",
     fallbackIsOn: Boolean = false,
     fallbackColor: Int = -1,
+    fallbackSignalLevel: WifiSignalLevel = WifiSignalLevel.GOOD,
     now: Long = currentTimeMillis(),
 ): WidgetSnapshot {
     val color = getColorFromState(state) ?: fallbackColor
     val resolvedName = resolveDeviceName(device, defaultName)
+    val resolvedSignalLevel = if (isOnline) {
+        fallbackSignalLevel.takeUnless { it == WifiSignalLevel.OFFLINE } ?: WifiSignalLevel.GOOD
+    } else {
+        WifiSignalLevel.OFFLINE
+    }
     return WidgetSnapshot(
         macAddress = macAddress,
         address = targetAddress,
@@ -77,6 +88,7 @@ fun createWidgetSnapshotFromState(
         isOnline = isOnline,
         color = color,
         brightness = state?.brightness,
+        signalLevel = resolvedSignalLevel,
         lastUpdated = now,
     )
 }

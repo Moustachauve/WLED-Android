@@ -1,4 +1,5 @@
 import Foundation
+import Shared
 import Testing
 @testable import WLED
 
@@ -14,6 +15,39 @@ struct WledWidgetDataTests {
         )
 
         #expect(data.deepLinkURL?.absoluteString == "wled://device/aabbccddeeff")
+    }
+
+    @Test(arguments: [
+        (WifiSignalLevel.good, "wifi", 1.0),
+        (WifiSignalLevel.fair, "wifi", 0.64),
+        (WifiSignalLevel.weak, "wifi", 0.33),
+        (WifiSignalLevel.none, "wifi", 0.0),
+        (WifiSignalLevel.offline, "wifi.slash", 0.0)
+    ])
+    func wifiSignalLevelMapsToSymbolNameAndVariableValue(
+        level: WifiSignalLevel,
+        expectedSymbol: String,
+        expectedValue: Double
+    ) {
+        #expect(level.symbolName == expectedSymbol)
+        #expect(level.variableValue == expectedValue)
+    }
+
+    @Test func decodingLegacyJsonWithoutSignalLevelDefaultsBasedOnOnlineStatus() throws {
+        let legacyJson = Data("""
+        {
+            "macAddress": "aabbccddeeff",
+            "address": "192.168.1.101",
+            "name": "Desk Lamp",
+            "isOn": true,
+            "isOnline": true,
+            "color": -1,
+            "lastUpdated": 1000
+        }
+        """.utf8)
+
+        let decoded = try JSONDecoder().decode(WledWidgetData.self, from: legacyJson)
+        #expect(decoded.signalLevel == .good)
     }
 
     struct DeepLinkCase: Sendable {

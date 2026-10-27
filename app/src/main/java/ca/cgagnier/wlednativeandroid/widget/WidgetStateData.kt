@@ -1,6 +1,7 @@
 package ca.cgagnier.wlednativeandroid.widget
 
 import ca.cgagnier.wlednativeandroid.model.WidgetSnapshot
+import ca.cgagnier.wlednativeandroid.model.WifiSignalLevel
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -12,6 +13,7 @@ data class WidgetStateData(
     val isOnline: Boolean = true,
     val color: Int = -1, // Store as ARGB Int. -1 or default could indicate "unknown"
     val batteryLevel: Int? = null,
+    val signalLevel: WifiSignalLevel = if (isOnline) WifiSignalLevel.GOOD else WifiSignalLevel.OFFLINE,
     val lastUpdated: Long = System.currentTimeMillis(),
     // TODO: Add support for quick actions
     val quickActionsEnabled: Boolean = false,
@@ -23,6 +25,7 @@ data class WidgetStateData(
         isOn = snapshot.isOn,
         isOnline = snapshot.isOnline,
         color = snapshot.color,
+        signalLevel = snapshot.signalLevel,
         lastUpdated = snapshot.lastUpdated,
     )
 
@@ -34,6 +37,7 @@ data class WidgetStateData(
             isOn = snapshot.isOn,
             isOnline = snapshot.isOnline,
             color = snapshot.color,
+            signalLevel = snapshot.signalLevel,
             lastUpdated = snapshot.lastUpdated,
         )
     }

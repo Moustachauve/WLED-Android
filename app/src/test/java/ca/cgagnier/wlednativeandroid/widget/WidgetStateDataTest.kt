@@ -1,9 +1,16 @@
 package ca.cgagnier.wlednativeandroid.widget
 
+import ca.cgagnier.wlednativeandroid.R
+import ca.cgagnier.wlednativeandroid.model.WifiSignalLevel
+import ca.cgagnier.wlednativeandroid.ui.components.toIconRes
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
+import java.util.stream.Stream
 
 class WidgetStateDataTest {
 
@@ -22,6 +29,26 @@ class WidgetStateDataTest {
         assertTrue(data.isOn)
         assertTrue(data.isOnline) // default
         assertEquals(-1, data.color) // default
+        assertEquals(WifiSignalLevel.GOOD, data.signalLevel) // default when online
+    }
+
+    @Test
+    fun `WidgetStateData defaults signalLevel to OFFLINE when isOnline is false`() {
+        val data = WidgetStateData(
+            macAddress = "AABBCCDDEEFF",
+            address = "192.168.1.100",
+            name = "Test Device",
+            isOn = false,
+            isOnline = false,
+        )
+
+        assertEquals(WifiSignalLevel.OFFLINE, data.signalLevel)
+    }
+
+    @ParameterizedTest
+    @MethodSource("signalLevelIconCases")
+    fun `WifiSignalLevel toIconRes maps each level to its drawable`(level: WifiSignalLevel, expectedRes: Int) {
+        assertEquals(expectedRes, level.toIconRes())
     }
 
     @Test
@@ -103,5 +130,16 @@ class WidgetStateDataTest {
         )
 
         assertTrue(data1 != data2)
+    }
+
+    companion object {
+        @JvmStatic
+        fun signalLevelIconCases(): Stream<Arguments> = Stream.of(
+            Arguments.of(WifiSignalLevel.OFFLINE, R.drawable.twotone_signal_wifi_off_24),
+            Arguments.of(WifiSignalLevel.GOOD, R.drawable.twotone_signal_wifi_3_bar_24),
+            Arguments.of(WifiSignalLevel.FAIR, R.drawable.twotone_signal_wifi_2_bar_24),
+            Arguments.of(WifiSignalLevel.WEAK, R.drawable.twotone_signal_wifi_1_bar_24),
+            Arguments.of(WifiSignalLevel.NONE, R.drawable.twotone_signal_wifi_0_bar_24),
+        )
     }
 }

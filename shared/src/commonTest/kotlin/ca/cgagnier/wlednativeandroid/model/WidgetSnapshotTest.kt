@@ -22,6 +22,7 @@ class WidgetSnapshotTest {
         isOn: Boolean = true,
         brightness: Int = 128,
         colors: List<List<Int>>? = null,
+        rssi: Int? = null,
         status: WebsocketStatus = WebsocketStatus.CONNECTED,
     ): DeviceWithState {
         val segment = colors?.let { listOf(Segment(colors = it)) }
@@ -29,7 +30,7 @@ class WidgetSnapshotTest {
         val info = Info(
             version = "0.14.0",
             leds = Leds(count = 30),
-            wifi = Wifi(),
+            wifi = Wifi(rssi = rssi),
             name = originalName,
         )
         return DeviceWithState(
@@ -112,18 +113,18 @@ class WidgetSnapshotTest {
     private fun snapshotFromState(
         state: State? = null,
         isOnline: Boolean = false,
-        macAddress: String = "",
         fallbackIsOn: Boolean = false,
         fallbackColor: Int = -1,
+        fallbackSignalLevel: WifiSignalLevel = WifiSignalLevel.GOOD,
     ): WidgetSnapshot = createWidgetSnapshotFromState(
         device = null,
         targetAddress = "10.0.0.2",
         defaultName = "(New Device)",
         state = state,
         isOnline = isOnline,
-        macAddress = macAddress,
         fallbackIsOn = fallbackIsOn,
         fallbackColor = fallbackColor,
+        fallbackSignalLevel = fallbackSignalLevel,
         now = 1_000L,
     )
 
@@ -161,8 +162,71 @@ class WidgetSnapshotTest {
 
     @Test
     fun createWidgetSnapshotFromStatePreservesExplicitMacAddressWhenDeviceIsNull() {
-        val snapshot = snapshotFromState(macAddress = "aabbccddeeff")
+        val snapshot = createWidgetSnapshotFromState(
+            device = null,
+            targetAddress = "10.0.0.2",
+            defaultName = "(New Device)",
+            state = null,
+            isOnline = false,
+            macAddress = "aabbccddeeff",
+            now = 1_000L,
+        )
 
         assertEquals("aabbccddeeff", snapshot.macAddress)
+    }
+
+    @Test
+    fun toWidgetSnapshotMapsRssiToSignalLevel() {
+        listOf(
+            -50 to WifiSignalLevel.GOOD,
+            -65 to WifiSignalLevel.GOOD,
+            -70 to WifiSignalLevel.GOOD,
+            -75 to WifiSignalLevel.FAIR,
+            -80 to WifiSignalLevel.FAIR,
+            -90 to WifiSignalLevel.WEAK,
+            -100 to WifiSignalLevel.WEAK,
+            -105 to WifiSignalLevel.NONE,
+            null to WifiSignalLevel.GOOD,
+        ).forEach { (rssi, expectedLevel) ->
+            val device = createDeviceWithState(rssi = rssi, status = WebsocketStatus.CONNECTED)
+            assertEquals(
+                expectedLevel,
+                device.toWidgetSnapshot(defaultName = "Default").signalLevel,
+                "Unexpected signalLevel for rssi=$rssi",
+            )
+        }
+    }
+
+    @Test
+    fun toWidgetSnapshotMapsDisconnectedDeviceToOfflineSignalLevel() {
+        val device = createDeviceWithState(rssi = -50, status = WebsocketStatus.DISCONNECTED)
+        assertEquals(WifiSignalLevel.OFFLINE, device.toWidgetSnapshot(defaultName = "Default").signalLevel)
+    }
+
+    @Test
+    fun createWidgetSnapshotFromStatePreservesCachedSignalLevelWhenOnline() {
+        val snapshot = snapshotFromState(
+            isOnline = true,
+            fallbackSignalLevel = WifiSignalLevel.FAIR,
+        )
+        assertEquals(WifiSignalLevel.FAIR, snapshot.signalLevel)
+    }
+
+    @Test
+    fun createWidgetSnapshotFromStateUpgradesOfflineFallbackSignalLevelToGoodWhenOnline() {
+        val snapshot = snapshotFromState(
+            isOnline = true,
+            fallbackSignalLevel = WifiSignalLevel.OFFLINE,
+        )
+        assertEquals(WifiSignalLevel.GOOD, snapshot.signalLevel)
+    }
+
+    @Test
+    fun createWidgetSnapshotFromStateForcesOfflineSignalLevelWhenNotOnline() {
+        val snapshot = snapshotFromState(
+            isOnline = false,
+            fallbackSignalLevel = WifiSignalLevel.GOOD,
+        )
+        assertEquals(WifiSignalLevel.OFFLINE, snapshot.signalLevel)
     }
 }

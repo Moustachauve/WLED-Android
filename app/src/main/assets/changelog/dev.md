@@ -2,7 +2,7 @@
 Automatically see release notes after an app update or revisit them anytime from Settings (just like the one you are reading right now!).
 
 ### Refreshed Home Screen Widgets
-Home screen widgets now feature a cleaner Material 3 adaptive layout with a status pill, unified refresh timer, rounded-square power button, and a soft ambient glow when your lights are on.
+Home screen widgets now feature a cleaner Material 3 adaptive layout with a status pill showing live Wi-Fi signal strength, a unified refresh timer, a rounded-square power button, and a soft ambient glow when your lights are on.
 
 ### Other Improvements & Fixes
 - Fixed selecting files (such as firmware updates, presets, or PixelForge images) when uploading to a device from the WebView.

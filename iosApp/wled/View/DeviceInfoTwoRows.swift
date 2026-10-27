@@ -29,16 +29,18 @@ struct DeviceInfoTwoRows: View {
                     .lineLimit(1)
                     .fixedSize()
                     .lineSpacing(0)
-                let signalStrength = device.stateInfo?.info.wifi.signal?.intValue ?? 0
+                let signalRssi = device.stateInfo?.info.wifi.rssi
+                let signalLevel = WifiSignalLevel.companion.fromRssi(
+                    rssi: signalRssi,
+                    isOnline: device.isOnline,
+                    defaultWhenNull: .offline
+                )
                 Label {
                     Text(
-                        device.isOnline ? "Signal Strength: \(signalStrength)" : "Offline"
+                        device.isOnline ? "Signal Strength: \(signalRssi?.intValue ?? 0)" : "Offline"
                     )
                 } icon: {
-                    getSignalIcon(
-                        isOnline: device.isOnline,
-                        signalStrength: signalStrength
-                    )
+                    getSignalIcon(signalLevel: signalLevel)
                 }
                 .labelStyle(.iconOnly)
                 if let batteryPercentage = device.stateInfo?.info.userMods?.batteryPercentage?.doubleValue {
@@ -83,28 +85,11 @@ struct DeviceInfoTwoRows: View {
     }
 
     @ViewBuilder
-    func getSignalIcon(isOnline: Bool, signalStrength: Int?) -> some View {
-        let icon = !isOnline || signalStrength == nil || signalStrength == 0 ? "wifi.slash" : "wifi"
-
-        Image(systemName: icon, variableValue: getSignalValue(signalStrength: signalStrength))
+    func getSignalIcon(signalLevel: WifiSignalLevel) -> some View {
+        Image(systemName: signalLevel.symbolName, variableValue: signalLevel.variableValue)
             .symbolRenderingMode(.hierarchical)
             .font(.caption2)
             .contentTransition(.symbolEffect(.replace))
-    }
-
-    func getSignalValue(signalStrength: Int?) -> Double {
-        if let signalStrength {
-            if signalStrength >= -67 {
-                return 1
-            }
-            if signalStrength >= -80 {
-                return 0.64
-            }
-            if signalStrength >= -100 {
-                return 0.33
-            }
-        }
-        return 0
     }
 
     static func batteryIconName(for batteryPercentage: Double) -> String {
