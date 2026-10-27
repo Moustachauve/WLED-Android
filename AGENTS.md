@@ -60,6 +60,7 @@ SKIP_KMP_BUILD=1 xcodebuild test \
 ```
 *   **Pre-Commit Hook:** A Git pre-commit hook (`.git/hooks/pre-commit`, installed via `./gradlew installGitHooks`) blocks commits if `spotlessCheck`, `detekt`, or `swiftlint` fail.
 *   **Clean Working Tree:** Before committing, check `git status` to ensure IDE or Xcode build side-effects (e.g., unintended timestamps in `iosApp/wled/Localizable.xcstrings` or `.idea/` files) are not left dirty or accidentally staged.
+*   Make sure when building in Xcode that there are no compile warnings. 
 
 ## 4. Git & Pull Request Rules
 *   **Branches:** `main` is the stable release branch (never push or target PRs directly to `main` except hotfixes, which must be merged back into `dev`). Base all feature branches and PRs on `dev`.
