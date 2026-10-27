@@ -67,7 +67,6 @@ private val STATUS_PILL_HORIZONTAL_PADDING = 9.dp
 private val STATUS_PILL_VERTICAL_PADDING = 4.dp
 private val STATUS_DOT_SIZE = 7.dp
 private val STATUS_ICON_SIZE = 12.dp
-private val REFRESH_ICON_SIZE = 12.dp
 
 @Composable
 fun WidgetContent(context: Context, appWidgetId: Int) {
@@ -171,10 +170,7 @@ internal fun DeviceWidgetContentWide(data: WidgetStateData) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         StatusPill(data)
                         Spacer(modifier = GlanceModifier.width(6.dp))
-                        RefreshTimerButton(
-                            lastUpdated = data.lastUpdated,
-                            isTrailingAligned = false,
-                        )
+                        RefreshTimerButton(lastUpdated = data.lastUpdated)
                     }
 
                     Spacer(modifier = GlanceModifier.defaultWeight())
@@ -217,11 +213,12 @@ private fun DeviceWidgetContentNarrow(data: WidgetStateData) {
                 verticalAlignment = Alignment.Top,
             ) {
                 PowerButton(isOn = data.isOn, isCompact = true)
-                Spacer(modifier = GlanceModifier.defaultWeight())
-                RefreshTimerButton(
-                    lastUpdated = data.lastUpdated,
-                    isTrailingAligned = true,
-                )
+                Box(
+                    modifier = GlanceModifier.defaultWeight(),
+                    contentAlignment = Alignment.TopEnd,
+                ) {
+                    RefreshTimerButton(lastUpdated = data.lastUpdated)
+                }
             }
 
             Spacer(modifier = GlanceModifier.defaultWeight())
@@ -399,34 +396,16 @@ private fun StatusContent(data: WidgetStateData) {
 }
 
 @Composable
-private fun RefreshTimerButton(lastUpdated: Long, isTrailingAligned: Boolean) {
-    Row(
+private fun RefreshTimerButton(lastUpdated: Long) {
+    Box(
         modifier = GlanceModifier
             .cornerRadius(8.dp)
             .clickable(actionRunCallback<RefreshAction>())
             .padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        contentAlignment = Alignment.Center,
     ) {
-        if (isTrailingAligned) {
-            ElapsedTimeChronometer(lastUpdated)
-            Spacer(modifier = GlanceModifier.width(3.dp))
-            RefreshIcon()
-        } else {
-            RefreshIcon()
-            Spacer(modifier = GlanceModifier.width(3.dp))
-            ElapsedTimeChronometer(lastUpdated)
-        }
+        ElapsedTimeChronometer(lastUpdated = lastUpdated)
     }
-}
-
-@Composable
-private fun RefreshIcon() {
-    Image(
-        provider = ImageProvider(R.drawable.outline_refresh_24),
-        contentDescription = LocalContext.current.getString(R.string.widget_refresh),
-        modifier = GlanceModifier.size(REFRESH_ICON_SIZE),
-        colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant),
-    )
 }
 
 @Suppress("MagicNumber")

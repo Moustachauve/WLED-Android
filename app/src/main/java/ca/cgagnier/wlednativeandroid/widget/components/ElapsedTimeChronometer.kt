@@ -10,13 +10,11 @@ import androidx.glance.appwidget.AndroidRemoteViews
 import ca.cgagnier.wlednativeandroid.R
 
 /**
- * Displays a live ticking elapsed time counter using a native Chronometer view.
+ * Displays a live ticking elapsed time counter paired with a leading refresh icon using a native
+ * Chronometer view.
  *
- * This uses AndroidRemoteViews to embed a legacy XML layout containing a Chronometer,
- * which ticks independently without requiring widget recomposition.
- *
- * The Chronometer base is calculated by converting the wall-clock lastUpdated timestamp
- * to the corresponding elapsedRealtime value that the Chronometer expects.
+ * This uses AndroidRemoteViews to embed a legacy XML layout containing a refresh icon and a
+ * Chronometer, which ticks independently without requiring widget recomposition.
  *
  * @param lastUpdated The wall-clock timestamp (from System.currentTimeMillis()) to count up from.
  */
@@ -37,6 +35,7 @@ fun ElapsedTimeChronometer(lastUpdated: Long) {
         remoteViews = RemoteViews(context.packageName, R.layout.widget_last_updated).apply {
             setChronometer(R.id.chronometer, chronometerBase, null, true)
             setTextColor(R.id.chronometer, textColor)
+            setInt(R.id.refresh_icon, "setColorFilter", textColor)
         },
     )
 }
