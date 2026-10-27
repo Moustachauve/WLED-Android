@@ -81,7 +81,7 @@ jobs:
 
   test-ios:
     name: Run Unit Tests & Build (iOS)
-    runs-on: macos-latest
+    runs-on: xcode-27
     timeout-minutes: 25
     steps:
       - name: Checkout code
