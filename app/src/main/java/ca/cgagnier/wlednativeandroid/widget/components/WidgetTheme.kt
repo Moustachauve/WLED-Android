@@ -13,10 +13,11 @@ import com.materialkolor.dynamiccolor.ColorSpec
 import androidx.glance.material3.ColorProviders as createColorProviders
 
 private const val LIGHT_ON_BACKGROUND_TINT = 0.16f
-private const val DARK_ON_BACKGROUND_TINT = 0.20f
+private const val DARK_ON_BACKGROUND_TINT = 0.30f
 private const val LIGHT_OFF_BACKGROUND_TINT = 0.05f
-private const val DARK_OFF_BACKGROUND_TINT = 0.06f
-private const val PILL_SURFACE_TINT = 0.10f
+private const val DARK_OFF_BACKGROUND_TINT = 0.12f
+private const val LIGHT_PILL_SURFACE_TINT = 0.10f
+private const val DARK_PILL_SURFACE_TINT = 0.22f
 
 /**
  * A widget theme based on the current state of a device.
@@ -77,12 +78,14 @@ private fun createDeviceColorProviders(widgetState: WidgetStateData): ColorProvi
     val lightScheme = refineWidgetColorScheme(
         base = baseLight,
         neutral = neutralLight,
+        tintColor = baseLight.primary,
         widgetState = widgetState,
         isDark = false,
     )
     val darkScheme = refineWidgetColorScheme(
         base = baseDark,
         neutral = neutralDark,
+        tintColor = baseLight.primary,
         widgetState = widgetState,
         isDark = true,
     )
@@ -96,6 +99,7 @@ private fun createDeviceColorProviders(widgetState: WidgetStateData): ColorProvi
 private fun refineWidgetColorScheme(
     base: ColorScheme,
     neutral: ColorScheme,
+    tintColor: Color,
     widgetState: WidgetStateData,
     isDark: Boolean,
 ): ColorScheme {
@@ -104,10 +108,15 @@ private fun refineWidgetColorScheme(
         widgetState.isOn -> if (isDark) DARK_ON_BACKGROUND_TINT else LIGHT_ON_BACKGROUND_TINT
         else -> if (isDark) DARK_OFF_BACKGROUND_TINT else LIGHT_OFF_BACKGROUND_TINT
     }
-    val pillTintFactor = if (widgetState.isOnline && widgetState.isOn) PILL_SURFACE_TINT else 0f
+    val pillTintFactor = when {
+        !widgetState.isOnline -> 0f
+        widgetState.isOn -> if (isDark) DARK_PILL_SURFACE_TINT else LIGHT_PILL_SURFACE_TINT
+        else -> 0f
+    }
 
-    val cardBackground = lerp(neutral.surfaceContainerLow, base.primary, bgTintFactor)
-    val pillSurface = lerp(neutral.surfaceContainerHighest, base.primary, pillTintFactor)
+    val baseSurface = if (isDark) neutral.surfaceContainer else neutral.surfaceContainerLow
+    val cardBackground = lerp(baseSurface, tintColor, bgTintFactor)
+    val pillSurface = lerp(neutral.surfaceContainerHighest, tintColor, pillTintFactor)
 
     return base.copy(
         surface = cardBackground,
