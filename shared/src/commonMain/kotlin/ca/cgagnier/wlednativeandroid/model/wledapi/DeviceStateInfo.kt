@@ -14,7 +14,8 @@ data class DeviceStateInfo(@SerialName("state") val state: State, @SerialName("i
 
     fun withBrightness(brightness: Int): DeviceStateInfo = copy(state = state.copy(brightness = brightness))
 
-    fun withSignal(signal: Int): DeviceStateInfo = copy(info = info.copy(wifi = info.wifi.copy(signal = signal)))
+    fun withSignal(signal: Int): DeviceStateInfo =
+        copy(info = info.copy(wifi = info.wifi.copy(rssi = signal, signal = signal)))
 
     companion object {
         /**

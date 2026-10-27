@@ -135,6 +135,7 @@ struct WledWidgetController: Sendable {
             macAddress: macAddress,
             fallbackIsOn: isOnline ? (desiredIsOn ?? effectiveFallbackIsOn) : effectiveFallbackIsOn,
             fallbackColor: cached?.color ?? -1,
+            fallbackSignalLevel: cached?.signalLevel ?? .good,
             now: Int64(Date().timeIntervalSince1970 * 1000)
         )
         snapshotStore.save(snapshot, reloadTimelines: reloadTimelines)

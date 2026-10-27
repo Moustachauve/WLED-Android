@@ -123,4 +123,24 @@ struct WledWidgetSnapshotStoreTests {
         #expect(cached?.isOn == true)
         #expect(reloads.withLock { $0 } == 1)
     }
+
+    @Test func syncReloadsWhenSignalLevelBucketChanges() {
+        let strongDevice = makeDeviceWithState(isOn: true)
+        store.sync(devices: [strongDevice], nowMs: 1_000)
+        reloads.withLock { $0 = 0 }
+
+        let weakDevice = makeDeviceWithState(isOn: true)
+        let weakStateInfo = weakDevice.stateInfo?.withSignal(signal: -85)
+        let updatedDevice = Shared.DeviceWithState(
+            device: weakDevice.device,
+            stateInfo: weakStateInfo,
+            websocketStatus: .connected,
+            updateVersionTag: nil
+        )
+
+        store.sync(devices: [updatedDevice], nowMs: 2_000)
+
+        #expect(store.load(macAddress: "aabbccddeeff")?.signalLevel == .weak)
+        #expect(reloads.withLock { $0 } == 1)
+    }
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.glance.GlanceId
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.WifiSignalLevel
 import ca.cgagnier.wlednativeandroid.model.wledapi.Segment
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
@@ -51,9 +52,9 @@ class WledWidgetManagerTest {
     @Test
     fun `updateAllWidgets refreshes widgets concurrently so offline timeout does not block online widget`() = runTest {
         val offlineId =
-            registerWidget(mac = "AA1122334455", address = "192.168.1.50", name = "Offline Strip", isOnline = true)
+            registerWidget(mac = "AA1122334455", address = "192.168.1.50", isOnline = true)
         val onlineId =
-            registerWidget(mac = "BB1122334455", address = "192.168.1.100", name = "Desktop", isOnline = false)
+            registerWidget(mac = "BB1122334455", address = "192.168.1.100", isOnline = false)
 
         val offlineApi = mockk<DeviceApi> {
             coEvery { postJson(any()) } coAnswers {
@@ -97,7 +98,7 @@ class WledWidgetManagerTest {
     @Test
     fun `refreshWidget creates DeviceApi with 5s timeout and marks widget offline on non-2xx response`() = runTest {
         val glanceId =
-            registerWidget(mac = "AA1122334455", address = "192.168.1.10", name = "Lamp", isOn = true, isOnline = true)
+            registerWidget(mac = "AA1122334455", address = "192.168.1.10", isOn = true, isOnline = true)
 
         val api = mockk<DeviceApi> {
             coEvery { postJson(any()) } returns ApiResponse(code = 503, errorBody = "Unavailable")
@@ -111,29 +112,56 @@ class WledWidgetManagerTest {
         val saved = widgetStorage.savedUpdates[glanceId]
         assertNotNull(saved)
         assertFalse(saved!!.isOnline)
+        assertEquals(WifiSignalLevel.OFFLINE, saved.signalLevel)
         assertEquals(true, saved.isOn)
         coVerify(exactly = 1) { api.postJson(any()) }
+    }
+
+    @Test
+    fun `refreshWidget preserves cached signalLevel when HTTP response succeeds`() = runTest {
+        val glanceId = registerWidget(
+            mac = "AA1122334455",
+            address = "192.168.1.10",
+            isOn = true,
+            isOnline = true,
+            signalLevel = WifiSignalLevel.FAIR,
+        )
+
+        val api = mockk<DeviceApi> {
+            coEvery { postJson(any()) } returns ApiResponse(code = 200, body = onlineState(isOn = true))
+        }
+        every {
+            deviceApiFactory.create("192.168.1.10", WledWidgetManager.WIDGET_REQUEST_TIMEOUT_SECONDS)
+        } returns api
+
+        widgetManager.refreshWidget(context, glanceId)
+
+        val saved = widgetStorage.savedUpdates[glanceId]
+        assertNotNull(saved)
+        assertTrue(saved!!.isOnline)
+        assertEquals(WifiSignalLevel.FAIR, saved.signalLevel)
     }
 
     private fun registerWidget(
         mac: String,
         address: String,
-        name: String,
         isOn: Boolean = false,
         isOnline: Boolean = true,
+        signalLevel: WifiSignalLevel = if (isOnline) WifiSignalLevel.GOOD else WifiSignalLevel.OFFLINE,
     ): GlanceId {
         val glanceId = mockk<GlanceId>()
         widgetStorage.states[glanceId] = WidgetStateData(
             macAddress = mac,
             address = address,
-            name = name,
+            name = "Lamp",
             isOn = isOn,
             isOnline = isOnline,
+            signalLevel = signalLevel,
         )
         coEvery { deviceRepository.findDeviceByMacAddress(mac) } returns Device(
             macAddress = mac,
             address = address,
-            originalName = name,
+            originalName = "Lamp",
         )
         return glanceId
     }

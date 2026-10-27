@@ -10,6 +10,7 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.model.WidgetSnapshot
+import ca.cgagnier.wlednativeandroid.model.WifiSignalLevel
 import ca.cgagnier.wlednativeandroid.model.createWidgetSnapshotFromState
 import ca.cgagnier.wlednativeandroid.model.resolveDeviceName
 import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
@@ -109,7 +110,11 @@ class WledWidgetManager internal constructor(
             sendRequestAndUpdateData(stateData, context)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Log.e(TAG, "Exception updating widget ${stateData.address}", e)
-            val newData = stateData.copy(isOnline = false, lastUpdated = System.currentTimeMillis())
+            val newData = stateData.copy(
+                isOnline = false,
+                signalLevel = WifiSignalLevel.OFFLINE,
+                lastUpdated = System.currentTimeMillis(),
+            )
             updateWidgetsForMacAddress(context, stateData.macAddress, newData)
         }
     }
@@ -125,7 +130,11 @@ class WledWidgetManager internal constructor(
             )
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Log.e(TAG, "Exception toggling widget ${stateData.macAddress}", e)
-            val newData = stateData.copy(isOnline = false, lastUpdated = System.currentTimeMillis())
+            val newData = stateData.copy(
+                isOnline = false,
+                signalLevel = WifiSignalLevel.OFFLINE,
+                lastUpdated = System.currentTimeMillis(),
+            )
             updateWidgetsForMacAddress(context, stateData.macAddress, newData)
         }
     }
@@ -152,10 +161,15 @@ class WledWidgetManager internal constructor(
                 macAddress = widgetData.macAddress,
                 fallbackIsOn = jsonPost.isOn ?: widgetData.isOn,
                 fallbackColor = android.graphics.Color.WHITE,
+                fallbackSignalLevel = widgetData.signalLevel,
             )
             updateWidgetsForMacAddress(context, widgetData.macAddress, widgetData.withSnapshot(snapshot))
         } else {
-            val newData = widgetData.copy(isOnline = false, lastUpdated = System.currentTimeMillis())
+            val newData = widgetData.copy(
+                isOnline = false,
+                signalLevel = WifiSignalLevel.OFFLINE,
+                lastUpdated = System.currentTimeMillis(),
+            )
             updateWidgetsForMacAddress(context, widgetData.macAddress, newData)
         }
     }

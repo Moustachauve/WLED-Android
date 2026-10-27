@@ -84,6 +84,7 @@ struct WledDeviceWidgetViewSnapshotTests {
             isOn: baseData.isOn,
             isOnline: baseData.isOnline,
             color: baseData.color,
+            signalLevel: baseData.signalLevel,
             lastUpdated: nowMillis
         )
 

@@ -41,6 +41,8 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import ca.cgagnier.wlednativeandroid.R
+import ca.cgagnier.wlednativeandroid.model.WifiSignalLevel
+import ca.cgagnier.wlednativeandroid.ui.components.toIconRes
 import ca.cgagnier.wlednativeandroid.widget.components.ElapsedTimeChronometer
 import ca.cgagnier.wlednativeandroid.widget.components.PowerButton
 import ca.cgagnier.wlednativeandroid.widget.components.QuickActionButtons
@@ -65,7 +67,6 @@ private val NARROW_GLOW_SIZE = 120.dp
 private val STATUS_PILL_CORNER_RADIUS = 999.dp
 private val STATUS_PILL_HORIZONTAL_PADDING = 9.dp
 private val STATUS_PILL_VERTICAL_PADDING = 4.dp
-private val STATUS_DOT_SIZE = 7.dp
 private val STATUS_ICON_SIZE = 12.dp
 
 @Composable
@@ -349,49 +350,42 @@ private fun StatusPill(data: WidgetStateData) {
 @Composable
 private fun StatusContent(data: WidgetStateData) {
     val context = LocalContext.current
+    val effectiveSignalLevel = if (data.isOnline) data.signalLevel else WifiSignalLevel.OFFLINE
+    val iconColor = when {
+        !data.isOnline -> GlanceTheme.colors.error
+        data.isOn -> GlanceTheme.colors.primary
+        else -> GlanceTheme.colors.outline
+    }
+    val textColor = if (data.isOnline && data.isOn) {
+        GlanceTheme.colors.onSurface
+    } else {
+        GlanceTheme.colors.onSurfaceVariant
+    }
+    val statusText = context.getString(
+        when {
+            !data.isOnline -> R.string.is_offline
+            data.isOn -> R.string.control_on
+            else -> R.string.control_off
+        },
+    )
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        if (!data.isOnline) {
-            Image(
-                provider = ImageProvider(R.drawable.twotone_signal_wifi_connected_no_internet_0_24),
-                contentDescription = null,
-                modifier = GlanceModifier.size(STATUS_ICON_SIZE),
-                colorFilter = ColorFilter.tint(GlanceTheme.colors.error),
-            )
-            Spacer(modifier = GlanceModifier.width(4.dp))
-            Text(
-                text = context.getString(R.string.is_offline),
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 11.sp,
-                ),
-                maxLines = 1,
-            )
-        } else {
-            val dotColor = if (data.isOn) GlanceTheme.colors.primary else GlanceTheme.colors.outline
-            val textColor = if (data.isOn) GlanceTheme.colors.onSurface else GlanceTheme.colors.onSurfaceVariant
-            val statusText = context.getString(
-                if (data.isOn) R.string.control_on else R.string.control_off,
-            )
-
-            Image(
-                provider = ImageProvider(R.drawable.widget_circle_fill),
-                contentDescription = null,
-                modifier = GlanceModifier.size(STATUS_DOT_SIZE),
-                colorFilter = ColorFilter.tint(dotColor),
-            )
-            Spacer(modifier = GlanceModifier.width(5.dp))
-            Text(
-                text = statusText,
-                style = TextStyle(
-                    color = textColor,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 11.sp,
-                ),
-                maxLines = 1,
-            )
-        }
+        Image(
+            provider = ImageProvider(effectiveSignalLevel.toIconRes()),
+            contentDescription = null,
+            modifier = GlanceModifier.size(STATUS_ICON_SIZE),
+            colorFilter = ColorFilter.tint(iconColor),
+        )
+        Spacer(modifier = GlanceModifier.width(4.dp))
+        Text(
+            text = statusText,
+            style = TextStyle(
+                color = textColor,
+                fontWeight = FontWeight.Medium,
+                fontSize = 11.sp,
+            ),
+            maxLines = 1,
+        )
     }
 }
 

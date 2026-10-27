@@ -99,7 +99,8 @@ class WidgetStateSync(
         a.color != b.color ||
         a.name != b.name ||
         a.address != b.address ||
-        a.isOnline != b.isOnline
+        a.isOnline != b.isOnline ||
+        a.signalLevel != b.signalLevel
 
     fun stop() {
         syncJob?.cancel()
