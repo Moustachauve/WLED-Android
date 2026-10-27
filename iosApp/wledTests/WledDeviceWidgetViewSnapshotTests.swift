@@ -44,6 +44,11 @@ struct WledDeviceWidgetViewSnapshotTests {
         SnapshotCase("unconfiguredLight", data: nil)
     ]
 
+    static let liveTimerCases: [SnapshotCase] = [
+        SnapshotCase("wideOnLight", data: wideOnData),
+        SnapshotCase("narrowOffLight", data: narrowOffData, layoutStyle: .narrow)
+    ]
+
     @MainActor
     @Test(arguments: cases)
     func widgetSnapshot(_ testCase: SnapshotCase) {
@@ -52,6 +57,7 @@ struct WledDeviceWidgetViewSnapshotTests {
             layoutStyle: testCase.layoutStyle,
             elapsedTimeText: "0:00"
         )
+        .environment(\.rendersWidgetBackgroundInView, true)
 
         assertSnapshot(
             of: view,
@@ -61,6 +67,41 @@ struct WledDeviceWidgetViewSnapshotTests {
                 traits: UITraitCollection(userInterfaceStyle: testCase.style)
             ),
             named: testCase.name
+        )
+    }
+
+    /// Exercises the production `WledDeviceWidgetView` initializer (with `elapsedTimeText == nil`,
+    /// which renders `Text(_, style: .timer)`) and verifies it matches the reference snapshot.
+    @MainActor
+    @Test(arguments: liveTimerCases)
+    func productionLiveTimerMatchesSnapshot(_ testCase: SnapshotCase) throws {
+        let baseData = try #require(testCase.data)
+        let nowMillis = Int64(Date().timeIntervalSince1970 * 1000)
+        let liveData = WledWidgetData(
+            macAddress: baseData.macAddress,
+            address: baseData.address,
+            name: baseData.name,
+            isOn: baseData.isOn,
+            isOnline: baseData.isOnline,
+            color: baseData.color,
+            lastUpdated: nowMillis
+        )
+
+        let view = WledDeviceWidgetView(
+            data: liveData,
+            layoutStyle: testCase.layoutStyle
+        )
+        .environment(\.rendersWidgetBackgroundInView, true)
+
+        assertSnapshot(
+            of: view,
+            as: .image(
+                perceptualPrecision: 0.98,
+                layout: .fixed(width: testCase.size.width, height: testCase.size.height),
+                traits: UITraitCollection(userInterfaceStyle: testCase.style)
+            ),
+            named: testCase.name,
+            testName: "widgetSnapshot(_:)"
         )
     }
 
