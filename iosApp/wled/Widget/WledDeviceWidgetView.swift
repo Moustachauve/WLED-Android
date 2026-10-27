@@ -2,15 +2,50 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-/// Layout family for the WLED widget view, matching Android's narrow (compact) and wide (row) modes.
+extension EnvironmentValues {
+    /// Enables inline background rendering when hosting `WledDeviceWidgetView` outside WidgetKit
+    /// (such as in snapshot tests), where `.containerBackground(for: .widget)` is inactive.
+    @Entry var rendersWidgetBackgroundInView = false
+}
+
+/// Layout style for the WLED Home Screen widget based on its WidgetKit family.
 enum WledWidgetLayoutStyle: Sendable {
     case narrow
     case wide
+
+    var titleFont: Font {
+        switch self {
+        case .wide:
+            .system(.title3, design: .rounded, weight: .bold)
+        case .narrow:
+            .system(.subheadline, design: .rounded, weight: .bold)
+        }
+    }
+
+    var powerButtonSize: CGFloat {
+        switch self {
+        case .wide:
+            56
+        case .narrow:
+            38
+        }
+    }
+
+    var powerButtonIconFont: Font {
+        switch self {
+        case .wide:
+            .title2.bold()
+        case .narrow:
+            .callout.weight(.semibold)
+        }
+    }
 }
 
-/// SwiftUI view for a WLED Home Screen widget, matching Android's `WidgetContent.kt` and `PowerButton.kt`.
+/// SwiftUI view for a WLED Home Screen widget.
 struct WledDeviceWidgetView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.widgetRenderingMode) private var widgetRenderingMode
+    @Environment(\.rendersWidgetBackgroundInView) private var rendersWidgetBackgroundInView
 
     let data: WledWidgetData?
     var layoutStyle: WledWidgetLayoutStyle = .wide
@@ -19,115 +54,186 @@ struct WledDeviceWidgetView: View {
     var elapsedTimeText: String?
 
     var body: some View {
-        let palette = WledWidgetPalette(data: data, colorScheme: colorScheme)
-
         Group {
             if let data {
-                configuredContent(data: data, palette: palette)
+                configuredContent(data: data)
             } else {
-                Text("Please configure")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(palette.error)
-                    .multilineTextAlignment(.center)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                unconfiguredContent()
             }
         }
-        // `.containerBackground(for: .widget)` is ignored outside WidgetKit (in-app previews and snapshot tests),
-        // so `.background(palette.background)` ensures the background renders in both contexts.
-        .background(palette.background)
-        .containerBackground(palette.background, for: .widget)
+        .background {
+            if rendersWidgetBackgroundInView {
+                widgetBackground()
+            }
+        }
+        .containerBackground(for: .widget) {
+            widgetBackground()
+        }
     }
 
-    private func configuredContent(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
-        let isWide = layoutStyle == .wide
-        let layout = isWide
-            ? AnyLayout(HStackLayout(alignment: .center, spacing: 8))
-            : AnyLayout(VStackLayout(alignment: .center, spacing: 6))
+    private func widgetBackground() -> some View {
+        ZStack {
+            Color(.secondarySystemBackground)
 
-        return layout {
-            if isWide {
-                deviceDetailsColumn(data: data, palette: palette)
-                powerButton(data: data, palette: palette)
-            } else {
-                powerButton(data: data, palette: palette)
-                deviceDetailsColumn(data: data, palette: palette)
+            if let data, data.isOnline {
+                Rectangle()
+                    .fill(accentColor(for: data).opacity(data.isOn ? 0.20 : 0.05).gradient)
+            }
+        }
+    }
+
+    private func unconfiguredContent() -> some View {
+        VStack {
+            Image(systemName: "lightbulb.slash")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.red)
+                .widgetAccentable()
+                .accessibilityHidden(true)
+            Text("Please configure")
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func configuredContent(data: WledWidgetData) -> some View {
+        Group {
+            switch layoutStyle {
+            case .wide:
+                wideContent(data: data)
+            case .narrow:
+                narrowContent(data: data)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(12)
-        .overlay(alignment: .topTrailing) {
-            refreshButton(data: data, palette: palette)
-        }
-        .overlay(alignment: .bottomTrailing) {
-            elapsedTimeBadge(data: data, palette: palette)
-        }
+        .padding()
         .widgetURL(data.deepLinkURL)
     }
 
-    private func deviceDetailsColumn(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
-        let showAddress = layoutStyle == .wide
-        return VStack(alignment: showAddress ? .leading : .center, spacing: 2) {
-            Text(data.name)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(palette.onSurface)
-                .lineLimit(1)
-                .truncationMode(.tail)
-
-            HStack(spacing: 4) {
-                if showAddress {
-                    Text(data.address)
-                        .font(.system(size: 12))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+    private func wideContent(data: WledWidgetData) -> some View {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading) {
+                HStack {
+                    statusPill(data: data)
+                    refreshTimerButton(data: data, isTrailingAligned: false)
                 }
 
-                if !data.isOnline {
-                    Image(systemName: "wifi.slash")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(palette.error)
-                        .padding(.leading, showAddress ? 4 : 0)
-                        .accessibilityHidden(true)
-                    Text("Offline")
-                        .font(.system(size: 12))
-                        .foregroundStyle(palette.onSurfaceVariant)
-                        .lineLimit(1)
-                }
+                Spacer()
+
+                deviceDetailsColumn(data: data)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+
+            powerButton(data: data)
         }
-        .frame(maxWidth: .infinity, alignment: showAddress ? .leading : .center)
     }
 
-    private func powerButton(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
-        Button(intent: SetDevicePowerIntent(device: data.deviceEntity, isOn: !data.isOn)) {
+    private func narrowContent(data: WledWidgetData) -> some View {
+        VStack(alignment: .leading) {
+            HStack {
+                powerButton(data: data)
+                Spacer()
+                refreshTimerButton(data: data, isTrailingAligned: true)
+            }
+
+            Spacer()
+
+            deviceDetailsColumn(data: data)
+        }
+    }
+
+    private func deviceDetailsColumn(data: WledWidgetData) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(data.name)
+                .font(layoutStyle.titleFont)
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+
+            switch layoutStyle {
+            case .wide:
+                Text(data.address)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            case .narrow:
+                statusContent(data: data)
+                    .font(.caption.weight(.semibold))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func statusPill(data: WledWidgetData) -> some View {
+        statusContent(data: data)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color(.tertiarySystemFill), in: Capsule())
+    }
+
+    private func statusContent(data: WledWidgetData) -> some View {
+        HStack(spacing: 4) {
+            if !data.isOnline {
+                Image(systemName: "wifi.slash")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.red)
+                    .widgetAccentable()
+                    .accessibilityHidden(true)
+                Text("Offline")
+                    .foregroundStyle(.secondary)
+            } else {
+                Circle()
+                    .fill(data.isOn ? accentColor(for: data) : Color.secondary.opacity(0.5))
+                    .frame(width: 7, height: 7)
+                    .widgetAccentable(data.isOn)
+                    .accessibilityHidden(true)
+                Text(data.isOn ? "On" : "Off")
+                    .foregroundStyle(data.isOn ? .primary : .secondary)
+            }
+        }
+        .lineLimit(1)
+    }
+
+    private func powerButton(data: WledWidgetData) -> some View {
+        let size = layoutStyle.powerButtonSize
+        let accent = accentColor(for: data)
+        let isAccentedMode = widgetRenderingMode == .accented
+
+        return Button(intent: SetDevicePowerIntent(device: data.deviceEntity, isOn: !data.isOn)) {
             ZStack {
-                if data.isOn {
+                if isAccentedMode {
                     Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [palette.glow, palette.glow.opacity(0.0)],
-                                center: .center,
-                                startRadius: 4,
-                                endRadius: 24
-                            )
-                        )
-                        .frame(width: 48, height: 48)
-
+                        .fill(Color.primary.opacity(data.isOn ? 0.22 : 0.10))
+                        .overlay {
+                            Circle()
+                                .strokeBorder(
+                                    Color.primary.opacity(data.isOn ? 0.6 : 0.25),
+                                    lineWidth: data.isOn ? 2 : 1
+                                )
+                        }
+                        .widgetAccentable(data.isOn)
+                } else if data.isOn {
                     Circle()
-                        .fill(palette.primary)
-                        .frame(width: 32, height: 32)
-
+                        .fill(accent.gradient)
+                        .shadow(color: accent.opacity(0.5), radius: 8)
+                } else {
                     Circle()
-                        .strokeBorder(palette.glow, lineWidth: 2)
-                        .frame(width: 36, height: 36)
+                        .fill(Color(.tertiarySystemFill))
+                        .overlay {
+                            Circle()
+                                .strokeBorder(Color(.separator))
+                        }
                 }
 
                 Image(systemName: "power")
-                    .font(.system(size: 15, weight: data.isOn ? .bold : .semibold))
-                    .foregroundStyle(data.isOn ? palette.onPrimary : palette.onSurfaceVariant)
+                    .font(layoutStyle.powerButtonIconFont)
+                    .foregroundStyle(powerIconStyle(isOn: data.isOn, isAccentedMode: isAccentedMode))
+                    .widgetAccentable(data.isOn)
             }
-            .frame(width: 48, height: 48)
+            .frame(width: size, height: size)
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -135,74 +241,68 @@ struct WledDeviceWidgetView: View {
         .accessibilityValue(data.isOn ? Text("On") : Text("Off"))
     }
 
-    private func refreshButton(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
-        Button(intent: RefreshDeviceWidgetIntent(device: data.deviceEntity)) {
-            Image(systemName: "arrow.clockwise")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(palette.outline)
-                .frame(width: 20, height: 20)
-                .padding(8)
-                .contentShape(Rectangle())
+    private func powerIconStyle(isOn: Bool, isAccentedMode: Bool) -> Color {
+        if isAccentedMode {
+            return isOn ? .primary : .secondary
+        }
+        guard isOn else { return .secondary }
+        return colorScheme == .dark ? Color(.systemBackground) : .white
+    }
+
+    /// Renders a tappable refresh button paired with the elapsed timer.
+    ///
+    /// Note: Never apply `.fixedSize(horizontal: true)` to a view containing `Text(_, style: .timer)`.
+    /// In WidgetKit's view archiver, `Text(_, style: .timer)` reports an infinite ideal width when
+    /// unconstrained horizontally, which produces `NaN` layout dimensions and renders a blank widget.
+    private func refreshTimerButton(data: WledWidgetData, isTrailingAligned: Bool) -> some View {
+        let hasTimer = elapsedTimeText != nil || data.lastUpdated > 0
+        return Button(intent: RefreshDeviceWidgetIntent(device: data.deviceEntity)) {
+            HStack(spacing: 4) {
+                if isTrailingAligned {
+                    if hasTimer {
+                        timerText(for: data)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    refreshIcon
+                } else {
+                    refreshIcon
+                    if hasTimer {
+                        timerText(for: data)
+                            .multilineTextAlignment(.leading)
+                    }
+                }
+            }
+            .font(.caption2.weight(.medium))
+            .monospacedDigit()
+            .lineLimit(1)
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("Refresh"))
     }
 
+    private var refreshIcon: some View {
+        Image(systemName: "arrow.clockwise")
+            .font(.caption2.weight(.semibold))
+    }
+
     @ViewBuilder
-    private func elapsedTimeBadge(data: WledWidgetData, palette: WledWidgetPalette) -> some View {
-        if elapsedTimeText != nil || data.lastUpdated > 0 {
-            let timerText = if let elapsedTimeText {
-                Text(elapsedTimeText)
-            } else {
-                Text(data.lastUpdatedDate, style: .timer)
-            }
-            Text("\(Image(systemName: "clock.arrow.circlepath")) \(timerText)")
-                .font(.system(size: 8))
-                .monospacedDigit()
-                .multilineTextAlignment(.trailing)
-                .foregroundStyle(palette.onSurfaceVariant)
-                .padding(.bottom, 4)
-                .padding(.trailing, 20)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+    private func timerText(for data: WledWidgetData) -> some View {
+        if let elapsedTimeText {
+            Text(elapsedTimeText)
+        } else {
+            Text(data.lastUpdatedDate, style: .timer)
         }
     }
-}
 
-/// Dynamic tonal color palette derived from the WLED device's active LED color,
-/// mirroring Android's `WidgetTheme.kt` (`createWidgetColorScheme`).
-private struct WledWidgetPalette {
-    let background: Color
-    let onSurface: Color
-    let onSurfaceVariant: Color
-    let primary: Color
-    let onPrimary: Color
-    let glow: Color
-    let outline: Color
-    let error: Color
-
-    init(data: WledWidgetData?, colorScheme: ColorScheme) {
-        let isDark = colorScheme == .dark
-        let isOnline = data?.isOnline ?? false
-        let isActiveAccent = isOnline && (data?.isOn ?? false)
-        let (hue, rawSat) = data?.hueAndSaturation ?? (0, 0)
-        let saturation = isActiveAccent ? max(rawSat, 0.25) : min(rawSat, 0.12)
-
-        self.background = Color(
+    private func accentColor(for data: WledWidgetData) -> Color {
+        let (hue, saturation) = data.hueAndSaturation
+        return Color(
             hue: hue,
-            saturation: isOnline ? min(saturation * (isDark ? 0.55 : 0.28), isDark ? 0.45 : 0.25) : (isDark ? 0.04 : 0.02),
-            brightness: isDark ? (isActiveAccent ? 0.22 : 0.16) : (isActiveAccent ? 0.95 : 0.92)
+            saturation: max(saturation, 0.3),
+            brightness: colorScheme == .dark ? 0.9 : 0.65
         )
-        self.onSurface = Color(white: isDark ? 0.95 : 0.12)
-        self.onSurfaceVariant = Color(white: isDark ? 0.72 : 0.35)
-        self.primary = Color(
-            hue: hue,
-            saturation: max(saturation * (isDark ? 0.75 : 0.85), isDark ? 0.35 : 0.55),
-            brightness: isDark ? 0.90 : 0.52
-        )
-        self.onPrimary = isDark ? Color(hue: hue, saturation: min(saturation, 0.85), brightness: 0.18) : .white
-        self.glow = Color(hue: hue, saturation: min(saturation * (isDark ? 0.45 : 0.30), isDark ? 0.45 : 0.30), brightness: 0.98)
-        self.outline = Color(white: isDark ? 0.50 : 0.48)
-        self.error = isDark ? Color(red: 1.0, green: 0.45, blue: 0.42) : Color(red: 0.78, green: 0.16, blue: 0.16)
     }
 }
