@@ -44,7 +44,9 @@ class LegacyProtoToKotlinxPreferencesMigration(private val legacyFile: File) : D
                 lastUpdateCheckDate = legacyProto.lastUpdateCheckDate,
                 dateLastWritten = legacyProto.dateLastWritten,
                 showHiddenDevices = legacyProto.showHiddenDevices,
-                lastChangelogVersionSeen = legacyProto.lastChangelogVersionSeen,
+                lastChangelogVersionSeen = legacyProto.lastChangelogVersionSeen.ifEmpty {
+                    PRE_CHANGELOG_BASELINE_VERSION
+                },
             )
         }
     }
@@ -59,5 +61,6 @@ class LegacyProtoToKotlinxPreferencesMigration(private val legacyFile: File) : D
 
     companion object {
         const val LEGACY_DATA_STORE_FILE_NAME = "user_prefs.pb"
+        const val PRE_CHANGELOG_BASELINE_VERSION = "7.0.1"
     }
 }

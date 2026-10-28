@@ -48,13 +48,14 @@ struct CoreDataToRoomMigratorTests {
         try context.save()
 
         // 2. Run migration
-        try await CoreDataToRoomMigrator.migrateIfNeeded(
+        let didMigrate = try await CoreDataToRoomMigrator.migrateIfNeeded(
             context: context,
             repository: repository,
             userDefaults: testUserDefaults
         )
 
-        // 3. Verify flag set
+        // 3. Verify flag set and return value
+        #expect(didMigrate == true)
         #expect(testUserDefaults.bool(forKey: CoreDataToRoomMigrator.migrationKey))
 
         // 4. Verify Room devices
@@ -88,12 +89,13 @@ struct CoreDataToRoomMigratorTests {
         managed.setValue("192.168.1.199", forKey: "address")
         try context.save()
 
-        try await CoreDataToRoomMigrator.migrateIfNeeded(
+        let didMigrate = try await CoreDataToRoomMigrator.migrateIfNeeded(
             context: context,
             repository: repository,
             userDefaults: testUserDefaults
         )
 
+        #expect(didMigrate == false)
         let allDevices = try await repository.getAllDevices()
         #expect(allDevices.isEmpty)
     }
