@@ -18,6 +18,11 @@ on:
         description: 'Version name to build (e.g. 8.1.0-beta.1 or 8.1.0)'
         required: true
         type: string
+      dry_run:
+        description: 'Dry run: build, sign, and validate Play Store / iOS archive without publishing'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: release-${{ github.event.release.tag_name || inputs.version_name || github.ref_name }}
@@ -37,6 +42,7 @@ jobs:
       version_name: ${{ steps.meta.outputs.version_name }}
       ios_marketing_version: ${{ steps.meta.outputs.ios_marketing_version }}
       version_code: ${{ steps.meta.outputs.version_code }}
+      dry_run: ${{ steps.meta.outputs.dry_run }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -48,6 +54,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_TRACK: ${{ inputs.track }}
           INPUT_VERSION_NAME: ${{ inputs.version_name }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
           RUN_NUMBER: ${{ github.run_number }}
@@ -89,10 +96,17 @@ jobs:
           TAG_NAME="${RELEASE_TAG:-v${VERSION_NAME}}"
           IOS_MARKETING_VERSION="${VERSION_NAME%%-*}"
 
-          # 2. Pre-flight check: prevent workflow_dispatch from overwriting an existing published release
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            if [ "$(gh release view "$TAG_NAME" --json isDraft --jq '.isDraft' 2>/dev/null || echo 'true')" = "false" ]; then
-              echo "::error::Published GitHub Release $TAG_NAME already exists. Choose a new version_name."
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_DRY_RUN" = "true" ]; then
+            DRY_RUN="true"
+          else
+            DRY_RUN="false"
+          fi
+
+          # 2. Pre-flight check: prevent workflow_dispatch (non-dry-run) from colliding with an existing release or draft
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$DRY_RUN" = "false" ]; then
+            EXISTING_MATCH=$(gh release list --limit 50 --json tagName,isDraft --jq ".[] | select(.tagName == \"$TAG_NAME\") | .tagName" || true)
+            if [ -n "$EXISTING_MATCH" ]; then
+              echo "::error::GitHub Release (or pending draft) for $TAG_NAME already exists. Publish the existing draft or choose a new version_name."
               exit 1
             fi
           fi
@@ -119,6 +133,7 @@ jobs:
           fi
 
           # 4. Pre-flight check: verify non-empty changelog exists for both Android and iOS
+          # Keep candidate filenames in sync with `read_plain_changelog` in `fastlane/Fastfile`.
           for DIR in "app/src/main/assets/changelog" "iosApp/wled/changelog"; do
             if [ ! -s "${DIR}/${VERSION_NAME}.md" ] && \
                [ ! -s "${DIR}/v${VERSION_NAME}.md" ] && \
@@ -141,10 +156,12 @@ jobs:
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "ios_marketing_version=$IOS_MARKETING_VERSION" >> "$GITHUB_OUTPUT"
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
 
           {
             echo "### Release Metadata"
             echo "- **Track:** \`$TRACK\`"
+            echo "- **Dry Run:** \`$DRY_RUN\`"
             echo "- **Tag:** \`$TAG_NAME\`"
             echo "- **Android Version Name:** \`$VERSION_NAME\`"
             echo "- **iOS Marketing Version:** \`$IOS_MARKETING_VERSION\`"
@@ -217,6 +234,7 @@ jobs:
           PLAY_STORE_TRACK: ${{ needs.prepare.outputs.track }}
           VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
           VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
+          DRY_RUN: ${{ needs.prepare.outputs.dry_run }}
         run: bundle exec fastlane android deploy
 
       - name: Package APK & Attach to GitHub Release (IzzyOnDroid / Direct Download)
@@ -225,6 +243,7 @@ jobs:
           TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
           TARGET_SHA: ${{ github.sha }}
           IS_BETA: ${{ needs.prepare.outputs.is_beta }}
+          DRY_RUN: ${{ needs.prepare.outputs.dry_run }}
         run: |
           set -euo pipefail
           APK_SOURCE="app/build/outputs/apk/release/app-release.apk"
@@ -233,6 +252,11 @@ jobs:
 
           cp "$APK_SOURCE" "$APK_TARGET"
           sha256sum "$APK_TARGET" > "$SHA_TARGET"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run enabled; skipping GitHub Release creation and APK upload."
+            exit 0
+          fi
 
           # Ensure a published GitHub Release exists when triggered via workflow_dispatch
           if [ "$(gh release view "$TAG_NAME" --json isDraft --jq '.isDraft' 2>/dev/null || echo 'true')" != "false" ]; then
@@ -338,6 +362,7 @@ jobs:
           IOS_TESTFLIGHT_GROUP: ${{ vars.IOS_TESTFLIGHT_GROUP || 'Beta' }}
           VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
           VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
+          DRY_RUN: ${{ needs.prepare.outputs.dry_run }}
         run: |
           if [ "${{ needs.prepare.outputs.is_beta }}" = "true" ]; then
             bundle exec fastlane ios beta

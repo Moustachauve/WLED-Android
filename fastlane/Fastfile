@@ -22,6 +22,7 @@ def base_semver(version_str)
   strip_v_prefix(version_str).split("-").first
 end
 
+# Keep candidate filenames in sync with the pre-flight check in `.github/workflows/release.yml`.
 def read_plain_changelog(changelog_dir:, version:, is_beta:, max_length: nil)
   clean_version = strip_v_prefix(version)
   numeric_version = base_semver(version)
@@ -50,6 +51,7 @@ def read_plain_changelog(changelog_dir:, version:, is_beta:, max_length: nil)
 
   UI.user_error!("No non-empty changelog found in #{changelog_dir} (checked: #{candidates.join(', ')})") unless selected_path
 
+  # When running Fastlane locally without the CI workspace promotion step, warn if falling back to dev.md.
   if !is_beta && File.basename(selected_path).casecmp("dev.md").zero?
     UI.important("Warning: #{numeric_version}.md was not found in #{changelog_dir}; falling back to dev.md so the tagged release succeeds.")
   end
@@ -85,6 +87,7 @@ platform :android do
   lane :deploy do |options|
     track = (options[:track] || ENV.fetch("PLAY_STORE_TRACK", "beta")).to_s
     is_beta = track != "production"
+    dry_run = options[:dry_run] == true || ENV["DRY_RUN"] == "true"
     version_code = (options[:version_code] || require_env!("VERSION_CODE")).to_s
     version_name = strip_v_prefix(options[:version_name] || require_env!("VERSION_NAME"))
     aab_path = File.join(REPO_ROOT, "app", "build", "outputs", "bundle", "release", "app-release.aab")
@@ -111,6 +114,7 @@ platform :android do
         aab: aab_path,
         json_key_data: require_env!("GOOGLE_PLAY_JSON_KEY"),
         metadata_path: android_metadata_dir,
+        validate_only: dry_run,
         skip_upload_apk: true,
         skip_upload_metadata: true,
         skip_upload_images: true,
@@ -239,13 +243,17 @@ platform :ios do
         notes: notes
       }
     ensure
-      File.write(pbxproj_file, original_pbxproj) if original_pbxproj
+      File.write(pbxproj_file, original_pbxproj)
     end
   end
 
   desc "Build, sign, and upload iOS Beta to TestFlight external 'Beta' group"
   lane :beta do |options|
     result = build_signed_ipa(options.merge(is_beta: true))
+    if options[:dry_run] == true || ENV["DRY_RUN"] == "true"
+      UI.success("Dry run enabled; signed IPA built at #{result[:ipa_path]}. Skipping TestFlight upload.")
+      next
+    end
     external_group = ENV.fetch("IOS_TESTFLIGHT_GROUP", "Beta").to_s.strip
 
     upload_to_testflight(
@@ -262,6 +270,10 @@ platform :ios do
   desc "Build, sign, and submit iOS Production release to App Store Connect"
   lane :release do |options|
     result = build_signed_ipa(options.merge(is_beta: false))
+    if options[:dry_run] == true || ENV["DRY_RUN"] == "true"
+      UI.success("Dry run enabled; signed IPA built at #{result[:ipa_path]}. Skipping App Store Connect upload.")
+      next
+    end
 
     Dir.mktmpdir("wled-ios-metadata") do |ios_metadata_dir|
       upload_to_app_store(
