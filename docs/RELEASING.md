@@ -87,3 +87,5 @@ Add the following secrets in **Settings → Secrets and variables → Actions �
 
 *(Optional Repository Variable)*:
 - `IOS_TESTFLIGHT_GROUP`: Defaults to `Beta`. Set this under **Variables** if you ever rename your external TestFlight group in App Store Connect.
+
+> **Note on Xcode Cloud:** If you previously had an Xcode Cloud workflow configured in **App Store Connect → Xcode Cloud**, disable or delete it there so Xcode Cloud does not attempt duplicate builds alongside GitHub Actions.

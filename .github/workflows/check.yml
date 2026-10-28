@@ -173,6 +173,12 @@ jobs:
             echo "::error::dev.md still exists! Before merging to main, rename app/src/main/assets/changelog/dev.md and iosApp/wled/changelog/dev.md to ${TOML_VERSION}.md."
             exit 1
           fi
+          for DIR in "app/src/main/assets/changelog" "iosApp/wled/changelog"; do
+            if [ ! -s "${DIR}/${TOML_VERSION}.md" ]; then
+              echo "::error::Missing or empty production changelog at ${DIR}/${TOML_VERSION}.md."
+              exit 1
+            fi
+          done
 
       - name: Run Code Formatting and Quality
         run: ./gradlew spotlessCheck detekt

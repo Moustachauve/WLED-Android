@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   prepare:
-    name: Prepare Release Metadata
+    name: Prepare & Validate Release
     runs-on: ubuntu-latest
     outputs:
       track: ${{ steps.meta.outputs.track }}
@@ -38,15 +38,28 @@ jobs:
       ios_marketing_version: ${{ steps.meta.outputs.ios_marketing_version }}
       version_code: ${{ steps.meta.outputs.version_code }}
     steps:
-      - name: Compute release metadata
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Compute and validate release metadata
         id: meta
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
           INPUT_TRACK: ${{ inputs.track }}
           INPUT_VERSION_NAME: ${{ inputs.version_name }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
           RUN_NUMBER: ${{ github.run_number }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GOOGLE_PLAY_JSON_KEY: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
+          IOS_DIST_CERT_BASE64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
         run: |
           set -euo pipefail
 
@@ -76,7 +89,48 @@ jobs:
           TAG_NAME="${RELEASE_TAG:-v${VERSION_NAME}}"
           IOS_MARKETING_VERSION="${VERSION_NAME%%-*}"
 
-          # 2. Compute monotonically increasing versionCode / CFBundleVersion (base offset 100 + workflow run_number).
+          # 2. Pre-flight check: prevent workflow_dispatch from overwriting an existing published release
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$(gh release view "$TAG_NAME" --json isDraft --jq '.isDraft' 2>/dev/null || echo 'true')" = "false" ]; then
+              echo "::error::Published GitHub Release $TAG_NAME already exists. Choose a new version_name."
+              exit 1
+            fi
+          fi
+
+          # 3. Pre-flight check: verify all required secrets are configured before any platform job starts
+          MISSING_SECRETS=()
+          for SECRET_VAR in \
+            ANDROID_KEYSTORE_BASE64 \
+            ANDROID_KEYSTORE_PASSWORD \
+            ANDROID_KEY_ALIAS \
+            ANDROID_KEY_PASSWORD \
+            GOOGLE_PLAY_JSON_KEY \
+            IOS_DIST_CERT_BASE64 \
+            ASC_KEY_ID \
+            ASC_ISSUER_ID \
+            ASC_KEY_P8_BASE64; do
+            if [ -z "${!SECRET_VAR:-}" ]; then
+              MISSING_SECRETS+=("$SECRET_VAR")
+            fi
+          done
+          if [ "${#MISSING_SECRETS[@]}" -gt 0 ]; then
+            echo "::error::Missing required GitHub Secrets: ${MISSING_SECRETS[*]} (see docs/RELEASING.md)"
+            exit 1
+          fi
+
+          # 4. Pre-flight check: verify non-empty changelog exists for both Android and iOS
+          for DIR in "app/src/main/assets/changelog" "iosApp/wled/changelog"; do
+            if [ ! -s "${DIR}/${VERSION_NAME}.md" ] && \
+               [ ! -s "${DIR}/v${VERSION_NAME}.md" ] && \
+               [ ! -s "${DIR}/${IOS_MARKETING_VERSION}.md" ] && \
+               [ ! -s "${DIR}/v${IOS_MARKETING_VERSION}.md" ] && \
+               [ ! -s "${DIR}/dev.md" ]; then
+              echo "::error::No non-empty changelog found in ${DIR} for ${VERSION_NAME} (or dev.md)."
+              exit 1
+            fi
+          done
+
+          # 5. Compute monotonically increasing versionCode / CFBundleVersion (base offset 100 + workflow run_number).
           # Note: github.run_number is tied to this workflow file ID; do not rename/delete release.yml without
           # updating the base offset, and use "Re-run failed jobs" rather than "Re-run all jobs" on partial failures.
           VERSION_CODE=$((100 + RUN_NUMBER))
@@ -123,7 +177,7 @@ jobs:
           ruby-version: '3.3'
           bundler-cache: true
 
-      - name: Ensure production changelog is promoted in build workspace
+      - name: Promote dev.md changelog in build workspace if needed
         if: needs.prepare.outputs.is_beta == 'false'
         env:
           MARKETING_VERSION: ${{ needs.prepare.outputs.ios_marketing_version }}
@@ -140,10 +194,6 @@ jobs:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           set -euo pipefail
-          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "::error::Missing ANDROID_KEYSTORE_BASE64 secret."
-            exit 1
-          fi
           KEYSTORE_FILE="$RUNNER_TEMP/release.keystore"
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_FILE"
           echo "keystore_path=$KEYSTORE_FILE" >> "$GITHUB_OUTPUT"
@@ -228,6 +278,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
       - name: Set up JDK 17
         uses: actions/setup-java@v6
         with:
@@ -250,6 +305,23 @@ jobs:
         with:
           ruby-version: '3.3'
           bundler-cache: true
+
+      - name: Promote dev.md changelog in build workspace if needed
+        env:
+          MARKETING_VERSION: ${{ needs.prepare.outputs.ios_marketing_version }}
+          IS_BETA: ${{ needs.prepare.outputs.is_beta }}
+        run: |
+          # iOS CFBundleShortVersionString is strictly numeric (e.g. 8.1.0 without -beta.1),
+          # so copy dev.md -> <MARKETING_VERSION>.md when missing so in-app "What's New" works on TestFlight too.
+          CHANGELOG_DIR="iosApp/wled/changelog"
+          if [ -f "$CHANGELOG_DIR/dev.md" ] && [ ! -f "$CHANGELOG_DIR/${MARKETING_VERSION}.md" ]; then
+            if [ "$IS_BETA" = "false" ]; then
+              echo "::warning::dev.md was not renamed before tagging; promoting dev.md -> ${MARKETING_VERSION}.md for this build."
+              mv "$CHANGELOG_DIR/dev.md" "$CHANGELOG_DIR/${MARKETING_VERSION}.md"
+            else
+              cp "$CHANGELOG_DIR/dev.md" "$CHANGELOG_DIR/${MARKETING_VERSION}.md"
+            fi
+          fi
 
       - name: Assemble Shared Release XCFramework
         run: |

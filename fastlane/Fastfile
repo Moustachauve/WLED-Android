@@ -145,15 +145,15 @@ platform :ios do
     )
 
     ios_changelog_dir = File.join(REPO_ROOT, "iosApp", "wled", "changelog")
-    dev_changelog_path = File.join(ios_changelog_dir, "dev.md")
-    version_changelog_path = File.join(ios_changelog_dir, "#{marketing_version}.md")
-    copied_temp_changelog = false
 
     notes = read_plain_changelog(
       changelog_dir: ios_changelog_dir,
       version: version_name,
       is_beta: is_beta
     )
+
+    pbxproj_file = File.join(IOS_PROJECT_PATH, "project.pbxproj")
+    original_pbxproj = File.read(pbxproj_file)
 
     Dir.mktmpdir("wled-ios-signing") do |tmpdir|
       cert_path = File.join(tmpdir, "distribution.p12")
@@ -205,13 +205,6 @@ platform :ios do
         bundle_identifier: IOS_WIDGET_BUNDLE_ID
       )
 
-      # If dev.md has not been promoted to <marketing_version>.md yet, copy it into the bundle
-      # so the in-app "What's New" sheet displays on TestFlight (and fallback production builds).
-      if File.exist?(dev_changelog_path) && !File.exist?(version_changelog_path)
-        FileUtils.cp(dev_changelog_path, version_changelog_path)
-        copied_temp_changelog = true
-      end
-
       version_xcargs = [
         "SKIP_KMP_BUILD=1",
         "MARKETING_VERSION=#{marketing_version}",
@@ -246,7 +239,7 @@ platform :ios do
         notes: notes
       }
     ensure
-      FileUtils.rm_f(version_changelog_path) if copied_temp_changelog
+      File.write(pbxproj_file, original_pbxproj) if original_pbxproj
     end
   end
 
