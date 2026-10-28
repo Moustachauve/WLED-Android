@@ -12,14 +12,15 @@ WLED-App uses GitHub Actions (`.github/workflows/release.yml`) and Fastlane (`fa
 
 ### Version Numbers & Build Codes
 - **Version Name (`versionName` / `MARKETING_VERSION`)**:
-  - Derived automatically from the Git tag or GitHub Release tag (e.g., `v8.1.0-beta.1` sets Android `versionName = 8.1.0-beta.1` and iOS `MARKETING_VERSION = 8.1.0`, since App Store Connect requires numeric `X.Y.Z` version strings).
+  - Derived automatically from the GitHub Release tag (e.g., `v8.1.0-beta.1` sets Android `versionName = 8.1.0-beta.1` and iOS `MARKETING_VERSION = 8.1.0`, since App Store Connect requires numeric `X.Y.Z` version strings).
 - **Build Code (`versionCode` / `CURRENT_PROJECT_VERSION`)**:
-  - Computed automatically in CI as `100 + github.run_number` so every Beta and Production upload has a strictly increasing integer without needing manual bumps for each test build.
+  - Computed automatically in CI as `100 + github.run_number` so every Beta and Production upload has a strictly increasing integer without needing manual bumps for each test build (`app-versionCode` in `gradle/libs.versions.toml` and `CURRENT_PROJECT_VERSION` in `project.pbxproj` are only used for local builds).
+  - *Note:* If a workflow run partially fails (e.g., Android succeeds but iOS fails), use **Re-run failed jobs** rather than **Re-run all jobs** so the succeeded store isn't re-sent the same build number.
 
 ### IzzyOnDroid / F-Droid Compliance
 - The codebase contains zero proprietary Google Play Services or Firebase SDKs.
-- `app/build.gradle.kts` sets both `dependenciesInfo.includeInApk = false` and `dependenciesInfo.includeInBundle = false`, stripping Google's encrypted dependency metadata block from the release `.apk` and `.aab`.
-- Every release attaches `WLED-Native-v<version>.apk` and `WLED-Native-v<version>.apk.sha256` to the GitHub Release, which IzzyOnDroid automatically polls and publishes.
+- `app/build.gradle.kts` sets `dependenciesInfo.includeInApk = false`, stripping Google's encrypted dependency metadata block from the release `.apk` while keeping `.aab` metadata intact for Google Play Console SDK warnings.
+- Every release attaches `WLED-Native-v<version>.apk` and `WLED-Native-v<version>.apk.sha256` to the GitHub Release after the Play Store upload succeeds, which IzzyOnDroid automatically polls and publishes.
 
 ---
 
@@ -27,25 +28,18 @@ WLED-App uses GitHub Actions (`.github/workflows/release.yml`) and Fastlane (`fa
 
 You can send a Beta build to Google Play Open Testing (`beta`) and the TestFlight `"Beta"` external group in any of three ways:
 
-### Option A: Push a Pre-Release Tag on `dev` (Fastest)
-```bash
-git checkout dev
-git pull --ff-only
-git tag v8.1.0-beta.1
-git push origin v8.1.0-beta.1
-```
-Wait for `.github/workflows/release.yml` to run:
-- Creates a GitHub Pre-Release `v8.1.0-beta.1` with the signed APK attached.
-- Uploads the signed AAB to Google Play's `beta` track using release notes from `app/src/main/assets/changelog/dev.md` (or `8.1.0.md`).
-- Uploads the signed IPA to TestFlight and submits it to the external `"Beta"` tester group using release notes from `iosApp/wled/changelog/dev.md` (or `8.1.0.md`).
-
-### Option B: Publish the Release Drafter Draft as a Pre-Release
+### Option A: Publish the Release Drafter Draft as a Pre-Release (GitHub UI)
 1. Go to **GitHub Releases** and open the draft created by Release Drafter.
 2. Set the tag to e.g. `v8.1.0-beta.1`, target branch `dev`, check **Set as a pre-release**, and click **Publish release**.
 
+### Option B: Create a Pre-Release from the Terminal (Fastest CLI)
+```bash
+gh release create v8.1.0-beta.1 --prerelease --target dev --title "v8.1.0-beta.1" --generate-notes
+```
+
 ### Option C: Manual Workflow Dispatch
 1. Go to **Actions → Release → Run workflow**.
-2. Select branch `dev`, track `beta`, and optionally enter a `version_name` (e.g. `8.1.0-beta.1`).
+2. Select branch `dev`, track `beta`, and enter `version_name` (e.g. `8.1.0-beta.1`).
 
 ---
 
@@ -55,13 +49,14 @@ Wait for `.github/workflows/release.yml` to run:
    - Rename `app/src/main/assets/changelog/dev.md` → `<version>.md` (e.g. `8.1.0.md`).
    - Rename `iosApp/wled/changelog/dev.md` → `<version>.md` (e.g. `8.1.0.md`).
    - Update `app-versionName` in `gradle/libs.versions.toml` and `MARKETING_VERSION` in `iosApp/wled.xcodeproj/project.pbxproj`.
+   - *(Safety net)*: The `Check` workflow on PRs targeting `main` will block merging if `dev.md` hasn't been renamed yet—and if you ever publish a release tag directly without renaming `dev.md`, `release.yml` automatically promotes `dev.md` → `<version>.md` inside the build workspace so your tagged release still succeeds without needing a version bump.
 2. **Merge `dev` into `main`**:
    - Open and merge a PR from `dev` → `main`.
 3. **Publish the GitHub Release**:
    - Go to **GitHub Releases**, open the draft prepared by Release Drafter, verify the tag (`v8.1.0`) targets `main` and **Set as a pre-release** is unchecked, and click **Publish release**.
    - `.github/workflows/release.yml` will automatically:
-     - Build, sign, and attach `WLED-Native-v8.1.0.apk` + `.sha256` to the GitHub Release (for **IzzyOnDroid**).
      - Upload the signed `.aab` + release notes to the Google Play `production` track.
+     - Attach `WLED-Native-v8.1.0.apk` + `.sha256` to the GitHub Release (for **IzzyOnDroid**).
      - Upload the signed `.ipa` + release notes to App Store Connect and submit for App Store Review.
 
 ---

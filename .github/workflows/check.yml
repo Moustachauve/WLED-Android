@@ -164,6 +164,16 @@ jobs:
         with:
           cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
 
+      - name: Verify production changelogs are promoted before merging to main
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        run: |
+          set -euo pipefail
+          TOML_VERSION=$(grep -E '^app-versionName\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -f "app/src/main/assets/changelog/dev.md" ] || [ -f "iosApp/wled/changelog/dev.md" ]; then
+            echo "::error::dev.md still exists! Before merging to main, rename app/src/main/assets/changelog/dev.md and iosApp/wled/changelog/dev.md to ${TOML_VERSION}.md."
+            exit 1
+          fi
+
       - name: Run Code Formatting and Quality
         run: ./gradlew spotlessCheck detekt
 
