@@ -1,0 +1,303 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*-*'
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      track:
+        description: 'Release track (beta -> Open Testing & TestFlight, production -> Play Store & App Store)'
+        required: true
+        default: 'beta'
+        type: choice
+        options:
+          - beta
+          - production
+      version_name:
+        description: 'Optional version name override (e.g. 8.1.0-beta.1 or 8.1.0). Defaults to tag or libs.versions.toml.'
+        required: false
+        type: string
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    name: Prepare Release Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.meta.outputs.should_deploy }}
+      track: ${{ steps.meta.outputs.track }}
+      is_beta: ${{ steps.meta.outputs.is_beta }}
+      tag_name: ${{ steps.meta.outputs.tag_name }}
+      version_name: ${{ steps.meta.outputs.version_name }}
+      ios_marketing_version: ${{ steps.meta.outputs.ios_marketing_version }}
+      version_code: ${{ steps.meta.outputs.version_code }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Compute release metadata
+        id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TRACK: ${{ inputs.track }}
+          INPUT_VERSION_NAME: ${{ inputs.version_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+          REF_NAME: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+
+          # If triggered by pushing a v*-* tag because a GitHub pre-release was just published in the UI,
+          # skip the duplicate push run and let the `release` event handle deployment.
+          if [ "$EVENT_NAME" = "push" ] && [ "$(gh release view "$REF_NAME" --json isDraft --jq '.isDraft' 2>/dev/null || echo 'true')" = "false" ]; then
+            echo "Published GitHub Release for $REF_NAME already exists; skipping duplicate tag-push run."
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+
+          # 1. Determine track (beta vs production)
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            TRACK="$INPUT_TRACK"
+          elif [ "$EVENT_NAME" = "release" ]; then
+            if [ "$RELEASE_PRERELEASE" = "true" ] || [[ "$RELEASE_TAG" == *-* ]]; then
+              TRACK="beta"
+            else
+              TRACK="production"
+            fi
+          else
+            # Triggered by push of pre-release tag v*-*
+            TRACK="beta"
+          fi
+
+          if [ "$TRACK" = "beta" ]; then
+            IS_BETA="true"
+          else
+            IS_BETA="false"
+          fi
+
+          # 2. Determine version_name and tag_name
+          TOML_VERSION=$(grep -E '^app-versionName\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -n "$INPUT_VERSION_NAME" ]; then
+            RAW_VERSION="$INPUT_VERSION_NAME"
+          elif [ -n "$RELEASE_TAG" ]; then
+            RAW_VERSION="$RELEASE_TAG"
+          elif [[ "$REF_NAME" == v* ]]; then
+            RAW_VERSION="$REF_NAME"
+          else
+            RAW_VERSION="$TOML_VERSION"
+          fi
+
+          VERSION_NAME="${RAW_VERSION#v}"
+          if [ "$TRACK" = "beta" ] && [[ "$VERSION_NAME" != *-* ]]; then
+            VERSION_NAME="${VERSION_NAME}-beta.${RUN_NUMBER}"
+          fi
+          TAG_NAME="${RELEASE_TAG:-v${VERSION_NAME}}"
+          IOS_MARKETING_VERSION="${VERSION_NAME%%-*}"
+
+          # 3. Compute monotonically increasing versionCode / CFBundleVersion (base offset 100 + workflow run_number)
+          VERSION_CODE=$((100 + RUN_NUMBER))
+
+          echo "track=$TRACK" >> "$GITHUB_OUTPUT"
+          echo "is_beta=$IS_BETA" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "ios_marketing_version=$IOS_MARKETING_VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Release Metadata"
+            echo "- **Track:** \`$TRACK\`"
+            echo "- **Tag:** \`$TAG_NAME\`"
+            echo "- **Android Version Name:** \`$VERSION_NAME\`"
+            echo "- **iOS Marketing Version:** \`$IOS_MARKETING_VERSION\`"
+            echo "- **Build Number / Version Code:** \`$VERSION_CODE\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  release-android:
+    name: Build & Deploy Android (Play Store + GitHub APK)
+    needs: prepare
+    if: needs.prepare.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.4.0
+
+      - name: Set up Ruby & Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Decode Android Keystore
+        id: keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::Missing ANDROID_KEYSTORE_BASE64 secret."
+            exit 1
+          fi
+          KEYSTORE_FILE="$RUNNER_TEMP/release.keystore"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_FILE"
+          echo "keystore_path=$KEYSTORE_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Build Signed Release AAB & APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ steps.keystore.outputs.keystore_path }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
+          VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
+        run: |
+          ./gradlew :app:bundleRelease :app:assembleRelease \
+            -PversionCode="$VERSION_CODE" \
+            -PversionName="$VERSION_NAME"
+
+      - name: Package APK & Attach to GitHub Release (IzzyOnDroid / Direct Download)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
+          TARGET_SHA: ${{ github.sha }}
+          VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
+          IS_BETA: ${{ needs.prepare.outputs.is_beta }}
+        run: |
+          set -euo pipefail
+          APK_SOURCE="app/build/outputs/apk/release/app-release.apk"
+          APK_TARGET="WLED-Native-${TAG_NAME}.apk"
+          SHA_TARGET="${APK_TARGET}.sha256"
+
+          cp "$APK_SOURCE" "$APK_TARGET"
+          sha256sum "$APK_TARGET" > "$SHA_TARGET"
+
+          # Ensure a published GitHub Release exists for this tag (e.g., when triggered by pushing a v*-* beta tag)
+          if [ "$(gh release view "$TAG_NAME" --json isDraft --jq '.isDraft' 2>/dev/null || echo 'true')" != "false" ]; then
+            if [ "$IS_BETA" = "true" ]; then
+              gh release create "$TAG_NAME" \
+                --target "$TARGET_SHA" \
+                --title "$TAG_NAME" \
+                --prerelease \
+                --generate-notes
+            else
+              gh release create "$TAG_NAME" \
+                --target "$TARGET_SHA" \
+                --title "$TAG_NAME" \
+                --generate-notes
+            fi
+          fi
+
+          gh release upload "$TAG_NAME" "$APK_TARGET" "$SHA_TARGET" --clobber
+
+      - name: Upload Signed Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-release-${{ needs.prepare.outputs.version_name }}
+          path: |
+            WLED-Native-${{ needs.prepare.outputs.tag_name }}.apk
+            WLED-Native-${{ needs.prepare.outputs.tag_name }}.apk.sha256
+            app/build/outputs/bundle/release/app-release.aab
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Deploy to Google Play Store via Fastlane
+        env:
+          GOOGLE_PLAY_JSON_KEY: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
+          PLAY_STORE_TRACK: ${{ needs.prepare.outputs.track }}
+          VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
+          VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
+        run: bundle exec fastlane android deploy
+
+      - name: Clean up temporary keystore
+        if: always()
+        run: rm -f "${{ steps.keystore.outputs.keystore_path }}"
+
+  release-ios:
+    name: Build & Deploy iOS (TestFlight / App Store Connect)
+    needs: prepare
+    if: needs.prepare.outputs.should_deploy == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Kotlin/Native toolchain
+        uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-konan-
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.4.0
+
+      - name: Set up Ruby & Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Assemble Shared Release XCFramework
+        run: |
+          ./gradlew :shared:assembleSharedReleaseXCFramework
+          ./gradlew --stop
+
+      - name: Deploy iOS via Fastlane
+        env:
+          IOS_DIST_CERT_BASE64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          IOS_TESTFLIGHT_GROUP: ${{ vars.IOS_TESTFLIGHT_GROUP || 'Beta' }}
+          VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
+          VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
+        run: |
+          if [ "${{ needs.prepare.outputs.is_beta }}" = "true" ]; then
+            bundle exec fastlane ios beta
+          else
+            bundle exec fastlane ios release
+          fi
+
+      - name: Upload iOS Build Artifacts (IPA & dSYMs)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-release-${{ needs.prepare.outputs.version_name }}
+          path: |
+            iosApp/build/WLED.ipa
+            iosApp/build/WLED.app.dSYM.zip
+          if-no-files-found: ignore
+          retention-days: 30

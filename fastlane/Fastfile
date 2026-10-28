@@ -1,0 +1,254 @@
+# frozen_string_literal: true
+
+require "base64"
+require "fileutils"
+require "tmpdir"
+
+default_platform(:android)
+
+REPO_ROOT = File.expand_path("..", __dir__)
+IOS_PROJECT_PATH = File.join(REPO_ROOT, "iosApp", "wled.xcodeproj")
+IOS_TEAM_ID = "RWLNCUSDCJ"
+ANDROID_PACKAGE_NAME = "ca.cgagnier.wlednativeandroid"
+IOS_BUNDLE_ID = "ca.cgagnier.wled-native"
+GOOGLE_PLAY_MAX_CHANGELOG_CHARS = 500
+
+def strip_v_prefix(version_str)
+  version_str.to_s.strip.sub(/\Av/i, "")
+end
+
+def base_semver(version_str)
+  strip_v_prefix(version_str).split("-").first
+end
+
+def read_plain_changelog(changelog_dir:, version:, max_length: nil)
+  clean_version = strip_v_prefix(version)
+  numeric_version = base_semver(version)
+
+  candidates = [
+    "#{clean_version}.md",
+    "v#{clean_version}.md",
+    "#{numeric_version}.md",
+    "v#{numeric_version}.md",
+    "dev.md"
+  ].uniq
+
+  selected_path = candidates
+                  .map { |name| File.join(changelog_dir, name) }
+                  .find { |path| File.exist?(path) && !File.read(path).strip.empty? }
+
+  text = if selected_path
+           File.read(selected_path)
+               .gsub(/^###+\s+(.+)$/, '\1:')
+               .gsub(/\*\*(.+?)\*\*/, '\1')
+               .strip
+         else
+           "Bug fixes and performance improvements."
+         end
+
+  return text if max_length.nil? || text.length <= max_length
+
+  truncated = text[0...(max_length - 3)]
+  last_newline = truncated.rindex("\n")
+  last_space = truncated.rindex(" ")
+  cutoff = if last_newline && last_newline > max_length * 0.6
+             last_newline
+           elsif last_space && last_space > max_length * 0.6
+             last_space
+           else
+             max_length - 3
+           end
+  "#{truncated[0...cutoff].rstrip}..."
+end
+
+def require_env!(name)
+  value = ENV[name].to_s.strip
+  UI.user_error!("Missing required environment variable: #{name}") if value.empty?
+  value
+end
+
+platform :android do
+  desc "Deploy signed Android App Bundle (.aab) to Google Play ('beta' or 'production' track)"
+  lane :deploy do |options|
+    track = (options[:track] || ENV.fetch("PLAY_STORE_TRACK", "beta")).to_s
+    version_code = (options[:version_code] || require_env!("VERSION_CODE")).to_s
+    version_name = strip_v_prefix(options[:version_name] || require_env!("VERSION_NAME"))
+    aab_path = File.join(REPO_ROOT, "app", "build", "outputs", "bundle", "release", "app-release.aab")
+
+    UI.user_error!("Signed AAB not found at #{aab_path}") unless File.exist?(aab_path)
+
+    changelog_dir = File.join(REPO_ROOT, "app", "src", "main", "assets", "changelog")
+    notes = read_plain_changelog(
+      changelog_dir: changelog_dir,
+      version: version_name,
+      max_length: GOOGLE_PLAY_MAX_CHANGELOG_CHARS
+    )
+
+    play_changelog_dir = File.join(REPO_ROOT, "fastlane", "metadata", "android", "en-US", "changelogs")
+    FileUtils.mkdir_p(play_changelog_dir)
+    File.write(File.join(play_changelog_dir, "#{version_code}.txt"), "#{notes}\n")
+
+    upload_to_play_store(
+      package_name: ANDROID_PACKAGE_NAME,
+      track: track,
+      release_status: "completed",
+      aab: aab_path,
+      json_key_data: require_env!("GOOGLE_PLAY_JSON_KEY"),
+      metadata_path: File.join(REPO_ROOT, "fastlane", "metadata", "android"),
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: false
+    )
+  end
+end
+
+platform :ios do
+  private_lane :build_signed_ipa do |options|
+    version_code = (options[:version_code] || require_env!("VERSION_CODE")).to_s
+    version_name = strip_v_prefix(options[:version_name] || require_env!("VERSION_NAME"))
+    marketing_version = base_semver(version_name)
+    is_beta = options[:is_beta] == true
+
+    setup_ci if ENV["CI"]
+
+    cert_base64 = require_env!("IOS_DIST_CERT_BASE64")
+    cert_password = ENV.fetch("IOS_DIST_CERT_PASSWORD", "")
+    key_id = require_env!("ASC_KEY_ID")
+    issuer_id = require_env!("ASC_ISSUER_ID")
+    key_p8_base64 = require_env!("ASC_KEY_P8_BASE64")
+
+    api_key = app_store_connect_api_key(
+      key_id: key_id,
+      issuer_id: issuer_id,
+      key_content: key_p8_base64,
+      is_key_content_base64: true,
+      in_house: false
+    )
+
+    # For beta builds where dev.md has not been promoted to <marketing_version>.md yet,
+    # copy dev.md to <marketing_version>.md so the in-app changelog sheet displays on TestFlight.
+    ios_changelog_dir = File.join(REPO_ROOT, "iosApp", "wled", "changelog")
+    dev_changelog_path = File.join(ios_changelog_dir, "dev.md")
+    version_changelog_path = File.join(ios_changelog_dir, "#{marketing_version}.md")
+    copied_temp_changelog = false
+
+    Dir.mktmpdir("wled-ios-signing") do |tmpdir|
+      cert_path = File.join(tmpdir, "distribution.p12")
+      File.binwrite(cert_path, Base64.decode64(cert_base64))
+
+      p8_path = File.join(tmpdir, "AuthKey_#{key_id}.p8")
+      File.write(p8_path, Base64.decode64(key_p8_base64))
+
+      cert_opts = {
+        certificate_path: cert_path,
+        certificate_password: cert_password
+      }
+      if ENV["MATCH_KEYCHAIN_NAME"]
+        cert_opts[:keychain_name] = ENV["MATCH_KEYCHAIN_NAME"]
+        cert_opts[:keychain_password] = ENV.fetch("MATCH_KEYCHAIN_PASSWORD", "")
+      end
+      import_certificate(cert_opts)
+
+      if is_beta && File.exist?(dev_changelog_path) && !File.exist?(version_changelog_path)
+        FileUtils.cp(dev_changelog_path, version_changelog_path)
+        copied_temp_changelog = true
+      end
+
+      sh("defaults", "write", "com.apple.dt.Xcode", "IDESkipPackagePluginFingerprintValidatation", "-bool", "YES")
+      sh("defaults", "write", "com.apple.dt.Xcode", "IDESkipMacroFingerprintValidation", "-bool", "YES")
+
+      auth_xcargs = [
+        "-allowProvisioningUpdates",
+        "-authenticationKeyPath '#{p8_path}'",
+        "-authenticationKeyID '#{key_id}'",
+        "-authenticationKeyIssuerID '#{issuer_id}'"
+      ].join(" ")
+
+      version_xcargs = [
+        "SKIP_KMP_BUILD=1",
+        "MARKETING_VERSION=#{marketing_version}",
+        "CURRENT_PROJECT_VERSION=#{version_code}",
+        "-skipPackagePluginValidation",
+        "-skipMacroValidation",
+        auth_xcargs
+      ].join(" ")
+
+      ipa_path = build_app(
+        project: IOS_PROJECT_PATH,
+        scheme: "wled",
+        configuration: "Release",
+        clean: true,
+        output_directory: File.join(REPO_ROOT, "iosApp", "build"),
+        output_name: "WLED.ipa",
+        export_method: "app-store",
+        xcargs: version_xcargs,
+        export_xcargs: auth_xcargs,
+        export_options: {
+          signingStyle: "automatic",
+          teamID: IOS_TEAM_ID
+        }
+      )
+
+      notes = read_plain_changelog(
+        changelog_dir: ios_changelog_dir,
+        version: version_name
+      )
+
+      {
+        api_key: api_key,
+        ipa_path: ipa_path,
+        marketing_version: marketing_version,
+        notes: notes
+      }
+    ensure
+      FileUtils.rm_f(version_changelog_path) if copied_temp_changelog
+    end
+  end
+
+  desc "Build, sign, and upload iOS Beta to TestFlight external 'Beta' group"
+  lane :beta do |options|
+    result = build_signed_ipa(options.merge(is_beta: true))
+    external_group = ENV.fetch("IOS_TESTFLIGHT_GROUP", "Beta").to_s.strip
+
+    upload_to_testflight(
+      api_key: result[:api_key],
+      app_identifier: IOS_BUNDLE_ID,
+      ipa: result[:ipa_path],
+      changelog: result[:notes],
+      distribute_external: !external_group.empty?,
+      groups: external_group.empty? ? nil : [external_group],
+      notify_external_testers: !external_group.empty?
+    )
+  end
+
+  desc "Build, sign, and submit iOS Production release to App Store Connect"
+  lane :release do |options|
+    result = build_signed_ipa(options.merge(is_beta: false))
+
+    Dir.mktmpdir("wled-ios-metadata") do |ios_metadata_dir|
+      upload_to_app_store(
+        api_key: result[:api_key],
+        app_identifier: IOS_BUNDLE_ID,
+        ipa: result[:ipa_path],
+        app_version: result[:marketing_version],
+        metadata_path: ios_metadata_dir,
+        ignore_language_directory_validation: true,
+        submit_for_review: true,
+        automatic_release: true,
+        force: true,
+        skip_screenshots: true,
+        skip_metadata: false,
+        run_precheck_before_submit: false,
+        release_notes: {
+          "default" => result[:notes],
+          "en-US" => result[:notes]
+        },
+        submission_information: {
+          add_id_info_uses_idfa: false
+        }
+      )
+    end
+  end
+end

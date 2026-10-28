@@ -106,3 +106,6 @@ When a feature or fix applies to both platforms, remember to update **both** `de
 - **Section Headings over Bolded Bullet Lists:** Prefer `###` section titles with short, playful descriptions over bullet lists that start with bold words (e.g., avoid `- **Feature**: description`). Bullet lists under a `###` title are fine if a major feature needs sub-items.
 - **Minor Features & Fixes:** Group minor features, small tweaks, and bug fixes at the bottom under `### Other Improvements` (or `### Other Improvements & Fixes` when bug fixes are included) using plain bullet points.
 - **No Emojis:** Do not use emojis in headings or at the beginning of list items.
+
+## Releases & Deployment
+For details on how Beta (Google Play Open Testing & TestFlight) and Production (Google Play, App Store Connect, and IzzyOnDroid/F-Droid) releases are built and deployed via GitHub Actions and Fastlane, see [docs/RELEASING.md](docs/RELEASING.md).

@@ -17,11 +17,17 @@ android {
         minSdk = 24
         targetSdk = 37
         versionCode =
-            libs.versions.app.versionCode
-                .get()
-                .toInt()
+            providers
+                .gradleProperty("versionCode")
+                .map { it.toInt() }
+                .orElse(
+                    libs.versions.app.versionCode
+                        .map { it.toInt() },
+                ).get()
         versionName =
-            libs.versions.app.versionName
+            providers
+                .gradleProperty("versionName")
+                .orElse(libs.versions.app.versionName)
                 .get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -43,12 +49,28 @@ android {
     }
 
     dependenciesInfo {
-        // Disables dependency metadata when building APKs (for IzzyOnDroid/F-Droid)
+        // Disables dependency metadata when building APKs and bundles (for IzzyOnDroid/F-Droid)
         includeInApk = false
+        includeInBundle = false
+    }
+
+    val keystorePath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
+    signingConfigs {
+        if (!keystorePath.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("ANDROID_KEY_ALIAS").orNull
+                keyPassword = providers.environmentVariable("ANDROID_KEY_PASSWORD").orNull
+            }
+        }
     }
 
     buildTypes {
         release {
+            if (!keystorePath.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
