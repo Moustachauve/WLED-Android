@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  push:
+    branches:
+      - feat/automated-releases
   release:
     types:
       - published
@@ -71,11 +74,21 @@ jobs:
           set -euo pipefail
 
           # 1. Determine track (beta vs production)
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+          if [ "$EVENT_NAME" = "push" ]; then
+            TRACK="beta"
+            RAW_VERSION="8.0.0-beta.dryrun"
+            DRY_RUN="true"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             TRACK="$INPUT_TRACK"
             RAW_VERSION="$INPUT_VERSION_NAME"
+            if [ "$INPUT_DRY_RUN" = "true" ]; then
+              DRY_RUN="true"
+            else
+              DRY_RUN="false"
+            fi
           else
             RAW_VERSION="$RELEASE_TAG"
+            DRY_RUN="false"
             if [ "$RELEASE_PRERELEASE" = "true" ] || [[ "$RELEASE_TAG" == *-* ]]; then
               TRACK="beta"
             else
@@ -95,12 +108,6 @@ jobs:
           fi
           TAG_NAME="${RELEASE_TAG:-v${VERSION_NAME}}"
           IOS_MARKETING_VERSION="${VERSION_NAME%%-*}"
-
-          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_DRY_RUN" = "true" ]; then
-            DRY_RUN="true"
-          else
-            DRY_RUN="false"
-          fi
 
           # 2. Pre-flight check: prevent workflow_dispatch (non-dry-run) from colliding with an existing release or draft
           if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$DRY_RUN" = "false" ]; then
