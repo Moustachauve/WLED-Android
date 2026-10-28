@@ -26,6 +26,6 @@
   "lastUpdateCheckDate": 0,
   "dateLastWritten": 0,
   "showHiddenDevices": false,
-  "lastChangelogVersionSeen": ""
+  "lastChangelogVersionSeen": "7.0.1"
 }
 ╔═ [end of file] ═╗

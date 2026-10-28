@@ -7,7 +7,13 @@ struct UserDefaultsToDataStoreMigrator {
     static let legacyShowHiddenDevicesKey = "DeviceListView.showHiddenDevices"
     static let legacyShowOfflineDevicesKey = "DeviceListView.showOfflineDevices"
     static let legacyLastUpdateReleasesDateKey = "lastUpdateReleasesDate_v2"
+    static let preChangelogBaselineVersion = "7.0.1"
 
+    private static let legacyKeys = [
+        legacyShowHiddenDevicesKey,
+        legacyShowOfflineDevicesKey,
+        legacyLastUpdateReleasesDateKey
+    ]
     private static let oneDayMilliseconds: Int64 = 24 * 60 * 60 * 1000
 
     private static let logger = Logger(
@@ -19,7 +25,8 @@ struct UserDefaultsToDataStoreMigrator {
     /// then records `migrationKey` and cleans up the legacy keys.
     static func migrateIfNeeded(
         repository: UserPreferencesRepository,
-        userDefaults: UserDefaults = .standard
+        userDefaults: UserDefaults = .standard,
+        hasMigratedDevices: Bool = false
     ) async throws {
         guard !userDefaults.bool(forKey: migrationKey) else {
             return
@@ -43,11 +50,31 @@ struct UserDefaultsToDataStoreMigrator {
             try await repository.updateLastUpdateCheckDate(lastUpdateCheckDate: nextCheckMillis)
         }
 
-        userDefaults.removeObject(forKey: legacyShowHiddenDevicesKey)
-        userDefaults.removeObject(forKey: legacyShowOfflineDevicesKey)
-        userDefaults.removeObject(forKey: legacyLastUpdateReleasesDateKey)
+        try await seedChangelogVersionIfUpgrading(
+            repository: repository,
+            userDefaults: userDefaults,
+            hasMigratedDevices: hasMigratedDevices
+        )
+
+        legacyKeys.forEach(userDefaults.removeObject(forKey:))
         userDefaults.set(true, forKey: migrationKey)
 
         logger.info("UserDefaults to DataStore preferences migration completed successfully.")
+    }
+
+    private static func seedChangelogVersionIfUpgrading(
+        repository: UserPreferencesRepository,
+        userDefaults: UserDefaults,
+        hasMigratedDevices: Bool
+    ) async throws {
+        let hasLegacyPrefs = legacyKeys.contains { userDefaults.object(forKey: $0) != nil }
+        guard hasMigratedDevices || hasLegacyPrefs else {
+            return
+        }
+
+        let existingVersion = await repository.lastChangelogVersionSeen.firstValue() ?? ""
+        if existingVersion.isEmpty {
+            try await repository.updateLastChangelogVersionSeen(version: preChangelogBaselineVersion)
+        }
     }
 }
