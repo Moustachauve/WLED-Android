@@ -1,9 +1,6 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*-*'
   release:
     types:
       - published
@@ -18,23 +15,22 @@ on:
           - beta
           - production
       version_name:
-        description: 'Optional version name override (e.g. 8.1.0-beta.1 or 8.1.0). Defaults to tag or libs.versions.toml.'
-        required: false
+        description: 'Version name to build (e.g. 8.1.0-beta.1 or 8.1.0)'
+        required: true
         type: string
 
 concurrency:
-  group: release-${{ github.event.release.tag_name || github.ref_name }}
+  group: release-${{ github.event.release.tag_name || inputs.version_name || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   prepare:
     name: Prepare Release Metadata
     runs-on: ubuntu-latest
     outputs:
-      should_deploy: ${{ steps.meta.outputs.should_deploy }}
       track: ${{ steps.meta.outputs.track }}
       is_beta: ${{ steps.meta.outputs.is_beta }}
       tag_name: ${{ steps.meta.outputs.tag_name }}
@@ -42,62 +38,35 @@ jobs:
       ios_marketing_version: ${{ steps.meta.outputs.ios_marketing_version }}
       version_code: ${{ steps.meta.outputs.version_code }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
       - name: Compute release metadata
         id: meta
         env:
-          GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
           INPUT_TRACK: ${{ inputs.track }}
           INPUT_VERSION_NAME: ${{ inputs.version_name }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
-          REF_NAME: ${{ github.ref_name }}
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
 
-          # If triggered by pushing a v*-* tag because a GitHub pre-release was just published in the UI,
-          # skip the duplicate push run and let the `release` event handle deployment.
-          if [ "$EVENT_NAME" = "push" ] && [ "$(gh release view "$REF_NAME" --json isDraft --jq '.isDraft' 2>/dev/null || echo 'true')" = "false" ]; then
-            echo "Published GitHub Release for $REF_NAME already exists; skipping duplicate tag-push run."
-            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "should_deploy=true" >> "$GITHUB_OUTPUT"
-
           # 1. Determine track (beta vs production)
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             TRACK="$INPUT_TRACK"
-          elif [ "$EVENT_NAME" = "release" ]; then
+            RAW_VERSION="$INPUT_VERSION_NAME"
+          else
+            RAW_VERSION="$RELEASE_TAG"
             if [ "$RELEASE_PRERELEASE" = "true" ] || [[ "$RELEASE_TAG" == *-* ]]; then
               TRACK="beta"
             else
               TRACK="production"
             fi
-          else
-            # Triggered by push of pre-release tag v*-*
-            TRACK="beta"
           fi
 
           if [ "$TRACK" = "beta" ]; then
             IS_BETA="true"
           else
             IS_BETA="false"
-          fi
-
-          # 2. Determine version_name and tag_name
-          TOML_VERSION=$(grep -E '^app-versionName\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
-          if [ -n "$INPUT_VERSION_NAME" ]; then
-            RAW_VERSION="$INPUT_VERSION_NAME"
-          elif [ -n "$RELEASE_TAG" ]; then
-            RAW_VERSION="$RELEASE_TAG"
-          elif [[ "$REF_NAME" == v* ]]; then
-            RAW_VERSION="$REF_NAME"
-          else
-            RAW_VERSION="$TOML_VERSION"
           fi
 
           VERSION_NAME="${RAW_VERSION#v}"
@@ -107,7 +76,9 @@ jobs:
           TAG_NAME="${RELEASE_TAG:-v${VERSION_NAME}}"
           IOS_MARKETING_VERSION="${VERSION_NAME%%-*}"
 
-          # 3. Compute monotonically increasing versionCode / CFBundleVersion (base offset 100 + workflow run_number)
+          # 2. Compute monotonically increasing versionCode / CFBundleVersion (base offset 100 + workflow run_number).
+          # Note: github.run_number is tied to this workflow file ID; do not rename/delete release.yml without
+          # updating the base offset, and use "Re-run failed jobs" rather than "Re-run all jobs" on partial failures.
           VERSION_CODE=$((100 + RUN_NUMBER))
 
           echo "track=$TRACK" >> "$GITHUB_OUTPUT"
@@ -129,9 +100,10 @@ jobs:
   release-android:
     name: Build & Deploy Android (Play Store + GitHub APK)
     needs: prepare
-    if: needs.prepare.outputs.should_deploy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -150,6 +122,17 @@ jobs:
         with:
           ruby-version: '3.3'
           bundler-cache: true
+
+      - name: Ensure production changelog is promoted in build workspace
+        if: needs.prepare.outputs.is_beta == 'false'
+        env:
+          MARKETING_VERSION: ${{ needs.prepare.outputs.ios_marketing_version }}
+        run: |
+          CHANGELOG_DIR="app/src/main/assets/changelog"
+          if [ -f "$CHANGELOG_DIR/dev.md" ] && [ ! -f "$CHANGELOG_DIR/${MARKETING_VERSION}.md" ]; then
+            echo "::warning::dev.md was not renamed before tagging; promoting dev.md -> ${MARKETING_VERSION}.md for this build."
+            mv "$CHANGELOG_DIR/dev.md" "$CHANGELOG_DIR/${MARKETING_VERSION}.md"
+          fi
 
       - name: Decode Android Keystore
         id: keystore
@@ -178,12 +161,19 @@ jobs:
             -PversionCode="$VERSION_CODE" \
             -PversionName="$VERSION_NAME"
 
+      - name: Deploy to Google Play Store via Fastlane
+        env:
+          GOOGLE_PLAY_JSON_KEY: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
+          PLAY_STORE_TRACK: ${{ needs.prepare.outputs.track }}
+          VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
+          VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
+        run: bundle exec fastlane android deploy
+
       - name: Package APK & Attach to GitHub Release (IzzyOnDroid / Direct Download)
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
           TARGET_SHA: ${{ github.sha }}
-          VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
           IS_BETA: ${{ needs.prepare.outputs.is_beta }}
         run: |
           set -euo pipefail
@@ -194,7 +184,7 @@ jobs:
           cp "$APK_SOURCE" "$APK_TARGET"
           sha256sum "$APK_TARGET" > "$SHA_TARGET"
 
-          # Ensure a published GitHub Release exists for this tag (e.g., when triggered by pushing a v*-* beta tag)
+          # Ensure a published GitHub Release exists when triggered via workflow_dispatch
           if [ "$(gh release view "$TAG_NAME" --json isDraft --jq '.isDraft' 2>/dev/null || echo 'true')" != "false" ]; then
             if [ "$IS_BETA" = "true" ]; then
               gh release create "$TAG_NAME" \
@@ -213,6 +203,7 @@ jobs:
           gh release upload "$TAG_NAME" "$APK_TARGET" "$SHA_TARGET" --clobber
 
       - name: Upload Signed Artifacts
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: android-release-${{ needs.prepare.outputs.version_name }}
@@ -224,14 +215,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Deploy to Google Play Store via Fastlane
-        env:
-          GOOGLE_PLAY_JSON_KEY: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
-          PLAY_STORE_TRACK: ${{ needs.prepare.outputs.track }}
-          VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
-          VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
-        run: bundle exec fastlane android deploy
-
       - name: Clean up temporary keystore
         if: always()
         run: rm -f "${{ steps.keystore.outputs.keystore_path }}"
@@ -239,7 +222,6 @@ jobs:
   release-ios:
     name: Build & Deploy iOS (TestFlight / App Store Connect)
     needs: prepare
-    if: needs.prepare.outputs.should_deploy == 'true'
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
