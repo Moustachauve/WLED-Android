@@ -1,9 +1,6 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - feat/automated-releases
   release:
     types:
       - published
@@ -28,7 +25,7 @@ on:
         type: boolean
 
 concurrency:
-  group: release-${{ github.event.release.tag_name || inputs.version_name || github.ref_name }}
+  group: release-${{ github.event.release.tag_name || inputs.version_name }}
   cancel-in-progress: false
 
 permissions:
@@ -74,11 +71,7 @@ jobs:
           set -euo pipefail
 
           # 1. Determine track (beta vs production)
-          if [ "$EVENT_NAME" = "push" ]; then
-            TRACK="beta"
-            RAW_VERSION="8.0.0-beta.dryrun"
-            DRY_RUN="true"
-          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             TRACK="$INPUT_TRACK"
             RAW_VERSION="$INPUT_VERSION_NAME"
             if [ "$INPUT_DRY_RUN" = "true" ]; then
