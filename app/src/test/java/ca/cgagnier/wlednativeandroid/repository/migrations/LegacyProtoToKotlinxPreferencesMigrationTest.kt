@@ -81,6 +81,22 @@ class LegacyProtoToKotlinxPreferencesMigrationTest {
     }
 
     @Test
+    fun migrate_withEmptyLastChangelogVersionSeen_seedsBaselineVersion() = runBlocking {
+        val protoFile = newFile("user_prefs_no_changelog.pb")
+        val legacyProto = LegacyProtoUserPreferences.newBuilder()
+            .setVersion(1)
+            .build()
+        FileOutputStream(protoFile).use { legacyProto.writeTo(it) }
+
+        val migrated = LegacyProtoToKotlinxPreferencesMigration(protoFile).migrate(UserPreferences())
+
+        assertEquals(
+            LegacyProtoToKotlinxPreferencesMigration.PRE_CHANGELOG_BASELINE_VERSION,
+            migrated.lastChangelogVersionSeen,
+        )
+    }
+
+    @Test
     fun migrate_withLightAndAutoThemes_mapsCorrectly() = runBlocking {
         val protoFileLight = newFile("user_prefs_light.pb")
         val legacyLight = LegacyProtoUserPreferences.newBuilder()

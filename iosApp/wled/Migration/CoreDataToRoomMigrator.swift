@@ -12,13 +12,15 @@ struct CoreDataToRoomMigrator {
 
     /// Imports legacy Core Data `Device` entities into Room once, then records `migrationKey`.
     /// `context` is an `@autoclosure` so `PersistenceController.shared` is never initialized once migration is complete.
+    /// - Returns: `true` if at least one legacy device was found and migrated into Room.
+    @discardableResult
     static func migrateIfNeeded(
         context: @autoclosure () -> NSManagedObjectContext = PersistenceController.shared.container.newBackgroundContext(),
         repository: DeviceRepository,
         userDefaults: UserDefaults = .standard
-    ) async throws {
+    ) async throws -> Bool {
         guard !userDefaults.bool(forKey: migrationKey) else {
-            return
+            return false
         }
 
         let managedContext = context()
@@ -36,6 +38,7 @@ struct CoreDataToRoomMigrator {
 
         userDefaults.set(true, forKey: migrationKey)
         logger.info("Core Data to Room device migration completed successfully.")
+        return !devices.isEmpty
     }
 
     /// Maps a legacy Core Data device to a Room device. Must be called on the managed object's context queue.

@@ -70,8 +70,9 @@ final class AppDatabase: Sendable {
 
         self.readyTask = Task {
             if !inMemory {
+                var didMigrateDevices = false
                 do {
-                    try await CoreDataToRoomMigrator.migrateIfNeeded(
+                    didMigrateDevices = try await CoreDataToRoomMigrator.migrateIfNeeded(
                         repository: repository
                     )
                 } catch is CancellationError {
@@ -82,7 +83,8 @@ final class AppDatabase: Sendable {
 
                 do {
                     try await UserDefaultsToDataStoreMigrator.migrateIfNeeded(
-                        repository: userPrefsRepo
+                        repository: userPrefsRepo,
+                        hasMigratedDevices: didMigrateDevices
                     )
                 } catch is CancellationError {
                     return

@@ -38,10 +38,34 @@ struct UserDefaultsToDataStoreMigratorTests {
         let showHidden = await repository.showHiddenDevices.firstValue()?.boolValue
         let showOfflineLast = await repository.showOfflineDevicesLast.firstValue()?.boolValue
         let lastUpdateCheck = await repository.lastUpdateCheckDate.firstValue()?.int64Value
+        let lastChangelogVersionSeen = await repository.lastChangelogVersionSeen.firstValue()
         #expect(showHidden == true)
         #expect(showOfflineLast == false)
         let expectedNextCheckMs = Int64(lastRefreshSeconds * 1000.0) + 86_400_000
         #expect(lastUpdateCheck == expectedNextCheckMs)
+        #expect(lastChangelogVersionSeen == UserDefaultsToDataStoreMigrator.preChangelogBaselineVersion)
+    }
+
+    @Test func seedsChangelogBaselineVersionWhenDevicesWereMigratedFromCoreData() async throws {
+        try await UserDefaultsToDataStoreMigrator.migrateIfNeeded(
+            repository: repository,
+            userDefaults: testUserDefaults,
+            hasMigratedDevices: true
+        )
+
+        let lastChangelogVersionSeen = await repository.lastChangelogVersionSeen.firstValue()
+        #expect(lastChangelogVersionSeen == UserDefaultsToDataStoreMigrator.preChangelogBaselineVersion)
+    }
+
+    @Test func leavesChangelogVersionEmptyOnFreshInstallWithoutLegacyData() async throws {
+        try await UserDefaultsToDataStoreMigrator.migrateIfNeeded(
+            repository: repository,
+            userDefaults: testUserDefaults,
+            hasMigratedDevices: false
+        )
+
+        let lastChangelogVersionSeen = await repository.lastChangelogVersionSeen.firstValue()
+        #expect(lastChangelogVersionSeen == "")
     }
 
     @Test func skipsMigrationWhenAlreadyCompleted() async throws {
