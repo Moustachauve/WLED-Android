@@ -4,6 +4,7 @@ require "base64"
 require "fileutils"
 require "tmpdir"
 
+opt_out_usage
 default_platform(:android)
 
 REPO_ROOT = File.expand_path("..", __dir__)
