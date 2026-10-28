@@ -44,7 +44,7 @@ struct DeviceListViewSnapshotTests {
             of: view,
             as: .image(
                 drawHierarchyInKeyWindow: true,
-                precision: 0.99,
+                precision: 0.998,
                 layout: .device(config: .iPhone13Pro),
                 traits: UITraitCollection(userInterfaceStyle: style)
             ),
@@ -64,6 +64,14 @@ struct DeviceListViewSnapshotTests {
             originalName: "Living Room WLED",
             lastSeen: 1_700_000_000_000
         )
+        let secondOnlineDevice = Device(
+            macAddress: "AA:BB:CC:DD:EE:04",
+            address: "192.168.1.104",
+            isHidden: false,
+            originalName: "WLED-Desk",
+            customName: "Desk Lamp",
+            lastSeen: 1_700_000_000_000
+        )
         let offlineDevice = Device(
             macAddress: "AA:BB:CC:DD:EE:02",
             address: "192.168.1.102",
@@ -80,6 +88,7 @@ struct DeviceListViewSnapshotTests {
         )
 
         try await repository.insert(device: onlineDevice)
+        try await repository.insert(device: secondOnlineDevice)
         try await repository.insert(device: offlineDevice)
         try await repository.insert(device: hiddenDevice)
 
@@ -93,7 +102,7 @@ struct DeviceListViewSnapshotTests {
         }
         defer { observationTask.cancel() }
 
-        try await waitUntil { viewModel.allDevicesWithState.count == 3 }
+        try await waitUntil { viewModel.allDevicesWithState.count == 4 }
 
         database.deviceConnectionManager.updateDeviceState(
             deviceWithState: Shared.DeviceWithState(
@@ -109,6 +118,24 @@ struct DeviceListViewSnapshotTests {
                 ),
                 websocketStatus: .connected,
                 updateVersionTag: nil
+            )
+        )
+        database.deviceConnectionManager.updateDeviceState(
+            deviceWithState: Shared.DeviceWithState(
+                device: secondOnlineDevice,
+                stateInfo: DeviceStateInfo.companion.createMock(
+                    name: "WLED-Desk",
+                    version: "0.14.4",
+                    red: 0,
+                    green: 180,
+                    blue: 255,
+                    brightness: 64,
+                    isOn: false
+                )
+                .withSignal(signal: -85)
+                .withBatteryLevel(batteryPercentage: 75.0),
+                websocketStatus: .connected,
+                updateVersionTag: "0.15.1"
             )
         )
         database.deviceConnectionManager.updateDeviceState(
@@ -137,9 +164,9 @@ struct DeviceListViewSnapshotTests {
         )
 
         try await waitUntil {
-            viewModel.onlineDevices.count == 1
+            viewModel.onlineDevices.count == 2
                 && viewModel.offlineDevices.count == 1
-                && viewModel.onlineDevices.first?.stateInfo != nil
+                && viewModel.onlineDevices.allSatisfy { $0.stateInfo != nil }
         }
 
         return viewModel

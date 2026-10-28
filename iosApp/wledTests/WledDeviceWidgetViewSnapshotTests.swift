@@ -1,4 +1,5 @@
 import Foundation
+import Shared
 import SnapshotTesting
 import SwiftUI
 import Testing
@@ -117,21 +118,24 @@ struct WledDeviceWidgetViewSnapshotTests {
         name: "Small widget with a long name",
         isOn: false,
         isOnline: true,
-        color: 0xFF0000FF
+        color: 0xFF0000FF,
+        signalLevel: .weak
     )
 
     private static let offlineData = makeData(
         name: "Offline device",
         isOn: false,
         isOnline: false,
-        color: 0xFFFF8000
+        color: 0xFFFF8000,
+        signalLevel: .offline
     )
 
     private static func makeData(
         name: String,
         isOn: Bool,
         isOnline: Bool,
-        color: UInt32
+        color: UInt32,
+        signalLevel: WifiSignalLevel = .good
     ) -> WledWidgetData {
         WledWidgetData(
             macAddress: "aabbccddeeff",
@@ -140,6 +144,7 @@ struct WledDeviceWidgetViewSnapshotTests {
             isOn: isOn,
             isOnline: isOnline,
             color: Int32(bitPattern: color),
+            signalLevel: signalLevel,
             lastUpdated: 1_700_000_000_000
         )
     }
