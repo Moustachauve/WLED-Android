@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.model.wledapi
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonPrimitive
 
 private const val DEFAULT_MOCK_LED_COUNT = 30
 private const val DEFAULT_MOCK_SIGNAL = -60
@@ -16,6 +17,12 @@ data class DeviceStateInfo(@SerialName("state") val state: State, @SerialName("i
 
     fun withSignal(signal: Int): DeviceStateInfo =
         copy(info = info.copy(wifi = info.wifi.copy(rssi = signal, signal = signal)))
+
+    fun withBatteryLevel(batteryPercentage: Double): DeviceStateInfo = copy(
+        info = info.copy(
+            userMods = UserMods(batteryLevel = listOf(JsonPrimitive(batteryPercentage))),
+        ),
+    )
 
     companion object {
         /**
