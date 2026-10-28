@@ -37,9 +37,10 @@ You can send a Beta build to Google Play Open Testing (`beta`) and the TestFligh
 gh release create v8.1.0-beta.1 --prerelease --target dev --title "v8.1.0-beta.1" --generate-notes
 ```
 
-### Option C: Manual Workflow Dispatch
+### Option C: Manual Workflow Dispatch (or Dry Run)
 1. Go to **Actions → Release → Run workflow**.
 2. Select branch `dev`, track `beta`, and enter `version_name` (e.g. `8.1.0-beta.1`).
+3. *(Optional)* Check **dry_run** to test building, code signing, Google Play validation (`validate_only: true`), and iOS IPA export end-to-end without publishing to stores or creating a GitHub Release.
 
 ---
 
