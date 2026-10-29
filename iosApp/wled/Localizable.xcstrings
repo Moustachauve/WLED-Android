@@ -1491,6 +1491,34 @@
         }
       }
     },
+    "Make sure it is plugged in and connected to the network" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stelle sicher, dass es angeschlossen und mit dem Netzwerk verbunden ist"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make sure it is plugged in and connected to the network"
+          }
+        },
+        "fr-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assurez-vous qu'il est bien branché et connecté au réseau"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请确保设备已连接电源并接入网络"
+          }
+        }
+      }
+    },
     "Manage Devices" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1992,6 +2020,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "刷新 WLED 设备的当前状态。"
+          }
+        }
+      }
+    },
+    "Retry Connection" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindung erneut versuchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry Connection"
+          }
+        },
+        "fr-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réessayer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试连接"
           }
         }
       }
@@ -2643,6 +2699,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "设备必须在线才能验证其当前版本并检查可用更新。"
+          }
+        }
+      }
+    },
+    "The selected device could not be reached" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das ausgewählte Gerät konnte nicht erreicht werden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected device could not be reached"
+          }
+        },
+        "fr-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de joindre l'appareil sélectionné"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法连接到所选设备"
           }
         }
       }

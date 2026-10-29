@@ -25,3 +25,4 @@ Unified real-time WebSocket management, faster mDNS device discovery, and a 60-s
 - Added an Edit swipe action and a confirmation prompt before deleting devices from the list.
 - Added the firmware update source repository and offline update status to the Edit Device screen.
 - Added a live download progress bar when installing firmware updates.
+- Replaced the unreachable device screen with a native view and a Retry Connection button.

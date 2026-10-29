@@ -5,11 +5,18 @@ struct WebView: UIViewRepresentable {
 
     var url: URL?
     @Binding var reload: Bool
+    @Binding var isError: Bool
     private let downloadCompleted: (URL) -> Void
 
-    init(url: URL?, reload: Binding<Bool>, downloadCompleted: @escaping (URL) -> Void) {
+    init(
+        url: URL?,
+        reload: Binding<Bool>,
+        isError: Binding<Bool> = .constant(false),
+        downloadCompleted: @escaping (URL) -> Void
+    ) {
         self.url = url
         _reload = reload
+        _isError = isError
         self.downloadCompleted = downloadCompleted
     }
 
@@ -27,6 +34,7 @@ struct WebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         print("WebView updateUIView, current url: \(url, default: "[unknown]")")
+        context.coordinator.parent = self
         webView.underPageBackgroundColor = .systemBackground
 
         if let url = self.url, url != context.coordinator.lastLoadedUrl {
@@ -36,8 +44,16 @@ struct WebView: UIViewRepresentable {
         }
 
         if reload {
-            webView.reload()
+            if isError || webView.url == nil || webView.url?.host != url?.host {
+                if let url = self.url {
+                    context.coordinator.lastLoadedUrl = url
+                    webView.load(URLRequest(url: url))
+                }
+            } else {
+                webView.reload()
+            }
             DispatchQueue.main.async {
+                isError = false
                 reload = false
             }
         }
@@ -49,6 +65,8 @@ struct WebView: UIViewRepresentable {
 
     @MainActor
     class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate, WKDownloadDelegate {
+        nonisolated static let frameLoadInterruptedByPolicyChangeErrorCode = 102
+
         var parent: WebView
         var lastLoadedUrl: URL?
         private var filePathDestination: URL?
@@ -57,23 +75,27 @@ struct WebView: UIViewRepresentable {
             self.parent = parent
         }
 
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            let langStr = {
-                switch Locale.current.language.languageCode?.identifier {
-                case "fr":
-                    return "fr"
-                case "de":
-                    return "de"
-                case "zh":
-                    return "zh"
-                default:
-                    return "en"
-                }
-            }()
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            parent.isError = false
+        }
 
-            guard let htmlPath = Bundle.main.path(forResource: "errorPage.\(langStr)", ofType: "html") else { return }
-            let htmlUrl = URL(fileURLWithPath: htmlPath, isDirectory: false)
-            webView.loadFileURL(htmlUrl, allowingReadAccessTo: htmlUrl)
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            handleNavigationError(error)
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            handleNavigationError(error)
+        }
+
+        func handleNavigationError(_ error: Error) {
+            let nsError = error as NSError
+            if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+                return
+            }
+            if nsError.domain == WKErrorDomain && nsError.code == Self.frameLoadInterruptedByPolicyChangeErrorCode {
+                return
+            }
+            parent.isError = true
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, preferences: WKWebpagePreferences, decisionHandler: @escaping @MainActor (WKNavigationActionPolicy, WKWebpagePreferences) -> Void) {

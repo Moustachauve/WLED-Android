@@ -54,6 +54,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -284,7 +285,11 @@ fun DeviceErrorScreen(onRetry: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top,
     ) {
-        Image(painter = painterResource(id = R.drawable.akemi_018_teeth), contentDescription = null)
+        Image(
+            modifier = Modifier.heightIn(0.dp, 120.dp),
+            painter = painterResource(id = R.drawable.akemi_012_rip),
+            contentDescription = null,
+        )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = stringResource(R.string.device_error_title),
