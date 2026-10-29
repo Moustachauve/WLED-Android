@@ -48,6 +48,7 @@ struct DeviceListViewSnapshotTests {
                 layout: .device(config: .iPhone13Pro),
                 traits: UITraitCollection(userInterfaceStyle: style)
             ),
+            named: "1",
             fileID: fileID,
             file: file,
             testName: testName,
