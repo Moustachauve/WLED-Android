@@ -15,10 +15,15 @@ struct DeviceView: View {
 
     @State var showDownloadFinished = false
     @State var shouldWebViewRefresh = false
+    @State private var isWebViewError = false
 
     var body: some View {
         ZStack {
-            WebView(url: getDeviceAddress(), reload: $shouldWebViewRefresh) { _ in
+            WebView(
+                url: getDeviceAddress(),
+                reload: $shouldWebViewRefresh,
+                isError: $isWebViewError
+            ) { _ in
                 withAnimation {
                     showDownloadFinished = true
                 }
@@ -30,6 +35,13 @@ struct DeviceView: View {
                     }
                 }
             }
+            .opacity(isWebViewError ? 0 : 1)
+            .accessibilityHidden(isWebViewError)
+
+            if isWebViewError {
+                DeviceErrorView(onRetry: refreshWebView)
+            }
+
             if showDownloadFinished {
                 VStack {
                     Spacer()
@@ -53,6 +65,9 @@ struct DeviceView: View {
                     .id(device.id)
             }
         }
+        .onChange(of: device.device.address) {
+            isWebViewError = false
+        }
         .toolbar { toolbar }
     }
 
@@ -69,10 +84,12 @@ struct DeviceView: View {
             }
         }
         ToolbarItem(placement: .automatic) {
-            Button("Refresh", systemImage: "arrow.clockwise") {
-                shouldWebViewRefresh = true
-            }
+            Button("Refresh", systemImage: "arrow.clockwise", action: refreshWebView)
         }
+    }
+
+    private func refreshWebView() {
+        shouldWebViewRefresh = true
     }
 
     func getDeviceAddress() -> URL? {
