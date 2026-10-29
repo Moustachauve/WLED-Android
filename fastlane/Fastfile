@@ -24,7 +24,9 @@ PLAY_STORE_LOCALE_MAP = {
 }.freeze
 
 APP_STORE_LOCALE_MAP = {
-  "fr" => %w[fr-CA]
+  "fr" => %w[fr-CA],
+  "de" => %w[de-DE],
+  "zh" => %w[zh-Hans]
 }.freeze
 
 def strip_v_prefix(version_str)

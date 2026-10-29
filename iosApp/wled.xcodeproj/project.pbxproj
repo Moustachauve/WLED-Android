@@ -263,6 +263,8 @@
 				en,
 				Base,
 				"fr-CA",
+				de,
+				"zh-Hans",
 			);
 			mainGroup = C9A9E5B42918D1C3005B5C22;
 			packageReferences = (

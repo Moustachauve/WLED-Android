@@ -5,9 +5,27 @@
       "comment" : "Bundle name",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WLED"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
+            "value" : "WLED"
+          }
+        },
+        "fr-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WLED"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "WLED"
           }
         }
@@ -17,6 +35,12 @@
       "comment" : "Privacy - Local Network Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WLED verwendet das lokale Netzwerk, um sich mit WLED-Geräten in deiner Nähe zu verbinden."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -27,6 +51,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "WLED utilise le réseau local pour découvrir les appareils autour de vous."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WLED 使用本地网络来发现并连接您周围的 WLED 设备。"
           }
         }
       }

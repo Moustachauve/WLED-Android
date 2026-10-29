@@ -144,7 +144,9 @@ struct ChangelogViewModelTests {
     @Test(
         arguments: [
             ("en", "English 8.0.0 notes"),
-            ("fr-CA", "Notes 8.0.0 en français")
+            ("fr-CA", "Notes 8.0.0 en français"),
+            ("de-DE", "Deutsche 8.0.0 Hinweise"),
+            ("zh-Hans-CN", "8.0.0 简体中文更新日志")
         ]
     )
     func bundleChangelogProviderSelectsLocalizedFileWhenLanguageMatches(
@@ -153,7 +155,9 @@ struct ChangelogViewModelTests {
     ) {
         let fixtures: [String: String] = [
             "8.0.0.md": "English 8.0.0 notes",
-            "8.0.0.fr.md": "Notes 8.0.0 en français"
+            "8.0.0.fr.md": "Notes 8.0.0 en français",
+            "8.0.0.de.md": "Deutsche 8.0.0 Hinweise",
+            "8.0.0.zh.md": "8.0.0 简体中文更新日志"
         ]
         let baseURL = URL(fileURLWithPath: "/virtual-bundle", isDirectory: true)
         let provider = BundleChangelogProvider(
