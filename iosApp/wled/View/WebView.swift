@@ -53,6 +53,8 @@ struct WebView: UIViewRepresentable {
 
     @MainActor
     class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate, WKDownloadDelegate {
+        /// WebKit error code (`WebKitErrorFrameLoadInterruptedByPolicyChange`) emitted when a navigation
+        /// is converted into a `WKDownload` (e.g. exporting `presets.json` or `cfg.json` from WLED).
         nonisolated static let frameLoadInterruptedByPolicyChangeErrorCode = 102
 
         var parent: WebView
