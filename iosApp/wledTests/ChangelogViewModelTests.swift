@@ -141,25 +141,49 @@ struct ChangelogViewModelTests {
         return nil
     }
 
-    @Test func bundleChangelogProviderSelectsLocalizedFileWhenLanguageMatches() {
-        let englishProvider = BundleChangelogProvider(
-            bundle: .main,
+    @Test(
+        arguments: [
+            ("en", "English 8.0.0 notes"),
+            ("fr-CA", "Notes 8.0.0 en français")
+        ]
+    )
+    func bundleChangelogProviderSelectsLocalizedFileWhenLanguageMatches(
+        languageCode: String,
+        expectedContent: String
+    ) {
+        let fixtures: [String: String] = [
+            "8.0.0.md": "English 8.0.0 notes",
+            "8.0.0.fr.md": "Notes 8.0.0 en français"
+        ]
+        let baseURL = URL(fileURLWithPath: "/virtual-bundle", isDirectory: true)
+        let provider = BundleChangelogProvider(
             isDebugBuild: false,
-            languageCodeProvider: { "en" }
-        )
-        let frenchProvider = BundleChangelogProvider(
-            bundle: .main,
-            isDebugBuild: false,
-            languageCodeProvider: { "fr-CA" }
+            languageCodeProvider: { languageCode },
+            urlsProvider: { fixtures.keys.map { baseURL.appendingPathComponent($0) } },
+            contentReader: { url in
+                guard let content = fixtures[url.lastPathComponent] else {
+                    throw CocoaError(.fileNoSuchFile)
+                }
+                return content
+            }
         )
 
-        let englishEntries = englishProvider.getChangelog(lastSeenVersion: "7.0.0", currentVersion: "8.0.0")
-        let frenchEntries = frenchProvider.getChangelog(lastSeenVersion: "7.0.0", currentVersion: "8.0.0")
+        let entries = provider.getChangelog(lastSeenVersion: "7.0.0", currentVersion: "8.0.0")
 
-        #expect(englishEntries.count == 1)
-        #expect(frenchEntries.count == 1)
-        #expect(englishEntries.first?.version == "8.0.0")
-        #expect(frenchEntries.first?.version == "8.0.0")
-        #expect(englishEntries.first?.content != frenchEntries.first?.content)
+        #expect(entries == [VersionChangelog(version: "8.0.0", content: expectedContent, isDev: false)])
+    }
+
+    @Test func bundleChangelogProviderSkipsUnreadableFile() {
+        let baseURL = URL(fileURLWithPath: "/virtual-bundle", isDirectory: true)
+        let provider = BundleChangelogProvider(
+            isDebugBuild: false,
+            languageCodeProvider: { "en" },
+            urlsProvider: { [baseURL.appendingPathComponent("8.0.0.md")] },
+            contentReader: { _ in throw CocoaError(.fileReadCorruptFile) }
+        )
+
+        let entries = provider.getChangelog(lastSeenVersion: "7.0.0", currentVersion: "8.0.0")
+
+        #expect(entries.isEmpty)
     }
 }
