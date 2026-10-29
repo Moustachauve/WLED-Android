@@ -1,2 +1,10 @@
-### Other Improvements
-- Added translated "What's New" release notes for supported languages.
+### What's New Changelog
+Automatically see release notes after an app update or revisit them anytime from Settings (just like the one you are reading right now!).
+
+### Refreshed Home Screen Widgets
+Home screen widgets now feature a cleaner Material 3 adaptive layout with a status pill showing live Wi-Fi signal strength, a unified refresh timer, a rounded-square power button, and a soft ambient glow when your lights are on.
+
+### Other Improvements & Fixes
+- Fixed selecting files (such as firmware updates, presets, or PixelForge images) when uploading to a device from the WebView.
+- The "Automatically Discover New Devices" setting is now respected when returning to the app, and toggling it starts or stops a scan right away.
+- Several bug fixes and performance improvements behind the scenes.
