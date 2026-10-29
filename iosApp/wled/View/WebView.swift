@@ -6,19 +6,7 @@ struct WebView: UIViewRepresentable {
     var url: URL?
     @Binding var reload: Bool
     @Binding var isError: Bool
-    private let downloadCompleted: (URL) -> Void
-
-    init(
-        url: URL?,
-        reload: Binding<Bool>,
-        isError: Binding<Bool> = .constant(false),
-        downloadCompleted: @escaping (URL) -> Void
-    ) {
-        self.url = url
-        _reload = reload
-        _isError = isError
-        self.downloadCompleted = downloadCompleted
-    }
+    let downloadCompleted: (URL) -> Void
 
     func makeUIView(context: Context) -> WKWebView {
         print("WebView makeUIView")
@@ -44,7 +32,7 @@ struct WebView: UIViewRepresentable {
         }
 
         if reload {
-            if isError || webView.url == nil || webView.url?.host != url?.host {
+            if isError || webView.url == nil {
                 if let url = self.url {
                     context.coordinator.lastLoadedUrl = url
                     webView.load(URLRequest(url: url))

@@ -37,8 +37,6 @@ struct DeviceErrorView: View {
     }
 }
 
-#if DEBUG
 #Preview {
     DeviceErrorView(onRetry: {})
 }
-#endif
