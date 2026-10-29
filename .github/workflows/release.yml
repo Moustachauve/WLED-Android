@@ -203,6 +203,11 @@ jobs:
           if [ -f "$CHANGELOG_DIR/dev.md" ] && [ ! -f "$CHANGELOG_DIR/${MARKETING_VERSION}.md" ]; then
             echo "::warning::dev.md was not renamed before tagging; promoting dev.md -> ${MARKETING_VERSION}.md for this build."
             mv "$CHANGELOG_DIR/dev.md" "$CHANGELOG_DIR/${MARKETING_VERSION}.md"
+            for DEV_LOCALE_FILE in "$CHANGELOG_DIR"/dev.*.md; do
+              [ -e "$DEV_LOCALE_FILE" ] || continue
+              SUFFIX="${DEV_LOCALE_FILE#"$CHANGELOG_DIR/dev"}"
+              mv "$DEV_LOCALE_FILE" "$CHANGELOG_DIR/${MARKETING_VERSION}${SUFFIX}"
+            done
           fi
 
       - name: Decode Android Keystore
@@ -342,8 +347,18 @@ jobs:
             if [ "$IS_BETA" = "false" ]; then
               echo "::warning::dev.md was not renamed before tagging; promoting dev.md -> ${MARKETING_VERSION}.md for this build."
               mv "$CHANGELOG_DIR/dev.md" "$CHANGELOG_DIR/${MARKETING_VERSION}.md"
+              for DEV_LOCALE_FILE in "$CHANGELOG_DIR"/dev.*.md; do
+                [ -e "$DEV_LOCALE_FILE" ] || continue
+                SUFFIX="${DEV_LOCALE_FILE#"$CHANGELOG_DIR/dev"}"
+                mv "$DEV_LOCALE_FILE" "$CHANGELOG_DIR/${MARKETING_VERSION}${SUFFIX}"
+              done
             else
               cp "$CHANGELOG_DIR/dev.md" "$CHANGELOG_DIR/${MARKETING_VERSION}.md"
+              for DEV_LOCALE_FILE in "$CHANGELOG_DIR"/dev.*.md; do
+                [ -e "$DEV_LOCALE_FILE" ] || continue
+                SUFFIX="${DEV_LOCALE_FILE#"$CHANGELOG_DIR/dev"}"
+                cp "$DEV_LOCALE_FILE" "$CHANGELOG_DIR/${MARKETING_VERSION}${SUFFIX}"
+              done
             fi
           fi
 

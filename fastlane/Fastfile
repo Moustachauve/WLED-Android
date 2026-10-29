@@ -15,6 +15,18 @@ IOS_BUNDLE_ID = "ca.cgagnier.wled-native"
 IOS_WIDGET_BUNDLE_ID = "ca.cgagnier.wled-native.widgets"
 GOOGLE_PLAY_MAX_CHANGELOG_CHARS = 500
 
+# Maps changelog language suffixes (<version>.<lang>.md) to store locale codes.
+# Keep aligned with locales enabled in Google Play Console and App Store Connect.
+PLAY_STORE_LOCALE_MAP = {
+  "fr" => %w[fr-CA fr-FR],
+  "de" => %w[de-DE],
+  "zh" => %w[zh-CN]
+}.freeze
+
+APP_STORE_LOCALE_MAP = {
+  "fr" => %w[fr-CA]
+}.freeze
+
 def strip_v_prefix(version_str)
   version_str.to_s.strip.sub(/\Av/i, "")
 end
@@ -24,25 +36,26 @@ def base_semver(version_str)
 end
 
 # Keep candidate filenames in sync with the pre-flight check in `.github/workflows/release.yml`.
-def read_plain_changelog(changelog_dir:, version:, is_beta:, max_length: nil)
+def read_plain_changelog(changelog_dir:, version:, is_beta:, max_length: nil, lang: nil, required: true)
   clean_version = strip_v_prefix(version)
   numeric_version = base_semver(version)
+  ext = lang ? ".#{lang}.md" : ".md"
 
   candidates = if is_beta
                  [
-                   "dev.md",
-                   "#{clean_version}.md",
-                   "v#{clean_version}.md",
-                   "#{numeric_version}.md",
-                   "v#{numeric_version}.md"
+                   "dev#{ext}",
+                   "#{clean_version}#{ext}",
+                   "v#{clean_version}#{ext}",
+                   "#{numeric_version}#{ext}",
+                   "v#{numeric_version}#{ext}"
                  ].uniq
                else
                  [
-                   "#{clean_version}.md",
-                   "v#{clean_version}.md",
-                   "#{numeric_version}.md",
-                   "v#{numeric_version}.md",
-                   "dev.md"
+                   "#{clean_version}#{ext}",
+                   "v#{clean_version}#{ext}",
+                   "#{numeric_version}#{ext}",
+                   "v#{numeric_version}#{ext}",
+                   "dev#{ext}"
                  ].uniq
                end
 
@@ -50,11 +63,15 @@ def read_plain_changelog(changelog_dir:, version:, is_beta:, max_length: nil)
                   .map { |name| File.join(changelog_dir, name) }
                   .find { |path| File.exist?(path) && !File.read(path).strip.empty? }
 
-  UI.user_error!("No non-empty changelog found in #{changelog_dir} (checked: #{candidates.join(', ')})") unless selected_path
+  unless selected_path
+    return nil unless required
+
+    UI.user_error!("No non-empty changelog found in #{changelog_dir} (checked: #{candidates.join(', ')})")
+  end
 
   # When running Fastlane locally without the CI workspace promotion step, warn if falling back to dev.md.
-  if !is_beta && File.basename(selected_path).casecmp("dev.md").zero?
-    UI.important("Warning: #{numeric_version}.md was not found in #{changelog_dir}; falling back to dev.md so the tagged release succeeds.")
+  if !is_beta && File.basename(selected_path).casecmp("dev#{ext}").zero?
+    UI.important("Warning: #{numeric_version}#{ext} was not found in #{changelog_dir}; falling back to dev#{ext} so the tagged release succeeds.")
   end
 
   text = File.read(selected_path)
@@ -77,6 +94,37 @@ def read_plain_changelog(changelog_dir:, version:, is_beta:, max_length: nil)
   "#{truncated[0...cutoff].rstrip}..."
 end
 
+def read_localized_changelogs(changelog_dir:, version:, is_beta:, locale_map:, default_locales:, max_length: nil)
+  default_notes = read_plain_changelog(
+    changelog_dir: changelog_dir,
+    version: version,
+    is_beta: is_beta,
+    max_length: max_length
+  )
+
+  notes_by_locale = default_locales.each_with_object({}) do |store_locale, acc|
+    acc[store_locale] = default_notes
+  end
+
+  locale_map.each do |lang, store_locales|
+    localized_notes = read_plain_changelog(
+      changelog_dir: changelog_dir,
+      version: version,
+      is_beta: is_beta,
+      max_length: max_length,
+      lang: lang,
+      required: false
+    )
+    next unless localized_notes
+
+    store_locales.each do |store_locale|
+      notes_by_locale[store_locale] = localized_notes
+    end
+  end
+
+  notes_by_locale
+end
+
 def require_env!(name)
   value = ENV[name].to_s.strip
   UI.user_error!("Missing required environment variable: #{name}") if value.empty?
@@ -96,17 +144,21 @@ platform :android do
     UI.user_error!("Signed AAB not found at #{aab_path}") unless File.exist?(aab_path)
 
     changelog_dir = File.join(REPO_ROOT, "app", "src", "main", "assets", "changelog")
-    notes = read_plain_changelog(
+    notes_by_locale = read_localized_changelogs(
       changelog_dir: changelog_dir,
       version: version_name,
       is_beta: is_beta,
+      locale_map: PLAY_STORE_LOCALE_MAP,
+      default_locales: ["en-US"],
       max_length: GOOGLE_PLAY_MAX_CHANGELOG_CHARS
     )
 
     Dir.mktmpdir("wled-android-metadata") do |android_metadata_dir|
-      play_changelog_dir = File.join(android_metadata_dir, "en-US", "changelogs")
-      FileUtils.mkdir_p(play_changelog_dir)
-      File.write(File.join(play_changelog_dir, "#{version_code}.txt"), "#{notes}\n")
+      notes_by_locale.each do |store_locale, locale_notes|
+        play_changelog_dir = File.join(android_metadata_dir, store_locale, "changelogs")
+        FileUtils.mkdir_p(play_changelog_dir)
+        File.write(File.join(play_changelog_dir, "#{version_code}.txt"), "#{locale_notes}\n")
+      end
 
       upload_to_play_store(
         package_name: ANDROID_PACKAGE_NAME,
@@ -151,10 +203,12 @@ platform :ios do
 
     ios_changelog_dir = File.join(REPO_ROOT, "iosApp", "wled", "changelog")
 
-    notes = read_plain_changelog(
+    notes_by_locale = read_localized_changelogs(
       changelog_dir: ios_changelog_dir,
       version: version_name,
-      is_beta: is_beta
+      is_beta: is_beta,
+      locale_map: APP_STORE_LOCALE_MAP,
+      default_locales: %w[default en-US]
     )
 
     pbxproj_file = File.join(IOS_PROJECT_PATH, "project.pbxproj")
@@ -241,7 +295,8 @@ platform :ios do
         api_key: api_key,
         ipa_path: ipa_path,
         marketing_version: marketing_version,
-        notes: notes
+        notes: notes_by_locale["en-US"],
+        notes_by_locale: notes_by_locale
       }
     ensure
       File.write(pbxproj_file, original_pbxproj)
@@ -290,10 +345,7 @@ platform :ios do
         skip_screenshots: true,
         skip_metadata: false,
         run_precheck_before_submit: false,
-        release_notes: {
-          "default" => result[:notes],
-          "en-US" => result[:notes]
-        },
+        release_notes: result[:notes_by_locale],
         submission_information: {
           add_id_info_uses_idfa: false
         }

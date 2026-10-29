@@ -111,16 +111,82 @@ class ChangelogLogicTest {
         )
     }
 
+    @Test
+    fun selectsLocalizedChangelogForRegionalLanguageTag() {
+        val result = getChangelogFromMap(
+            lastSeenVersionStr = "7.0.0",
+            currentVersionStr = "8.0.0",
+            languageCode = "fr-CA",
+            filesByFilename = mapOf(
+                "8.0.0.md" to "English 8.0.0",
+                "8.0.0.fr.md" to "Français 8.0.0",
+                "8.0.0.de.md" to "Deutsch 8.0.0",
+            ),
+        )
+
+        assertEquals(
+            listOf(VersionChangelog(version = "8.0.0", content = "Français 8.0.0")),
+            result,
+        )
+    }
+
+    @Test
+    fun fallsBackToDefaultEnglishPerVersionWhenTranslationIsMissing() {
+        val result = getChangelogFromMap(
+            lastSeenVersionStr = "6.0.0",
+            currentVersionStr = "8.0.0",
+            languageCode = "fr",
+            filesByFilename = mapOf(
+                "7.0.0.md" to "English 7.0.0",
+                "8.0.0.md" to "English 8.0.0",
+                "8.0.0.fr.md" to "Français 8.0.0",
+                "dev.md" to "English Dev",
+            ),
+            isDebugBuild = true,
+        )
+
+        assertEquals(
+            listOf(
+                VersionChangelog(version = "dev", content = "English Dev", isDev = true),
+                VersionChangelog(version = "8.0.0", content = "Français 8.0.0"),
+                VersionChangelog(version = "7.0.0", content = "English 7.0.0"),
+            ),
+            result,
+        )
+    }
+
+    @Test
+    fun fallsBackToDefaultEnglishWhenLocalizedFileIsBlank() {
+        val result = getChangelogFromMap(
+            lastSeenVersionStr = "7.0.0",
+            currentVersionStr = "8.0.0",
+            languageCode = "de",
+            filesByFilename = mapOf(
+                "8.0.0.md" to "English 8.0.0",
+                "8.0.0.de.md" to "   ",
+            ),
+        )
+
+        assertEquals(
+            listOf(VersionChangelog(version = "8.0.0", content = "English 8.0.0")),
+            result,
+        )
+    }
+
     private fun getChangelogFromMap(
         lastSeenVersionStr: String,
         currentVersionStr: String,
         filesByFilename: Map<String, String>,
         isDebugBuild: Boolean = false,
+        languageCode: String = "en",
     ): List<VersionChangelog> = ChangelogLogic.getChangelog(
         lastSeenVersionStr = lastSeenVersionStr,
         currentVersionStr = currentVersionStr,
-        listFilenames = { filesByFilename.keys.toList() },
         isDebugBuild = isDebugBuild,
-        readContent = { filesByFilename[it] },
+        languageCode = languageCode,
+        source = ChangelogSource(
+            listFilenames = { filesByFilename.keys.toList() },
+            readContent = { filesByFilename[it] },
+        ),
     )
 }
