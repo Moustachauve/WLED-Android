@@ -285,7 +285,7 @@
         "fr-CA" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Génial"
+            "value" : "Super"
           }
         }
       }
@@ -1028,7 +1028,7 @@
         "fr-CA" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Appareils en line"
+            "value" : "Appareils en ligne"
           }
         }
       }

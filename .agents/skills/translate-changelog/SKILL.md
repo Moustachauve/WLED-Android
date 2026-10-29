@@ -62,7 +62,7 @@ If the user provides a target release version (e.g., `8.1.0`) and `dev.md` has n
     - `zh`: `### 其他改进` / `### 其他改进与修复`
 - **WLED & Technical Glossary:**
   - Keep brand/project names unchanged: **WLED**, **QuinLED**, **MoonModules**, **PixelForge**, **Material 3**, **Siri**, **WebSocket**, **WebView**, **mDNS**, **OTA**, `wled://`.
-  - Use international standard French (`fr`) that reads naturally in both Canada (Quebec) and Europe.
+  - For French (`fr`), write in natural Québec French (`fr-CA` tone and vocabulary, avoiding France-specific idioms or anglicisms, and following Québec typography with no space before `!` or `?`).
   - Common UI terms:
     - *Settings* -> `Paramètres` (`fr`), `Einstellungen` (`de`), `设置` (`zh`)
     - *Theme (System Default / Light / Dark)* -> `Thème (Par défaut / Clair / Sombre)` (`fr`), `Thema (Systemeinstellungen / Hell / Dunkel)` (`de`), `主题（系统默认 / 亮色 / 暗色）` (`zh`)

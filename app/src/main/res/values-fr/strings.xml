@@ -4,7 +4,7 @@
     <string name="add_a_device">Ajouter un appareil</string>
     <string name="add">Ajouter</string>
     <string name="add_adding_device">Ajout de <xliff:g example="192.168.1.1" id="strength">%1$s</xliff:g></string>
-    <string name="add_device_added"><xliff:g example="Device123" id="strength">%1$s</xliff:g> was added</string>
+    <string name="add_device_added"><xliff:g example="Device123" id="strength">%1$s</xliff:g> a été ajouté</string>
     <string name="add_device_error">Impossible de rejoindre l\'appareil. Vérifiez l\'adresse.</string>
     <string name="deleting_device">Supprimer l\'appareil?</string>
     <string name="delete">Supprimer</string>
@@ -135,7 +135,7 @@
     <string name="changelog_title">Nouveautés</string>
     <string name="changelog_version">Version %1$s</string>
     <string name="changelog_version_dev">Dev</string>
-    <string name="changelog_dismiss_button">Génial</string>
+    <string name="changelog_dismiss_button">Super</string>
     <string name="show_changelog">Afficher les nouveautés</string>
 
 </resources>
