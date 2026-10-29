@@ -6,6 +6,7 @@ struct WebView: UIViewRepresentable {
     var url: URL?
     @Binding var reload: Bool
     @Binding var isError: Bool
+    @Binding var isLoading: Bool
     let downloadCompleted: (URL) -> Void
 
     func makeUIView(context: Context) -> WKWebView {
@@ -32,7 +33,7 @@ struct WebView: UIViewRepresentable {
         }
 
         if reload {
-            if isError || webView.url == nil {
+            if isError || webView.backForwardList.currentItem == nil || webView.url != self.url {
                 if let url = self.url {
                     context.coordinator.lastLoadedUrl = url
                     webView.load(URLRequest(url: url))
@@ -42,6 +43,7 @@ struct WebView: UIViewRepresentable {
             }
             DispatchQueue.main.async {
                 isError = false
+                isLoading = true
                 reload = false
             }
         }
@@ -67,24 +69,32 @@ struct WebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
             parent.isError = false
+            parent.isLoading = true
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            parent.isLoading = false
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            handleNavigationError(error)
+            handleNavigationError(error, isStillLoading: webView.isLoading)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            handleNavigationError(error)
+            handleNavigationError(error, isStillLoading: webView.isLoading)
         }
 
-        func handleNavigationError(_ error: Error) {
+        func handleNavigationError(_ error: Error, isStillLoading: Bool) {
             let nsError = error as NSError
             if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+                parent.isLoading = isStillLoading
                 return
             }
             if nsError.domain == WKErrorDomain && nsError.code == Self.frameLoadInterruptedByPolicyChangeErrorCode {
+                parent.isLoading = false
                 return
             }
+            parent.isLoading = false
             parent.isError = true
         }
 

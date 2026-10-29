@@ -40,22 +40,57 @@ struct WebViewCoordinatorTests {
         #expect(isError == false)
     }
 
-    @Test func didStartProvisionalNavigationResetsIsErrorFalse() {
+    @Test func didStartProvisionalNavigationResetsIsErrorAndSetsIsLoading() {
         var isError = true
-        let sut = makeCoordinator(isError: Binding(get: { isError }, set: { isError = $0 }))
+        var isLoading = false
+        let sut = makeCoordinator(
+            isError: Binding(get: { isError }, set: { isError = $0 }),
+            isLoading: Binding(get: { isLoading }, set: { isLoading = $0 })
+        )
 
         sut.webView(WKWebView(), didStartProvisionalNavigation: nil)
 
         #expect(isError == false)
+        #expect(isLoading == true)
+    }
+
+    @Test func didFinishNavigationSetsIsLoadingFalse() {
+        var isLoading = true
+        let sut = makeCoordinator(
+            isLoading: Binding(get: { isLoading }, set: { isLoading = $0 })
+        )
+
+        sut.webView(WKWebView(), didFinish: nil)
+
+        #expect(isLoading == false)
+    }
+
+    @Test(arguments: [
+        NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut),
+        NSError(domain: WKErrorDomain, code: WLED.WebView.Coordinator.frameLoadInterruptedByPolicyChangeErrorCode)
+    ])
+    func navigationFailureOrDownloadInterruptionClearsIsLoading(error: NSError) {
+        var isLoading = true
+        let sut = makeCoordinator(
+            isLoading: Binding(get: { isLoading }, set: { isLoading = $0 })
+        )
+
+        sut.webView(WKWebView(), didFailProvisionalNavigation: nil, withError: error)
+
+        #expect(isLoading == false)
     }
 
     // MARK: - Helpers
 
-    private func makeCoordinator(isError: Binding<Bool>) -> WLED.WebView.Coordinator {
+    private func makeCoordinator(
+        isError: Binding<Bool> = .constant(false),
+        isLoading: Binding<Bool> = .constant(false)
+    ) -> WLED.WebView.Coordinator {
         let webView = WLED.WebView(
             url: URL(string: "http://192.168.1.50"),
             reload: .constant(false),
             isError: isError,
+            isLoading: isLoading,
             downloadCompleted: { _ in }
         )
         return webView.makeCoordinator()

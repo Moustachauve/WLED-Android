@@ -148,7 +148,9 @@ fun DeviceWebView(
     }
     LaunchedEffect(webView, navigator) {
         with(navigator) {
-            webView.handleNavigationEvents()
+            webView.handleNavigationEvents(state) {
+                webViewViewModel.displayedDevice?.getDeviceUrl()
+            }
         }
     }
     LaunchedEffect(webView, state) {
@@ -357,6 +359,7 @@ class CustomWebViewClient : WebViewClient() {
         if (request?.isForMainFrame == true) {
             Log.i(TAG, "Error received ${request.url} - ${error?.description}")
             state.isError = true
+            state.loadingState = Finished
         }
         if (error != null) {
             state.errorsForCurrentRequest.add(WebViewError(request, error))
@@ -892,14 +895,17 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
     private val navigationEvents: MutableSharedFlow<NavigationEvent> = MutableSharedFlow(replay = 1)
 
     // Use Dispatchers.Main to ensure that the webview methods are called on UI thread
-    internal suspend fun WebView.handleNavigationEvents(): Nothing = withContext(Dispatchers.Main) {
+    internal suspend fun WebView.handleNavigationEvents(
+        state: WebViewState,
+        deviceUrlProvider: () -> String?,
+    ): Nothing = withContext(Dispatchers.Main) {
         navigationEvents.collect { event ->
             when (event) {
                 is NavigationEvent.Back -> goBackLogic()
 
                 is NavigationEvent.Forward -> goForward()
 
-                is NavigationEvent.Reload -> reload()
+                is NavigationEvent.Reload -> reloadOrLoadInitialUrl(state, deviceUrlProvider())
 
                 is NavigationEvent.StopLoading -> stopLoading()
 
@@ -919,6 +925,17 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
                     postUrl(event.url, event.postData)
                 }
             }
+        }
+    }
+
+    private fun WebView.reloadOrLoadInitialUrl(state: WebViewState, deviceUrl: String?) {
+        state.loadingState = Loading(0.0f)
+        val hasLoadedPage = url != null && url != "about:blank" && !state.isError
+        if (!hasLoadedPage && deviceUrl != null) {
+            state.isError = false
+            loadUrl(deviceUrl)
+        } else {
+            reload()
         }
     }
 
