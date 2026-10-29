@@ -14,6 +14,7 @@ struct BundleChangelogProvider: ChangelogProviding {
 
     private let bundle: Bundle
     private let isDebugBuild: Bool
+    private let languageCodeProvider: @Sendable () -> String
 
     #if DEBUG
     private static let defaultIsDebugBuild = true
@@ -21,9 +22,16 @@ struct BundleChangelogProvider: ChangelogProviding {
     private static let defaultIsDebugBuild = false
     #endif
 
-    init(bundle: Bundle = .main, isDebugBuild: Bool = Self.defaultIsDebugBuild) {
+    init(
+        bundle: Bundle = .main,
+        isDebugBuild: Bool = Self.defaultIsDebugBuild,
+        languageCodeProvider: (@Sendable () -> String)? = nil
+    ) {
         self.bundle = bundle
         self.isDebugBuild = isDebugBuild
+        self.languageCodeProvider = languageCodeProvider ?? {
+            bundle.preferredLocalizations.first ?? Locale.preferredLanguages.first ?? "en"
+        }
     }
 
     func getChangelog(lastSeenVersion: String, currentVersion: String) -> [VersionChangelog] {
@@ -32,17 +40,20 @@ struct BundleChangelogProvider: ChangelogProviding {
         return ChangelogLogic.shared.getChangelog(
             lastSeenVersionStr: lastSeenVersion,
             currentVersionStr: currentVersion,
-            listFilenames: { Array(urlsByFilename.keys) },
             isDebugBuild: isDebugBuild,
-            readContent: { filename in
-                guard let url = urlsByFilename[filename] else { return nil }
-                do {
-                    return try String(contentsOf: url, encoding: .utf8)
-                } catch {
-                    Self.logger.error("Failed to read changelog file \(filename): \(error.localizedDescription)")
-                    return nil
+            languageCode: languageCodeProvider(),
+            source: ChangelogSource(
+                listFilenames: { Array(urlsByFilename.keys) },
+                readContent: { filename in
+                    guard let url = urlsByFilename[filename] else { return nil }
+                    do {
+                        return try String(contentsOf: url, encoding: .utf8)
+                    } catch {
+                        Self.logger.error("Failed to read changelog file \(filename): \(error.localizedDescription)")
+                        return nil
+                    }
                 }
-            }
+            )
         )
     }
 

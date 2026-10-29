@@ -140,4 +140,26 @@ struct ChangelogViewModelTests {
         }
         return nil
     }
+
+    @Test func bundleChangelogProviderSelectsLocalizedFileWhenLanguageMatches() {
+        let englishProvider = BundleChangelogProvider(
+            bundle: .main,
+            isDebugBuild: false,
+            languageCodeProvider: { "en" }
+        )
+        let frenchProvider = BundleChangelogProvider(
+            bundle: .main,
+            isDebugBuild: false,
+            languageCodeProvider: { "fr-CA" }
+        )
+
+        let englishEntries = englishProvider.getChangelog(lastSeenVersion: "7.0.0", currentVersion: "8.0.0")
+        let frenchEntries = frenchProvider.getChangelog(lastSeenVersion: "7.0.0", currentVersion: "8.0.0")
+
+        #expect(englishEntries.count == 1)
+        #expect(frenchEntries.count == 1)
+        #expect(englishEntries.first?.version == "8.0.0")
+        #expect(frenchEntries.first?.version == "8.0.0")
+        #expect(englishEntries.first?.content != frenchEntries.first?.content)
+    }
 }

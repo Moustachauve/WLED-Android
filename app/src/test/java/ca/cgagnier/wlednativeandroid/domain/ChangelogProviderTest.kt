@@ -22,6 +22,7 @@ class ChangelogProviderTest {
         every { context.assets } returns assetManager
         changelogProvider = ChangelogProvider(context).apply {
             isDebugBuild = false
+            languageProvider = { "en" }
         }
     }
 
@@ -36,6 +37,22 @@ class ChangelogProviderTest {
 
         assertEquals(
             listOf(VersionChangelog(version = "7.0.1", content = "Added new feature X")),
+            result,
+        )
+    }
+
+    @Test
+    fun `getChangelog reads localized asset matching active language`() {
+        changelogProvider.languageProvider = { "fr-CA" }
+        every { assetManager.list("changelog") } returns arrayOf("8.0.0.md", "8.0.0.fr.md")
+        every { assetManager.open("changelog/8.0.0.fr.md") } returns ByteArrayInputStream(
+            "Nouveautés 8.0.0".toByteArray(),
+        )
+
+        val result = changelogProvider.getChangelog("7.0.0", "8.0.0")
+
+        assertEquals(
+            listOf(VersionChangelog(version = "8.0.0", content = "Nouveautés 8.0.0")),
             result,
         )
     }

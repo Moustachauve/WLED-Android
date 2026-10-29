@@ -49,6 +49,7 @@ gh release create v8.1.0-beta.1 --prerelease --target dev --title "v8.1.0-beta.1
 1. **Prepare the Changelogs on `dev`**:
    - Rename `app/src/main/assets/changelog/dev.md` → `<version>.md` (e.g. `8.1.0.md`).
    - Rename `iosApp/wled/changelog/dev.md` → `<version>.md` (e.g. `8.1.0.md`).
+   - Run the `/translate-changelog` skill to generate localized `<version>.<lang>.md` release notes (e.g. `8.1.0.fr.md`, `8.1.0.de.md`, `8.1.0.zh.md`). Both the in-app "What's New" sheet and Fastlane store uploads automatically pick up `<version>.<lang>.md` files when present and fall back to `<version>.md`.
    - Update `app-versionName` in `gradle/libs.versions.toml` and `MARKETING_VERSION` in `iosApp/wled.xcodeproj/project.pbxproj`.
    - *(Safety net)*: The `Check` workflow on PRs targeting `main` will block merging if `dev.md` hasn't been renamed yet—and if you ever publish a release tag directly without renaming `dev.md`, `release.yml` automatically promotes `dev.md` → `<version>.md` inside the build workspace so your tagged release still succeeds without needing a version bump.
 2. **Merge `dev` into `main`**:
