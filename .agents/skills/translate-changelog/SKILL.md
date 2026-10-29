@@ -35,8 +35,8 @@ Determine the target languages dynamically from the repository (unless the user 
   - Inspect `app/src/main/res/xml/locales_config.xml` and `app/src/main/res/values-<lang>/strings.xml` (excluding `en`).
   - Current non-English languages: `fr`, `de`, `zh`.
 - **iOS (`iosApp/wled/changelog/`):**
-  - Inspect `knownRegions` in `iosApp/wled.xcodeproj/project.pbxproj` and language keys in `iosApp/wled/Localizable.xcstrings` (excluding `en` and `Base`), normalized to their base language code (`fr-CA` -> `fr`).
-  - Current non-English languages: `fr`.
+  - Inspect `knownRegions` in `iosApp/wled.xcodeproj/project.pbxproj` and language keys in `iosApp/wled/Localizable.xcstrings` (excluding `en` and `Base`), normalized to their base language code (`fr-CA` -> `fr`, `zh-Hans` -> `zh`).
+  - Current non-English languages: `fr`, `de`, `zh`.
 
 ---
 

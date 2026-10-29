@@ -33,7 +33,7 @@ WLED-App is the monorepo for the official native **WLED** application on Android
 *   **Spotless (ktlint) & Detekt:** Enforce Kotlin formatting and static analysis across `:app` and `:shared`.
 *   **SwiftLint:** Enforces Swift style in `iosApp/` (`iosApp/.swiftlint.yml`).
 *   **No Suppressions or Baseline Growth:** Resolve Detekt, ktlint, and SwiftLint findings by fixing the underlying code. Only use `@Suppress` when strictly necessary (e.g., `TooGenericExceptionCaught` at network/serialization boundaries) and always include an inline comment explaining why. **Never** add entries to `app/detekt-baseline.xml` (only remove them).
-*   **Localization:** The app is localized (`en`, `fr`, `zh`). Never hardcode UI strings; extract Android strings to `app/src/main/res/values/strings.xml` and iOS strings to `iosApp/wled/Localizable.xcstrings`.
+*   **Localization:** The app is localized (`en`, `fr`, `de`, `zh`). Never hardcode UI strings; extract Android strings to `app/src/main/res/values/strings.xml` and iOS strings to `iosApp/wled/Localizable.xcstrings`.
 
 **Verification Commands:**
 ```bash
