@@ -17,7 +17,7 @@ Use this skill to prepare either a **Beta (`beta`)** or a **Full / Stable (`prod
 ## Phase 1: Discover Release Context & Confirm Target Version
 
 1. **Inspect Existing Releases & Drafts:**
-   - Find the latest published **stable** release tag and its publication date:
+   - Find the latest published **stable** release tag and its publication timestamp (`<last-stable-publishedAt>`):
      ```bash
      gh release list --exclude-pre-releases --exclude-drafts --limit 1 --json tagName,publishedAt
      ```
@@ -32,16 +32,28 @@ Use this skill to prepare either a **Beta (`beta`)** or a **Full / Stable (`prod
 
 ## Phase 2: Audit PRs & Commits Since the Last Stable Release
 
-1. **Gather All Changes Since the Last Stable Tag:**
-   - List all commits and merged PRs on `dev` since `<last-stable-tag>` (filtering server-side by `<last-stable-publishedAt>`):
+1. **Gather All Changes Since the Last Stable Release:**
+   - Use the date-filtered merged PR list as the primary source of truth, supplemented by a `--since` commit log check (do **not** use `git log <last-stable-tag>..origin/dev`, as stable tags on `main` are not always direct git ancestors of `dev` due to squash/merge history and will include old pre-tag commits):
      ```bash
      git fetch origin dev main --tags
-     git log <last-stable-tag>..origin/dev --oneline --no-merges
      gh pr list --state merged --base dev --search "merged:>=<last-stable-publishedAt>" --limit 500 --json number,title,labels,author,mergedAt
+     git log origin/dev --no-merges --since="<last-stable-publishedAt>" --oneline
      ```
 2. **Cross-Check Against Platform `dev.md` Files:**
    - Read the `dev.md` changelog file for each supported platform (listed under **Key Configuration Files** in `AGENTS.md`).
    - Verify whether any user-facing features, enhancements, or notable bug fixes were missed on any platform (accounting for shared changes vs. platform-specific changes).
+
+---
+
+## Shared Guideline: Release Drafter & GitHub Release Drafts
+
+- **Draft Format (`.github/release-drafter.yml`):**
+  - Starts with `## What's New` (with an optional human-friendly summary paragraph directly below it), followed by the categorized PR sections (`## 🚀 New Features`, `## 🐛 Bug Fixes`, `## 🧰 Maintenance`), where each bullet is formatted as `* <PR Title> (#<number>) @<author>`.
+  - Any unlabeled PRs appear uncategorized at the top of `$CHANGES` in Release Drafter's output—either classify them into the matching section (`🚀 New Features`, `🐛 Bug Fixes`, or `🧰 Maintenance`) or keep them under `## What's New` so no PR is silently dropped.
+  - Ends with `## Contributors` listing the `@<author>` handles.
+- **Preventing Release Drafter Overwrites:**
+  - `.github/workflows/release-drafter.yml` runs on every push to `dev` and `main` and overwrites the most recent GitHub Release draft's tag, title, and body back to its cumulative template.
+  - Therefore, always wait until any release-prep PR on `dev` (or the `dev` -> `main` merge PR for production) is merged and the `Release Drafter` Action finishes before applying your final `gh release create` / `gh release edit` draft updates right before publishing.
 
 ---
 
@@ -50,20 +62,20 @@ Use this skill to prepare either a **Beta (`beta`)** or a **Full / Stable (`prod
 1. **Update Cumulative `dev.md` Files (If Needed):**
    - `dev.md` is **cumulative**: it contains everything new since the last **stable** release.
    - If the Phase 2 audit found missing user-facing items, update the affected platform `dev.md` file(s) following the changelog style rules in `AGENTS.md` and each changelog directory's `README.md`. Keep `dev.md` in English only and do not rename it.
-   - If any `dev.md` file was modified, create a branch off `dev`, run verification checks, ask the user for confirmation, and open a PR targeting `dev`. Wait for (or remind) the user to merge that PR into `dev` before finalizing the GitHub Release draft so `.github/workflows/release-drafter.yml` finishes running first.
+   - If any `dev.md` file was modified, create a branch off `dev`, run verification checks, ask the user for confirmation, and open a PR targeting `dev`.
 2. **Prepare the Incremental GitHub Beta Draft Release:**
    - Unlike `dev.md`, a Beta GitHub Release description is **incremental**:
-     - For `beta.1`: includes all PRs since the last stable release (which matches the existing Release Drafter draft body from `gh release view <draft-tag> --json body -q .body`).
-     - For `beta.2+`: includes **only** PRs merged into `dev` since the previous beta tag (`<prev-beta-tag>..origin/dev`).
-   - Format the release body following `.github/release-drafter.yml` (`## What's New`, optional brief beta summary, `## 🚀 New Features`, `## 🐛 Bug Fixes`, `## 🧰 Maintenance`, and `## Contributors` linking PR numbers and `@author` handles).
+     - For `beta.1`: includes all PRs since `<last-stable-publishedAt>` (which matches the existing Release Drafter draft body from `gh release view <draft-tag> --json body -q .body`).
+     - For `beta.2+`: includes **only** PRs merged into `dev` since the previous beta release's `publishedAt` timestamp (`gh pr list --state merged --base dev --search "merged:>=<prev-beta-publishedAt>" --limit 500 --json number,title,labels,author,mergedAt`).
+   - Format the release body and contributors list following the **Shared Guideline** above.
    - Present the proposed tag and release body to the user for confirmation.
-   - Once confirmed, create or update the draft pre-release targeting `dev`:
+   - Once confirmed (and after any `dev.md` PR on `dev` is merged), create or update the draft pre-release targeting `dev`:
      ```bash
      gh release create v<version>-beta.<N> --draft --prerelease --target dev --title "v<version>-beta.<N>" --notes-file - <<'EOF'
      <release body>
      EOF
      ```
-     *(If updating an existing draft, use `gh release edit <tag> --draft --prerelease --target dev --tag v<version>-beta.<N> --title "v<version>-beta.<N>" --notes-file -`.)*
+     *(If updating an existing draft, use `gh release edit <draft-tag> --draft --prerelease --target dev --tag v<version>-beta.<N> --title "v<version>-beta.<N>" --notes-file -`.)*
 
 ---
 
@@ -76,7 +88,7 @@ Use this skill to prepare either a **Beta (`beta`)** or a **Full / Stable (`prod
      - Strip out under-the-hood engineering details, dependency bumps, architectural refactors, and developer jargon (e.g., do not mention library upgrades, internal framework migrations, or replacing a WebView error screen with a native view; either reframe user-visible improvements in terms of user benefit or omit purely internal changes).
    - Present the proposed English `<version>.md` files for all platforms to the user and wait for approval before translating.
 2. **Translate `<version>.md` into Supported Languages:**
-   - Read and execute `.agents/skills/translate-changelog/SKILL.md` to generate `<version>.<lang>.md` translations across all supported platforms.
+   - Read `.agents/skills/translate-changelog/SKILL.md` and execute Steps 2–4 (skipping Step 1 since `dev.md` was already promoted and rewritten as `<version>.md` above) to generate `<version>.<lang>.md` translations across all supported platforms.
 3. **Bump Version Metadata:**
    - Update each platform's version configuration files to `<version>` as documented in `docs/RELEASING.md` (Section 3, Step 1).
 4. **Open the Release Preparation PR to `dev`:**
@@ -84,7 +96,6 @@ Use this skill to prepare either a **Beta (`beta`)** or a **Full / Stable (`prod
    - Present the summary and proposed commit/PR description to the user for confirmation, then commit on a release-prep branch (e.g., `chore/prepare-release-<version>`), push, and open a PR targeting `dev`.
 5. **Prepare the Cumulative GitHub Release Draft (with Human Summary):**
    - A Full GitHub Release lists **all changes since the last stable release**, ignoring intermediate beta tags (you may draw inspiration from beta release notes and `<version>.md`).
-   - Start from the cumulative Release Drafter output (`gh release view <draft-tag> --json body -q .body` or all PRs merged since `<last-stable-tag>`), keeping the categorized PR lists (`## 🚀 New Features`, `## 🐛 Bug Fixes`, `## 🧰 Maintenance`) and `## Contributors` from `.github/release-drafter.yml`.
+   - Start from the cumulative Release Drafter output (`gh release view <draft-tag> --json body -q .body` or all PRs merged since `<last-stable-publishedAt>`) following the **Shared Guideline** above.
    - Insert a concise, **human-friendly highlight summary** directly under `## What's New` at the top of the release notes before the categorized PR lists.
-   - Present the proposed GitHub Release draft (`v<version>`) to the user for confirmation, then create or update the draft targeting `main` (`--draft --prerelease=false --target main --title "v<version>"`).
-   - *Important Note on Release Drafter:* Because `.github/workflows/release-drafter.yml` runs automatically on pushes to `dev` and `main` and overwrites the matching draft body with its raw template, apply (or re-apply) the custom `gh release edit v<version>` draft body after the `dev` -> `main` PR is merged, right before publishing the release.
+   - Present the proposed GitHub Release draft (`v<version>`) to the user for confirmation, then create or update the draft targeting `main` (`--draft --prerelease=false --target main --title "v<version>"`), keeping in mind the Release Drafter overwrite note in the **Shared Guideline** when merging `dev` -> `main`.

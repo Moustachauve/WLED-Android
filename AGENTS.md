@@ -97,4 +97,4 @@ SKIP_KMP_BUILD=1 xcodebuild test \
     *   Prefer `###` section headings with short, playful descriptions over bullet lists that start with bold words (`- **Feature**: ...`). Bullet lists under a `###` heading are fine when a larger feature needs sub-items.
     *   Group minor features, small tweaks, and bug fixes at the end under `### Other Improvements` (or `### Other Improvements & Fixes` when bug fixes are included) using plain bullet points.
     *   Do not use emojis in headings or at the beginning of list items.
-    *   Keep `dev.md` in English during development; use the `/prepare-release` and `/translate-changelog` skills when preparing Beta or Production releases.
+    *   Keep `dev.md` in English during development and Beta releases; use `/prepare-release` when preparing Beta or Production releases (which invokes `/translate-changelog` to generate `<version>.<lang>.md` translations for Production releases).
