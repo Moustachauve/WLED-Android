@@ -26,6 +26,8 @@ WLED-App uses GitHub Actions (`.github/workflows/release.yml`) and Fastlane (`fa
 
 ## 2. Publishing a Beta / TestFlight Build (from `dev`)
 
+*(Tip: Run the `/prepare-release` skill to automatically audit commits/PRs since the last stable release, verify `dev.md` on both platforms, and prepare the incremental Beta GitHub Release draft.)*
+
 You can send a Beta build to Google Play Open Testing (`beta`) and the TestFlight `"Beta"` external group in any of three ways:
 
 ### Option A: Publish the Release Drafter Draft as a Pre-Release (GitHub UI)
@@ -45,6 +47,8 @@ gh release create v8.1.0-beta.1 --prerelease --target dev --title "v8.1.0-beta.1
 ---
 
 ## 3. Publishing a Production Release (from `main`)
+
+*(Tip: Run the `/prepare-release` skill to automate Step 1—auditing changes, rewriting `<version>.md` for end users, translating via `/translate-changelog`, bumping version numbers, opening the PR to `dev`, and preparing the GitHub Release draft with a human-friendly summary.)*
 
 1. **Prepare the Changelogs on `dev`**:
    - Rename `app/src/main/assets/changelog/dev.md` → `<version>.md` (e.g. `8.1.0.md`).
