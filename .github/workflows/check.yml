@@ -153,6 +153,43 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      - name: Validate Google Play Store changelogs (<= 500 characters)
+        run: |
+          python3 - <<'PY'
+          import glob, pathlib, sys
+          MAX_CHARS = 500
+          errors = 0
+          for path_str in sorted(glob.glob("fastlane/changelogs/*.txt")):
+              text = pathlib.Path(path_str).read_text(encoding="utf-8").strip()
+              if not text:
+                  print(f"::error file={path_str}::{path_str} is empty.")
+                  errors += 1
+              elif len(text) > MAX_CHARS:
+                  print(f"::error file={path_str}::{path_str} is {len(text)} characters (Google Play limit: {MAX_CHARS}).")
+                  errors += 1
+          sys.exit(1 if errors else 0)
+          PY
+
+      - name: Verify production changelogs are promoted before merging to main
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        run: |
+          set -euo pipefail
+          TOML_VERSION=$(grep -E '^app-versionName\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -f "app/src/main/assets/changelog/dev.md" ] || [ -f "iosApp/wled/changelog/dev.md" ] || [ -f "fastlane/changelogs/dev.txt" ]; then
+            echo "::error::dev changelog still exists! Before merging to main, rename app/src/main/assets/changelog/dev.md and iosApp/wled/changelog/dev.md to ${TOML_VERSION}.md and create fastlane/changelogs/${TOML_VERSION}.txt."
+            exit 1
+          fi
+          for DIR in "app/src/main/assets/changelog" "iosApp/wled/changelog"; do
+            if [ ! -s "${DIR}/${TOML_VERSION}.md" ]; then
+              echo "::error::Missing or empty production changelog at ${DIR}/${TOML_VERSION}.md."
+              exit 1
+            fi
+          done
+          if [ ! -s "fastlane/changelogs/${TOML_VERSION}.txt" ]; then
+            echo "::error::Missing or empty Google Play production changelog at fastlane/changelogs/${TOML_VERSION}.txt."
+            exit 1
+          fi
+
       - name: Set up JDK 17
         uses: actions/setup-java@v6
         with:
@@ -163,22 +200,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v6.4.0
         with:
           cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
-
-      - name: Verify production changelogs are promoted before merging to main
-        if: github.event_name == 'pull_request' && github.base_ref == 'main'
-        run: |
-          set -euo pipefail
-          TOML_VERSION=$(grep -E '^app-versionName\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
-          if [ -f "app/src/main/assets/changelog/dev.md" ] || [ -f "iosApp/wled/changelog/dev.md" ]; then
-            echo "::error::dev.md still exists! Before merging to main, rename app/src/main/assets/changelog/dev.md and iosApp/wled/changelog/dev.md to ${TOML_VERSION}.md."
-            exit 1
-          fi
-          for DIR in "app/src/main/assets/changelog" "iosApp/wled/changelog"; do
-            if [ ! -s "${DIR}/${TOML_VERSION}.md" ]; then
-              echo "::error::Missing or empty production changelog at ${DIR}/${TOML_VERSION}.md."
-              exit 1
-            fi
-          done
 
       - name: Run Code Formatting and Quality
         run: ./gradlew spotlessCheck detekt

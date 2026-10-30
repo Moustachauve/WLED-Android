@@ -1,0 +1,5 @@
+- Neu gestaltete, interaktive Startbildschirm-Widgets mit Echtzeit-Synchronisierung und dynamischen Farben.
+- Android-Schnelleinstellungskachel zum Schalten deiner Lichter direkt über die Benachrichtigungsleiste.
+- OTA-Update-Unterstützung für QuinLED- und MoonModules-Boards.
+- Unterstützung für wled://-Direktlinks aus anderen Apps und Kurzbefehlen.
+- Übersetzungen auf Deutsch und Chinesisch sowie Verbesserungen bei der Geräteerkennung und Fehlerbehebungen.

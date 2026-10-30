@@ -53,9 +53,10 @@ gh release create v8.1.0-beta.1 --prerelease --target dev --title "v8.1.0-beta.1
 1. **Prepare the Changelogs on `dev`**:
    - Rename `app/src/main/assets/changelog/dev.md` → `<version>.md` (e.g. `8.1.0.md`).
    - Rename `iosApp/wled/changelog/dev.md` → `<version>.md` (e.g. `8.1.0.md`).
-   - Run the `/translate-changelog` skill to generate localized `<version>.<lang>.md` release notes (e.g. `8.1.0.fr.md`, `8.1.0.de.md`, `8.1.0.zh.md`). Both the in-app "What's New" sheet and Fastlane store uploads automatically pick up `<version>.<lang>.md` files when present and fall back to `<version>.md`.
+   - Create `fastlane/changelogs/<version>.txt` and curate the top highlights so it stays within Google Play's **500-character limit** (`fastlane/changelogs/README.md`), while keeping `app/src/main/assets/changelog/<version>.md` full-length for the in-app "What's New" sheet.
+   - Run the `/translate-changelog` skill to generate localized `<version>.<lang>.md` release notes (e.g. `8.1.0.fr.md`, `8.1.0.de.md`, `8.1.0.zh.md`) and localized `fastlane/changelogs/<version>.<lang>.txt` summaries (`<= 500` chars each). Both the in-app "What's New" sheet and Fastlane store uploads automatically pick up localized files when present and fall back to English.
    - Update `app-versionName` in `gradle/libs.versions.toml` and `MARKETING_VERSION` in `iosApp/wled.xcodeproj/project.pbxproj`.
-   - *(Safety net)*: The `Check` workflow on PRs targeting `main` will block merging if `dev.md` hasn't been renamed yet—and if you ever publish a release tag directly without renaming `dev.md`, `release.yml` automatically promotes `dev.md` → `<version>.md` inside the build workspace so your tagged release still succeeds without needing a version bump.
+   - *(Safety net)*: The `Check` workflow on PRs targeting `main` will block merging if `dev.md` hasn't been renamed or `fastlane/changelogs/<version>.txt` is missing—and if you ever publish a release tag directly without renaming `dev.md`, `release.yml` automatically promotes `dev` → `<version>` inside the build workspace so your tagged release still succeeds without needing a version bump.
 2. **Merge `dev` into `main`**:
    - Open and merge a PR from `dev` → `main`.
 3. **Publish the GitHub Release**:

@@ -61,7 +61,7 @@ Use this skill to prepare either a **Beta (`beta`)** or a **Full / Stable (`prod
 
 1. **Update Cumulative `dev.md` Files (If Needed):**
    - `dev.md` is **cumulative**: it contains everything new since the last **stable** release.
-   - If the Phase 2 audit found missing user-facing items, update the affected platform `dev.md` file(s) following the changelog style rules in `AGENTS.md` and each changelog directory's `README.md`. Keep `dev.md` in English only and do not rename it.
+   - If the Phase 2 audit found missing user-facing items, update the affected platform `dev.md` file(s) following the changelog style rules in `AGENTS.md` and each changelog directory's `README.md`. Keep `dev.md` in English only and do not rename it (for Beta builds on Google Play, `fastlane/Fastfile` automatically summarizes `app/src/main/assets/changelog/dev.md` to `<= 500` characters, so do not commit a standing `fastlane/changelogs/dev.txt` on `dev`).
    - If any `dev.md` file was modified, create a branch off `dev`, run verification checks, ask the user for confirmation, and open a PR targeting `dev`.
 2. **Prepare the Incremental GitHub Beta Draft Release:**
    - Unlike `dev.md`, a Beta GitHub Release description is **incremental**:
@@ -81,14 +81,18 @@ Use this skill to prepare either a **Beta (`beta`)** or a **Full / Stable (`prod
 
 ## Phase 3B: Full / Stable Release Workflow (`production`)
 
-1. **Craft End-User-Friendly `<version>.md` Changelogs:**
+1. **Craft End-User-Friendly `<version>.md` Changelogs & Short Google Play Notes (`fastlane/changelogs/<version>.txt`):**
    - Promote `dev.md` to `<version>.md` (and delete `dev.md`) in every supported platform's changelog directory.
    - Rewrite and polish each `<version>.md` for **everyday, non-technical end users** (use existing versioned changelogs such as `7.0.0.md` for tone inspiration while adhering to the formatting rules in `AGENTS.md` and the changelog `README.md` files):
      - Focus strictly on what users can **see, feel, and do**—highlight tangible new capabilities, visual polish, and noticeable fixes in warm, engaging language.
      - Strip out under-the-hood engineering details, dependency bumps, architectural refactors, and developer jargon (e.g., do not mention library upgrades, internal framework migrations, or replacing a WebView error screen with a native view; either reframe user-visible improvements in terms of user benefit or omit purely internal changes).
-   - Present the proposed English `<version>.md` files for all platforms to the user and wait for approval before translating.
-2. **Translate `<version>.md` into Supported Languages:**
-   - Read `.agents/skills/translate-changelog/SKILL.md` and execute Steps 2–4 (skipping Step 1 since `dev.md` was already promoted and rewritten as `<version>.md` above) to generate `<version>.<lang>.md` translations across all supported platforms.
+   - **Craft the Short Google Play Summary (`fastlane/changelogs/<version>.txt`):**
+     - Create `fastlane/changelogs/<version>.txt` (and delete `fastlane/changelogs/dev.txt` if present).
+     - Summarize only the **2–5 most impactful user-facing features and noticeable fixes** from `app/src/main/assets/changelog/<version>.md` as concise plain-text `- ` bullets (no Markdown headers, `**bold**`, or backticks; see `fastlane/changelogs/README.md` and `fastlane/changelogs/7.0.0.txt`). Group minor tweaks and remaining fixes into a single short closing bullet so nothing gets cut off.
+     - Verify the character count using the UTF-8 `.strip()` check (`python3 -c 'import pathlib,sys; [print(len(pathlib.Path(p).read_text("utf-8").strip()), p) for p in sys.argv[1:]]' fastlane/changelogs/<version>.txt`): must be `<= 500` characters, and target **350–450 characters** in English so translated versions (`fr`, `de`) have comfortable headroom under 500 characters.
+   - Present the proposed English `<version>.md` files for all platforms **and** `fastlane/changelogs/<version>.txt` (with its character count) to the user and wait for approval before translating.
+2. **Translate `<version>.md` and `fastlane/changelogs/<version>.txt` into Supported Languages:**
+   - Read `.agents/skills/translate-changelog/SKILL.md` and execute Steps 2–5 (skipping Step 1 since `<version>.md` and `<version>.txt` were already prepared above) to generate `<version>.<lang>.md` translations across all supported platforms and `<version>.<lang>.txt` translations in `fastlane/changelogs/` (each verified to be `<= 500` characters).
 3. **Bump Version Metadata:**
    - Update each platform's version configuration files to `<version>` as documented in `docs/RELEASING.md` (Section 3, Step 1).
 4. **Open the Release Preparation PR to `dev`:**

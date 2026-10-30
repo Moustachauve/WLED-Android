@@ -209,6 +209,16 @@ jobs:
               mv "$DEV_LOCALE_FILE" "$CHANGELOG_DIR/${MARKETING_VERSION}${SUFFIX}"
             done
           fi
+          PLAY_CHANGELOG_DIR="fastlane/changelogs"
+          if [ -f "$PLAY_CHANGELOG_DIR/dev.txt" ] && [ ! -f "$PLAY_CHANGELOG_DIR/${MARKETING_VERSION}.txt" ]; then
+            echo "::warning::fastlane/changelogs/dev.txt was not renamed before tagging; promoting dev.txt -> ${MARKETING_VERSION}.txt for this build."
+            mv "$PLAY_CHANGELOG_DIR/dev.txt" "$PLAY_CHANGELOG_DIR/${MARKETING_VERSION}.txt"
+            for DEV_LOCALE_FILE in "$PLAY_CHANGELOG_DIR"/dev.*.txt; do
+              [ -e "$DEV_LOCALE_FILE" ] || continue
+              SUFFIX="${DEV_LOCALE_FILE#"$PLAY_CHANGELOG_DIR/dev"}"
+              mv "$DEV_LOCALE_FILE" "$PLAY_CHANGELOG_DIR/${MARKETING_VERSION}${SUFFIX}"
+            done
+          fi
 
       - name: Decode Android Keystore
         id: keystore
