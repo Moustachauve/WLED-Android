@@ -17,4 +17,4 @@ When submitting new code to the repository via Pull Requests, **always append yo
 Do **NOT** create `dev.<lang>.md` translations during development, create a new versioned markdown file, or append to an existing production version file unless explicitly asked to do so during a release phase.
 
 **Release Protocol:**
-Before a final production build is compiled and released, a maintainer **must** rename `dev.md` to the targeted Semantic Version string (e.g. `dev.md` -> `8.1.0.md`) and generate the `<version>.<lang>.md` translations using the `/translate-changelog` skill. The file `dev.md` should not be included in stable releases.
+Before a final production build is compiled and released, a maintainer **must** rename `dev.md` to the targeted Semantic Version string (e.g. `dev.md` -> `8.1.0.md`) and generate the `<version>.<lang>.md` translations using the `/prepare-release` or `/translate-changelog` skill. The file `dev.md` should not be included in stable releases.
