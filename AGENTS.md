@@ -98,3 +98,4 @@ SKIP_KMP_BUILD=1 xcodebuild test \
     *   Group minor features, small tweaks, and bug fixes at the end under `### Other Improvements` (or `### Other Improvements & Fixes` when bug fixes are included) using plain bullet points.
     *   Do not use emojis in headings or at the beginning of list items.
     *   Keep `dev.md` in English during development and Beta releases; use `/prepare-release` when preparing Beta or Production releases (which invokes `/translate-changelog` to generate `<version>.<lang>.md` translations for Production releases).
+*   `fastlane/changelogs/` - Short (`<= 500` characters) plain-text release note summaries for the Google Play Store (`<version>.txt`, `<version>.<lang>.txt`), curated and translated via `/prepare-release` and `/translate-changelog` so Google Play notes highlight only the most important changes while `app/src/main/assets/changelog/` remains full-length for the in-app "What's New" sheet.
