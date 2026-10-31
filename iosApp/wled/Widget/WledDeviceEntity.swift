@@ -33,10 +33,20 @@ extension WledDeviceEntity {
 
 /// Entity query resolving `WledDeviceEntity` instances from the shared Room `DeviceRepository`.
 struct WledDeviceEntityQuery: EntityStringQuery {
+    private let database: AppDatabase
+
+    init() {
+        self.init(database: .shared)
+    }
+
+    init(database: AppDatabase) {
+        self.database = database
+    }
+
     func entities(for identifiers: [WledDeviceEntity.ID]) async throws -> [WledDeviceEntity] {
-        await AppDatabase.shared.waitUntilReady()
+        await database.waitUntilReady()
         let ids = Set(identifiers)
-        return try await AppDatabase.shared.deviceRepository.getAllDevices()
+        return try await database.deviceRepository.getAllDevices()
             .filter { ids.contains($0.macAddress) }
             .map(WledDeviceEntity.init(device:))
     }
@@ -51,9 +61,22 @@ struct WledDeviceEntityQuery: EntityStringQuery {
     }
 
     func suggestedEntities() async throws -> [WledDeviceEntity] {
-        await AppDatabase.shared.waitUntilReady()
-        return try await AppDatabase.shared.deviceRepository.getAllDevices()
+        await database.waitUntilReady()
+        return try await database.deviceRepository.getAllDevices()
             .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
             .map(WledDeviceEntity.init(device:))
+    }
+
+    func defaultResult() async -> WledDeviceEntity? {
+        await database.waitUntilReady()
+        guard let allDevices = try? await database.deviceRepository.getAllDevices() else {
+            return nil
+        }
+        let visibleDevices = allDevices.filter { !$0.isHidden }
+        let candidates = visibleDevices.isEmpty ? allDevices : visibleDevices
+        guard candidates.count == 1, let singleDevice = candidates.first else {
+            return nil
+        }
+        return WledDeviceEntity(device: singleDevice)
     }
 }

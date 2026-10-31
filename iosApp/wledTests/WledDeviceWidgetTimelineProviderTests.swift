@@ -132,4 +132,41 @@ struct WledDeviceWidgetTimelineProviderTests {
         #expect(StubURLProtocol.requests(for: host).count == 1)
         #expect(data?.isOn == true)
     }
+
+    @Test func defaultResultReturnsNilWhenNoDevicesExist() async {
+        let query = WledDeviceEntityQuery(database: database)
+
+        let result = await query.defaultResult()
+
+        #expect(result == nil)
+    }
+
+    @Test func defaultResultReturnsSingleDeviceWhenOnlyOneDeviceExists() async throws {
+        let device = try await insertDevice(customName: "Desk Strip")
+        let query = WledDeviceEntityQuery(database: database)
+
+        let result = await query.defaultResult()
+
+        #expect(result == WledDeviceEntity(device: device))
+    }
+
+    @Test func defaultResultReturnsSingleVisibleDeviceWhenOtherDevicesAreHidden() async throws {
+        let visible = try await insertDevice(mac: "mac-visible", customName: "Living Room", isHidden: false)
+        _ = try await insertDevice(mac: "mac-hidden", customName: "Old Strip", isHidden: true)
+        let query = WledDeviceEntityQuery(database: database)
+
+        let result = await query.defaultResult()
+
+        #expect(result == WledDeviceEntity(device: visible))
+    }
+
+    @Test func defaultResultReturnsNilWhenMultipleVisibleDevicesExist() async throws {
+        _ = try await insertDevice(mac: "mac-1", customName: "Lamp 1")
+        _ = try await insertDevice(mac: "mac-2", customName: "Lamp 2")
+        let query = WledDeviceEntityQuery(database: database)
+
+        let result = await query.defaultResult()
+
+        #expect(result == nil)
+    }
 }

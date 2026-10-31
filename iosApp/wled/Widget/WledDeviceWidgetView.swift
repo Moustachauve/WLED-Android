@@ -84,16 +84,21 @@ struct WledDeviceWidgetView: View {
     }
 
     private func unconfiguredContent() -> some View {
-        VStack {
-            Image(systemName: "lightbulb.slash")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(.red)
-                .widgetAccentable()
+        VStack(spacing: 8) {
+            Image(.akemi042CheerfulRgb)
+                .resizable()
+                .interpolation(.none)
+                .widgetAccentedRenderingMode(.desaturated)
+                .scaledToFit()
+                .frame(width: 46, height: 46)
                 .accessibilityHidden(true)
-            Text("Please configure")
+
+            Text("Please configure a WLED device")
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .minimumScaleFactor(0.85)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)

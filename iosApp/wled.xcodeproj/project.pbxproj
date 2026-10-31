@@ -67,6 +67,7 @@
 		88WIDGET0000000000000003 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Assets.xcassets,
 				Database/AppDatabase.swift,
 				Localizable.xcstrings,
 				Service/DeviceApi/DeviceExtensions.swift,
