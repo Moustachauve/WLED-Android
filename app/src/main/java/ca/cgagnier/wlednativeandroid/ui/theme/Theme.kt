@@ -9,12 +9,13 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -264,6 +265,8 @@ val unspecified_scheme = ColorFamily(
     Color.Unspecified,
 )
 
+private val LocalDarkTheme = staticCompositionLocalOf<Boolean?> { null }
+
 @Composable
 fun WLEDNativeTheme(
     // Dynamic color is available on Android 12+
@@ -272,10 +275,11 @@ fun WLEDNativeTheme(
     content: @Composable () -> Unit,
 ) {
     val theme by themeViewModel.theme.collectAsStateWithLifecycle()
-    val darkTheme = when (theme) {
-        ThemeSettings.Auto -> isSystemInDarkTheme()
+    val currentTheme = theme ?: return
+    val darkTheme = when (currentTheme) {
         ThemeSettings.Dark -> true
-        else -> false
+        ThemeSettings.Light -> false
+        ThemeSettings.Auto -> isSystemInDarkTheme()
     }
     WLEDNativeTheme(
         darkTheme = darkTheme,
@@ -303,11 +307,13 @@ fun WLEDNativeTheme(
         else -> lightScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = appTypography,
-        content = content,
-    )
+    CompositionLocalProvider(LocalDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = appTypography,
+            content = content,
+        )
+    }
 
     if (!view.isInEditMode) {
         SideEffect {
@@ -322,36 +328,9 @@ fun getColorFromDeviceState(state: State?): Int = getColorFromState(state) ?: an
 
 @Composable
 fun DeviceTheme(device: DeviceWithState, content: @Composable () -> Unit) {
-    if (LocalInspectionMode.current) {
-        DeviceTheme(
-            device = device,
-            darkTheme = isSystemInDarkTheme(),
-            content = content,
-        )
-    } else {
-        DeviceThemeWithViewModel(
-            device = device,
-            content = content,
-        )
-    }
-}
-
-@Composable
-private fun DeviceThemeWithViewModel(
-    device: DeviceWithState,
-    themeViewModel: ThemeViewModel = koinViewModel(),
-    content: @Composable () -> Unit,
-) {
-    val theme by themeViewModel.theme.collectAsStateWithLifecycle()
-    val darkTheme = when (theme) {
-        ThemeSettings.Auto -> isSystemInDarkTheme()
-        ThemeSettings.Dark -> true
-        else -> false
-    }
-
     DeviceTheme(
         device = device,
-        darkTheme = darkTheme,
+        darkTheme = LocalDarkTheme.current ?: isSystemInDarkTheme(),
         content = content,
     )
 }
