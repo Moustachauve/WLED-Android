@@ -14,6 +14,9 @@ ANDROID_PACKAGE_NAME = "ca.cgagnier.wlednativeandroid"
 IOS_BUNDLE_ID = "ca.cgagnier.wled-native"
 IOS_WIDGET_BUNDLE_ID = "ca.cgagnier.wled-native.widgets"
 GOOGLE_PLAY_MAX_CHANGELOG_CHARS = 500
+ANDROID_PLAY_CHANGELOG_DIR = File.join(__dir__, "changelogs")
+# Keep localized "Other Improvements" heading prefixes in sync with `.agents/skills/translate-changelog/SKILL.md` (Step 3).
+OTHER_IMPROVEMENTS_HEADING_REGEX = /\A(other improvements|autres améliorations|weitere verbesserungen|其他改进)/i
 
 # Maps changelog language suffixes (<version>.<lang>.md) to store locale codes.
 # Keep aligned with locales enabled in Google Play Console and App Store Connect.
@@ -37,50 +40,28 @@ def base_semver(version_str)
   strip_v_prefix(version_str).split("-").first
 end
 
-# Keep candidate filenames in sync with the pre-flight check in `.github/workflows/release.yml`.
-def read_plain_changelog(changelog_dir:, version:, is_beta:, max_length: nil, lang: nil, required: true)
-  clean_version = strip_v_prefix(version)
-  numeric_version = base_semver(version)
-  ext = lang ? ".#{lang}.md" : ".md"
+def strip_inline_markdown(text)
+  text.gsub(/\*\*(.+?)\*\*/, '\1')
+      .gsub(/`([^`]+)`/, '\1')
+      .strip
+end
 
-  candidates = if is_beta
-                 [
-                   "dev#{ext}",
-                   "#{clean_version}#{ext}",
-                   "v#{clean_version}#{ext}",
-                   "#{numeric_version}#{ext}",
-                   "v#{numeric_version}#{ext}"
-                 ].uniq
-               else
-                 [
-                   "#{clean_version}#{ext}",
-                   "v#{clean_version}#{ext}",
-                   "#{numeric_version}#{ext}",
-                   "v#{numeric_version}#{ext}",
-                   "dev#{ext}"
-                 ].uniq
-               end
+def clean_bullet(line)
+  strip_inline_markdown(line).sub(/\A-\s+/, "").strip
+end
 
-  selected_path = candidates
-                  .map { |name| File.join(changelog_dir, name) }
-                  .find { |path| File.exist?(path) && !File.read(path).strip.empty? }
+def format_heading_prefix(heading)
+  cleaned = strip_inline_markdown(heading)
+  cleaned.match?(/[:!?：！？]\z/) ? cleaned : "#{cleaned}:"
+end
 
-  unless selected_path
-    return nil unless required
+def extract_first_sentence(text)
+  cleaned = clean_bullet(text)
+  match = cleaned.match(/\A(.+?[.!?。！？])(?:\s|\z)/)
+  match ? match[1].strip : cleaned
+end
 
-    UI.user_error!("No non-empty changelog found in #{changelog_dir} (checked: #{candidates.join(', ')})")
-  end
-
-  # When running Fastlane locally without the CI workspace promotion step, warn if falling back to dev.md.
-  if !is_beta && File.basename(selected_path).casecmp("dev#{ext}").zero?
-    UI.important("Warning: #{numeric_version}#{ext} was not found in #{changelog_dir}; falling back to dev#{ext} so the tagged release succeeds.")
-  end
-
-  text = File.read(selected_path)
-             .gsub(/^###+\s+(.+)$/, '\1:')
-             .gsub(/\*\*(.+?)\*\*/, '\1')
-             .strip
-
+def truncate_with_ellipsis(text, max_length)
   return text if max_length.nil? || text.length <= max_length
 
   truncated = text[0...(max_length - 3)]
@@ -96,12 +77,166 @@ def read_plain_changelog(changelog_dir:, version:, is_beta:, max_length: nil, la
   "#{truncated[0...cutoff].rstrip}..."
 end
 
-def read_localized_changelogs(changelog_dir:, version:, is_beta:, locale_map:, default_locales:, max_length: nil)
+# Summarizes a rich Markdown changelog into concise plain-text bullets that fit within max_length,
+# prioritizing major `###` feature sections before `### Other Improvements` bullets so release notes
+# are not cut off mid-sentence.
+def summarize_markdown_changelog(raw_markdown, max_length: nil)
+  plain_text = strip_inline_markdown(
+    raw_markdown.gsub(/^###+\s+(.+)$/) { format_heading_prefix(Regexp.last_match(1)) }
+  )
+
+  return plain_text if max_length.nil? || plain_text.length <= max_length
+
+  primary_bullets = []
+  secondary_bullets = []
+  current_heading = nil
+  current_lines = []
+
+  flush_section = lambda do
+    next if current_heading.nil? && current_lines.empty?
+
+    if current_heading.nil? || current_heading.match?(OTHER_IMPROVEMENTS_HEADING_REGEX)
+      target = current_heading.nil? ? primary_bullets : secondary_bullets
+      current_lines.each do |line|
+        cleaned = clean_bullet(line)
+        target << "- #{cleaned}" unless cleaned.empty?
+      end
+    else
+      first_line = current_lines.first
+      summary_sentence = first_line ? extract_first_sentence(first_line) : nil
+      bullet = if summary_sentence && !summary_sentence.empty?
+                 "- #{format_heading_prefix(current_heading)} #{summary_sentence}"
+               else
+                 "- #{current_heading}"
+               end
+      primary_bullets << bullet
+    end
+  end
+
+  raw_markdown.each_line do |raw_line|
+    line = raw_line.strip
+    next if line.empty?
+
+    if (heading_match = line.match(/\A###+\s+(.+)\z/))
+      flush_section.call
+      current_heading = strip_inline_markdown(heading_match[1])
+      current_lines = []
+    else
+      current_lines << line
+    end
+  end
+  flush_section.call
+
+  ordered_bullets = primary_bullets + secondary_bullets
+  selected = []
+  ordered_bullets.each do |bullet|
+    candidate = (selected + [bullet]).join("\n")
+    break if candidate.length > max_length
+
+    selected << bullet
+  end
+
+  return truncate_with_ellipsis(ordered_bullets.first, max_length) if selected.empty?
+
+  selected.join("\n")
+end
+
+def resolve_changelog_source(changelog_dir:, version:, is_beta:, lang: nil, summary_dir: nil)
+  clean_version = strip_v_prefix(version)
+  numeric_version = base_semver(version)
+  version_stems = [
+    clean_version,
+    "v#{clean_version}",
+    numeric_version,
+    "v#{numeric_version}"
+  ].uniq
+  stems = (is_beta ? ["dev", *version_stems] : [*version_stems, "dev"]).uniq
+  lang_prefix = lang ? ".#{lang}" : ""
+
+  search_entries = []
+  stems.each do |stem|
+    is_dev_fallback = !is_beta && stem == "dev"
+    if summary_dir
+      search_entries << {
+        path: File.join(summary_dir, "#{stem}#{lang_prefix}.txt"),
+        label: "changelogs/#{stem}#{lang_prefix}.txt",
+        curated_summary: true,
+        is_dev_fallback: is_dev_fallback
+      }
+    end
+    search_entries << {
+      path: File.join(changelog_dir, "#{stem}#{lang_prefix}.md"),
+      label: "#{stem}#{lang_prefix}.md",
+      curated_summary: false,
+      is_dev_fallback: is_dev_fallback
+    }
+  end
+
+  selected = search_entries.find { |entry| File.exist?(entry[:path]) && !File.read(entry[:path]).strip.empty? }
+  [selected, search_entries.map { |entry| entry[:label] }]
+end
+
+# Keep candidate filenames in sync with the pre-flight check in `.github/workflows/release.yml`.
+def read_plain_changelog(changelog_dir:, version:, is_beta:, max_length: nil, lang: nil, required: true, summary_dir: nil)
+  numeric_version = base_semver(version)
+  selected, checked_labels = resolve_changelog_source(
+    changelog_dir: changelog_dir,
+    version: version,
+    is_beta: is_beta,
+    lang: lang,
+    summary_dir: summary_dir
+  )
+
+  unless selected
+    return nil unless required
+
+    UI.user_error!("No non-empty changelog found in #{changelog_dir} (checked: #{checked_labels.join(', ')})")
+  end
+
+  # When running Fastlane locally without the CI workspace promotion step, warn if falling back to dev.
+  if selected[:is_dev_fallback]
+    lang_prefix = lang ? ".#{lang}" : ""
+    missing_targets = if summary_dir
+                        "changelogs/#{numeric_version}#{lang_prefix}.txt or #{numeric_version}#{lang_prefix}.md"
+                      else
+                        "#{numeric_version}#{lang_prefix}.md"
+                      end
+    UI.important(
+      "Warning: #{missing_targets} was not found in #{changelog_dir}; " \
+      "falling back to #{selected[:label]} so the tagged release succeeds."
+    )
+  end
+
+  raw_content = File.read(selected[:path]).strip
+
+  if selected[:curated_summary]
+    if max_length && raw_content.length > max_length
+      UI.user_error!(
+        "Curated Play Store changelog #{selected[:path]} is #{raw_content.length} characters, " \
+        "exceeding the #{max_length}-character limit. Summarize it to <= #{max_length} characters."
+      )
+    end
+    return raw_content
+  end
+
+  summarize_markdown_changelog(raw_content, max_length: max_length)
+end
+
+def read_localized_changelogs(
+  changelog_dir:,
+  version:,
+  is_beta:,
+  locale_map:,
+  default_locales:,
+  max_length: nil,
+  summary_dir: nil
+)
   default_notes = read_plain_changelog(
     changelog_dir: changelog_dir,
     version: version,
     is_beta: is_beta,
-    max_length: max_length
+    max_length: max_length,
+    summary_dir: summary_dir
   )
 
   notes_by_locale = default_locales.each_with_object({}) do |store_locale, acc|
@@ -115,7 +250,8 @@ def read_localized_changelogs(changelog_dir:, version:, is_beta:, locale_map:, d
       is_beta: is_beta,
       max_length: max_length,
       lang: lang,
-      required: false
+      required: false,
+      summary_dir: summary_dir
     )
     next unless localized_notes
 
@@ -148,6 +284,7 @@ platform :android do
     changelog_dir = File.join(REPO_ROOT, "app", "src", "main", "assets", "changelog")
     notes_by_locale = read_localized_changelogs(
       changelog_dir: changelog_dir,
+      summary_dir: ANDROID_PLAY_CHANGELOG_DIR,
       version: version_name,
       is_beta: is_beta,
       locale_map: PLAY_STORE_LOCALE_MAP,
