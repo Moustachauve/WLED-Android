@@ -59,22 +59,28 @@ class DeviceListDetailViewModel(
             }
         }
         observeAutoDiscoveryChanges()
-        // This ensures onResume/onPause are called only when the APP goes background/foreground,
-        // not when the screen rotates.
+        // This ensures onStart/onStop are called only when the APP goes background/foreground,
+        // not when the screen rotates or when a system permission dialog appears on top.
         processLifecycle?.addObserver(this)
     }
 
-    override fun onResume(owner: LifecycleOwner) {
-        super.onResume(owner)
+    override fun onStart(owner: LifecycleOwner) {
+        super.onStart(owner)
         Log.i(TAG, "App in foreground, starting discovery if enabled")
         startAutoDiscoveryIfEnabled()
     }
 
-    override fun onPause(owner: LifecycleOwner) {
-        super.onPause(owner)
+    override fun onStop(owner: LifecycleOwner) {
+        super.onStop(owner)
         Log.i(TAG, "App in background, stopping discovery")
         stopDiscoveryService()
     }
+
+    /**
+     * Called when the user grants the Android 17+ `ACCESS_LOCAL_NETWORK` runtime permission so
+     * automatic discovery can immediately run without waiting for a foreground transition.
+     */
+    fun onLocalNetworkPermissionGranted(): Job = startAutoDiscoveryIfEnabled()
 
     override fun onCleared() {
         super.onCleared()
@@ -91,7 +97,7 @@ class DeviceListDetailViewModel(
 
     /**
      * Starts a timed discovery only if the user has automatic discovery enabled. The preference is
-     * read inside the job so that a quick [onPause] cancels it before discovery ever starts.
+     * read inside the job so that a quick [onStop] cancels it before discovery ever starts.
      */
     private fun startAutoDiscoveryIfEnabled(timeMillis: Long = DEFAULT_DISCOVERY_DURATION_MS): Job =
         launchTimedDiscovery(timeMillis) {
@@ -117,7 +123,7 @@ class DeviceListDetailViewModel(
     /**
      * Reacts to the user toggling automatic discovery in Settings: enabling it scans right away,
      * disabling it stops any scan in progress. The first emission (current value) is skipped since
-     * [onResume] already handles the initial state.
+     * [onStart] already handles the initial state.
      */
     private fun observeAutoDiscoveryChanges() {
         viewModelScope.launch {
