@@ -138,8 +138,8 @@
 
     <!-- Local network permission -->
     <string name="local_network_warning_title">需要本地网络访问权限</string>
-    <string name="local_network_warning_body">WLED 需要本地网络访问权限才能发现并控制您的设备。请在“设置”中启用。</string>
+    <string name="local_network_warning_body">WLED 需要本地网络访问权限才能发现并控制您的设备。</string>
     <string name="local_network_instructions">前往“设置” → “应用” → WLED → “权限” → “附近的设备”</string>
-    <string name="open_settings">打开设置</string>
+    <string name="local_network_allow_access">允许访问</string>
 
 </resources>

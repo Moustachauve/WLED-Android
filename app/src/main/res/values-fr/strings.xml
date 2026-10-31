@@ -140,8 +140,8 @@
 
     <!-- Local network permission -->
     <string name="local_network_warning_title">Accès au réseau local requis</string>
-    <string name="local_network_warning_body">WLED a besoin de l\'accès au réseau local pour découvrir et contrôler vos appareils. Veuillez l\'activer dans les Paramètres.</string>
+    <string name="local_network_warning_body">WLED a besoin de l\'accès au réseau local pour découvrir et contrôler vos appareils.</string>
     <string name="local_network_instructions">Aller dans Paramètres → Applications → WLED → Autorisations → Appareils à proximité</string>
-    <string name="open_settings">Ouvrir les paramètres</string>
+    <string name="local_network_allow_access">Autoriser l\'accès</string>
 
 </resources>

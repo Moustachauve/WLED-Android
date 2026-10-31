@@ -74,7 +74,7 @@ data class DeviceListActions(
     val onItemEdit: (DeviceWithState) -> Unit = {},
     val onAddDevice: () -> Unit = {},
     val onShowHiddenDevices: () -> Unit = {},
-    val onOpenLocalNetworkSettings: () -> Unit = {},
+    val onRequestLocalNetworkAccess: () -> Unit = {},
     val onRefresh: () -> Unit = {},
     val onOpenDrawer: () -> Unit = {},
     val onPowerSwitchToggle: (DeviceWithState, Boolean) -> Unit = { _, _ -> },
@@ -224,7 +224,7 @@ private fun LazyListScope.deviceListItems(
     if (state.isLocalNetworkDenied) {
         item(key = "local_network_warning") {
             LocalNetworkWarningBanner(
-                onOpenSettings = actions.onOpenLocalNetworkSettings,
+                onRequestLocalNetworkAccess = actions.onRequestLocalNetworkAccess,
                 modifier = Modifier.animateItem(),
             )
         }
