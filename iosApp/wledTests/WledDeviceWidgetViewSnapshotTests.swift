@@ -42,7 +42,8 @@ struct WledDeviceWidgetViewSnapshotTests {
         SnapshotCase("narrowOffLight", data: narrowOffData, layoutStyle: .narrow),
         SnapshotCase("narrowOffDark", data: narrowOffData, layoutStyle: .narrow, style: .dark),
         SnapshotCase("wideOfflineLight", data: offlineData),
-        SnapshotCase("unconfiguredLight", data: nil)
+        SnapshotCase("unconfiguredLight", data: nil),
+        SnapshotCase("unconfiguredNarrowLight", data: nil, layoutStyle: .narrow)
     ]
 
     static let liveTimerCases: [SnapshotCase] = [
