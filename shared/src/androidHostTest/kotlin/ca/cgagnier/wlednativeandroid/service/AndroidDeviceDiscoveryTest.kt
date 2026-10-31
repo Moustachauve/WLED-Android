@@ -39,6 +39,16 @@ class AndroidDeviceDiscoveryTest {
     }
 
     @Test
+    fun startSkipsDiscoveryWhenLocalNetworkPermissionMissing() {
+        val fixture = DiscoveryFixture(hasLocalNetworkPermission = { false })
+        fixture.discovery.start()
+
+        assertFalse(fixture.discovery.isDiscovering.value)
+        verify(exactly = 0) { fixture.nsdManager.discoverServices(any<String>(), any<Int>(), any()) }
+        verify(exactly = 0) { fixture.multicastLock.acquire() }
+    }
+
+    @Test
     fun serviceResolvedEmitsDiscoveredDevice() = runTest {
         val fixture = DiscoveryFixture()
         fixture.discovery.start()
@@ -160,7 +170,7 @@ class AndroidDeviceDiscoveryTest {
         verify(exactly = 0) { fixture.nsdManager.resolveService(any(), any()) }
     }
 
-    private class DiscoveryFixture {
+    private class DiscoveryFixture(hasLocalNetworkPermission: () -> Boolean = { true }) {
         val listenerSlot = slot<NsdManager.DiscoveryListener>()
         val nsdManager = mockk<NsdManager>(relaxed = true) {
             every { discoverServices(any<String>(), any<Int>(), capture(listenerSlot)) } answers {}
@@ -169,7 +179,7 @@ class AndroidDeviceDiscoveryTest {
         val wifiManager = mockk<WifiManager>(relaxed = true) {
             every { createMulticastLock(any()) } returns multicastLock
         }
-        val discovery = AndroidDeviceDiscovery(nsdManager, wifiManager)
+        val discovery = AndroidDeviceDiscovery(nsdManager, wifiManager, hasLocalNetworkPermission)
 
         val discoveryListener: NsdManager.DiscoveryListener get() = listenerSlot.captured
     }

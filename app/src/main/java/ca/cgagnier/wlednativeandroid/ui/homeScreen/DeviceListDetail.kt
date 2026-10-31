@@ -1,6 +1,11 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -21,10 +26,15 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
@@ -57,6 +67,13 @@ fun DeviceListDetail(
     val navigator =
         rememberListDetailPaneScaffoldNavigator<Any>(scaffoldDirective = customScaffoldDirective)
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+
+    RequestLocalNetworkPermission(
+        onPermissionGranted = {
+            deviceWebsocketListViewModel.refreshOfflineDevices()
+            viewModel.onLocalNetworkPermissionGranted()
+        },
+    )
 
     LaunchedEffect(initialDeviceMacAddress) {
         if (initialDeviceMacAddress != null) {
@@ -159,6 +176,33 @@ fun DeviceListDetail(
 
     if (isAddDeviceDialogVisible) {
         DeviceAdd(onDismissRequest = { viewModel.hideAddDeviceDialog() })
+    }
+}
+
+@Composable
+private fun RequestLocalNetworkPermission(onPermissionGranted: () -> Unit) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.CINNAMON_BUN) return
+
+    val context = LocalContext.current
+    var hasRequestedPermission by rememberSaveable { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { isGranted ->
+        if (isGranted) {
+            onPermissionGranted()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasRequestedPermission &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_LOCAL_NETWORK,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            hasRequestedPermission = true
+            permissionLauncher.launch(Manifest.permission.ACCESS_LOCAL_NETWORK)
+        }
     }
 }
 

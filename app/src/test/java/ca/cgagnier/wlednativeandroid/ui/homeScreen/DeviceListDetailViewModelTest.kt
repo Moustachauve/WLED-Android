@@ -95,21 +95,21 @@ class DeviceListDetailViewModelTest {
     }
 
     @Test
-    fun onResumeStartsDiscoveryWhenAutoDiscoveryEnabled() = runTest(testDispatcher) {
+    fun onStartStartsDiscoveryWhenAutoDiscoveryEnabled() = runTest(testDispatcher) {
         runCurrent()
 
-        viewModel.onResume(lifecycleOwner)
+        viewModel.onStart(lifecycleOwner)
         runCurrent()
 
         verify(exactly = 1) { discoveryService.start() }
     }
 
     @Test
-    fun onResumeSkipsDiscoveryWhenAutoDiscoveryDisabled() = runTest(testDispatcher) {
+    fun onStartSkipsDiscoveryWhenAutoDiscoveryDisabled() = runTest(testDispatcher) {
         autoDiscoveryFlow.value = false
         runCurrent()
 
-        viewModel.onResume(lifecycleOwner)
+        viewModel.onStart(lifecycleOwner)
         runCurrent()
 
         verify(exactly = 0) { discoveryService.start() }
@@ -127,14 +127,24 @@ class DeviceListDetailViewModelTest {
     }
 
     @Test
-    fun onPauseBeforeAutoDiscoveryStartsPreventsDiscovery() = runTest(testDispatcher) {
+    fun onStopBeforeAutoDiscoveryStartsPreventsDiscovery() = runTest(testDispatcher) {
         runCurrent()
 
-        viewModel.onResume(lifecycleOwner)
-        viewModel.onPause(lifecycleOwner)
+        viewModel.onStart(lifecycleOwner)
+        viewModel.onStop(lifecycleOwner)
         runCurrent()
 
         verify(exactly = 0) { discoveryService.start() }
+    }
+
+    @Test
+    fun onLocalNetworkPermissionGrantedStartsDiscoveryWhenAutoDiscoveryEnabled() = runTest(testDispatcher) {
+        runCurrent()
+
+        viewModel.onLocalNetworkPermissionGranted()
+        runCurrent()
+
+        verify(exactly = 1) { discoveryService.start() }
     }
 
     @Test

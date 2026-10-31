@@ -1,9 +1,12 @@
 package ca.cgagnier.wlednativeandroid.service
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
+import android.os.Build
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,12 +20,23 @@ private val logger = Logger.withTag(TAG)
 private const val SERVICE_TYPE_REGISTRATION = "_wled._tcp."
 private const val SERVICE_TYPE_MATCH = "_wled._tcp"
 
-class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wifiManager: WifiManager?) :
-    DeviceDiscovery {
+class AndroidDeviceDiscovery(
+    private val nsdManager: NsdManager?,
+    private val wifiManager: WifiManager?,
+    private val hasLocalNetworkPermission: () -> Boolean = { true },
+) : DeviceDiscovery {
 
     constructor(context: Context) : this(
         nsdManager = context.getSystemService(Context.NSD_SERVICE) as? NsdManager,
         wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager,
+        hasLocalNetworkPermission = {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
+                context.checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK) ==
+                    PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+        },
     )
 
     private val lock = Any()
@@ -48,6 +62,11 @@ class AndroidDeviceDiscovery(private val nsdManager: NsdManager?, private val wi
 
             if (nsdManager == null) {
                 logger.w { "NsdManager not available" }
+                return
+            }
+
+            if (!hasLocalNetworkPermission()) {
+                logger.w { "ACCESS_LOCAL_NETWORK permission not granted; skipping mDNS discovery" }
                 return
             }
 

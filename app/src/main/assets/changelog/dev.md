@@ -8,4 +8,5 @@ Home screen widgets now feature a cleaner Material 3 adaptive layout with a stat
 - Added a loading progress bar at the top of the device view while connecting to a device.
 - Fixed selecting files (such as firmware updates, presets, or PixelForge images) when uploading to a device from the WebView.
 - The "Automatically Discover New Devices" setting is now respected when returning to the app, and toggling it starts or stops a scan right away.
+- Added support for the Android 17 local network permission so devices can be discovered and connected without repeated system prompts.
 - Several bug fixes and performance improvements behind the scenes.
