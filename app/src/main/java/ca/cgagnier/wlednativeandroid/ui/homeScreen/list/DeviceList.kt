@@ -62,6 +62,7 @@ data class DeviceListState(
     val allDevices: List<DeviceWithState>,
     val selectedDevice: DeviceWithState? = null,
     val isWLEDCaptivePortal: Boolean = false,
+    val isLocalNetworkDenied: Boolean = false,
     val showOfflineDevicesLast: Boolean = true,
     val showHiddenDevices: Boolean = false,
     val isInitialLoading: Boolean = false,
@@ -73,6 +74,7 @@ data class DeviceListActions(
     val onItemEdit: (DeviceWithState) -> Unit = {},
     val onAddDevice: () -> Unit = {},
     val onShowHiddenDevices: () -> Unit = {},
+    val onOpenLocalNetworkSettings: () -> Unit = {},
     val onRefresh: () -> Unit = {},
     val onOpenDrawer: () -> Unit = {},
     val onPowerSwitchToggle: (DeviceWithState, Boolean) -> Unit = { _, _ -> },
@@ -84,12 +86,8 @@ data class DeviceListActions(
 fun DeviceList(
     selectedDevice: DeviceWithState?,
     isWLEDCaptivePortal: Boolean = false,
-    onItemClick: (DeviceWithState) -> Unit,
-    onItemEdit: (DeviceWithState) -> Unit,
-    onAddDevice: () -> Unit,
-    onShowHiddenDevices: () -> Unit,
-    onRefresh: () -> Unit,
-    onOpenDrawer: () -> Unit,
+    isLocalNetworkDenied: Boolean = false,
+    actions: DeviceListActions = DeviceListActions(),
     viewModel: DeviceWebsocketListViewModel = koinViewModel(),
 ) {
     val allDevices by viewModel.allDevicesWithState.collectAsStateWithLifecycle()
@@ -122,21 +120,17 @@ fun DeviceList(
             allDevices = allDevices,
             selectedDevice = selectedDevice,
             isWLEDCaptivePortal = isWLEDCaptivePortal,
+            isLocalNetworkDenied = isLocalNetworkDenied,
             showOfflineDevicesLast = showOfflineDevicesLast,
             showHiddenDevices = showHiddenDevices,
             isInitialLoading = isInitialLoading,
             currentTime = currentTime,
         ),
-        actions = DeviceListActions(
-            onItemClick = onItemClick,
-            onItemEdit = onItemEdit,
-            onAddDevice = onAddDevice,
-            onShowHiddenDevices = onShowHiddenDevices,
+        actions = actions.copy(
             onRefresh = {
-                onRefresh()
+                actions.onRefresh()
                 viewModel.refreshOfflineDevices()
             },
-            onOpenDrawer = onOpenDrawer,
             onPowerSwitchToggle = viewModel::setDevicePower,
             onBrightnessChanged = viewModel::setBrightness,
             onDeleteDevice = viewModel::deleteDevice,
@@ -227,56 +221,79 @@ private fun LazyListScope.deviceListItems(
                 .height(0.dp),
         )
     }
+    if (state.isLocalNetworkDenied) {
+        item(key = "local_network_warning") {
+            LocalNetworkWarningBanner(
+                onOpenSettings = actions.onOpenLocalNetworkSettings,
+                modifier = Modifier.animateItem(),
+            )
+        }
+    }
     if (partitioned.visible.isEmpty() && !state.isWLEDCaptivePortal) {
-        // Don't show the empty page during the initial load to improve the user
-        // experience.
-        if (state.isInitialLoading) {
-            items(3) {
-                SkeletonDeviceRow()
-            }
-        } else {
-            item(key = "no_devices") {
-                NoDevicesItem(
-                    modifier = Modifier.fillParentMaxSize(),
-                    shouldShowHiddenDevices = partitioned.visible.isEmpty() && state.allDevices.isNotEmpty(),
-                    onAddDevice = actions.onAddDevice,
-                    onShowHiddenDevices = actions.onShowHiddenDevices,
-                )
-            }
-        }
+        emptyDeviceListItems(state, partitioned, actions)
     } else {
-        if (state.isWLEDCaptivePortal) {
-            item(key = "captive_portal") {
-                val device = getApModeDeviceWithState()
-                DeviceAPListItem(
-                    isSelected = device.device.macAddress == state.selectedDevice?.device?.macAddress,
-                    onClick = { actions.onItemClick(device) },
-                    modifier = Modifier.animateItem(),
-                )
-            }
-        }
-        if (state.showOfflineDevicesLast) {
-            onlineOfflineDevicesList(
-                onlineDevices = partitioned.online,
-                offlineDevices = partitioned.offline,
-                selectedDevice = state.selectedDevice,
-                currentTime = state.currentTime,
-                actions = actions,
-            )
-        } else {
-            allDevicesList(
-                devices = partitioned.visible,
-                selectedDevice = state.selectedDevice,
-                currentTime = state.currentTime,
-                actions = actions,
-            )
-        }
+        populatedDeviceListItems(state, partitioned, actions)
+    }
+}
 
-        // This spacer is so that the last item of the list can be scrolled a bit
-        // further than just the bottom of the screen.
-        item(key = "end_spacer_buffer") {
-            Spacer(Modifier.padding(42.dp))
+private fun LazyListScope.emptyDeviceListItems(
+    state: DeviceListState,
+    partitioned: PartitionedDevices,
+    actions: DeviceListActions,
+) {
+    // Don't show the empty page during the initial load to improve the user experience.
+    if (state.isInitialLoading) {
+        items(3) {
+            SkeletonDeviceRow()
         }
+    } else if (!state.isLocalNetworkDenied) {
+        item(key = "no_devices") {
+            NoDevicesItem(
+                modifier = Modifier.fillParentMaxSize(),
+                shouldShowHiddenDevices = partitioned.visible.isEmpty() && state.allDevices.isNotEmpty(),
+                onAddDevice = actions.onAddDevice,
+                onShowHiddenDevices = actions.onShowHiddenDevices,
+            )
+        }
+    }
+}
+
+private fun LazyListScope.populatedDeviceListItems(
+    state: DeviceListState,
+    partitioned: PartitionedDevices,
+    actions: DeviceListActions,
+) {
+    if (state.isWLEDCaptivePortal) {
+        item(key = "captive_portal") {
+            val device = getApModeDeviceWithState()
+            DeviceAPListItem(
+                isSelected = device.device.macAddress == state.selectedDevice?.device?.macAddress,
+                onClick = { actions.onItemClick(device) },
+                modifier = Modifier.animateItem(),
+            )
+        }
+    }
+    if (state.showOfflineDevicesLast) {
+        onlineOfflineDevicesList(
+            onlineDevices = partitioned.online,
+            offlineDevices = partitioned.offline,
+            selectedDevice = state.selectedDevice,
+            currentTime = state.currentTime,
+            actions = actions,
+        )
+    } else {
+        allDevicesList(
+            devices = partitioned.visible,
+            selectedDevice = state.selectedDevice,
+            currentTime = state.currentTime,
+            actions = actions,
+        )
+    }
+
+    // This spacer is so that the last item of the list can be scrolled a bit
+    // further than just the bottom of the screen.
+    item(key = "end_spacer_buffer") {
+        Spacer(Modifier.padding(42.dp))
     }
 }
 

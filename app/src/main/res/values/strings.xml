@@ -139,4 +139,10 @@
     <string name="changelog_dismiss_button">Awesome</string>
     <string name="show_changelog">Show changelog</string>
 
+    <!-- Local network permission -->
+    <string name="local_network_warning_title">Local Network Access Required</string>
+    <string name="local_network_warning_body">WLED needs Local Network access to discover and control your devices. Please enable it in Settings.</string>
+    <string name="local_network_instructions">Go to Settings → Apps → WLED → Permissions → Nearby devices</string>
+    <string name="open_settings">Open Settings</string>
+
 </resources>
