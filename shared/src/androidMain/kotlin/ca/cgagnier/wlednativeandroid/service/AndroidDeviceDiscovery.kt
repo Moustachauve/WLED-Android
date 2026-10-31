@@ -29,14 +29,7 @@ class AndroidDeviceDiscovery(
     constructor(context: Context) : this(
         nsdManager = context.getSystemService(Context.NSD_SERVICE) as? NsdManager,
         wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager,
-        hasLocalNetworkPermission = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
-                context.checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK) ==
-                    PackageManager.PERMISSION_GRANTED
-            } else {
-                true
-            }
-        },
+        hasLocalNetworkPermission = context::hasLocalNetworkPermission,
     )
 
     private val lock = Any()
@@ -267,3 +260,11 @@ class AndroidDeviceDiscovery(
         _discoveredDevices.tryEmit(DiscoveredDevice(address = deviceIp, macAddress = macAddress))
     }
 }
+
+/**
+ * Returns `true` if the app is permitted to access the local network on the current Android version.
+ * On Android 17 (`CINNAMON_BUN`, API 37) and above, this requires the `ACCESS_LOCAL_NETWORK`
+ * runtime permission.
+ */
+fun Context.hasLocalNetworkPermission(): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.CINNAMON_BUN ||
+    checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK) == PackageManager.PERMISSION_GRANTED

@@ -1,17 +1,6 @@
 package ca.cgagnier.wlednativeandroid.ui.homeScreen
 
-import android.Manifest
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -32,17 +21,10 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
@@ -145,7 +127,7 @@ fun DeviceListDetail(
                                 onItemClick = navigateToDetail,
                                 onAddDevice = { viewModel.showAddDeviceDialog() },
                                 onShowHiddenDevices = { viewModel.toggleShowHiddenDevices() },
-                                onOpenLocalNetworkSettings = localNetworkPermission.requestOrOpenSettings,
+                                onRequestLocalNetworkAccess = localNetworkPermission.requestLocalNetworkAccess,
                                 onRefresh = { viewModel.startDiscoveryServiceTimed() },
                                 onItemEdit = {
                                     navigateToDetail(it)
@@ -190,94 +172,6 @@ fun DeviceListDetail(
     if (isAddDeviceDialogVisible) {
         DeviceAdd(onDismissRequest = { viewModel.hideAddDeviceDialog() })
     }
-}
-
-private data class LocalNetworkPermissionController(val isDenied: Boolean, val requestOrOpenSettings: () -> Unit)
-
-@Composable
-private fun rememberLocalNetworkPermissionController(
-    onPermissionGranted: () -> Unit,
-): LocalNetworkPermissionController {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.CINNAMON_BUN) {
-        return LocalNetworkPermissionController(isDenied = false, requestOrOpenSettings = {})
-    }
-
-    val context = LocalContext.current
-    var hasLaunchedPermissionRequest by rememberSaveable { mutableStateOf(false) }
-    var hasCompletedPermissionCheck by rememberSaveable { mutableStateOf(false) }
-    var isPermissionDenied by rememberSaveable { mutableStateOf(false) }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { isGranted ->
-        hasCompletedPermissionCheck = true
-        isPermissionDenied = !isGranted
-        if (isGranted) {
-            onPermissionGranted()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        if (!hasLaunchedPermissionRequest) {
-            hasLaunchedPermissionRequest = true
-            if (!isLocalNetworkPermissionGranted(context)) {
-                permissionLauncher.launch(Manifest.permission.ACCESS_LOCAL_NETWORK)
-            } else {
-                hasCompletedPermissionCheck = true
-                isPermissionDenied = false
-            }
-        }
-    }
-
-    LifecycleResumeEffect(Unit) {
-        if (hasCompletedPermissionCheck) {
-            val isGranted = isLocalNetworkPermissionGranted(context)
-            val wasDenied = isPermissionDenied
-            isPermissionDenied = !isGranted
-            if (isGranted && wasDenied) {
-                onPermissionGranted()
-            }
-        }
-        onPauseOrDispose {}
-    }
-
-    return LocalNetworkPermissionController(
-        isDenied = isPermissionDenied,
-        requestOrOpenSettings = {
-            val activity = context.findActivity()
-            if (activity != null &&
-                ActivityCompat.shouldShowRequestPermissionRationale(
-                    activity,
-                    Manifest.permission.ACCESS_LOCAL_NETWORK,
-                )
-            ) {
-                permissionLauncher.launch(Manifest.permission.ACCESS_LOCAL_NETWORK)
-            } else {
-                openAppDetailsSettings(context)
-            }
-        },
-    )
-}
-
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
-
-private fun isLocalNetworkPermissionGranted(context: Context): Boolean =
-    Build.VERSION.SDK_INT < Build.VERSION_CODES.CINNAMON_BUN ||
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_LOCAL_NETWORK,
-        ) == PackageManager.PERMISSION_GRANTED
-
-private fun openAppDetailsSettings(context: Context) {
-    val intent = Intent(
-        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-        Uri.fromParts("package", context.packageName, null),
-    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    context.startActivity(intent)
 }
 
 @Composable

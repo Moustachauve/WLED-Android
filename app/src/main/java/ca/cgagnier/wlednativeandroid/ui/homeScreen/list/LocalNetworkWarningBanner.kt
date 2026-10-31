@@ -36,7 +36,7 @@ import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
  * `ACCESS_LOCAL_NETWORK` permission has been denied by the user.
  */
 @Composable
-fun LocalNetworkWarningBanner(onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+fun LocalNetworkWarningBanner(onRequestLocalNetworkAccess: () -> Unit, modifier: Modifier = Modifier) {
     OutlinedCard(
         modifier = modifier
             .fillMaxWidth()
@@ -66,7 +66,7 @@ fun LocalNetworkWarningBanner(onOpenSettings: () -> Unit, modifier: Modifier = M
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(4.dp))
-            OpenSettingsButton(onClick = onOpenSettings)
+            AllowAccessButton(onClick = onRequestLocalNetworkAccess)
         }
     }
 }
@@ -93,7 +93,7 @@ private fun WarningHeader() {
 }
 
 @Composable
-private fun OpenSettingsButton(onClick: () -> Unit) {
+private fun AllowAccessButton(onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -109,7 +109,7 @@ private fun OpenSettingsButton(onClick: () -> Unit) {
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = stringResource(R.string.open_settings),
+            text = stringResource(R.string.local_network_allow_access),
             style = MaterialTheme.typography.labelLarge,
         )
     }
@@ -120,7 +120,7 @@ private fun OpenSettingsButton(onClick: () -> Unit) {
 private fun LocalNetworkWarningBannerPreview() {
     WLEDNativeTheme {
         LocalNetworkWarningBanner(
-            onOpenSettings = {},
+            onRequestLocalNetworkAccess = {},
             modifier = Modifier.padding(16.dp),
         )
     }
