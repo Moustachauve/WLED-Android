@@ -30,6 +30,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.ui.components.ChangelogBottomSheet
+import ca.cgagnier.wlednativeandroid.ui.theme.ThemeViewModel
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
@@ -37,18 +38,22 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModel()
     private val changelogViewModel: ChangelogViewModel by viewModel()
+    private val themeViewModel: ThemeViewModel by viewModel()
 
     private var navigationEvent by mutableStateOf<NavigationEvent?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splashScreen = installSplashScreen()
+        splashScreen.setKeepOnScreenCondition {
+            themeViewModel.theme.value == null
+        }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         viewModel.handleIntent(intent)
 
         setContent {
-            WLEDNativeTheme {
+            WLEDNativeTheme(themeViewModel = themeViewModel) {
                 DeepLinkStateHandler(
                     viewModel = viewModel,
                     onNavigate = { event ->

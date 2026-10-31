@@ -133,7 +133,6 @@
     <ID>MagicNumber:SettingsViewModel.kt$SettingsViewModel$5000</ID>
     <ID>MagicNumber:Theme.kt$3</ID>
     <ID>MagicNumber:Theme.kt$4</ID>
-    <ID>MagicNumber:ThemeViewModel.kt$ThemeViewModel$5000</ID>
     <ID>MagicNumber:UpdateInstalling.kt$0xFF00b300</ID>
     <ID>MagicNumber:WebViewViewModel.kt$WebViewViewModel$5</ID>
     <ID>NestedBlockDepth:DeviceWebview.kt$@RequiresApi(Build.VERSION_CODES.Q) private fun handleHttpDownload( context: Context, url: String, contentDisposition: String, mimetype: String, device: Device, onSuccess: () -&gt; Unit, )</ID>
