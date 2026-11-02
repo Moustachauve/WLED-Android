@@ -19,6 +19,34 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      - name: Checkout code
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check for iOS or shared changes
+        id: filter
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          echo "Changed files:"
+          echo "$CHANGED"
+          if echo "$CHANGED" | grep -qE '^(iosApp/|shared/|gradle/|build\.gradle\.kts$|settings\.gradle\.kts$|gradle\.properties$|gradlew$|\.github/workflows/check\.yml$)'; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ios=false" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
     name: Run Unit Tests (Android + Shared)
     runs-on: ubuntu-latest
@@ -81,37 +109,13 @@ jobs:
 
   test-ios:
     name: Run Unit Tests & Build (iOS)
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
     runs-on: macos-latest
     timeout-minutes: 25
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
-
-      # Cold-booting a simulator takes minutes on hosted runners. Start it now so
-      # it boots while Gradle and Xcode compile, and reuse the same device for
-      # both the shared Kotlin tests and the Xcode tests.
-      - name: Boot iOS Simulator in background
-        run: |
-          read -r UDID NAME <<< "$(xcrun simctl list devices available -j | python3 -c '
-          import json, re, sys
-          data = json.load(sys.stdin)["devices"]
-          def version(runtime):
-              return [int(n) for n in re.findall(r"\d+", runtime.split("iOS-")[-1])]
-          runtimes = sorted((r for r in data if ".SimRuntime.iOS-" in r), key=version, reverse=True)
-          for runtime in runtimes:
-              for device in data[runtime]:
-                  if device["name"].startswith("iPhone "):
-                      print(device["udid"], device["name"])
-                      sys.exit(0)
-          sys.exit("No available iPhone simulator found")
-          ')"
-          if [ -z "$UDID" ]; then
-            echo "::error::Could not find an available iPhone simulator"
-            exit 1
-          fi
-          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
-          echo "$(date -u +%T) Booting $NAME ($UDID)"
-          nohup sh -c "xcrun simctl bootstatus '$UDID' -b > '$RUNNER_TEMP/sim-boot.log' 2>&1; rc=\$?; echo \"\$(date -u +%T) bootstatus exited with \$rc\" >> '$RUNNER_TEMP/sim-boot.log'" > /dev/null 2>&1 &
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6
@@ -153,29 +157,20 @@ jobs:
           cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
 
       # CI only runs on the simulator, so skip building the device slice here.
-      # Both Gradle calls pass the same properties so the configuration cache is reused.
       # Always debug: release XCFrameworks are built by release.yml.
-      - name: Assemble XCFramework
-        run: ./gradlew -Pwled.ios.simulatorOnly=true -Pwled.ios.simulatorDevice="$SIM_UDID" :shared:assembleSharedDebugXCFramework
-
-      - name: Wait for iOS Simulator
+      - name: Run iOS unit tests & Assemble XCFramework
         run: |
-          echo "$(date -u +%T) Waiting for $SIM_UDID"
-          xcrun simctl bootstatus "$SIM_UDID"
-          echo "$(date -u +%T) Simulator booted"
-          cat "$RUNNER_TEMP/sim-boot.log" || true
-
-      - name: Run iOS shared unit tests
-        run: |
-          ./gradlew -Pwled.ios.simulatorOnly=true -Pwled.ios.simulatorDevice="$SIM_UDID" :shared:iosSimulatorArm64Test
+          ./gradlew -Pwled.ios.simulatorOnly=true :shared:iosSimulatorArm64Test :shared:assembleSharedDebugXCFramework
           ./gradlew --stop
 
       - name: Build and Test iOS App
         run: |
+          DEST=$(xcrun simctl list devices available | grep -m1 "iPhone " | sed -E 's/^[[:space:]]*(iPhone [^()]+).*/platform=iOS Simulator,name=\1/' | xargs)
+          echo "Selected destination: $DEST"
           SKIP_KMP_BUILD=1 xcodebuild test \
             -project iosApp/wled.xcodeproj \
             -scheme wled \
-            -destination "platform=iOS Simulator,id=$SIM_UDID" \
+            -destination "$DEST" \
             -resultBundlePath iosApp/build/TestResults.xcresult \
             -clonedSourcePackagesDirPath iosApp/build/SourcePackages \
             -skipPackagePluginValidation \
@@ -280,6 +275,8 @@ jobs:
 
   lint-ios:
     name: Run Lint (iOS)
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
     runs-on: macos-latest
     steps:
       - name: Checkout code
