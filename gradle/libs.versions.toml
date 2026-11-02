@@ -131,4 +131,3 @@ detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 skie = { id = "co.touchlab.skie", version.ref = "skie" }
 androidx-room = { id = "androidx.room", version.ref = "roomVersion" }
-screenshot = { id = "com.android.compose.screenshot", version.ref = "screenshot" }

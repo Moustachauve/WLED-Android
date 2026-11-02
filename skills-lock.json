@@ -68,6 +68,12 @@
       "source": "twostraws/swiftui-agent-skill",
       "sourceType": "github",
       "computedHash": "ce653d19fd00a4874489003025e9235be542e7134ff3c543e20afeb53fc3bc9a"
+    },
+    "testing-setup": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "testing/testing-setup/SKILL.md",
+      "computedHash": "d4746da1949ed59d282e6ff160324360e83b795c1b44fa393851ac138e43c901"
     }
   }
 }
