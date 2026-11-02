@@ -10,6 +10,9 @@ plugins {
     alias(libs.plugins.androidx.room)
 }
 
+// CI sets -Pwled.ios.simulatorOnly=true to skip the device slice, which it never runs.
+val iosSimulatorOnly = providers.gradleProperty("wled.ios.simulatorOnly").orNull == "true"
+
 kotlin {
     android {
         namespace = "ca.cgagnier.wlednativeandroid.shared"
@@ -25,8 +28,8 @@ kotlin {
 
     val xcframework = XCFramework("Shared")
 
-    listOf(
-        iosArm64(),
+    listOfNotNull(
+        if (iosSimulatorOnly) null else iosArm64(),
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
@@ -77,7 +80,9 @@ room {
 dependencies {
     add("kspAndroid", libs.androidx.room.compiler)
     add("kspIosSimulatorArm64", libs.androidx.room.compiler)
-    add("kspIosArm64", libs.androidx.room.compiler)
+    if (!iosSimulatorOnly) {
+        add("kspIosArm64", libs.androidx.room.compiler)
+    }
     add("androidHostTestImplementation", libs.mockk)
 }
 
