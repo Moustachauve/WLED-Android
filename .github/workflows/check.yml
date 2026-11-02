@@ -43,7 +43,7 @@ jobs:
       - name: Run screenshot tests
         if: always() && !cancelled()
         id: screenshot-tests
-        run: ./gradlew :app:validateDebugScreenshotTest
+        run: ./gradlew :app:testDebugScreenshotTestDefaultTestSuite
 
       - name: Upload Test Results
         if: always()
@@ -63,9 +63,9 @@ jobs:
         with:
           name: screenshot-test-diffs
           path: |
-            app/build/reports/screenshotTest/preview/debug/
-            app/build/outputs/screenshotTest-results/preview/debug/diffs/
-            app/build/outputs/screenshotTest-results/preview/debug/rendered/
+            app/build/reports/tests/testDebugScreenshotTestDefaultTestSuite/
+            app/build/intermediates/debug/testDebugScreenshotTestDefaultTestSuite/results/diffs/
+            app/build/intermediates/debug/testDebugScreenshotTestDefaultTestSuite/results/rendered/
           if-no-files-found: ignore
           retention-days: 7
 

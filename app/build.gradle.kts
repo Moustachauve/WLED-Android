@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.google.protobuf)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.screenshot)
     id("kotlin-parcelize")
 }
 
@@ -104,8 +103,19 @@ android {
         unitTests.all {
             it.useJUnitPlatform()
         }
+        screenshotTests.create("screenshotTest") {
+            engineVersion = libs.versions.screenshot.get()
+            // Allow up to 0.15% pixel difference to account for sub-pixel anti-aliasing differences
+            // on scaled drawables across host platforms (e.g., macOS ARM64 vs Linux x86_64 in CI, ~0.13%).
+            imageDifferenceThreshold = 0.0015f
+            targetVariants.add("debug")
+            dependencies {
+                implementation(dependencies.platform(libs.androidx.compose.bom))
+                implementation(libs.androidx.ui.tooling)
+                implementation(libs.screenshot.validation.api)
+            }
+        }
     }
-    experimentalProperties["android.experimental.enableScreenshotTest"] = true
 }
 
 dependencies {
@@ -175,9 +185,6 @@ dependencies {
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.koin.test)
-    screenshotTestImplementation(composeBom)
-    screenshotTestImplementation(libs.screenshot.validation.api)
-    screenshotTestImplementation(libs.androidx.ui.tooling)
 }
 
 protobuf {
@@ -223,10 +230,4 @@ tasks.withType<Test>().configureEach {
     testLogging {
         events("passed", "skipped", "failed")
     }
-}
-
-tasks.withType<com.android.compose.screenshot.tasks.PreviewScreenshotValidationTask>().configureEach {
-    // Allow up to 0.15% pixel difference to account for sub-pixel anti-aliasing differences
-    // on scaled drawables across host platforms (e.g., macOS ARM64 vs Linux x86_64 in CI, ~0.13%).
-    testEngineInput.threshold.set(0.0015f)
 }
