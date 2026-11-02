@@ -35,3 +35,13 @@
 # kept. Suspend functions are wrapped in continuations where the type argument
 # is used.
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
+
+# R8 full mode strips default constructors when library consumer rules omit member specifications.
+# Both WorkManager's InputMerger (used by Glance's SessionWorker) and Glance's ActionCallback
+# are instantiated reflectively via Class.forName(...).newInstance().
+-keep class * extends androidx.work.InputMerger {
+    <init>();
+}
+-keep public class * extends androidx.glance.appwidget.action.ActionCallback {
+    public <init>();
+}
