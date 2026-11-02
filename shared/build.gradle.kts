@@ -1,6 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
-import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -90,15 +89,6 @@ dependencies {
 skie {
     analytics {
         enabled.set(false)
-    }
-}
-
-// CI pre-boots a simulator and passes its UDID so the shared tests reuse it
-// instead of booting (and shutting down) their own device.
-providers.gradleProperty("wled.ios.simulatorDevice").orNull?.takeIf { it.isNotBlank() }?.let { udid ->
-    tasks.withType<KotlinNativeSimulatorTest>().configureEach {
-        device.set(udid)
-        standalone.set(false)
     }
 }
 
