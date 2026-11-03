@@ -40,7 +40,7 @@ detekt = "1.23.8"
 spotless = "8.10.4"
 mockk = "1.14.11"
 skie = "0.10.16"
-screenshot = "0.0.1-alpha16"
+screenshot = "0.0.1-alpha17"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
