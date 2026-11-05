@@ -1,0 +1,5 @@
+- Überarbeitete Material 3-Widgets mit Live-WLAN-Signalstärke und sanftem Umgebungsleuchten.
+- „Was gibt's Neues“-Ansicht für Versionshinweise nach Updates oder in den Einstellungen.
+- Dateiauswahl beim Hochladen von Firmware, Presets oder Bildern auf ein Gerät behoben.
+- Unterstützung für die Android 17-Berechtigung zum lokalen Netzwerk und bessere Geräteerkennung.
+- Ladebalken beim Verbinden sowie Fehlerbehebungen und Stabilitätsverbesserungen.
