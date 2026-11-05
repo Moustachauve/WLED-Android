@@ -263,10 +263,8 @@ jobs:
           set -euo pipefail
           APK_SOURCE="app/build/outputs/apk/release/app-release.apk"
           APK_TARGET="WLED-Native-${TAG_NAME}.apk"
-          SHA_TARGET="${APK_TARGET}.sha256"
 
           cp "$APK_SOURCE" "$APK_TARGET"
-          sha256sum "$APK_TARGET" > "$SHA_TARGET"
 
           if [ "$DRY_RUN" = "true" ]; then
             echo "Dry run enabled; skipping GitHub Release creation and APK upload."
@@ -289,7 +287,7 @@ jobs:
             fi
           fi
 
-          gh release upload "$TAG_NAME" "$APK_TARGET" "$SHA_TARGET" --clobber
+          gh release upload "$TAG_NAME" "$APK_TARGET" --clobber
 
       - name: Upload Signed Artifacts
         if: always()
@@ -298,7 +296,6 @@ jobs:
           name: android-release-${{ needs.prepare.outputs.version_name }}
           path: |
             WLED-Native-${{ needs.prepare.outputs.tag_name }}.apk
-            WLED-Native-${{ needs.prepare.outputs.tag_name }}.apk.sha256
             app/build/outputs/bundle/release/app-release.aab
             app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: warn

@@ -4,7 +4,7 @@ WLED-App uses GitHub Actions (`.github/workflows/release.yml`) and Fastlane (`fa
 
 1. **Google Play Store** (`beta` Open Testing track & `production` track)
 2. **Apple App Store Connect** (External TestFlight `"Beta"` group & App Store Review submission)
-3. **GitHub Releases & IzzyOnDroid (F-Droid)** (Signed, 100% FOSS universal `.apk` + `.sha256` checksum attached to every GitHub Release)
+3. **GitHub Releases & IzzyOnDroid (F-Droid)** (Signed, 100% FOSS universal `.apk` attached to every GitHub Release)
 
 ---
 
@@ -20,7 +20,7 @@ WLED-App uses GitHub Actions (`.github/workflows/release.yml`) and Fastlane (`fa
 ### IzzyOnDroid / F-Droid Compliance
 - The codebase contains zero proprietary Google Play Services or Firebase SDKs.
 - `app/build.gradle.kts` sets `dependenciesInfo.includeInApk = false`, stripping Google's encrypted dependency metadata block from the release `.apk` while keeping `.aab` metadata intact for Google Play Console SDK warnings.
-- Every release attaches `WLED-Native-v<version>.apk` and `WLED-Native-v<version>.apk.sha256` to the GitHub Release after the Play Store upload succeeds, which IzzyOnDroid automatically polls and publishes.
+- Every release attaches `WLED-Native-v<version>.apk` to the GitHub Release after the Play Store upload succeeds, which IzzyOnDroid automatically polls and publishes.
 
 ---
 
@@ -63,7 +63,7 @@ gh release create v8.1.0-beta.1 --prerelease --target dev --title "v8.1.0-beta.1
    - Go to **GitHub Releases**, open the draft prepared by Release Drafter, verify the tag (`v8.1.0`) targets `main` and **Set as a pre-release** is unchecked, and click **Publish release**.
    - `.github/workflows/release.yml` will automatically:
      - Upload the signed `.aab` + release notes to the Google Play `production` track.
-     - Attach `WLED-Native-v8.1.0.apk` + `.sha256` to the GitHub Release (for **IzzyOnDroid**).
+     - Attach `WLED-Native-v8.1.0.apk` to the GitHub Release (for **IzzyOnDroid**).
      - Upload the signed `.ipa` + release notes to App Store Connect and submit for App Store Review.
 
 ---
