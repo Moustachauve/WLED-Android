@@ -1,14 +1,10 @@
 package ca.cgagnier.wlednativeandroid.ui
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.webkit.ValueCallback
-import android.webkit.WebChromeClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -32,48 +28,43 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import ca.cgagnier.wlednativeandroid.FileUploadContract
-import ca.cgagnier.wlednativeandroid.FileUploadContractResult
 import ca.cgagnier.wlednativeandroid.R
+import ca.cgagnier.wlednativeandroid.ui.components.ChangelogBottomSheet
+import ca.cgagnier.wlednativeandroid.ui.theme.ThemeViewModel
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
-import dagger.hilt.android.AndroidEntryPoint
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: MainViewModel by viewModels()
-
-    // For WebView file upload support
-    var uploadMessage: ValueCallback<Array<Uri>>? = null
-    val fileUpload =
-        registerForActivityResult(FileUploadContract()) { result: FileUploadContractResult ->
-            uploadMessage?.onReceiveValue(
-                WebChromeClient.FileChooserParams.parseResult(
-                    result.resultCode,
-                    result.intent,
-                ),
-            )
-            uploadMessage = null
-        }
+    private val viewModel: MainViewModel by viewModel()
+    private val changelogViewModel: ChangelogViewModel by viewModel()
+    private val themeViewModel: ThemeViewModel by viewModel()
 
     private var navigationEvent by mutableStateOf<NavigationEvent?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splashScreen = installSplashScreen()
+        splashScreen.setKeepOnScreenCondition {
+            themeViewModel.theme.value == null
+        }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         viewModel.handleIntent(intent)
 
         setContent {
-            WLEDNativeTheme {
+            WLEDNativeTheme(themeViewModel = themeViewModel) {
                 DeepLinkStateHandler(
                     viewModel = viewModel,
                     onNavigate = { event ->
                         navigationEvent = event
                     },
                 )
-                MainNavHost(startDeviceAddress = navigationEvent)
+                MainNavHost(
+                    startDeviceAddress = navigationEvent,
+                    openChangelogs = { changelogViewModel.showAllChangelogs() },
+                )
+                ChangelogBottomSheet(viewModel = changelogViewModel)
             }
         }
         viewModel.downloadUpdateMetadata()

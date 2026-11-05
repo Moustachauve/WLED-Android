@@ -7,34 +7,32 @@ import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
+import ca.cgagnier.wlednativeandroid.service.api.ApiResponse
 import ca.cgagnier.wlednativeandroid.service.api.DeviceApiFactory
 import ca.cgagnier.wlednativeandroid.service.api.DownloadState
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
-import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateService
-import ca.cgagnier.wlednativeandroid.service.update.splitRepository
+import ca.cgagnier.wlednativeandroid.service.update.invoke
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
-import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import okhttp3.ResponseBody
-import retrofit2.Response
 import java.io.File
 import java.util.regex.Pattern
-import javax.inject.Inject
 
 private const val TAG = "UpdateInstallingViewModel"
 
-@HiltViewModel
-class UpdateInstallingViewModel @Inject constructor(
+class UpdateInstallingViewModel(
     private val deviceRepository: DeviceRepository,
     private val repositoryDao: RepositoryDao,
     private val deviceApiFactory: DeviceApiFactory,
     private val githubApi: GithubApi,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private var updateStarted = false
 
@@ -102,7 +100,7 @@ class UpdateInstallingViewModel @Inject constructor(
         downloadAsset(updateService)
     }
 
-    private fun downloadAsset(updateService: DeviceUpdateService) = viewModelScope.launch(Dispatchers.IO) {
+    private fun downloadAsset(updateService: DeviceUpdateService) = viewModelScope.launch(ioDispatcher) {
         if (updateService.isAssetFileCached()) {
             Log.d(TAG, "asset '${updateService.getAssetName()}' is already downloaded, reusing")
             installUpdate(updateService)
@@ -110,11 +108,8 @@ class UpdateInstallingViewModel @Inject constructor(
         }
 
         Log.d(TAG, "Downloading asset '${updateService.getAssetName()}'")
-        val repo = repositoryDao.getRepositoryById(updateService.device.device.repositoryId)
-        val repoStr = repo?.ownerAndRepo ?: DEFAULT_REPO
-        val (repoOwner, repoName) = splitRepository(repoStr)
 
-        updateService.downloadBinary(repoOwner, repoName).collect { downloadState ->
+        updateService.downloadBinary(repositoryDao).collect { downloadState ->
             when (downloadState) {
                 is DownloadState.Downloading -> {
                     Log.d(TAG, "File download Progress=${downloadState.progress}")
@@ -159,25 +154,28 @@ class UpdateInstallingViewModel @Inject constructor(
                 assetName = updateService.getAssetName(),
             )
         }
-        updateService.sendSoftwareUpdateRequest(
-            updateService.device.device,
-            updateService.getPathForAsset(),
-            callback = { onSoftwareUpdateResponse(it) },
-            errorCallback = { onSoftwareUpdateError(it) },
-        )
+        try {
+            onSoftwareUpdateResponse(updateService.installUpdate())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            // Catch transport and I/O failures so they can be surfaced in the UI
+            onSoftwareUpdateError(e)
+        }
     }
 
-    private fun onSoftwareUpdateResponse(response: Response<ResponseBody>) {
-        if (response.code() in 200..299) {
+    private fun onSoftwareUpdateResponse(response: ApiResponse<String>) {
+        if (response.isSuccessful) {
             _state.update { previousState ->
                 previousState.copy(
                     canDismiss = true,
                     step = UpdateInstallingStep.Done,
                 )
             }
+            updateDeviceUpdated()
         } else {
-            Log.d(TAG, "OTA Failed, code ${response.code()}")
-            val errorString = "${response.code()}: ${getHtmlErrorMessage(response)}"
+            Log.d(TAG, "OTA Failed, code ${response.code}")
+            val errorString = "${response.code}: ${getHtmlErrorMessage(response)}"
             Log.d(TAG, "OTA Failed onResponse, error $errorString")
             _state.update { previousState ->
                 previousState.copy(
@@ -186,7 +184,6 @@ class UpdateInstallingViewModel @Inject constructor(
                 )
             }
         }
-        updateDeviceUpdated()
     }
 
     private fun onSoftwareUpdateError(e: Exception) {
@@ -205,17 +202,14 @@ class UpdateInstallingViewModel @Inject constructor(
     /**
      * Updates the properties of a device after a software update was done.
      */
-    private fun updateDeviceUpdated() = viewModelScope.launch(Dispatchers.IO) {
+    private fun updateDeviceUpdated() = viewModelScope.launch(ioDispatcher) {
         val device = device.value ?: return@launch
         Log.d(TAG, "Resetting skipUpdateTag")
-        val updatedDevice = device.device.copy(
-            skipUpdateTag = "",
-        )
-        deviceRepository.update(updatedDevice)
+        deviceRepository.updateSkipUpdateTag(device.device.macAddress, "")
     }
 
-    private fun getHtmlErrorMessage(response: Response<ResponseBody>): String {
-        val html = response.body()?.string() ?: response.errorBody()?.string() ?: ""
+    private fun getHtmlErrorMessage(response: ApiResponse<String>): String {
+        val html = response.body ?: response.errorBody ?: ""
         // Extract the body content to ignore <head> (title, scripts, styles)
         val bodyMatcher = HTML_BODY_MATCHER.matcher(html)
         var bodyContent = if (bodyMatcher.find()) bodyMatcher.group(1) else html

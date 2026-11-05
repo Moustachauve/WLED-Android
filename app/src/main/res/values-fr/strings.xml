@@ -4,7 +4,7 @@
     <string name="add_a_device">Ajouter un appareil</string>
     <string name="add">Ajouter</string>
     <string name="add_adding_device">Ajout de <xliff:g example="192.168.1.1" id="strength">%1$s</xliff:g></string>
-    <string name="add_device_added"><xliff:g example="Device123" id="strength">%1$s</xliff:g> was added</string>
+    <string name="add_device_added"><xliff:g example="Device123" id="strength">%1$s</xliff:g> a été ajouté</string>
     <string name="add_device_error">Impossible de rejoindre l\'appareil. Vérifiez l\'adresse.</string>
     <string name="deleting_device">Supprimer l\'appareil?</string>
     <string name="delete">Supprimer</string>
@@ -47,8 +47,8 @@
     <string name="dark">Sombre</string>
     <string name="system_default">Par défaut</string>
     <string name="listing_options">Options de la liste</string>
-    <string name="discovering_devices">Découverte d\'appareil en cours</string>
     <string name="automatically_discover_new_devices">Découvrir les nouveaux appareils automatiquement</string>
+    <string name="automatically_discover_new_devices_description">Lorsque désactivé, glissez vers le bas sur la liste des appareils pour rechercher manuellement.</string>
     <string name="show_hidden_devices">Afficher les appareils cachés</string>
     <string name="hide_hidden_devices">Cacher les appareils cachés</string>
     <string name="show_offline_devices_last">Afficher les appareils hors-ligne en dernier</string>
@@ -76,12 +76,10 @@
     <string name="device_update_disclaimer_part2">Si quelqu\'un a installé cet appareil pour vous, vous devriez confirmer avec eux qu\'il n\'y a pas de risque à installer cette nouvelle version.</string>
     <string name="device_update_disclaimer_part3">WLED n\'est pas responsable si quelque chose ne fonctionne plus dû à une mise à jour.</string>
     <string name="install_update">Installer la mise à jour</string>
-    <string name="ota_install_failed_device_locked">Votre appareil est peut-être protégé par un NIP ou un mot de passe.</string>
     <string name="no_compatible_version_found">Aucune version compatible</string>
     <string name="no_compatible_version_found_details">Aucune version compatible avec votre appareil n\'a pu être trouvé. Vous devrez faire une installation manuelle.</string>
     <string name="show_error">Afficher l\'erreur</string>
     <string name="hide_error">Cacher l\'erreur</string>
-    <string name="unknown_error">Erreur inconnue</string>
     <string name="success">Succès!</string>
     <string name="update_channel">Variante de MàJ</string>
     <string name="update_source">Source de mise à jour</string>
@@ -118,8 +116,9 @@
     <string name="widget_single_device_name">Appareil unique</string>
     <string name="widget_description">Permet de voir et contrôler un seul appareil WLED</string>
     <string name="widget_please_configure">Veuillez configurer</string>
+    <string name="widget_toggle_power">Basculer l\'alimentation</string>
+    <string name="widget_refresh">Rafraîchir</string>
     <string name="select_a_device">Sélectionnez un appareil</string>
-    <string name="last_updated">Dernière mise à jour</string>
 
     <!-- Deep linking -->
     <string name="deep_link_loading">Connexion à l\'appareil…</string>
@@ -131,5 +130,18 @@
     <string name="control_on">Allumé</string>
     <string name="control_off">Éteint</string>
     <string name="no_release_notes_provided">Aucune note de version fournie</string>
+
+    <!-- Changelog -->
+    <string name="changelog_title">Nouveautés</string>
+    <string name="changelog_version">Version %1$s</string>
+    <string name="changelog_version_dev">Dev</string>
+    <string name="changelog_dismiss_button">Super</string>
+    <string name="show_changelog">Afficher les nouveautés</string>
+
+    <!-- Local network permission -->
+    <string name="local_network_warning_title">Accès au réseau local requis</string>
+    <string name="local_network_warning_body">WLED a besoin de l\'accès au réseau local pour découvrir et contrôler vos appareils.</string>
+    <string name="local_network_instructions">Aller dans Paramètres → Applications → WLED → Autorisations → Appareils à proximité</string>
+    <string name="local_network_allow_access">Autoriser l\'accès</string>
 
 </resources>

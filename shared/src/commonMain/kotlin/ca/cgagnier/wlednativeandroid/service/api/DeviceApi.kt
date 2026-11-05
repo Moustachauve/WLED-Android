@@ -1,0 +1,194 @@
+package ca.cgagnier.wlednativeandroid.service.api
+
+import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.wledapi.Info
+import ca.cgagnier.wlednativeandroid.model.wledapi.JsonPost
+import ca.cgagnier.wlednativeandroid.model.wledapi.State
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.request.forms.formData
+import io.ktor.client.request.forms.submitFormWithBinaryData
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
+import io.ktor.http.isSuccess
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import okio.FileSystem
+import okio.Path
+import ca.cgagnier.wlednativeandroid.shared.fileSystem as defaultFileSystem
+
+/**
+ * HTTP API of a single WLED device.
+ *
+ * Non-2xx responses are reported through [ApiResponse]. Transport failures (timeouts, unreachable
+ * host, malformed JSON, ...) are thrown. Every member is annotated with `@Throws(Exception::class)`
+ * so that these failures surface as Swift errors on iOS instead of terminating the process, which
+ * is what Kotlin/Native does for undeclared exceptions crossing into Objective-C/Swift.
+ */
+interface DeviceApi {
+    @Throws(Exception::class)
+    suspend fun getInfo(): ApiResponse<Info>
+
+    @Throws(Exception::class)
+    suspend fun postJson(state: JsonPost): ApiResponse<State>
+
+    @Throws(Exception::class)
+    suspend fun updateDevice(fileData: ByteArray, fileName: String): ApiResponse<String>
+}
+
+@Throws(Exception::class)
+suspend fun DeviceApi.updateDevice(
+    binaryPath: Path,
+    fs: FileSystem = defaultFileSystem,
+    ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+): ApiResponse<String> {
+    val bytes = withContext(ioDispatcher) {
+        fs.read(binaryPath) { readByteArray() }
+    }
+    return updateDevice(bytes, binaryPath.name)
+}
+
+class KtorDeviceApi(private val baseUrl: String, private val httpClient: HttpClient) : DeviceApi {
+
+    private fun normalizeUrl(path: String): String {
+        val base = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+        val relative = if (path.startsWith("/")) path.drop(1) else path
+        return "$base$relative"
+    }
+
+    @Throws(Exception::class)
+    override suspend fun getInfo(): ApiResponse<Info> {
+        val response = httpClient.get(normalizeUrl("json/info"))
+        return if (response.status.isSuccess()) {
+            ApiResponse(code = response.status.value, body = response.body<Info>())
+        } else {
+            ApiResponse(code = response.status.value, errorBody = response.bodyAsText())
+        }
+    }
+
+    @Throws(Exception::class)
+    override suspend fun postJson(state: JsonPost): ApiResponse<State> {
+        val response = httpClient.post(normalizeUrl("json/state")) {
+            contentType(ContentType.Application.Json)
+            setBody(state)
+        }
+        return if (response.status.isSuccess()) {
+            ApiResponse(code = response.status.value, body = response.body<State>())
+        } else {
+            ApiResponse(code = response.status.value, errorBody = response.bodyAsText())
+        }
+    }
+
+    @Throws(Exception::class)
+    override suspend fun updateDevice(fileData: ByteArray, fileName: String): ApiResponse<String> {
+        val response = httpClient.submitFormWithBinaryData(
+            url = normalizeUrl("update"),
+            formData = formData {
+                append(
+                    key = "file",
+                    value = fileData,
+                    headers = Headers.build {
+                        append(HttpHeaders.ContentType, "application/octet-stream")
+                        append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
+                    },
+                )
+            },
+        )
+        val text = response.bodyAsText()
+        return if (response.status.isSuccess()) {
+            ApiResponse(code = response.status.value, body = text)
+        } else {
+            ApiResponse(code = response.status.value, errorBody = text)
+        }
+    }
+}
+
+val defaultJson = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+    explicitNulls = false
+    coerceInputValues = true
+    encodeDefaults = true
+}
+
+/**
+ * Factory for creating instances of DeviceApi.
+ *
+ * Since the base URL is dynamic per device, we can't provide a singleton instance.
+ * Instead, we provide this factory to create a new DeviceApi on-demand.
+ *
+ * @param defaultHttpClient The HttpClient instance to use for underlying HTTP transport.
+ */
+class DeviceApiFactory(private val defaultHttpClient: HttpClient) {
+
+    /**
+     * Create a new DeviceApi instance from a device address.
+     *
+     * @param address The address of a device to create the API for.
+     */
+    fun create(address: String): DeviceApi {
+        val baseUrl = normalizeAddress(address)
+        return KtorDeviceApi(baseUrl, defaultHttpClient)
+    }
+
+    /**
+     * Create a new DeviceApi instance for a device.
+     *
+     * @param device The device to create the API for.
+     */
+    fun create(device: Device): DeviceApi = create(device.getDeviceUrl())
+
+    /**
+     * Create a new DeviceApi instance with a custom timeout.
+     *
+     * HttpClient.config shares the parent client's engine, connection pool, and threads
+     * while applying custom timeout configuration.
+     *
+     * @param address The address of a device to create the API for.
+     * @param timeout The custom timeout in seconds.
+     */
+    fun create(address: String, timeout: Long): DeviceApi {
+        val timeoutMillis = timeout * MILLIS_PER_SECOND
+        val customHttpClient = defaultHttpClient.config {
+            install(HttpTimeout) {
+                requestTimeoutMillis = timeoutMillis
+                connectTimeoutMillis = timeoutMillis
+                socketTimeoutMillis = timeoutMillis
+            }
+        }
+        return KtorDeviceApi(normalizeAddress(address), customHttpClient)
+    }
+
+    /**
+     * Create a new DeviceApi instance with a custom timeout.
+     *
+     * @param device The device to create the API for.
+     * @param timeout The custom timeout in seconds.
+     */
+    fun create(device: Device, timeout: Long): DeviceApi = create(device.getDeviceUrl(), timeout)
+
+    private fun normalizeAddress(address: String): String =
+        if (!address.startsWith("http://") && !address.startsWith("https://")) {
+            "http://$address/"
+        } else {
+            address
+        }
+
+    companion object {
+        const val MILLIS_PER_SECOND = 1000L
+        const val PING_INTERVAL_SECONDS = 30
+
+        /** Default connect/read timeout for device requests, shared by the Android and iOS clients. */
+        const val DEFAULT_TIMEOUT_SECONDS = 30L
+    }
+}

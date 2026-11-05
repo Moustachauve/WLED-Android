@@ -4,11 +4,16 @@ import android.content.Context
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
-import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
-class TogglePowerAction : ActionCallback {
+class TogglePowerAction :
+    ActionCallback,
+    KoinComponent {
+    private val widgetManager: WledWidgetManager by inject()
+
     companion object {
         val keyIsOn = ActionParameters.Key<Boolean>("isOn")
     }
@@ -17,24 +22,18 @@ class TogglePowerAction : ActionCallback {
         val currentIsOn = parameters[keyIsOn] ?: false
         val newIsOn = !currentIsOn
 
-        val entryPoint = EntryPointAccessors.fromApplication(
-            context,
-            WledWidget.WidgetEntryPoint::class.java,
-        )
-
-        entryPoint.widgetManager().toggleState(context, glanceId, newIsOn)
+        widgetManager.toggleState(context, glanceId, newIsOn)
     }
 }
 
-class RefreshAction : ActionCallback {
+class RefreshAction :
+    ActionCallback,
+    KoinComponent {
+    private val widgetManager: WledWidgetManager by inject()
 
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        val entryPoint = EntryPointAccessors.fromApplication(
-            context,
-            WledWidget.WidgetEntryPoint::class.java,
-        )
         withContext(Dispatchers.IO) {
-            entryPoint.widgetManager().refreshWidget(context, glanceId)
+            widgetManager.refreshWidget(context, glanceId)
         }
     }
 }

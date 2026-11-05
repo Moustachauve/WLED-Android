@@ -11,55 +11,280 @@ on:
       - main
       - dev
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      - name: Checkout code
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check for iOS or shared changes
+        id: filter
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          echo "Changed files:"
+          echo "$CHANGED"
+          if echo "$CHANGED" | grep -qE '^(iosApp/|shared/|gradle/|build\.gradle\.kts$|settings\.gradle\.kts$|gradle\.properties$|gradlew$|\.github/workflows/check\.yml$)'; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ios=false" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
-    name: Run Unit Tests
+    name: Run Unit Tests (Android + Shared)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.4.1
+        with:
+          cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew :app:testDebugUnitTest :shared:testAndroidHostTest --continue
+
+      - name: Run screenshot tests
+        if: always() && !cancelled()
+        id: screenshot-tests
+        run: ./gradlew :app:testDebugScreenshotTestDefaultTestSuite
 
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: test-results
-          path: app/build/reports/tests/
+          path: |
+            app/build/reports/tests/
+            shared/build/reports/tests/testAndroidHostTest/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Screenshot Diffs
+        if: failure() && steps.screenshot-tests.outcome == 'failure'
+        id: screenshot-artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshot-test-diffs
+          path: |
+            app/build/reports/tests/testDebugScreenshotTestDefaultTestSuite/
+            app/build/intermediates/debug/testDebugScreenshotTestDefaultTestSuite/results/diffs/
+            app/build/intermediates/debug/testDebugScreenshotTestDefaultTestSuite/results/rendered/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Add Screenshot Failure Summary
+        if: failure() && steps.screenshot-tests.outcome == 'failure' && steps.screenshot-artifact.outputs.artifact-url != ''
+        env:
+          ARTIFACT_URL: ${{ steps.screenshot-artifact.outputs.artifact-url }}
+        run: |
+          {
+            echo "### Screenshot Test Results"
+            echo "Download [\`screenshot-test-diffs\`](${ARTIFACT_URL}) to inspect the HTML diff report and rendered/diff PNGs."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  test-ios:
+    name: Run Unit Tests & Build (iOS)
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # ~/.konan only depends on the Kotlin version, so key on that instead of the
+      # whole version catalog to avoid re-uploading it on every dependency bump.
+      - name: Resolve Kotlin version
+        id: kotlin
+        run: |
+          VERSION=$(grep -E '^kotlin[[:space:]]*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not parse the kotlin version from gradle/libs.versions.toml"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Kotlin/Native toolchain
+        uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ steps.kotlin.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-konan-
+
+      - name: Cache Swift packages
+        uses: actions/cache@v6
+        with:
+          path: iosApp/build/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('iosApp/**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.4.1
+        with:
+          cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
+
+      # CI only runs on the simulator, so skip building the device slice here.
+      # Always debug: release XCFrameworks are built by release.yml.
+      - name: Run iOS unit tests & Assemble XCFramework
+        run: |
+          ./gradlew -Pwled.ios.simulatorOnly=true :shared:iosSimulatorArm64Test :shared:assembleSharedDebugXCFramework
+          ./gradlew --stop
+
+      - name: Build and Test iOS App
+        run: |
+          DEST=$(xcrun simctl list devices available | grep -m1 "iPhone " | sed -E 's/^[[:space:]]*(iPhone [^()]+).*/platform=iOS Simulator,name=\1/' | xargs)
+          echo "Selected destination: $DEST"
+          SKIP_KMP_BUILD=1 xcodebuild test \
+            -project iosApp/wled.xcodeproj \
+            -scheme wled \
+            -destination "$DEST" \
+            -resultBundlePath iosApp/build/TestResults.xcresult \
+            -clonedSourcePackagesDirPath iosApp/build/SourcePackages \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            -retry-tests-on-failure \
+            -test-iterations 2 \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
+
+      # PRs skip the device slice; still make sure it compiles once merged.
+      - name: Compile iOS device framework
+        if: github.event_name != 'pull_request'
+        run: ./gradlew :shared:linkDebugFrameworkIosArm64
+
+      - name: Upload iOS Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-test-results
+          path: |
+            shared/build/reports/tests/iosSimulatorArm64Test/
+            iosApp/build/TestResults.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
 
   lint:
-    name: Run Lint
+    name: Run Lint (Android + Shared)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+
+      - name: Validate Google Play Store changelogs (<= 500 characters)
+        run: |
+          python3 - <<'PY'
+          import glob, pathlib, sys
+          MAX_CHARS = 500
+          errors = 0
+          for path_str in sorted(glob.glob("fastlane/changelogs/*.txt")):
+              text = pathlib.Path(path_str).read_text(encoding="utf-8").strip()
+              if not text:
+                  print(f"::error file={path_str}::{path_str} is empty.")
+                  errors += 1
+              elif len(text) > MAX_CHARS:
+                  print(f"::error file={path_str}::{path_str} is {len(text)} characters (Google Play limit: {MAX_CHARS}).")
+                  errors += 1
+          sys.exit(1 if errors else 0)
+          PY
+
+      - name: Verify production changelogs are promoted before merging to main
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        run: |
+          set -euo pipefail
+          TOML_VERSION=$(grep -E '^app-versionName\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -f "app/src/main/assets/changelog/dev.md" ] || [ -f "iosApp/wled/changelog/dev.md" ] || [ -f "fastlane/changelogs/dev.txt" ]; then
+            echo "::error::dev changelog still exists! Before merging to main, rename app/src/main/assets/changelog/dev.md and iosApp/wled/changelog/dev.md to ${TOML_VERSION}.md and create fastlane/changelogs/${TOML_VERSION}.txt."
+            exit 1
+          fi
+          for DIR in "app/src/main/assets/changelog" "iosApp/wled/changelog"; do
+            if [ ! -s "${DIR}/${TOML_VERSION}.md" ]; then
+              echo "::error::Missing or empty production changelog at ${DIR}/${TOML_VERSION}.md."
+              exit 1
+            fi
+          done
+          if [ ! -s "fastlane/changelogs/${TOML_VERSION}.txt" ]; then
+            echo "::error::Missing or empty Google Play production changelog at fastlane/changelogs/${TOML_VERSION}.txt."
+            exit 1
+          fi
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.4.1
+        with:
+          cache-read-only: ${{ github.event.pull_request.head.repo.fork == true }}
 
-      - name: Run Analysis
-        run: ./gradlew spotlessCheck detekt lintDebug
+      - name: Run Code Formatting and Quality
+        run: ./gradlew spotlessCheck detekt
+
+      - name: Run Android Lint
+        run: ./gradlew lintDebug
 
       - name: Upload Lint Results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: lint-results
-          path: app/build/reports/lint-results-debug.html
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/detekt/
+            shared/build/reports/detekt/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  lint-ios:
+    name: Run Lint (iOS)
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Run SwiftLint
+        run: swiftlint lint --config iosApp/.swiftlint.yml --strict iosApp
+

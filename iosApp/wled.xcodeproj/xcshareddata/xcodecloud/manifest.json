@@ -1,0 +1,9 @@
+{
+  "id" : "f0dc6c3c-8027-449d-a0c3-f604f399faa1",
+  "targets" : [
+    {
+      "id" : "18576AD5-454F-4A8C-955B-18C6A5DC5A6B",
+      "name" : "WLED"
+    }
+  ]
+}

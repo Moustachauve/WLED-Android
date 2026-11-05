@@ -1,0 +1,7 @@
+# Android configuration
+package_name("ca.cgagnier.wlednativeandroid")
+
+# iOS configuration
+app_identifier("ca.cgagnier.wled-native")
+team_id("RWLNCUSDCJ")
+itc_team_id(ENV["APP_STORE_CONNECT_TEAM_ID"]) if ENV["APP_STORE_CONNECT_TEAM_ID"]

@@ -3,28 +3,30 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.google.protobuf)
-    alias(libs.plugins.kotlin)
-    alias(libs.plugins.androidx.navigation.safeargs)
-    alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.hilt)
     alias(libs.plugins.compose.compiler)
     id("kotlin-parcelize")
 }
 
 android {
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "ca.cgagnier.wlednativeandroid"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode =
-            libs.versions.app.versionCode
-                .get()
-                .toInt()
+            providers
+                .gradleProperty("versionCode")
+                .map { it.toInt() }
+                .orElse(
+                    libs.versions.app.versionCode
+                        .map { it.toInt() },
+                ).get()
         versionName =
-            libs.versions.app.versionName
+            providers
+                .gradleProperty("versionName")
+                .orElse(libs.versions.app.versionName)
                 .get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -32,6 +34,8 @@ android {
 
     androidResources {
         localeFilters += listOf("de", "en", "fr", "zh")
+        ignoreAssetsPattern =
+            "!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:!README.md"
     }
 
     sourceSets {
@@ -48,8 +52,23 @@ android {
         includeInApk = false
     }
 
+    val keystorePath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
+    signingConfigs {
+        if (!keystorePath.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("ANDROID_KEY_ALIAS").orNull
+                keyPassword = providers.environmentVariable("ANDROID_KEY_PASSWORD").orNull
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (!keystorePath.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -71,23 +90,37 @@ android {
             freeCompilerArgs.add("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api")
         }
     }
-    hilt {
-        enableAggregatingTask = true
-    }
     namespace = "ca.cgagnier.wlednativeandroid"
     lint {
         fatal += "MissingTranslation"
+        checkTestSources = false
+        ignoreTestSources = true
+        checkDependencies = false
+        abortOnError = true
+    }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+        screenshotTests.create("screenshotTest") {
+            engineVersion = libs.versions.screenshot.get()
+            // Allow up to 0.15% pixel difference to account for sub-pixel anti-aliasing differences
+            // on scaled drawables across host platforms (e.g., macOS ARM64 vs Linux x86_64 in CI, ~0.13%).
+            imageDifferenceThreshold = 0.0015f
+            targetVariants.add("debug")
+            dependencies {
+                implementation(dependencies.platform(libs.androidx.compose.bom))
+                implementation(libs.androidx.ui.tooling)
+                implementation(libs.screenshot.validation.api)
+            }
+        }
     }
 }
 
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
-    arg("room.incremental", "true")
-}
-
 dependencies {
+    implementation(project(":shared"))
     implementation(libs.androidx.graphics.shapes)
-    implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.geometry)
     implementation(libs.androidx.compose.runtime)
     val composeBom = platform(libs.androidx.compose.bom)
@@ -104,52 +137,54 @@ dependencies {
     implementation(libs.androidx.adaptive)
     implementation(libs.androidx.adaptive.layout)
     implementation(libs.androidx.adaptive.navigation)
-    implementation(libs.androidx.compose.navigation)
-    implementation(libs.androidx.compose.navigation.ui)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
     implementation(libs.androidx.glance.preview)
     implementation(libs.androidx.glance.appwidget.preview)
-    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.preference.ktx)
-    implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.sqlite.bundled)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.webkit)
-    implementation(libs.converter.moshi)
-    implementation(libs.core)
     implementation(libs.core.ktx)
     implementation(libs.datastore)
     implementation(libs.datastore.core)
     implementation(libs.datastore.preferences)
-    implementation(libs.hilt.android)
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.jdk9)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.websockets)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.lifecycle.viewmodel.ktx)
-    implementation(libs.logging.interceptor)
+    implementation(libs.material)
     implementation(libs.material.kolor)
-    implementation(libs.moshi)
     implementation(libs.multiplatformmarkdownrenderer)
     implementation(libs.multiplatformmarkdownrenderer.m3)
+    implementation(libs.multiplatformmarkdownrenderer.coil3)
+    implementation(libs.coil3.compose)
     implementation(libs.okhttp)
     implementation(libs.protobuf.javalite)
-    implementation(libs.retrofit)
-    implementation(libs.retrofit2.kotlin.coroutines.adapter)
-    implementation(libs.semver4j)
+    implementation(libs.semver)
+    implementation(libs.kermit)
     implementation(libs.compose.material.icons)
-    ksp(libs.hilt.compiler)
-    ksp(libs.androidx.room.compiler)
-    ksp(libs.moshi.kotlin.codegen)
-    testImplementation(libs.junit)
-    testImplementation(libs.robolectric)
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.selfie.runner.junit5)
     testImplementation(libs.mockk)
+    testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.koin.test)
 }
 
 protobuf {
@@ -174,7 +209,23 @@ protobuf {
 }
 
 tasks.withType<Test>().configureEach {
-    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
+    if (name.contains("ScreenshotTest", ignoreCase = true)) {
+        maxParallelForks = 1
+    } else {
+        maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
+    }
+    // Pass -Pselfie command-line property to the test runner environment and system properties
+    val selfieProp = providers.gradleProperty("selfie")
+    if (selfieProp.isPresent) {
+        systemProperty("selfie", selfieProp.get())
+        environment("selfie", selfieProp.get())
+    }
+    // Track Selfie disk snapshot files for accurate up-to-date checks
+    inputs.files(
+        fileTree("src/test") {
+            include("**/*.ss")
+        },
+    )
     // Optional: Improve console output for parallel tests
     testLogging {
         events("passed", "skipped", "failed")

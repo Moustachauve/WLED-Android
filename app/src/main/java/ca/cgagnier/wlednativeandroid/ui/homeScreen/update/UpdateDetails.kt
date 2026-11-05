@@ -25,9 +25,8 @@ import androidx.compose.ui.window.Dialog
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
+import ca.cgagnier.wlednativeandroid.ui.components.WledMarkdown
 import ca.cgagnier.wlednativeandroid.ui.components.deviceName
-import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.m3.markdownTypography
 
 @Composable
 fun UpdateDetailsDialog(
@@ -104,13 +103,8 @@ private fun ReleaseNotes(modifier: Modifier = Modifier, version: VersionWithAsse
                     ),
                 )
             } else {
-                Markdown(
-                    version.version.description.trimIndent(),
-                    typography = markdownTypography(
-                        h1 = MaterialTheme.typography.headlineLarge,
-                        h2 = MaterialTheme.typography.headlineMedium,
-                        h3 = MaterialTheme.typography.headlineSmall,
-                    ),
+                WledMarkdown(
+                    content = version.version.description.trimIndent(),
                 )
             }
         }

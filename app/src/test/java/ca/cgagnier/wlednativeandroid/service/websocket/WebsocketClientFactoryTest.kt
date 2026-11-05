@@ -1,50 +1,32 @@
 package ca.cgagnier.wlednativeandroid.service.websocket
 
-import android.content.Context
 import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
-import ca.cgagnier.wlednativeandroid.service.update.DeviceUpdateManager
-import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
-import com.squareup.moshi.Moshi
+import io.ktor.client.HttpClient
 import io.mockk.mockk
-import okhttp3.OkHttpClient
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNotSame
-import org.junit.Before
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.RuntimeEnvironment
+import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
-@RunWith(RobolectricTestRunner::class)
 class WebsocketClientFactoryTest {
 
-    private lateinit var context: Context
-    private lateinit var okHttpClient: OkHttpClient
-    private lateinit var moshi: Moshi
+    private val httpClient: HttpClient = mockk(relaxed = true)
+    private lateinit var json: Json
     private lateinit var factory: WebsocketClientFactory
 
-    // Using mockk for mocking dependencies (relaxed = true ignores unstubbed calls)
-    private val deviceRepository: DeviceRepository = mockk(relaxed = true)
-    private val widgetManager: WledWidgetManager = mockk(relaxed = true)
-    private val deviceUpdateManager: DeviceUpdateManager = mockk(relaxed = true)
-    private val repositoryDao: ca.cgagnier.wlednativeandroid.repository.RepositoryDao = mockk(relaxed = true)
-
-    @Before
+    @BeforeEach
     fun setUp() {
-        context = RuntimeEnvironment.getApplication()
-        okHttpClient = OkHttpClient.Builder().build()
-        moshi = Moshi.Builder().build()
+        json = Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            explicitNulls = false
+        }
 
         factory = WebsocketClientFactory(
-            applicationContext = context,
-            deviceRepository = deviceRepository,
-            widgetManager = widgetManager,
-            deviceUpdateManager = deviceUpdateManager,
-            okHttpClient = okHttpClient,
-            moshi = moshi,
-            repositoryDao = repositoryDao,
+            httpClient = httpClient,
+            json = json,
         )
     }
 
@@ -55,9 +37,7 @@ class WebsocketClientFactoryTest {
         val client = factory.create(device)
 
         assertNotNull(client)
-        assertEquals(device, client.deviceState.device)
-        assertEquals("AABBCCDDEEFF", client.deviceState.device.macAddress)
-        assertEquals("192.168.1.100", client.deviceState.device.address)
+        assertEquals(device, client.device)
     }
 
     @Test
@@ -69,23 +49,8 @@ class WebsocketClientFactoryTest {
         val client2 = factory.create(device2)
 
         assertNotSame(client1, client2)
-        assertEquals("AABBCCDDEEFF", client1.deviceState.device.macAddress)
-        assertEquals("112233445566", client2.deviceState.device.macAddress)
-    }
-
-    @Test
-    fun `create preserves device properties`() {
-        val device = createTestDevice(
-            macAddress = "FFEEDDCCBBAA",
-            address = "10.0.0.50",
-            originalName = "Kitchen Lights",
-        )
-
-        val client = factory.create(device)
-
-        assertEquals("FFEEDDCCBBAA", client.deviceState.device.macAddress)
-        assertEquals("10.0.0.50", client.deviceState.device.address)
-        assertEquals("Kitchen Lights", client.deviceState.device.originalName)
+        assertEquals("AABBCCDDEEFF", client1.device.macAddress)
+        assertEquals("112233445566", client2.device.macAddress)
     }
 
     @Test
@@ -94,7 +59,7 @@ class WebsocketClientFactoryTest {
 
         val client = factory.create(device)
 
-        assertEquals(WebsocketStatus.DISCONNECTED, client.deviceState.websocketStatus.value)
+        assertEquals(WebsocketStatus.DISCONNECTED, client.status.value)
     }
 
     private fun createTestDevice(macAddress: String, address: String, originalName: String): Device = Device(

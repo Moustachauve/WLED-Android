@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -25,9 +24,9 @@ private fun getBatteryImage(batteryPercentage: Double): Int = when {
 
 @Composable
 fun deviceBatteryPercentageImage(device: DeviceWithState) {
-    val stateInfo by device.stateInfo
-    if (stateInfo?.info?.userMods?.batteryLevel != null) {
-        val batteryPercentage = stateInfo?.info?.userMods?.batteryLevel?.get(0) as? Double ?: 0.0
+    val stateInfo = device.stateInfo
+    val batteryPercentage = stateInfo?.info?.userMods?.batteryPercentage
+    if (batteryPercentage != null) {
         Icon(
             painter = painterResource(getBatteryImage(batteryPercentage)),
             contentDescription = stringResource(R.string.battery_percentage),

@@ -5,9 +5,8 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.res.stringResource
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.resolveDeviceName
 
 @Composable
 @ReadOnlyComposable
-fun deviceName(device: Device?): String = device?.customName?.trim().takeIf { !it.isNullOrBlank() }
-    ?: device?.originalName?.trim().takeIf { !it.isNullOrBlank() }
-    ?: stringResource(R.string.default_device_name)
+fun deviceName(device: Device?): String = resolveDeviceName(device, stringResource(R.string.default_device_name))

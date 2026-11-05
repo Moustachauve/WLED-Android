@@ -11,13 +11,12 @@ import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
 import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
+import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
 import ca.cgagnier.wlednativeandroid.service.api.github.GithubApi
-import ca.cgagnier.wlednativeandroid.service.update.DEFAULT_REPO
 import ca.cgagnier.wlednativeandroid.service.update.ReleaseService
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,7 +24,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 private const val TAG = "DeviceEditViewModel"
 
@@ -36,16 +34,17 @@ private const val TAG = "DeviceEditViewModel"
  * and update-check operations. Exposes a single [uiState] flow
  * consumed by the UI composable.
  */
-@HiltViewModel
 @Suppress("LongParameterList") // DI constructor requires multiple dependencies.
-class DeviceEditViewModel @Inject constructor(
+class DeviceEditViewModel(
     private val deviceRepository: DeviceRepository,
     private val repositoryDao: RepositoryDao,
     private val versionWithAssetsRepository: VersionWithAssetsRepository,
     private val githubApi: GithubApi,
     private val releaseService: ReleaseService,
+    private val deviceConnectionManager: DeviceConnectionManager,
     private val widgetManager: WledWidgetManager,
-    @param:ApplicationContext private val applicationContext: Context,
+    private val applicationContext: Context,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
     private val updateDetailsVersion = MutableStateFlow<VersionWithAssets?>(null)
@@ -58,7 +57,7 @@ class DeviceEditViewModel @Inject constructor(
      * Single combined UI state for the device edit screen.
      *
      * The [DeviceEditUiState.updateTag] field is always `null` here because
-     * the update tag comes from [DeviceWithState.updateVersionTagFlow], which
+     * the update tag comes from [DeviceWithState.updateVersionTag], which
      * is owned by the caller and merged in the composable layer.
      */
     val uiState: StateFlow<DeviceEditUiState> = combine(
@@ -82,32 +81,31 @@ class DeviceEditViewModel @Inject constructor(
     )
 
     /** Loads the [Repository] for the given [repositoryId] from the database. */
-    fun loadRepository(repositoryId: Long) = viewModelScope.launch(Dispatchers.IO) {
+    fun loadRepository(repositoryId: Long) = viewModelScope.launch(ioDispatcher) {
         repository.value = repositoryDao.getRepositoryById(repositoryId)
     }
 
     /** Persists a new custom name for the [device] and updates any active widgets. */
-    fun updateCustomName(device: Device, name: String) = viewModelScope.launch(Dispatchers.IO) {
-        val updatedDevice = device.copy(customName = name)
+    fun updateCustomName(device: Device, name: String) = viewModelScope.launch(ioDispatcher) {
         Log.d(TAG, "updateCustomName: $name")
-        deviceRepository.update(updatedDevice)
-        widgetManager.updateWidgetDeviceDetails(applicationContext, updatedDevice)
+        deviceRepository.updateCustomName(device.macAddress, name)
+        widgetManager.updateWidgetDeviceDetails(applicationContext, device.copy(customName = name))
     }
 
     /** Toggles the hidden-from-list flag on [device]. */
-    fun updateDeviceHidden(device: Device, isHidden: Boolean) = viewModelScope.launch(Dispatchers.IO) {
+    fun updateDeviceHidden(device: Device, isHidden: Boolean) = viewModelScope.launch(ioDispatcher) {
         Log.d(TAG, "updateDeviceHidden: ${device.originalName}, isHidden: $isHidden")
-        deviceRepository.update(device.copy(isHidden = isHidden))
+        deviceRepository.updateIsHidden(device.macAddress, isHidden)
     }
 
     /** Changes the update [branch] (stable / beta) for the [device]. */
-    fun updateDeviceBranch(device: Device, branch: Branch) = viewModelScope.launch(Dispatchers.IO) {
+    fun updateDeviceBranch(device: Device, branch: Branch) = viewModelScope.launch(ioDispatcher) {
         Log.d(TAG, "updateDeviceBranch: ${device.originalName}, updateChannel: $branch")
-        deviceRepository.update(device.copy(branch = branch))
+        deviceRepository.updateBranch(device.macAddress, branch)
     }
 
     /** Fetches and shows the release details for a specific [version] tag. */
-    fun showUpdateDetails(repositoryId: Long, version: String) = viewModelScope.launch(Dispatchers.IO) {
+    fun showUpdateDetails(repositoryId: Long, version: String) = viewModelScope.launch(ioDispatcher) {
         updateDetailsVersion.value = versionWithAssetsRepository.getVersionByTag(repositoryId, version)
     }
 
@@ -117,9 +115,9 @@ class DeviceEditViewModel @Inject constructor(
     }
 
     /** Marks the given [version] as skipped for [device] and closes the dialog. */
-    fun skipUpdate(device: Device, version: VersionWithAssets) = viewModelScope.launch(Dispatchers.IO) {
+    fun skipUpdate(device: Device, version: VersionWithAssets) = viewModelScope.launch(ioDispatcher) {
         Log.d(TAG, "Saving skipUpdateTag")
-        deviceRepository.update(device.copy(skipUpdateTag = version.version.tagName))
+        deviceRepository.updateSkipUpdateTag(device.macAddress, version.version.tagName)
         updateDetailsVersion.value = null
     }
 
@@ -139,25 +137,22 @@ class DeviceEditViewModel @Inject constructor(
     }
 
     /**
-     * Called when the OTA install dialog is dismissed.
-     *
-     * If [wasSuccessful], the device's in-memory [DeviceWithState.stateInfo]
-     * is patched with the new version so the UI reflects it immediately
-     * (before the next websocket refresh).
+     * Called when the OTA install dialog is dismissed or completed.
+     * Updates device state if successful.
      */
     fun stopUpdateInstall(
         device: DeviceWithState? = null,
-        version: VersionWithAssets? = null,
+        version: VersionWithAssets? = updateInstallVersion.value,
         wasSuccessful: Boolean = false,
     ) {
         updateInstallVersion.value = null
-        if (wasSuccessful && device != null && version != null) {
-            val currentState = device.stateInfo.value ?: return
-            val updatedInfo = currentState.info.copy(
-                version = version.version.tagName.removePrefix("v"),
-            )
-            device.stateInfo.value = currentState.copy(info = updatedInfo)
+        if (!wasSuccessful || device == null || version == null) {
+            return
         }
+        deviceConnectionManager.markUpdateInstalled(
+            macAddress = device.device.macAddress,
+            installedVersionTag = version.version.tagName,
+        )
     }
 
     /**
@@ -165,14 +160,12 @@ class DeviceEditViewModel @Inject constructor(
      * versions from GitHub.
      */
     fun checkForUpdates(device: Device) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             isCheckingUpdates.value = true
-            val updatedDevice = device.copy(skipUpdateTag = "")
-            deviceRepository.update(updatedDevice)
+            deviceRepository.updateSkipUpdateTag(device.macAddress, "")
             try {
-                val repo = repositoryDao.getRepositoryById(device.repositoryId)
-                val repoStr = repo?.ownerAndRepo ?: DEFAULT_REPO
-                releaseService.refreshVersions(githubApi, setOf(repoStr))
+                releaseService.refreshVersionsForDevice(githubApi, device)
+                deviceConnectionManager.recheckUpdates()
             } finally {
                 isCheckingUpdates.value = false
             }

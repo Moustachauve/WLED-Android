@@ -25,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.model.AP_MODE_MAC_ADDRESS
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
@@ -35,9 +34,11 @@ import ca.cgagnier.wlednativeandroid.ui.homeScreen.detail.DeviceDetail
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.deviceAdd.DeviceAdd
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.deviceEdit.DeviceEdit
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.list.DeviceList
+import ca.cgagnier.wlednativeandroid.ui.homeScreen.list.DeviceListActions
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.list.DeviceWebsocketListViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Suppress("LongMethod") // Navigator requires type inference, limiting extraction options
@@ -45,9 +46,9 @@ import kotlinx.coroutines.launch
 fun DeviceListDetail(
     modifier: Modifier = Modifier,
     initialDeviceMacAddress: NavigationEvent? = null,
-    openSettings: () -> Unit,
-    viewModel: DeviceListDetailViewModel = hiltViewModel(),
-    deviceWebsocketListViewModel: DeviceWebsocketListViewModel = hiltViewModel(),
+    actions: DeviceListDetailActions,
+    viewModel: DeviceListDetailViewModel = koinViewModel(),
+    deviceWebsocketListViewModel: DeviceWebsocketListViewModel = koinViewModel(),
 ) {
     val coroutineScope = rememberCoroutineScope()
     val defaultScaffoldDirective = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo())
@@ -57,6 +58,13 @@ fun DeviceListDetail(
     val navigator =
         rememberListDetailPaneScaffoldNavigator<Any>(scaffoldDirective = customScaffoldDirective)
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+
+    val localNetworkPermission = rememberLocalNetworkPermissionController(
+        onPermissionGranted = {
+            deviceWebsocketListViewModel.refreshOfflineDevices()
+            viewModel.onLocalNetworkPermissionGranted()
+        },
+    )
 
     LaunchedEffect(initialDeviceMacAddress) {
         if (initialDeviceMacAddress != null) {
@@ -91,7 +99,13 @@ fun DeviceListDetail(
         gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             ModalDrawerSheet {
-                DrawerSheetContent(coroutineScope, drawerState, showHiddenDevices, viewModel, openSettings)
+                DrawerSheetContent(
+                    coroutineScope = coroutineScope,
+                    drawerState = drawerState,
+                    showHiddenDevices = showHiddenDevices,
+                    viewModel = viewModel,
+                    actions = actions,
+                )
             }
         },
     ) {
@@ -106,17 +120,21 @@ fun DeviceListDetail(
                 listPane = {
                     AnimatedPane {
                         DeviceList(
-                            selectedDevice,
+                            selectedDevice = selectedDevice,
                             isWLEDCaptivePortal = isWLEDCaptivePortal,
-                            onItemClick = navigateToDetail,
-                            onAddDevice = { viewModel.showAddDeviceDialog() },
-                            onShowHiddenDevices = { viewModel.toggleShowHiddenDevices() },
-                            onRefresh = { viewModel.startDiscoveryServiceTimed() },
-                            onItemEdit = {
-                                navigateToDetail(it)
-                                navigateToEdit(it)
-                            },
-                            onOpenDrawer = { coroutineScope.launch { drawerState.open() } },
+                            isLocalNetworkDenied = localNetworkPermission.isDenied,
+                            actions = DeviceListActions(
+                                onItemClick = navigateToDetail,
+                                onAddDevice = { viewModel.showAddDeviceDialog() },
+                                onShowHiddenDevices = { viewModel.toggleShowHiddenDevices() },
+                                onRequestLocalNetworkAccess = localNetworkPermission.requestLocalNetworkAccess,
+                                onRefresh = { viewModel.startDiscoveryServiceTimed() },
+                                onItemEdit = {
+                                    navigateToDetail(it)
+                                    navigateToEdit(it)
+                                },
+                                onOpenDrawer = { coroutineScope.launch { drawerState.open() } },
+                            ),
                         )
                     }
                 },
@@ -175,7 +193,7 @@ private fun DrawerSheetContent(
     drawerState: DrawerState,
     showHiddenDevices: Boolean,
     viewModel: DeviceListDetailViewModel,
-    openSettings: () -> Unit,
+    actions: DeviceListDetailActions,
 ) {
     DrawerContent(
         showHiddenDevices = showHiddenDevices,
@@ -193,9 +211,17 @@ private fun DrawerSheetContent(
         },
         openSettings = {
             coroutineScope.launch {
-                openSettings()
+                actions.openSettings()
+                drawerState.close()
+            }
+        },
+        openChangelogs = {
+            coroutineScope.launch {
+                actions.openChangelogs()
                 drawerState.close()
             }
         },
     )
 }
+
+data class DeviceListDetailActions(val openSettings: () -> Unit, val openChangelogs: () -> Unit = {})

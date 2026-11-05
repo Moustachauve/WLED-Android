@@ -1,0 +1,37 @@
+package ca.cgagnier.wlednativeandroid.service.update
+
+import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.wledapi.DeviceStateInfo
+import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
+import co.touchlab.kermit.Logger
+
+private const val TAG = "DeviceUpdateManager"
+private val logger = Logger.withTag(TAG)
+
+class DeviceUpdateManager(private val releaseService: ReleaseService) : UpdateTagResolver {
+
+    /**
+     * Checks if a software update is available for the given [device] and [stateInfo].
+     *
+     * @return The latest release version tag (e.g., "16.0.1") if an update is available,
+     * or `null` if up-to-date, OTA is disabled, or state info is absent.
+     */
+    override suspend fun checkForUpdate(device: Device, stateInfo: DeviceStateInfo?): String? {
+        val info = stateInfo?.info ?: return null
+        val repository = getRepositoryFromInfo(info)
+        logger.d {
+            "Checking for software update for ${device.macAddress} on $repository"
+        }
+        return releaseService.getNewerReleaseTag(
+            deviceInfo = info,
+            branch = device.branch,
+            ignoreVersion = device.skipUpdateTag,
+        )
+    }
+
+    /**
+     * Convenience method to check for updates given an immutable [DeviceWithState].
+     */
+    suspend fun checkForUpdate(deviceWithState: DeviceWithState): String? =
+        checkForUpdate(deviceWithState.device, deviceWithState.stateInfo)
+}

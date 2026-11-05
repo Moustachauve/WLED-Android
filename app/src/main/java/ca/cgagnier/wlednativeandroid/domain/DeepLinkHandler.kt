@@ -6,7 +6,6 @@ import android.net.Uri
 import androidx.core.net.toUri
 import ca.cgagnier.wlednativeandroid.model.DEFAULT_WLED_AP_IP
 import ca.cgagnier.wlednativeandroid.ui.MainActivity
-import javax.inject.Inject
 
 /**
  * Represents a parsed deep link result.
@@ -30,7 +29,7 @@ sealed class DeepLink {
  * - wled://{ip_or_hostname} - e.g., wled://192.168.1.50 or wled://wled.local
  * - http://4.3.2.1 - Default WLED AP mode IP
  */
-class DeepLinkHandler @Inject constructor() {
+class DeepLinkHandler {
 
     companion object {
         private const val SCHEME_WLED = "wled"

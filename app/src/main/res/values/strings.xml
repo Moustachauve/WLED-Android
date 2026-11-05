@@ -47,8 +47,8 @@
     <string name="dark">Dark</string>
     <string name="system_default">System default</string>
     <string name="listing_options">Listing Options</string>
-    <string name="discovering_devices">Discovering Devices</string>
     <string name="automatically_discover_new_devices">Automatically Discover New Devices</string>
+    <string name="automatically_discover_new_devices_description">When disabled, pull down on the device list to scan manually.</string>
     <string name="show_hidden_devices">Show Hidden Devices</string>
     <string name="hide_hidden_devices">Hide Hidden Devices</string>
     <string name="show_offline_devices_last">Show Offline Devices Last</string>
@@ -78,12 +78,10 @@
     <string name="device_update_disclaimer_part2">If someone installed this device for you, you should maybe ask them if it is alright to update the device to a new version.</string>
     <string name="device_update_disclaimer_part3">WLED is not responsible if something goes wrong due to an update.</string>
     <string name="install_update">Install Update</string>
-    <string name="ota_install_failed_device_locked">Your device might be PIN protected or locked with a passphrase.</string>
     <string name="no_compatible_version_found">No Compatible Version Found</string>
     <string name="no_compatible_version_found_details">No version that is compatible with your device could be found. You will need to manually update your device.</string>
     <string name="show_error">Show Error</string>
     <string name="hide_error">Hide Error</string>
-    <string name="unknown_error">Unknown Error</string>
     <string name="success">Success!</string>
     <string name="update_channel">Update Channel</string>
     <string name="update_source">Update Source</string>
@@ -116,12 +114,12 @@
     <string name="open">Open</string>
     <string name="dismiss">Dismiss</string>
     <string name="some_devices_hidden">Some of your devices are hidden</string>
-    <!-- TODO: Translate the widget texts -->
     <string name="widget_single_device_name">Single Device</string>
     <string name="widget_description">Control a single WLED device</string>
     <string name="widget_please_configure">Please configure</string>
+    <string name="widget_toggle_power">Toggle Power</string>
+    <string name="widget_refresh">Refresh</string>
     <string name="select_a_device">Select a Device</string>
-    <string name="last_updated">Last Updated</string>
 
     <!-- Deep linking -->
     <string name="deep_link_loading">Connecting to device…</string>
@@ -133,5 +131,18 @@
     <string name="control_on">On</string>
     <string name="control_off">Off</string>
     <string name="no_release_notes_provided">No release notes provided</string>
+
+    <!-- Changelog -->
+    <string name="changelog_title">What\'s new</string>
+    <string name="changelog_version">Version %1$s</string>
+    <string name="changelog_version_dev">Dev</string>
+    <string name="changelog_dismiss_button">Awesome</string>
+    <string name="show_changelog">Show changelog</string>
+
+    <!-- Local network permission -->
+    <string name="local_network_warning_title">Local Network Access Required</string>
+    <string name="local_network_warning_body">WLED needs Local Network access to discover and control your devices.</string>
+    <string name="local_network_instructions">Go to Settings → Apps → WLED → Permissions → Nearby devices</string>
+    <string name="local_network_allow_access">Allow Access</string>
 
 </resources>

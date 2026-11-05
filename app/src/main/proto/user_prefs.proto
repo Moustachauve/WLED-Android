@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option java_package = "ca.cgagnier.wlednativeandroid.repository";
+option java_package = "ca.cgagnier.wlednativeandroid.repository.legacy";
 option java_multiple_files = true;
 
 enum ThemeSettings{
@@ -35,4 +35,6 @@ message UserPreferences {
   int64 date_last_written = 10;
 
   bool show_hidden_devices = 11;
+
+  string last_changelog_version_seen = 12;
 }

@@ -30,7 +30,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.VersionWithAssets
@@ -38,13 +37,14 @@ import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.ui.components.deviceName
 import ca.cgagnier.wlednativeandroid.ui.preview.getPreviewDevice
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun UpdateInstallingDialog(
     device: DeviceWithState,
     version: VersionWithAssets,
     onDismiss: (wasSuccessful: Boolean) -> Unit,
-    viewModel: UpdateInstallingViewModel = hiltViewModel(),
+    viewModel: UpdateInstallingViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current

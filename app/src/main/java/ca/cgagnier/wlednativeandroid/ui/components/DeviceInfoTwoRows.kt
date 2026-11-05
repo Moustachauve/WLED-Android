@@ -28,7 +28,6 @@ import androidx.compose.material3.TooltipDefaults.rememberTooltipPositionProvide
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,7 +72,7 @@ fun DeviceInfoTwoRows(
     currentTime: Long = 0,
     nameMaxLines: Int = 2,
 ) {
-    val updateTag by device.updateVersionTagFlow.collectAsState(initial = null)
+    val updateTag = device.updateVersionTag
 
     Column(modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -93,7 +92,7 @@ fun DeviceInfoTwoRows(
             //  the address + offline message can't both fit. Right now, only the address can be
             //  truncated. This is due to the limitation of the weight system of a row. When using
             //  `fill = false`, the unused space is not distributed to the other elements.
-            WebsocketStatusIndicator(device.websocketStatus.value)
+            WebsocketStatusIndicator(device.websocketStatus)
             Text(
                 device.device.address,
                 style = MaterialTheme.typography.labelMedium,
@@ -351,12 +350,12 @@ fun AnimatedWebsocketPreview() {
         }
     }
     val device = DeviceWithState(
-        Device(
+        device = Device(
             macAddress = AP_MODE_MAC_ADDRESS,
             address = "4.3.2.1",
         ),
+        websocketStatus = currentState,
     )
-    device.websocketStatus.value = currentState
 
     MaterialTheme {
         Card(

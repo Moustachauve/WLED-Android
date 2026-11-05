@@ -29,24 +29,19 @@ import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.lifecycle.lifecycleScope
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
+import ca.cgagnier.wlednativeandroid.model.resolveDeviceName
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.ui.components.deviceName
 import ca.cgagnier.wlednativeandroid.ui.theme.WLEDNativeTheme
-import ca.cgagnier.wlednativeandroid.widget.components.getDeviceName
-import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import javax.inject.Inject
+import org.koin.android.ext.android.inject
 
-@AndroidEntryPoint
 class WledWidgetConfigureActivity : ComponentActivity() {
 
-    @Inject
-    lateinit var deviceRepository: DeviceRepository
-
-    @Inject
-    lateinit var widgetManager: WledWidgetManager
+    private val deviceRepository: DeviceRepository by inject()
+    private val widgetManager: WledWidgetManager by inject()
 
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
@@ -88,7 +83,7 @@ class WledWidgetConfigureActivity : ComponentActivity() {
             val widgetData = WidgetStateData(
                 macAddress = device.macAddress,
                 address = device.address,
-                name = getDeviceName(device, getString(R.string.default_device_name)),
+                name = resolveDeviceName(device, getString(R.string.default_device_name)),
                 isOn = false,
                 lastUpdated = System.currentTimeMillis(),
             )

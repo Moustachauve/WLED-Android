@@ -1,19 +1,26 @@
 
 plugins {
-    alias(libs.plugins.kotlin) apply false
+    alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.android.library) apply false
-    alias(libs.plugins.hilt) apply false
+    alias(libs.plugins.android.kotlin.multiplatform.library) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.skie) apply false
     alias(libs.plugins.detekt) apply false
+    alias(libs.plugins.androidx.room) apply false
     alias(libs.plugins.spotless)
 }
 
+val isCi =
+    providers
+        .environmentVariable("CI")
+        .map { it.isNotEmpty() && !it.equals("false", ignoreCase = true) }
+        .getOrElse(false)
+
 spotless {
     // Only use ratchet locally. On CI, check all files (faster than fetching git history)
-    if (System.getenv("CI").isNullOrEmpty()) {
+    if (!isCi) {
         ratchetFrom("origin/dev")
     }
 
@@ -30,7 +37,7 @@ subprojects {
     apply(plugin = "io.gitlab.arturbosch.detekt")
 
     configure<com.diffplug.gradle.spotless.SpotlessExtension> {
-        if (System.getenv("CI").isNullOrEmpty()) {
+        if (!isCi) {
             ratchetFrom("origin/dev")
         }
 
@@ -72,11 +79,27 @@ subprojects {
         buildUponDefaultConfig = true
         config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
         baseline = file("$projectDir/detekt-baseline.xml")
+        parallel = true
+        source.setFrom(
+            files(
+                "src/main/java",
+                "src/main/kotlin",
+                "src/commonMain/kotlin",
+                "src/androidMain/kotlin",
+                "src/iosMain/kotlin",
+                "src/commonTest/kotlin",
+                "src/androidHostTest/kotlin",
+                "src/iosTest/kotlin",
+                "src/test/java",
+                "src/test/kotlin",
+                "src/screenshotTest/kotlin",
+            ),
+        )
     }
 }
 
 tasks.register("installGitHooks") {
-    description = "Installs a git pre-commit hook to run Spotless"
+    description = "Installs a git pre-commit hook to run Spotless, Detekt, and SwiftLint"
     group = "help"
 
     // Capture the root directory here, during configuration, not execution
@@ -90,10 +113,10 @@ tasks.register("installGitHooks") {
         val preCommitFile = File(hooksDir, "pre-commit")
         preCommitFile.writeText(
             """
-                        #!/bin/bash
+            #!/bin/bash
             echo "Running Spotless check..."
             ./gradlew spotlessCheck
-            if [ $? -ne 0 ]; then
+            if [ ${'$'}? -ne 0 ]; then
                 echo "Spotless check failed. Automatically formatting..."
                 ./gradlew spotlessApply
                 echo "Code has been reformatted. Please review, stage, and commit again."
@@ -102,14 +125,23 @@ tasks.register("installGitHooks") {
 
             echo "Running Detekt check..."
             ./gradlew detekt
-            if [ $? -ne 0 ]; then
+            if [ ${'$'}? -ne 0 ]; then
                 echo "Detekt found issues. Please fix them manually and commit again."
                 exit 1
             fi
 
+            if command -v swiftlint >/dev/null 2>&1; then
+                echo "Running SwiftLint check..."
+                swiftlint lint --config iosApp/.swiftlint.yml --strict iosApp
+                if [ ${'$'}? -ne 0 ]; then
+                    echo "SwiftLint found issues. Please fix them manually and commit again."
+                    exit 1
+                fi
+            fi
+
             echo "All checks passed!"
             exit 0
-            """.trimIndent(),
+            """.trimIndent() + "\n",
         )
 
         preCommitFile.setExecutable(true)

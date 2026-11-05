@@ -1,0 +1,110 @@
+import SwiftUI
+import Shared
+
+private typealias State = SwiftUI.State
+
+struct DeviceListItemView: View {
+    @Environment(\.colorScheme) var colorScheme
+    var device: DeviceWithState
+
+    var isSelected: Bool = false
+
+    // MARK: - Actions
+    var onTogglePower: (Bool) -> Void
+    var onChangeBrightness: (Int) -> Void
+
+    @State private var brightness: Double = 0.0
+
+    var body: some View {
+        let fixedDeviceColor = device.currentColor.fixDisplayColor(colorScheme: colorScheme)
+        let backgroundColor = isSelected
+        ? fixedDeviceColor.opacity(DeviceSelectionStyle.Style.selectedOpacity)
+        : fixedDeviceColor.opacity(DeviceSelectionStyle.Style.unselectedOpacity)
+
+        Card(style: .device(color: backgroundColor)) {
+            HStack {
+                DeviceInfoTwoRows(device: device)
+
+                Toggle("Turn On/Off", isOn: isOnBinding)
+                    .labelsHidden()
+                    .frame(alignment: .trailing)
+            }
+
+            Slider(
+                value: $brightness,
+                in: 0.0...255.0,
+                onEditingChanged: { editing in
+                    // Call the brightness closure when dragging ends
+                    if !editing {
+                        onChangeBrightness(Int(brightness))
+                    }
+                }
+            )
+        }
+        .applyDeviceSelectionStyle(isSelected: isSelected, color: fixedDeviceColor)
+        .animation(.linear(duration: 0.3), value: fixedDeviceColor)
+        .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+        .onAppear {
+            brightness = Double(device.stateInfo?.state.brightness?.intValue ?? 0)
+        }
+        .onChange(of: device.stateInfo?.state.brightness) {
+            withAnimation(.spring()) {
+                self.brightness = Double(device.stateInfo?.state.brightness?.intValue ?? 0)
+            }
+        }
+    }
+
+    private var isOnBinding: Binding<Bool> {
+        Binding(get: {
+            device.stateInfo?.state.isOn?.boolValue ?? false
+        }, set: { isOn in
+            onTogglePower(isOn)
+        })
+    }
+
+}
+
+#if DEBUG
+struct DeviceListItemView_Previews: PreviewProvider {
+    static var previews: some View {
+        let device = PreviewData.onlineDevice
+
+        VStack(alignment: .leading) {
+            Text("1st Selected, 2nd unselected")
+            DeviceListItemView(
+                device: device,
+                isSelected: true,
+                onTogglePower: { isOn in
+                    print("Preview: Power toggled to \(isOn)")
+                    if let current = device.stateInfo {
+                        device.stateInfo = current.withIsOn(isOn: isOn)
+                    }
+                },
+                onChangeBrightness: { val in
+                    print("Preview: Brightness changed to \(val)")
+                    if let current = device.stateInfo {
+                        device.stateInfo = current.withBrightness(brightness: Int32(val))
+                    }
+                }
+            )
+            DeviceListItemView(
+                device: device,
+                onTogglePower: { isOn in
+                    print("Preview: Power toggled to \(isOn)")
+                    if let current = device.stateInfo {
+                        device.stateInfo = current.withIsOn(isOn: isOn)
+                    }
+                },
+                onChangeBrightness: { val in
+                    print("Preview: Brightness changed to \(val)")
+                    if let current = device.stateInfo {
+                        device.stateInfo = current.withBrightness(brightness: Int32(val))
+                    }
+                }
+            )
+        }
+        .padding()
+        .previewLayout(.sizeThatFits)
+    }
+}
+#endif

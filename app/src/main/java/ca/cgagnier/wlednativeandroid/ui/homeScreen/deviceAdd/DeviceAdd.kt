@@ -42,15 +42,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.ui.components.deviceName
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun DeviceAdd(
     modifier: Modifier = Modifier,
     onDismissRequest: () -> Unit,
-    viewModel: DeviceAddViewModel = hiltViewModel(),
+    viewModel: DeviceAddViewModel = koinViewModel(),
 ) {
     val state = viewModel.state
 

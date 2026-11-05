@@ -1,0 +1,494 @@
+# frozen_string_literal: true
+
+require "base64"
+require "fileutils"
+require "tmpdir"
+
+opt_out_usage
+default_platform(:android)
+
+REPO_ROOT = File.expand_path("..", __dir__)
+IOS_PROJECT_PATH = File.join(REPO_ROOT, "iosApp", "wled.xcodeproj")
+IOS_TEAM_ID = "RWLNCUSDCJ"
+ANDROID_PACKAGE_NAME = "ca.cgagnier.wlednativeandroid"
+IOS_BUNDLE_ID = "ca.cgagnier.wled-native"
+IOS_WIDGET_BUNDLE_ID = "ca.cgagnier.wled-native.widgets"
+GOOGLE_PLAY_MAX_CHANGELOG_CHARS = 500
+ANDROID_PLAY_CHANGELOG_DIR = File.join(__dir__, "changelogs")
+# Keep localized "Other Improvements" heading prefixes in sync with `.agents/skills/translate-changelog/SKILL.md` (Step 3).
+OTHER_IMPROVEMENTS_HEADING_REGEX = /\A(other improvements|autres améliorations|weitere verbesserungen|其他改进)/i
+
+# Maps changelog language suffixes (<version>.<lang>.md) to store locale codes.
+# Keep aligned with locales enabled in Google Play Console and App Store Connect.
+PLAY_STORE_LOCALE_MAP = {
+  "fr" => %w[fr-CA fr-FR],
+  "de" => %w[de-DE],
+  "zh" => %w[zh-CN]
+}.freeze
+
+APP_STORE_LOCALE_MAP = {
+  "fr" => %w[fr-CA],
+  "de" => %w[de-DE],
+  "zh" => %w[zh-Hans]
+}.freeze
+
+def strip_v_prefix(version_str)
+  version_str.to_s.strip.sub(/\Av/i, "")
+end
+
+def base_semver(version_str)
+  strip_v_prefix(version_str).split("-").first
+end
+
+def strip_inline_markdown(text)
+  text.gsub(/\*\*(.+?)\*\*/, '\1')
+      .gsub(/`([^`]+)`/, '\1')
+      .strip
+end
+
+def clean_bullet(line)
+  strip_inline_markdown(line).sub(/\A-\s+/, "").strip
+end
+
+def format_heading_prefix(heading)
+  cleaned = strip_inline_markdown(heading)
+  cleaned.match?(/[:!?：！？]\z/) ? cleaned : "#{cleaned}:"
+end
+
+def extract_first_sentence(text)
+  cleaned = clean_bullet(text)
+  match = cleaned.match(/\A(.+?[.!?。！？])(?:\s|\z)/)
+  match ? match[1].strip : cleaned
+end
+
+def truncate_with_ellipsis(text, max_length)
+  return text if max_length.nil? || text.length <= max_length
+
+  truncated = text[0...(max_length - 3)]
+  last_newline = truncated.rindex("\n")
+  last_space = truncated.rindex(" ")
+  cutoff = if last_newline && last_newline > max_length * 0.6
+             last_newline
+           elsif last_space && last_space > max_length * 0.6
+             last_space
+           else
+             max_length - 3
+           end
+  "#{truncated[0...cutoff].rstrip}..."
+end
+
+# Summarizes a rich Markdown changelog into concise plain-text bullets that fit within max_length,
+# prioritizing major `###` feature sections before `### Other Improvements` bullets so release notes
+# are not cut off mid-sentence.
+def summarize_markdown_changelog(raw_markdown, max_length: nil)
+  plain_text = strip_inline_markdown(
+    raw_markdown.gsub(/^###+\s+(.+)$/) { format_heading_prefix(Regexp.last_match(1)) }
+  )
+
+  return plain_text if max_length.nil? || plain_text.length <= max_length
+
+  primary_bullets = []
+  secondary_bullets = []
+  current_heading = nil
+  current_lines = []
+
+  flush_section = lambda do
+    next if current_heading.nil? && current_lines.empty?
+
+    if current_heading.nil? || current_heading.match?(OTHER_IMPROVEMENTS_HEADING_REGEX)
+      target = current_heading.nil? ? primary_bullets : secondary_bullets
+      current_lines.each do |line|
+        cleaned = clean_bullet(line)
+        target << "- #{cleaned}" unless cleaned.empty?
+      end
+    else
+      first_line = current_lines.first
+      summary_sentence = first_line ? extract_first_sentence(first_line) : nil
+      bullet = if summary_sentence && !summary_sentence.empty?
+                 "- #{format_heading_prefix(current_heading)} #{summary_sentence}"
+               else
+                 "- #{current_heading}"
+               end
+      primary_bullets << bullet
+    end
+  end
+
+  raw_markdown.each_line do |raw_line|
+    line = raw_line.strip
+    next if line.empty?
+
+    if (heading_match = line.match(/\A###+\s+(.+)\z/))
+      flush_section.call
+      current_heading = strip_inline_markdown(heading_match[1])
+      current_lines = []
+    else
+      current_lines << line
+    end
+  end
+  flush_section.call
+
+  ordered_bullets = primary_bullets + secondary_bullets
+  selected = []
+  ordered_bullets.each do |bullet|
+    candidate = (selected + [bullet]).join("\n")
+    break if candidate.length > max_length
+
+    selected << bullet
+  end
+
+  return truncate_with_ellipsis(ordered_bullets.first, max_length) if selected.empty?
+
+  selected.join("\n")
+end
+
+def resolve_changelog_source(changelog_dir:, version:, is_beta:, lang: nil, summary_dir: nil)
+  clean_version = strip_v_prefix(version)
+  numeric_version = base_semver(version)
+  version_stems = [
+    clean_version,
+    "v#{clean_version}",
+    numeric_version,
+    "v#{numeric_version}"
+  ].uniq
+  stems = (is_beta ? ["dev", *version_stems] : [*version_stems, "dev"]).uniq
+  lang_prefix = lang ? ".#{lang}" : ""
+
+  search_entries = []
+  stems.each do |stem|
+    is_dev_fallback = !is_beta && stem == "dev"
+    if summary_dir
+      search_entries << {
+        path: File.join(summary_dir, "#{stem}#{lang_prefix}.txt"),
+        label: "changelogs/#{stem}#{lang_prefix}.txt",
+        curated_summary: true,
+        is_dev_fallback: is_dev_fallback
+      }
+    end
+    search_entries << {
+      path: File.join(changelog_dir, "#{stem}#{lang_prefix}.md"),
+      label: "#{stem}#{lang_prefix}.md",
+      curated_summary: false,
+      is_dev_fallback: is_dev_fallback
+    }
+  end
+
+  selected = search_entries.find { |entry| File.exist?(entry[:path]) && !File.read(entry[:path]).strip.empty? }
+  [selected, search_entries.map { |entry| entry[:label] }]
+end
+
+# Keep candidate filenames in sync with the pre-flight check in `.github/workflows/release.yml`.
+def read_plain_changelog(changelog_dir:, version:, is_beta:, max_length: nil, lang: nil, required: true, summary_dir: nil)
+  numeric_version = base_semver(version)
+  selected, checked_labels = resolve_changelog_source(
+    changelog_dir: changelog_dir,
+    version: version,
+    is_beta: is_beta,
+    lang: lang,
+    summary_dir: summary_dir
+  )
+
+  unless selected
+    return nil unless required
+
+    UI.user_error!("No non-empty changelog found in #{changelog_dir} (checked: #{checked_labels.join(', ')})")
+  end
+
+  # When running Fastlane locally without the CI workspace promotion step, warn if falling back to dev.
+  if selected[:is_dev_fallback]
+    lang_prefix = lang ? ".#{lang}" : ""
+    missing_targets = if summary_dir
+                        "changelogs/#{numeric_version}#{lang_prefix}.txt or #{numeric_version}#{lang_prefix}.md"
+                      else
+                        "#{numeric_version}#{lang_prefix}.md"
+                      end
+    UI.important(
+      "Warning: #{missing_targets} was not found in #{changelog_dir}; " \
+      "falling back to #{selected[:label]} so the tagged release succeeds."
+    )
+  end
+
+  raw_content = File.read(selected[:path]).strip
+
+  if selected[:curated_summary]
+    if max_length && raw_content.length > max_length
+      UI.user_error!(
+        "Curated Play Store changelog #{selected[:path]} is #{raw_content.length} characters, " \
+        "exceeding the #{max_length}-character limit. Summarize it to <= #{max_length} characters."
+      )
+    end
+    return raw_content
+  end
+
+  summarize_markdown_changelog(raw_content, max_length: max_length)
+end
+
+def read_localized_changelogs(
+  changelog_dir:,
+  version:,
+  is_beta:,
+  locale_map:,
+  default_locales:,
+  max_length: nil,
+  summary_dir: nil
+)
+  default_notes = read_plain_changelog(
+    changelog_dir: changelog_dir,
+    version: version,
+    is_beta: is_beta,
+    max_length: max_length,
+    summary_dir: summary_dir
+  )
+
+  notes_by_locale = default_locales.each_with_object({}) do |store_locale, acc|
+    acc[store_locale] = default_notes
+  end
+
+  locale_map.each do |lang, store_locales|
+    localized_notes = read_plain_changelog(
+      changelog_dir: changelog_dir,
+      version: version,
+      is_beta: is_beta,
+      max_length: max_length,
+      lang: lang,
+      required: false,
+      summary_dir: summary_dir
+    )
+    next unless localized_notes
+
+    store_locales.each do |store_locale|
+      notes_by_locale[store_locale] = localized_notes
+    end
+  end
+
+  notes_by_locale
+end
+
+def require_env!(name)
+  value = ENV[name].to_s.strip
+  UI.user_error!("Missing required environment variable: #{name}") if value.empty?
+  value
+end
+
+platform :android do
+  desc "Deploy signed Android App Bundle (.aab) to Google Play ('beta' or 'production' track)"
+  lane :deploy do |options|
+    track = (options[:track] || ENV.fetch("PLAY_STORE_TRACK", "beta")).to_s
+    is_beta = track != "production"
+    dry_run = options[:dry_run] == true || ENV["DRY_RUN"] == "true"
+    version_code = (options[:version_code] || require_env!("VERSION_CODE")).to_s
+    version_name = strip_v_prefix(options[:version_name] || require_env!("VERSION_NAME"))
+    aab_path = File.join(REPO_ROOT, "app", "build", "outputs", "bundle", "release", "app-release.aab")
+
+    UI.user_error!("Signed AAB not found at #{aab_path}") unless File.exist?(aab_path)
+
+    changelog_dir = File.join(REPO_ROOT, "app", "src", "main", "assets", "changelog")
+    notes_by_locale = read_localized_changelogs(
+      changelog_dir: changelog_dir,
+      summary_dir: ANDROID_PLAY_CHANGELOG_DIR,
+      version: version_name,
+      is_beta: is_beta,
+      locale_map: PLAY_STORE_LOCALE_MAP,
+      default_locales: ["en-US"],
+      max_length: GOOGLE_PLAY_MAX_CHANGELOG_CHARS
+    )
+
+    Dir.mktmpdir("wled-android-metadata") do |android_metadata_dir|
+      notes_by_locale.each do |store_locale, locale_notes|
+        play_changelog_dir = File.join(android_metadata_dir, store_locale, "changelogs")
+        FileUtils.mkdir_p(play_changelog_dir)
+        File.write(File.join(play_changelog_dir, "#{version_code}.txt"), "#{locale_notes}\n")
+      end
+
+      upload_to_play_store(
+        package_name: ANDROID_PACKAGE_NAME,
+        track: track,
+        release_status: "completed",
+        aab: aab_path,
+        json_key_data: require_env!("GOOGLE_PLAY_JSON_KEY"),
+        metadata_path: android_metadata_dir,
+        validate_only: dry_run,
+        skip_upload_apk: true,
+        skip_upload_metadata: true,
+        skip_upload_images: true,
+        skip_upload_screenshots: true,
+        skip_upload_changelogs: false
+      )
+    end
+  end
+end
+
+platform :ios do
+  private_lane :build_signed_ipa do |options|
+    version_code = (options[:version_code] || require_env!("VERSION_CODE")).to_s
+    version_name = strip_v_prefix(options[:version_name] || require_env!("VERSION_NAME"))
+    marketing_version = base_semver(version_name)
+    is_beta = options[:is_beta] == true
+
+    setup_ci if ENV["CI"]
+
+    cert_base64 = require_env!("IOS_DIST_CERT_BASE64")
+    cert_password = ENV.fetch("IOS_DIST_CERT_PASSWORD", "")
+    key_id = require_env!("ASC_KEY_ID")
+    issuer_id = require_env!("ASC_ISSUER_ID")
+    key_p8_base64 = require_env!("ASC_KEY_P8_BASE64")
+
+    api_key = app_store_connect_api_key(
+      key_id: key_id,
+      issuer_id: issuer_id,
+      key_content: key_p8_base64,
+      is_key_content_base64: true,
+      in_house: false
+    )
+
+    ios_changelog_dir = File.join(REPO_ROOT, "iosApp", "wled", "changelog")
+
+    notes_by_locale = read_localized_changelogs(
+      changelog_dir: ios_changelog_dir,
+      version: version_name,
+      is_beta: is_beta,
+      locale_map: APP_STORE_LOCALE_MAP,
+      default_locales: %w[default en-US]
+    )
+
+    pbxproj_file = File.join(IOS_PROJECT_PATH, "project.pbxproj")
+    original_pbxproj = File.read(pbxproj_file)
+
+    Dir.mktmpdir("wled-ios-signing") do |tmpdir|
+      cert_path = File.join(tmpdir, "distribution.p12")
+      File.binwrite(cert_path, Base64.decode64(cert_base64))
+
+      cert_opts = {
+        certificate_path: cert_path,
+        certificate_password: cert_password
+      }
+      if ENV["MATCH_KEYCHAIN_NAME"]
+        cert_opts[:keychain_name] = ENV["MATCH_KEYCHAIN_NAME"]
+        cert_opts[:keychain_password] = ENV.fetch("MATCH_KEYCHAIN_PASSWORD", "")
+      end
+      import_certificate(cert_opts)
+
+      # Fetch/create App Store provisioning profiles for both targets using the API key and
+      # switch targets to manual distribution signing so Xcode archive never attempts to
+      # create an Apple Development certificate on ephemeral CI runners.
+      get_provisioning_profile(
+        api_key: api_key,
+        app_identifier: IOS_BUNDLE_ID,
+        output_path: tmpdir
+      )
+      main_profile_name = Actions.lane_context[SharedValues::SIGH_NAME]
+
+      get_provisioning_profile(
+        api_key: api_key,
+        app_identifier: IOS_WIDGET_BUNDLE_ID,
+        output_path: tmpdir
+      )
+      widget_profile_name = Actions.lane_context[SharedValues::SIGH_NAME]
+
+      update_code_signing_settings(
+        path: IOS_PROJECT_PATH,
+        use_automatic_signing: false,
+        team_id: IOS_TEAM_ID,
+        code_sign_identity: "Apple Distribution",
+        targets: ["WLED"],
+        profile_name: main_profile_name,
+        bundle_identifier: IOS_BUNDLE_ID
+      )
+      update_code_signing_settings(
+        path: IOS_PROJECT_PATH,
+        use_automatic_signing: false,
+        team_id: IOS_TEAM_ID,
+        code_sign_identity: "Apple Distribution",
+        targets: ["WLEDWidgets"],
+        profile_name: widget_profile_name,
+        bundle_identifier: IOS_WIDGET_BUNDLE_ID
+      )
+
+      version_xcargs = [
+        "SKIP_KMP_BUILD=1",
+        "MARKETING_VERSION=#{marketing_version}",
+        "CURRENT_PROJECT_VERSION=#{version_code}",
+        "-skipPackagePluginValidation",
+        "-skipMacroValidation"
+      ].join(" ")
+
+      ipa_path = build_app(
+        project: IOS_PROJECT_PATH,
+        scheme: "wled",
+        configuration: "Release",
+        clean: true,
+        output_directory: File.join(REPO_ROOT, "iosApp", "build"),
+        output_name: "WLED.ipa",
+        export_method: "app-store",
+        xcargs: version_xcargs,
+        export_options: {
+          signingStyle: "manual",
+          teamID: IOS_TEAM_ID,
+          provisioningProfiles: {
+            IOS_BUNDLE_ID => main_profile_name,
+            IOS_WIDGET_BUNDLE_ID => widget_profile_name
+          }
+        }
+      )
+
+      {
+        api_key: api_key,
+        ipa_path: ipa_path,
+        marketing_version: marketing_version,
+        notes: notes_by_locale["en-US"],
+        notes_by_locale: notes_by_locale
+      }
+    ensure
+      File.write(pbxproj_file, original_pbxproj)
+    end
+  end
+
+  desc "Build, sign, and upload iOS Beta to TestFlight external 'Beta' group"
+  lane :beta do |options|
+    result = build_signed_ipa(options.merge(is_beta: true))
+    if options[:dry_run] == true || ENV["DRY_RUN"] == "true"
+      UI.success("Dry run enabled; signed IPA built at #{result[:ipa_path]}. Skipping TestFlight upload.")
+      next
+    end
+    external_group = ENV.fetch("IOS_TESTFLIGHT_GROUP", "Beta").to_s.strip
+
+    upload_to_testflight(
+      api_key: result[:api_key],
+      app_identifier: IOS_BUNDLE_ID,
+      ipa: result[:ipa_path],
+      changelog: result[:notes],
+      distribute_external: !external_group.empty?,
+      groups: external_group.empty? ? nil : [external_group],
+      notify_external_testers: !external_group.empty?
+    )
+  end
+
+  desc "Build, sign, and submit iOS Production release to App Store Connect"
+  lane :release do |options|
+    result = build_signed_ipa(options.merge(is_beta: false))
+    if options[:dry_run] == true || ENV["DRY_RUN"] == "true"
+      UI.success("Dry run enabled; signed IPA built at #{result[:ipa_path]}. Skipping App Store Connect upload.")
+      next
+    end
+
+    Dir.mktmpdir("wled-ios-metadata") do |ios_metadata_dir|
+      upload_to_app_store(
+        api_key: result[:api_key],
+        app_identifier: IOS_BUNDLE_ID,
+        ipa: result[:ipa_path],
+        app_version: result[:marketing_version],
+        metadata_path: ios_metadata_dir,
+        ignore_language_directory_validation: true,
+        submit_for_review: true,
+        automatic_release: true,
+        force: true,
+        skip_screenshots: true,
+        skip_metadata: false,
+        run_precheck_before_submit: false,
+        release_notes: result[:notes_by_locale],
+        submission_information: {
+          add_id_info_uses_idfa: false
+        }
+      )
+    end
+  end
+end

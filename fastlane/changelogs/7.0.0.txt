@@ -1,0 +1,5 @@
+- Redesigned interactive home screen widgets with real-time sync and dynamic Material You colors.
+- Android Quick Settings tile to toggle lights directly from your notification shade.
+- OTA firmware update support for QuinLED and MoonModules boards.
+- Support for wled:// deep links from other apps and shortcuts.
+- Added German and Simplified Chinese translations, plus auto-discovery and stability improvements.

@@ -1,0 +1,48 @@
+{
+    "ver": "16.0.1",
+    "vid": 2606300,
+    "cn": "Niji",
+    "release": "ESP32",
+    "repo": "wled/WLED",
+    "name": "WLED Office",
+    "udpport": 21324,
+    "simplifiedui": false,
+    "live": false,
+    "liveseg": -1,
+    "ws": 3,
+    "fxcount": 220,
+    "palcount": 73,
+    "cpalcount": 1,
+    "arch": "esp32",
+    "core": "4.4.8.240628",
+    "clock": 240,
+    "flash": 4,
+    "freeheap": 120936,
+    "uptime": 2428926,
+    "time": "2026-9-25, 00:27:19",
+    "opt": 79,
+    "brand": "WLED",
+    "product": "FOSS",
+    "mac": "001122334455",
+    "ip": "10.0.0.100",
+    "leds": {
+        "count": 277,
+        "pwr": 2172,
+        "fps": 43,
+        "maxpwr": 10002,
+        "maxseg": 32,
+        "rgbw": true
+    },
+    "wifi": {
+        "bssid": "00:11:22:33:44:55",
+        "rssi": -66,
+        "signal": 68,
+        "channel": 1,
+        "ap": false
+    },
+    "fs": {
+        "u": 32,
+        "t": 983,
+        "pmt": 1788492069
+    }
+}

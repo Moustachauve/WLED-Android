@@ -43,8 +43,8 @@
     <string name="dark">暗色</string>
     <string name="system_default">系统默认</string>
     <string name="listing_options">列表选项</string>
-    <string name="discovering_devices">正在寻找设备</string>
     <string name="automatically_discover_new_devices">自动寻找新设备</string>
+    <string name="automatically_discover_new_devices_description">关闭后，可在设备列表下拉以手动搜索。</string>
     <string name="show_hidden_devices">显示已隐藏的设备</string>
     <string name="hide_hidden_devices">隐藏已隐藏的设备</string>
     <string name="show_offline_devices_last">离线设备显示在底部</string>
@@ -74,12 +74,10 @@
     <string name="device_update_disclaimer_part2">如果此设备由他人为您安装，您或许应询问他们是否可以将设备更新到新版本。</string>
     <string name="device_update_disclaimer_part3">因更新导致的任何问题，WLED 概不负责。</string>
     <string name="install_update">安装更新</string>
-    <string name="ota_install_failed_device_locked">您的设备可能受 PIN 码或密码保护。</string>
     <string name="no_compatible_version_found">未找到兼容版本</string>
     <string name="no_compatible_version_found_details">未找到与您的设备兼容的版本，您需要手动更新设备。</string>
     <string name="show_error">显示错误</string>
     <string name="hide_error">隐藏错误</string>
-    <string name="unknown_error">未知错误</string>
     <string name="success">成功！</string>
     <string name="update_channel">更新频道</string>
     <string name="update_source">更新来源</string>
@@ -116,8 +114,9 @@
     <string name="widget_single_device_name">单个设备</string>
     <string name="widget_description">控制单个 WLED 设备</string>
     <string name="widget_please_configure">请配置</string>
+    <string name="widget_toggle_power">切换电源</string>
+    <string name="widget_refresh">刷新</string>
     <string name="select_a_device">选择设备</string>
-    <string name="last_updated">最后更新</string>
 
     <!-- Deep linking -->
     <string name="deep_link_loading">正在连接设备…</string>
@@ -129,5 +128,18 @@
     <string name="control_on">开</string>
     <string name="control_off">关</string>
     <string name="no_release_notes_provided">未提供发行说明</string>
+
+    <!-- Changelog -->
+    <string name="changelog_title">更新内容</string>
+    <string name="changelog_version">版本 %1$s</string>
+    <string name="changelog_version_dev">Dev</string>
+    <string name="changelog_dismiss_button">太棒了</string>
+    <string name="show_changelog">查看更新日志</string>
+
+    <!-- Local network permission -->
+    <string name="local_network_warning_title">需要本地网络访问权限</string>
+    <string name="local_network_warning_body">WLED 需要本地网络访问权限才能发现并控制您的设备。</string>
+    <string name="local_network_instructions">前往“设置” → “应用” → WLED → “权限” → “附近的设备”</string>
+    <string name="local_network_allow_access">允许访问</string>
 
 </resources>

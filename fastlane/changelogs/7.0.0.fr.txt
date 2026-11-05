@@ -1,0 +1,5 @@
+- Nouveaux widgets interactifs sur l'écran d'accueil avec synchronisation en temps réel et couleurs dynamiques.
+- Tuile de paramètres rapides Android pour allumer ou éteindre vos lumières depuis le panneau de notifications.
+- Prise en charge des mises à jour OTA pour les cartes QuinLED et MoonModules.
+- Prise en charge des liens directs wled:// depuis d'autres applications et raccourcis.
+- Traductions en allemand et en chinois, découverte automatique améliorée et correctifs.

@@ -46,8 +46,8 @@
     <string name="dark">Dunkel</string>
     <string name="system_default">Systemeinstellungen</string>
     <string name="listing_options">Listenoptionen</string>
-    <string name="discovering_devices">Suche Geräte</string>
     <string name="automatically_discover_new_devices">Neue Geräte automatisch erkennen</string>
+    <string name="automatically_discover_new_devices_description">Wenn deaktiviert, ziehe die Geräteliste nach unten, um manuell zu suchen.</string>
     <string name="show_hidden_devices">Verborgene Geräte anzeigen</string>
     <string name="hide_hidden_devices">Verborgene Geräte ausblenden</string>
     <string name="show_offline_devices_last">Zeige Geräte, die offline sind, als letztes an</string>
@@ -77,12 +77,10 @@
     <string name="device_update_disclaimer_part2">Wenn jemand dieses Gerät für dich installiert hat, solltest du diese Person fragen, ob ein Update des Geräts in Ordnung ist.</string>
     <string name="device_update_disclaimer_part3">WLED ist nicht verantwortlich, wenn durch ein Update etwas schiefgeht.</string>
     <string name="install_update">Update installieren</string>
-    <string name="ota_install_failed_device_locked">Dein Gerät könnte durch eine PIN geschützt oder gesperrt sein.</string>
     <string name="no_compatible_version_found">Keine kompatible Version gefunden</string>
     <string name="no_compatible_version_found_details">Es wurde keine Version gefunden, die mit deinem Gerät kompatibel ist. Du musst dein Gerät manuell aktualisieren.</string>
     <string name="show_error">Fehler anzeigen</string>
     <string name="hide_error">Fehler verbergen</string>
-    <string name="unknown_error">Unbekannter Fehler</string>
     <string name="success">Erfolg!</string>
     <string name="update_channel">Update-Kanal</string>
     <string name="update_source">Update-Quelle</string>
@@ -115,12 +113,12 @@
     <string name="open">Öffnen</string>
     <string name="dismiss">Schließen</string>
     <string name="some_devices_hidden">Einige deiner Geräte sind verborgen</string>
-    <!-- TODO: Translate the widget texts -->
     <string name="widget_single_device_name">Einzelgerät</string>
     <string name="widget_description">Ein einzelnes WLED-Gerät steuern</string>
     <string name="widget_please_configure">Bitte konfigurieren</string>
+    <string name="widget_toggle_power">Ein-/Ausschalten</string>
+    <string name="widget_refresh">Aktualisieren</string>
     <string name="select_a_device">Wähle ein Gerät</string>
-    <string name="last_updated">Zuletzt aktualisiert</string>
 
     <!-- Deep linking -->
     <string name="deep_link_loading">Verbinde mit Gerät…</string>
@@ -132,5 +130,18 @@
     <string name="control_on">An</string>
     <string name="control_off">Aus</string>
     <string name="no_release_notes_provided">Keine Versionshinweise vorhanden</string>
+
+    <!-- Changelog -->
+    <string name="changelog_title">Was gibt\'s Neues</string>
+    <string name="changelog_version">Version %1$s</string>
+    <string name="changelog_version_dev">Dev</string>
+    <string name="changelog_dismiss_button">Fantastisch</string>
+    <string name="show_changelog">Änderungsprotokoll anzeigen</string>
+
+    <!-- Local network permission -->
+    <string name="local_network_warning_title">Zugriff auf lokales Netzwerk erforderlich</string>
+    <string name="local_network_warning_body">WLED benötigt Zugriff auf das lokale Netzwerk, um deine Geräte zu erkennen und zu steuern.</string>
+    <string name="local_network_instructions">Gehe zu Einstellungen → Apps → WLED → Berechtigungen → Geräte in der Nähe</string>
+    <string name="local_network_allow_access">Zugriff erlauben</string>
 
 </resources>

@@ -10,10 +10,12 @@ plugins {
 }
 
 dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
         google()
         mavenCentral()
     }
 }
-rootProject.name = "WLED-Android"
+rootProject.name = "WLED-App"
 include(":app")
+include(":shared")

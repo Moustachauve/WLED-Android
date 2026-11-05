@@ -5,11 +5,8 @@ import androidx.compose.ui.platform.UriHandler
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
+import org.junit.jupiter.api.Test
 
-@RunWith(RobolectricTestRunner::class)
 class UriUtilsTest {
 
     @Test

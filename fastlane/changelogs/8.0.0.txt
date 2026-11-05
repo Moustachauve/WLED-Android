@@ -1,0 +1,5 @@
+- Refreshed Material 3 home screen widgets with live Wi-Fi signal strength and an ambient glow.
+- What's New screen to view release notes after updates or anytime from Settings.
+- Fixed selecting files when uploading firmware, presets, or images to a device.
+- Support for the Android 17 local network permission and smarter automatic discovery.
+- Connection loading bar, bug fixes, and performance improvements.

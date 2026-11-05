@@ -19,6 +19,7 @@ package ca.cgagnier.wlednativeandroid.ui.components
 
 import android.annotation.SuppressLint
 import android.app.DownloadManager
+import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.ContentValues
 import android.content.Context
@@ -43,6 +44,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +54,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -85,10 +89,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
-import ca.cgagnier.wlednativeandroid.FileUploadContract
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.model.Device
-import ca.cgagnier.wlednativeandroid.ui.MainActivity
 import ca.cgagnier.wlednativeandroid.ui.components.LoadingState.Finished
 import ca.cgagnier.wlednativeandroid.ui.components.LoadingState.Loading
 import kotlinx.coroutines.CoroutineScope
@@ -116,7 +118,7 @@ fun DeviceWebView(
     navigator: WebViewNavigator = rememberWebViewNavigator(),
     client: CustomWebViewClient = remember { CustomWebViewClient() },
     context: Context = LocalContext.current,
-    chromeClient: CustomWebChromeClient = remember { CustomWebChromeClient(context) },
+    chromeClient: CustomWebChromeClient = remember { CustomWebChromeClient() },
 ) {
     Log.i(TAG, "composing webview")
     val webView = webViewViewModel.webView().collectAsState().value
@@ -146,7 +148,9 @@ fun DeviceWebView(
     }
     LaunchedEffect(webView, navigator) {
         with(navigator) {
-            webView.handleNavigationEvents()
+            webView.handleNavigationEvents(state) {
+                webViewViewModel.displayedDevice?.getDeviceUrl()
+            }
         }
     }
     LaunchedEffect(webView, state) {
@@ -183,6 +187,7 @@ fun DeviceWebView(
     client.state = state
     client.navigator = navigator
     chromeClient.state = state
+    chromeClient.onShowFileChooserCallback = rememberFileChooserCallback(webViewViewModel)
 
     fun resetWebview() {
         webView.loadUrl("about:blank")
@@ -282,7 +287,11 @@ fun DeviceErrorScreen(onRetry: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top,
     ) {
-        Image(painter = painterResource(id = R.drawable.akemi_018_teeth), contentDescription = null)
+        Image(
+            modifier = Modifier.heightIn(0.dp, 120.dp),
+            painter = painterResource(id = R.drawable.akemi_012_rip),
+            contentDescription = null,
+        )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = stringResource(R.string.device_error_title),
@@ -350,6 +359,7 @@ class CustomWebViewClient : WebViewClient() {
         if (request?.isForMainFrame == true) {
             Log.i(TAG, "Error received ${request.url} - ${error?.description}")
             state.isError = true
+            state.loadingState = Finished
         }
         if (error != null) {
             state.errorsForCurrentRequest.add(WebViewError(request, error))
@@ -357,9 +367,59 @@ class CustomWebViewClient : WebViewClient() {
     }
 }
 
-class CustomWebChromeClient(private val context: Context) : WebChromeClient() {
+@Composable
+private fun rememberFileChooserCallback(
+    webViewViewModel: WebViewViewModel,
+): (ValueCallback<Array<Uri>>, WebChromeClient.FileChooserParams) -> Boolean {
+    val fileChooserLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        webViewViewModel.onReceiveFileUploadResult(
+            WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data),
+        )
+    }
+    return remember(webViewViewModel, fileChooserLauncher) {
+        { filePathCallback, fileChooserParams ->
+            launchFileChooser(
+                webViewViewModel = webViewViewModel,
+                filePathCallback = filePathCallback,
+                fileChooserParams = fileChooserParams,
+                launchIntent = fileChooserLauncher::launch,
+            )
+        }
+    }
+}
+
+internal fun launchFileChooser(
+    webViewViewModel: WebViewViewModel,
+    filePathCallback: ValueCallback<Array<Uri>>,
+    fileChooserParams: WebChromeClient.FileChooserParams,
+    launchIntent: (Intent) -> Unit,
+): Boolean = try {
+    val intent = fileChooserParams.createIntent().apply {
+        // WebView's createIntent() resolves the first `accept` entry as the MIME filter.
+        // Preserve `image/*` so image inputs open directly to Android's Images picker,
+        // but fall back to `*/*` for non-image files (`.bin`, `.json`, `.css`) that OEM
+        // document providers frequently misclassify and grey out.
+        if (type?.startsWith("image/") != true) {
+            type = "*/*"
+            removeExtra(Intent.EXTRA_MIME_TYPES)
+        }
+    }
+    webViewViewModel.onStartFileUpload(filePathCallback)
+    launchIntent(intent)
+    true
+} catch (e: ActivityNotFoundException) {
+    Log.w(TAG, "No activity found to handle file upload", e)
+    webViewViewModel.onReceiveFileUploadResult(null)
+    true
+}
+
+class CustomWebChromeClient : WebChromeClient() {
     lateinit var state: WebViewState
         internal set
+
+    internal var onShowFileChooserCallback: ((ValueCallback<Array<Uri>>, FileChooserParams) -> Boolean)? = null
 
     override fun onReceivedTitle(view: WebView, title: String?) {
         super.onReceivedTitle(view, title)
@@ -376,27 +436,7 @@ class CustomWebChromeClient(private val context: Context) : WebChromeClient() {
         webView: WebView?,
         filePathCallback: ValueCallback<Array<Uri>>,
         fileChooserParams: FileChooserParams,
-    ): Boolean {
-        val activity = context as MainActivity
-        activity.uploadMessage = filePathCallback
-        // activity.fileUploadContract.type = fileChooserParams.acceptTypes[0]
-        val contract = activity.fileUpload.contract as FileUploadContract
-        contract.type = getMimeType(fileChooserParams.acceptTypes)
-        activity.fileUpload.launch(123)
-
-        return true
-    }
-
-    private fun getMimeType(acceptTypes: Array<String>): String {
-        for (type in acceptTypes) {
-            return when (type) {
-                ".json" -> "application/json"
-                ".css" -> "text/css"
-                else -> continue
-            }
-        }
-        return "application/octet-stream"
-    }
+    ): Boolean = onShowFileChooserCallback?.invoke(filePathCallback, fileChooserParams) ?: false
 }
 
 sealed class WebContent {
@@ -855,14 +895,17 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
     private val navigationEvents: MutableSharedFlow<NavigationEvent> = MutableSharedFlow(replay = 1)
 
     // Use Dispatchers.Main to ensure that the webview methods are called on UI thread
-    internal suspend fun WebView.handleNavigationEvents(): Nothing = withContext(Dispatchers.Main) {
+    internal suspend fun WebView.handleNavigationEvents(
+        state: WebViewState,
+        deviceUrlProvider: () -> String?,
+    ): Nothing = withContext(Dispatchers.Main) {
         navigationEvents.collect { event ->
             when (event) {
                 is NavigationEvent.Back -> goBackLogic()
 
                 is NavigationEvent.Forward -> goForward()
 
-                is NavigationEvent.Reload -> reload()
+                is NavigationEvent.Reload -> reloadOrLoadInitialUrl(state, deviceUrlProvider())
 
                 is NavigationEvent.StopLoading -> stopLoading()
 
@@ -882,6 +925,17 @@ class WebViewNavigator(private val coroutineScope: CoroutineScope) {
                     postUrl(event.url, event.postData)
                 }
             }
+        }
+    }
+
+    private fun WebView.reloadOrLoadInitialUrl(state: WebViewState, deviceUrl: String?) {
+        state.loadingState = Loading(0.0f)
+        val hasLoadedPage = url != null && url != "about:blank" && !state.isError
+        if (!hasLoadedPage && deviceUrl != null) {
+            state.isError = false
+            loadUrl(deviceUrl)
+        } else {
+            reload()
         }
     }
 
@@ -1128,7 +1182,7 @@ val webStateSaver: Saver<WebViewState, Any> = run {
             WebViewState(WebContent.NavigatorOnly).apply {
                 this.pageTitle = it[pageTitleKey] as String?
                 this.lastLoadedUrl = it[lastLoadedUrlKey] as String?
-                this.isError = (it[isErrorKey] as Boolean?) ?: false
+                this.isError = it[isErrorKey] as Boolean? ?: false
                 this.viewState = it[stateBundle] as Bundle?
             }
         },

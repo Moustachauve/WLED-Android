@@ -1,0 +1,29 @@
+package ca.cgagnier.wlednativeandroid.di
+
+import ca.cgagnier.wlednativeandroid.repository.AssetDao
+import ca.cgagnier.wlednativeandroid.repository.DeviceDao
+import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
+import ca.cgagnier.wlednativeandroid.repository.DeviceStore
+import ca.cgagnier.wlednativeandroid.repository.DevicesDatabase
+import ca.cgagnier.wlednativeandroid.repository.RepositoryDao
+import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
+import ca.cgagnier.wlednativeandroid.repository.VersionDao
+import ca.cgagnier.wlednativeandroid.repository.VersionWithAssetsRepository
+import ca.cgagnier.wlednativeandroid.repository.getOrCreateRepositoryId
+import ca.cgagnier.wlednativeandroid.service.update.RepositoryIdResolver
+import org.koin.core.module.Module
+import org.koin.core.module.dsl.singleOf
+import org.koin.dsl.module
+
+internal val sharedDatabaseModule: Module
+    get() = module {
+        single<DeviceDao> { get<DevicesDatabase>().deviceDao() }
+        single<VersionDao> { get<DevicesDatabase>().versionDao() }
+        single<RepositoryDao> { get<DevicesDatabase>().repositoryDao() }
+        single<AssetDao> { get<DevicesDatabase>().assetDao() }
+        singleOf(::DeviceRepository)
+        single<DeviceStore> { get<DeviceRepository>() }
+        single<RepositoryIdResolver> { RepositoryIdResolver { get<RepositoryDao>().getOrCreateRepositoryId(it) } }
+        singleOf(::VersionWithAssetsRepository)
+        singleOf(::UserPreferencesRepository)
+    }

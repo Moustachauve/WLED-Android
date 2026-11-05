@@ -9,20 +9,23 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ca.cgagnier.wlednativeandroid.model.getColorFromState
 import ca.cgagnier.wlednativeandroid.model.wledapi.State
 import ca.cgagnier.wlednativeandroid.repository.ThemeSettings
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import com.materialkolor.DynamicMaterialTheme
 import com.materialkolor.PaletteStyle
+import org.koin.androidx.compose.koinViewModel
 
 private val lightScheme = lightColorScheme(
     primary = primaryLight,
@@ -262,18 +265,21 @@ val unspecified_scheme = ColorFamily(
     Color.Unspecified,
 )
 
+private val LocalDarkTheme = staticCompositionLocalOf<Boolean?> { null }
+
 @Composable
 fun WLEDNativeTheme(
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
-    themeViewModel: ThemeViewModel = hiltViewModel(),
+    themeViewModel: ThemeViewModel = koinViewModel(),
     content: @Composable () -> Unit,
 ) {
     val theme by themeViewModel.theme.collectAsStateWithLifecycle()
-    val darkTheme = when (theme) {
-        ThemeSettings.Auto -> isSystemInDarkTheme()
+    val currentTheme = theme ?: return
+    val darkTheme = when (currentTheme) {
         ThemeSettings.Dark -> true
-        else -> false
+        ThemeSettings.Light -> false
+        ThemeSettings.Auto -> isSystemInDarkTheme()
     }
     WLEDNativeTheme(
         darkTheme = darkTheme,
@@ -301,11 +307,13 @@ fun WLEDNativeTheme(
         else -> lightScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = appTypography,
-        content = content,
-    )
+    CompositionLocalProvider(LocalDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = appTypography,
+            content = content,
+        )
+    }
 
     if (!view.isInEditMode) {
         SideEffect {
@@ -316,26 +324,20 @@ fun WLEDNativeTheme(
     }
 }
 
-fun getColorFromDeviceState(state: State?): Int = state?.segment?.firstOrNull()?.colors?.firstOrNull()
-    ?.takeIf { it.size in 3..4 }
-    ?.let { (r, g, b) ->
-        android.graphics.Color.rgb(r, g, b)
-    } ?: android.graphics.Color.WHITE
+fun getColorFromDeviceState(state: State?): Int = getColorFromState(state) ?: android.graphics.Color.WHITE
 
 @Composable
-fun DeviceTheme(
-    device: DeviceWithState,
-    themeViewModel: ThemeViewModel = hiltViewModel(),
-    content: @Composable () -> Unit,
-) {
-    val stateInfo by device.stateInfo
+fun DeviceTheme(device: DeviceWithState, content: @Composable () -> Unit) {
+    DeviceTheme(
+        device = device,
+        darkTheme = LocalDarkTheme.current ?: isSystemInDarkTheme(),
+        content = content,
+    )
+}
 
-    val theme by themeViewModel.theme.collectAsStateWithLifecycle()
-    val darkTheme = when (theme) {
-        ThemeSettings.Auto -> isSystemInDarkTheme()
-        ThemeSettings.Dark -> true
-        else -> false
-    }
+@Composable
+fun DeviceTheme(device: DeviceWithState, darkTheme: Boolean, content: @Composable () -> Unit) {
+    val stateInfo = device.stateInfo
 
     DynamicMaterialTheme(
         seedColor = Color(getColorFromDeviceState(stateInfo?.state)),
