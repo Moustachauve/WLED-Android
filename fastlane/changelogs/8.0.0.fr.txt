@@ -1,0 +1,5 @@
+- Widgets Material 3 rafraîchis avec force du signal Wi-Fi en direct et lueur ambiante.
+- Écran Nouveautés pour voir les notes de version après une mise à jour ou depuis les Paramètres.
+- Correction de la sélection de fichiers lors de l'envoi d'un micrologiciel, préréglage ou image.
+- Prise en charge de l'autorisation de réseau local d'Android 17 et découverte automatique améliorée.
+- Barre de chargement lors de la connexion, correctifs et améliorations de stabilité.

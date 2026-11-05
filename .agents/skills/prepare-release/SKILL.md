@@ -84,6 +84,7 @@ Use this skill to prepare either a **Beta (`beta`)** or a **Full / Stable (`prod
 1. **Craft End-User-Friendly `<version>.md` Changelogs & Short Google Play Notes (`fastlane/changelogs/<version>.txt`):**
    - Promote `dev.md` to `<version>.md` (and delete `dev.md`) in every supported platform's changelog directory.
    - Rewrite and polish each `<version>.md` for **everyday, non-technical end users** (use existing versioned changelogs such as `7.0.0.md` for tone inspiration while adhering to the formatting rules in `AGENTS.md` and the changelog `README.md` files):
+     - **Order by impact and excitement:** Lead with the most exciting, high-impact features at the top of `<version>.md` (even if they were added later in `dev.md`). Reserve dedicated `###` headings for major features, and fold minor settings (e.g., simple appearance/sorting toggles) or small tweaks into `### Other Improvements` (or `### Other Improvements & Fixes`) at the bottom.
      - Focus strictly on what users can **see, feel, and do**—highlight tangible new capabilities, visual polish, and noticeable fixes in warm, engaging language.
      - Strip out under-the-hood engineering details, dependency bumps, architectural refactors, and developer jargon (e.g., do not mention library upgrades, internal framework migrations, or replacing a WebView error screen with a native view; either reframe user-visible improvements in terms of user benefit or omit purely internal changes).
    - **Craft the Short Google Play Summary (`fastlane/changelogs/<version>.txt`):**
