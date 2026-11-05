@@ -1,6 +1,6 @@
 [versions]
 # App version - Update these when releasing
-app-versionCode = "53"
+app-versionCode = "108"
 app-versionName = "8.0.0"
 
 agp = "9.5.0"

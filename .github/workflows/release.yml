@@ -15,8 +15,8 @@ on:
           - beta
           - production
       version_name:
-        description: 'Version name to build (e.g. 8.1.0-beta.1 or 8.1.0)'
-        required: true
+        description: 'Optional version name override to validate against gradle/libs.versions.toml (e.g. 8.1.0-beta.1 or 8.1.0)'
+        required: false
         type: string
       dry_run:
         description: 'Dry run: build, sign, and validate Play Store / iOS archive without publishing'
@@ -57,7 +57,6 @@ jobs:
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
-          RUN_NUMBER: ${{ github.run_number }}
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -70,10 +69,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 1. Determine track (beta vs production)
+          # 1. Read committed version metadata from gradle/libs.versions.toml (single source of truth for Reproducible Builds)
+          TOML_VERSION_NAME=$(grep -E '^app-versionName\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          VERSION_CODE=$(grep -E '^app-versionCode\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -z "$TOML_VERSION_NAME" ] || ! [[ "$VERSION_CODE" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid app-versionName (\"$TOML_VERSION_NAME\") or app-versionCode (\"$VERSION_CODE\") in gradle/libs.versions.toml."
+            exit 1
+          fi
+
+          # 2. Determine track (beta vs production) and validate tag / input version matches gradle/libs.versions.toml
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             TRACK="$INPUT_TRACK"
-            RAW_VERSION="$INPUT_VERSION_NAME"
+            RAW_VERSION="${INPUT_VERSION_NAME:-$TOML_VERSION_NAME}"
             if [ "$INPUT_DRY_RUN" = "true" ]; then
               DRY_RUN="true"
             else
@@ -96,13 +103,18 @@ jobs:
           fi
 
           VERSION_NAME="${RAW_VERSION#v}"
-          if [ "$TRACK" = "beta" ] && [[ "$VERSION_NAME" != *-* ]]; then
-            VERSION_NAME="${VERSION_NAME}-beta.${RUN_NUMBER}"
+          if [ "$VERSION_NAME" != "$TOML_VERSION_NAME" ]; then
+            echo "::error::Release version \"$VERSION_NAME\" does not match app-versionName=\"$TOML_VERSION_NAME\" in gradle/libs.versions.toml. Run /prepare-release so builds are reproducible."
+            exit 1
+          fi
+          if [ "$IS_BETA" = "false" ] && [[ "$VERSION_NAME" == *-* ]]; then
+            echo "::error::Production release cannot use a pre-release version ($VERSION_NAME)."
+            exit 1
           fi
           TAG_NAME="${RELEASE_TAG:-v${VERSION_NAME}}"
           IOS_MARKETING_VERSION="${VERSION_NAME%%-*}"
 
-          # 2. Pre-flight check: prevent workflow_dispatch (non-dry-run) from colliding with an existing release or draft
+          # 3. Pre-flight check: prevent workflow_dispatch (non-dry-run) from colliding with an existing release or draft
           if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$DRY_RUN" = "false" ]; then
             EXISTING_MATCH=$(gh release list --limit 50 --json tagName,isDraft --jq ".[] | select(.tagName == \"$TAG_NAME\") | .tagName" || true)
             if [ -n "$EXISTING_MATCH" ]; then
@@ -111,7 +123,7 @@ jobs:
             fi
           fi
 
-          # 3. Pre-flight check: verify all required secrets are configured before any platform job starts
+          # 4. Pre-flight check: verify all required secrets are configured before any platform job starts
           MISSING_SECRETS=()
           for SECRET_VAR in \
             ANDROID_KEYSTORE_BASE64 \
@@ -132,23 +144,31 @@ jobs:
             exit 1
           fi
 
-          # 4. Pre-flight check: verify non-empty changelog exists for both Android and iOS
-          # Keep candidate filenames in sync with `read_plain_changelog` in `fastlane/Fastfile`.
-          for DIR in "app/src/main/assets/changelog" "iosApp/wled/changelog"; do
-            if [ ! -s "${DIR}/${VERSION_NAME}.md" ] && \
-               [ ! -s "${DIR}/v${VERSION_NAME}.md" ] && \
-               [ ! -s "${DIR}/${IOS_MARKETING_VERSION}.md" ] && \
-               [ ! -s "${DIR}/v${IOS_MARKETING_VERSION}.md" ] && \
-               [ ! -s "${DIR}/dev.md" ]; then
-              echo "::error::No non-empty changelog found in ${DIR} for ${VERSION_NAME} (or dev.md)."
+          # 5. Pre-flight check: verify non-empty changelog exists for both Android and iOS
+          if [ "$IS_BETA" = "false" ]; then
+            for DIR in "app/src/main/assets/changelog" "iosApp/wled/changelog"; do
+              if [ -f "${DIR}/dev.md" ] || [ ! -s "${DIR}/${VERSION_NAME}.md" ]; then
+                echo "::error::Production release requires committed ${DIR}/${VERSION_NAME}.md (and no dev.md) so builds remain reproducible."
+                exit 1
+              fi
+            done
+            if [ -f "fastlane/changelogs/dev.txt" ] || [ ! -s "fastlane/changelogs/${VERSION_NAME}.txt" ]; then
+              echo "::error::Production release requires committed fastlane/changelogs/${VERSION_NAME}.txt (and no dev.txt)."
               exit 1
             fi
-          done
-
-          # 5. Compute monotonically increasing versionCode / CFBundleVersion (base offset 100 + workflow run_number).
-          # Note: github.run_number is tied to this workflow file ID; do not rename/delete release.yml without
-          # updating the base offset, and use "Re-run failed jobs" rather than "Re-run all jobs" on partial failures.
-          VERSION_CODE=$((100 + RUN_NUMBER))
+          else
+            # Keep candidate filenames in sync with `read_plain_changelog` in `fastlane/Fastfile`.
+            for DIR in "app/src/main/assets/changelog" "iosApp/wled/changelog"; do
+              if [ ! -s "${DIR}/${VERSION_NAME}.md" ] && \
+                 [ ! -s "${DIR}/v${VERSION_NAME}.md" ] && \
+                 [ ! -s "${DIR}/${IOS_MARKETING_VERSION}.md" ] && \
+                 [ ! -s "${DIR}/v${IOS_MARKETING_VERSION}.md" ] && \
+                 [ ! -s "${DIR}/dev.md" ]; then
+                echo "::error::No non-empty changelog found in ${DIR} for ${VERSION_NAME} (or dev.md)."
+                exit 1
+              fi
+            done
+          fi
 
           echo "track=$TRACK" >> "$GITHUB_OUTPUT"
           echo "is_beta=$IS_BETA" >> "$GITHUB_OUTPUT"
@@ -194,32 +214,6 @@ jobs:
           ruby-version: '3.3'
           bundler-cache: true
 
-      - name: Promote dev.md changelog in build workspace if needed
-        if: needs.prepare.outputs.is_beta == 'false'
-        env:
-          MARKETING_VERSION: ${{ needs.prepare.outputs.ios_marketing_version }}
-        run: |
-          CHANGELOG_DIR="app/src/main/assets/changelog"
-          if [ -f "$CHANGELOG_DIR/dev.md" ] && [ ! -f "$CHANGELOG_DIR/${MARKETING_VERSION}.md" ]; then
-            echo "::warning::dev.md was not renamed before tagging; promoting dev.md -> ${MARKETING_VERSION}.md for this build."
-            mv "$CHANGELOG_DIR/dev.md" "$CHANGELOG_DIR/${MARKETING_VERSION}.md"
-            for DEV_LOCALE_FILE in "$CHANGELOG_DIR"/dev.*.md; do
-              [ -e "$DEV_LOCALE_FILE" ] || continue
-              SUFFIX="${DEV_LOCALE_FILE#"$CHANGELOG_DIR/dev"}"
-              mv "$DEV_LOCALE_FILE" "$CHANGELOG_DIR/${MARKETING_VERSION}${SUFFIX}"
-            done
-          fi
-          PLAY_CHANGELOG_DIR="fastlane/changelogs"
-          if [ -f "$PLAY_CHANGELOG_DIR/dev.txt" ] && [ ! -f "$PLAY_CHANGELOG_DIR/${MARKETING_VERSION}.txt" ]; then
-            echo "::warning::fastlane/changelogs/dev.txt was not renamed before tagging; promoting dev.txt -> ${MARKETING_VERSION}.txt for this build."
-            mv "$PLAY_CHANGELOG_DIR/dev.txt" "$PLAY_CHANGELOG_DIR/${MARKETING_VERSION}.txt"
-            for DEV_LOCALE_FILE in "$PLAY_CHANGELOG_DIR"/dev.*.txt; do
-              [ -e "$DEV_LOCALE_FILE" ] || continue
-              SUFFIX="${DEV_LOCALE_FILE#"$PLAY_CHANGELOG_DIR/dev"}"
-              mv "$DEV_LOCALE_FILE" "$PLAY_CHANGELOG_DIR/${MARKETING_VERSION}${SUFFIX}"
-            done
-          fi
-
       - name: Decode Android Keystore
         id: keystore
         env:
@@ -236,12 +230,8 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
-          VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
         run: |
-          ./gradlew :app:bundleRelease :app:assembleRelease \
-            -PversionCode="$VERSION_CODE" \
-            -PversionName="$VERSION_NAME"
+          ./gradlew :app:bundleRelease :app:assembleRelease
 
       - name: Deploy to Google Play Store via Fastlane
         env:
@@ -342,31 +332,21 @@ jobs:
           ruby-version: '3.3'
           bundler-cache: true
 
-      - name: Promote dev.md changelog in build workspace if needed
+      - name: Copy dev.md changelog in build workspace for TestFlight beta if needed
+        if: needs.prepare.outputs.is_beta == 'true'
         env:
           MARKETING_VERSION: ${{ needs.prepare.outputs.ios_marketing_version }}
-          IS_BETA: ${{ needs.prepare.outputs.is_beta }}
         run: |
           # iOS CFBundleShortVersionString is strictly numeric (e.g. 8.1.0 without -beta.1),
           # so copy dev.md -> <MARKETING_VERSION>.md when missing so in-app "What's New" works on TestFlight too.
           CHANGELOG_DIR="iosApp/wled/changelog"
           if [ -f "$CHANGELOG_DIR/dev.md" ] && [ ! -f "$CHANGELOG_DIR/${MARKETING_VERSION}.md" ]; then
-            if [ "$IS_BETA" = "false" ]; then
-              echo "::warning::dev.md was not renamed before tagging; promoting dev.md -> ${MARKETING_VERSION}.md for this build."
-              mv "$CHANGELOG_DIR/dev.md" "$CHANGELOG_DIR/${MARKETING_VERSION}.md"
-              for DEV_LOCALE_FILE in "$CHANGELOG_DIR"/dev.*.md; do
-                [ -e "$DEV_LOCALE_FILE" ] || continue
-                SUFFIX="${DEV_LOCALE_FILE#"$CHANGELOG_DIR/dev"}"
-                mv "$DEV_LOCALE_FILE" "$CHANGELOG_DIR/${MARKETING_VERSION}${SUFFIX}"
-              done
-            else
-              cp "$CHANGELOG_DIR/dev.md" "$CHANGELOG_DIR/${MARKETING_VERSION}.md"
-              for DEV_LOCALE_FILE in "$CHANGELOG_DIR"/dev.*.md; do
-                [ -e "$DEV_LOCALE_FILE" ] || continue
-                SUFFIX="${DEV_LOCALE_FILE#"$CHANGELOG_DIR/dev"}"
-                cp "$DEV_LOCALE_FILE" "$CHANGELOG_DIR/${MARKETING_VERSION}${SUFFIX}"
-              done
-            fi
+            cp "$CHANGELOG_DIR/dev.md" "$CHANGELOG_DIR/${MARKETING_VERSION}.md"
+            for DEV_LOCALE_FILE in "$CHANGELOG_DIR"/dev.*.md; do
+              [ -e "$DEV_LOCALE_FILE" ] || continue
+              SUFFIX="${DEV_LOCALE_FILE#"$CHANGELOG_DIR/dev"}"
+              cp "$DEV_LOCALE_FILE" "$CHANGELOG_DIR/${MARKETING_VERSION}${SUFFIX}"
+            done
           fi
 
       - name: Assemble Shared Release XCFramework
