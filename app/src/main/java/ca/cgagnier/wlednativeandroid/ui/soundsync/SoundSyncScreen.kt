@@ -33,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -94,19 +95,7 @@ fun SoundSyncScreen(navigateUp: () -> Unit, viewModel: SoundSyncViewModel = koin
     }
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.sound_sync)) },
-                navigationIcon = {
-                    IconButton(onClick = navigateUp) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.description_back_button),
-                        )
-                    }
-                },
-            )
-        },
+        topBar = { SoundSyncTopBar(navigateUp = navigateUp) },
     ) { innerPadding ->
         SoundSyncContent(
             uiState = uiState,
@@ -122,6 +111,37 @@ fun SoundSyncScreen(navigateUp: () -> Unit, viewModel: SoundSyncViewModel = koin
             modifier = Modifier.padding(innerPadding),
         )
     }
+}
+
+@Composable
+private fun SoundSyncTopBar(navigateUp: () -> Unit) {
+    CenterAlignedTopAppBar(
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.sound_sync))
+                Surface(
+                    modifier = Modifier.padding(start = 8.dp),
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        text = stringResource(R.string.beta_badge),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
+        },
+        navigationIcon = {
+            IconButton(onClick = navigateUp) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.description_back_button),
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -181,11 +201,18 @@ private fun DescriptionCard() {
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
             )
-            Text(
-                text = stringResource(R.string.sound_sync_description),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(start = 12.dp),
-            )
+            Column(modifier = Modifier.padding(start = 12.dp)) {
+                Text(
+                    text = stringResource(R.string.sound_sync_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.sound_sync_beta_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

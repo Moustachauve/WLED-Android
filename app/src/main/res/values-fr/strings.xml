@@ -168,5 +168,10 @@
     <string name="sound_sync_notification_channel_description">S\'affiche lorsque la synchronisation sonore est active</string>
     <string name="sound_sync_error_permission">L\'autorisation d\'accès au microphone est requise</string>
     <string name="sound_sync_error_capture">Échec du démarrage de la capture audio.</string>
+    <string name="beta_features">Fonctionnalités bêta</string>
+    <string name="beta_badge">BÊTA</string>
+    <string name="sound_sync_beta_setting">Synchro Sonore (Bêta)</string>
+    <string name="sound_sync_beta_setting_description">Activez la bêta de la synchronisation sonore pour essayer cette fonctionnalité en avant-première.</string>
+    <string name="sound_sync_beta_notice">Cette fonctionnalité est actuellement en bêta et peut évoluer dans les prochaines mises à jour.</string>
 
 </resources>

@@ -70,6 +70,14 @@ final class DeviceWebsocketListViewModel {
         }
     }
 
+    var soundSyncBetaEnabled: Bool = false {
+        didSet {
+            guard soundSyncBetaEnabled != oldValue, !isSyncingPreferences else { return }
+            let enabled = soundSyncBetaEnabled
+            persistPreference { try await $0.updateSoundSyncBetaEnabled(enabled: enabled) }
+        }
+    }
+
     // MARK: - Private Properties
 
     private let connectionManager: DeviceConnectionManager
@@ -123,6 +131,7 @@ final class DeviceWebsocketListViewModel {
             group.addTask { await self.observeShowOfflineDevicesLast() }
             group.addTask { await self.observeThemeMode() }
             group.addTask { await self.observeAutoDiscovery() }
+            group.addTask { await self.observeSoundSyncBetaEnabled() }
             group.addTask { await self.observePausedState() }
             group.addTask { await self.runOfflineGracePeriodTimer() }
         }
@@ -152,6 +161,12 @@ final class DeviceWebsocketListViewModel {
 
     private func observeAutoDiscovery() async {
         await observePreference(userPreferencesRepository.autoDiscovery) { autoDiscovery = $0.boolValue }
+    }
+
+    private func observeSoundSyncBetaEnabled() async {
+        await observePreference(userPreferencesRepository.soundSyncBetaEnabled) {
+            soundSyncBetaEnabled = $0.boolValue
+        }
     }
 
     /// Mirrors a persisted preference into a local property without echoing the change back to the repository.

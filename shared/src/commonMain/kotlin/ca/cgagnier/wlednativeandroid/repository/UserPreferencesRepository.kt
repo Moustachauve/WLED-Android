@@ -26,6 +26,9 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     val soundSyncAgcEnabled: Flow<Boolean> = dataStore.data.map {
         it.soundSyncAgcEnabled
     }.distinctUntilChanged()
+    val soundSyncBetaEnabled: Flow<Boolean> = dataStore.data.map {
+        it.soundSyncBetaEnabled
+    }.distinctUntilChanged()
 
     suspend fun updateThemeMode(themeSettings: ThemeSettings) {
         logger.d { "updateThemeMode" }
@@ -102,6 +105,16 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         dataStore.updateData {
             it.copy(
                 soundSyncAgcEnabled = enabled,
+                dateLastWritten = currentTimeMillis(),
+            )
+        }
+    }
+
+    suspend fun updateSoundSyncBetaEnabled(enabled: Boolean) {
+        logger.d { "updateSoundSyncBetaEnabled" }
+        dataStore.updateData {
+            it.copy(
+                soundSyncBetaEnabled = enabled,
                 dateLastWritten = currentTimeMillis(),
             )
         }

@@ -13,6 +13,7 @@
   "showHiddenDevices": false,
   "lastChangelogVersionSeen": "",
   "soundSyncGain": 1.0,
-  "soundSyncAgcEnabled": false
+  "soundSyncAgcEnabled": false,
+  "soundSyncBetaEnabled": false
 }
 ╔═ [end of file] ═╗

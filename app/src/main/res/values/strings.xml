@@ -169,5 +169,10 @@
     <string name="sound_sync_notification_channel_description">Shows when sound sync is active</string>
     <string name="sound_sync_error_permission">Record audio permission is required</string>
     <string name="sound_sync_error_capture">Failed to start audio capture.</string>
+    <string name="beta_features">Beta features</string>
+    <string name="beta_badge">BETA</string>
+    <string name="sound_sync_beta_setting">Sound Sync (Beta)</string>
+    <string name="sound_sync_beta_setting_description">Activate the sound sync beta to try this feature early.</string>
+    <string name="sound_sync_beta_notice">This feature is currently in beta and may change in future updates.</string>
 
 </resources>

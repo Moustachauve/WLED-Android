@@ -13,7 +13,8 @@
   "showHiddenDevices": true,
   "lastChangelogVersionSeen": "2.1.0",
   "soundSyncGain": 1.0,
-  "soundSyncAgcEnabled": false
+  "soundSyncAgcEnabled": false,
+  "soundSyncBetaEnabled": false
 }
 ╔═ migrate_withV0LegacyProto_setsExpectedDefaultsAndResetsDataSharingFlags ═╗
 {
@@ -30,6 +31,7 @@
   "showHiddenDevices": false,
   "lastChangelogVersionSeen": "7.0.1",
   "soundSyncGain": 1.0,
-  "soundSyncAgcEnabled": false
+  "soundSyncAgcEnabled": false,
+  "soundSyncBetaEnabled": false
 }
 ╔═ [end of file] ═╗

@@ -166,5 +166,10 @@
     <string name="sound_sync_notification_channel_description">在声音同步处于活动状态时显示</string>
     <string name="sound_sync_error_permission">需要麦克风录音权限</string>
     <string name="sound_sync_error_capture">无法启动音频采集。</string>
+    <string name="beta_features">测试版功能</string>
+    <string name="beta_badge">测试版</string>
+    <string name="sound_sync_beta_setting">声音同步（测试版）</string>
+    <string name="sound_sync_beta_setting_description">启用声音同步测试版以提前体验此功能。</string>
+    <string name="sound_sync_beta_notice">此功能目前处于测试阶段，可能会在未来的更新中发生变化。</string>
 
 </resources>

@@ -33,7 +33,7 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.util.openUriSafely
 
 @Composable
-internal fun DrawerContent(showHiddenDevices: Boolean, actions: DrawerActions) {
+internal fun DrawerContent(showHiddenDevices: Boolean, showSoundSync: Boolean = false, actions: DrawerActions) {
     val uriHandler = LocalUriHandler.current
     val scrollState = rememberScrollState()
 
@@ -41,7 +41,7 @@ internal fun DrawerContent(showHiddenDevices: Boolean, actions: DrawerActions) {
         modifier = Modifier.verticalScroll(scrollState),
     ) {
         DrawerHeader()
-        DrawerMainActions(showHiddenDevices, actions)
+        DrawerMainActions(showHiddenDevices, showSoundSync, actions)
         HorizontalDivider(modifier = Modifier.padding(12.dp))
         DrawerExternalLinks(uriHandler)
         Spacer(Modifier.height(24.dp))
@@ -65,7 +65,7 @@ private fun DrawerHeader() {
 }
 
 @Composable
-private fun DrawerMainActions(showHiddenDevices: Boolean, actions: DrawerActions) {
+private fun DrawerMainActions(showHiddenDevices: Boolean, showSoundSync: Boolean, actions: DrawerActions) {
     NavigationDrawerItem(
         label = { Text(text = stringResource(R.string.add_a_device)) },
         icon = {
@@ -103,18 +103,20 @@ private fun DrawerMainActions(showHiddenDevices: Boolean, actions: DrawerActions
         onClick = actions.openSettings,
         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
     )
-    NavigationDrawerItem(
-        label = { Text(text = stringResource(R.string.sound_sync)) },
-        icon = {
-            Icon(
-                painter = painterResource(id = R.drawable.baseline_graphic_eq_24),
-                contentDescription = stringResource(R.string.sound_sync),
-            )
-        },
-        selected = false,
-        onClick = actions.openSoundSync,
-        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-    )
+    if (showSoundSync) {
+        NavigationDrawerItem(
+            label = { Text(text = stringResource(R.string.sound_sync)) },
+            icon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_graphic_eq_24),
+                    contentDescription = stringResource(R.string.sound_sync),
+                )
+            },
+            selected = false,
+            onClick = actions.openSoundSync,
+            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+        )
+    }
 }
 
 @Composable

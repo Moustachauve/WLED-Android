@@ -18,4 +18,5 @@ data class UserPreferences(
     val lastChangelogVersionSeen: String = "",
     val soundSyncGain: Float = 1.0f,
     val soundSyncAgcEnabled: Boolean = false,
+    val soundSyncBetaEnabled: Boolean = false,
 )

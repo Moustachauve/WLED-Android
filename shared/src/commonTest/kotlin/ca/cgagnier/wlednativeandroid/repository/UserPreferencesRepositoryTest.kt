@@ -61,6 +61,7 @@ class UserPreferencesRepositoryTest {
         assertEquals("", repo.lastChangelogVersionSeen.first())
         assertEquals(1.0f, repo.soundSyncGain.first())
         assertFalse(repo.soundSyncAgcEnabled.first())
+        assertFalse(repo.soundSyncBetaEnabled.first())
     }
 
     @Test
@@ -121,6 +122,15 @@ class UserPreferencesRepositoryTest {
     fun updateSoundSyncAgcEnabled_updatesFlow() = withRepository { repo ->
         repo.updateSoundSyncAgcEnabled(true)
         assertTrue(repo.soundSyncAgcEnabled.first())
+    }
+
+    @Test
+    fun updateSoundSyncBetaEnabled_updatesFlow() = withRepository { repo ->
+        repo.updateSoundSyncBetaEnabled(true)
+        assertTrue(repo.soundSyncBetaEnabled.first())
+
+        repo.updateSoundSyncBetaEnabled(false)
+        assertFalse(repo.soundSyncBetaEnabled.first())
     }
 
     @Test
