@@ -3,7 +3,7 @@ package ca.cgagnier.wlednativeandroid.service.soundsync
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.assertFailsWith
 
 class UdpSoundSyncPacketTest {
 
@@ -18,238 +18,115 @@ class UdpSoundSyncPacketTest {
             fftMagnitude = 1024f,
             fftMajorPeak = 440f,
         )
-        assertEquals(44, packet.toByteArray().size)
+        assertEquals(UdpSoundSyncPacket.PACKET_SIZE, packet.toByteArray().size)
     }
 
     @Test
     fun toByteArray_headerIsV2MagicString() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 0f,
-            sampleSmth = 0f,
-            samplePeak = false,
-            frameCounter = 0,
-            fftResult = ByteArray(16),
-            fftMagnitude = 0f,
-            fftMajorPeak = 0f,
-        )
-        val bytes = packet.toByteArray()
-        val header = bytes.sliceArray(0..4).toString(Charsets.US_ASCII)
-        assertEquals("00002", header)
+        val bytes = UdpSoundSyncPacket().toByteArray()
+        assertEquals("00002", bytes.decodeToString(startIndex = 0, endIndex = 5))
         assertEquals(0, bytes[5].toInt())
     }
 
     @Test
     fun toByteArray_gapBytesAreZero() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 0f,
-            sampleSmth = 0f,
-            samplePeak = false,
-            frameCounter = 0,
-            fftResult = ByteArray(16),
-            fftMagnitude = 0f,
-            fftMajorPeak = 0f,
-        )
-        val bytes = packet.toByteArray()
-        assertEquals(0, bytes[6].toInt())
-        assertEquals(0, bytes[7].toInt())
-        assertEquals(0, bytes[34].toInt())
-        assertEquals(0, bytes[35].toInt())
+        val bytes = UdpSoundSyncPacket().toByteArray()
+        listOf(6, 7, 34, 35).forEach { offset ->
+            assertEquals(0, bytes[offset].toInt(), "Gap byte at offset $offset should be 0")
+        }
     }
 
     @Test
-    fun toByteArray_sampleRawIsLittleEndianFloat() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 1.0f,
-            sampleSmth = 0f,
-            samplePeak = false,
-            frameCounter = 0,
-            fftResult = ByteArray(16),
-            fftMagnitude = 0f,
-            fftMajorPeak = 0f,
+    fun toByteArray_floatFieldsAreEncodedLittleEndian() {
+        data class FloatCase(
+            val label: String,
+            val packet: UdpSoundSyncPacket,
+            val offset: Int,
+            val expectedBytes: List<Int>,
         )
-        val bytes = packet.toByteArray()
-        // 1.0f in little-endian IEEE 754: 0x00, 0x00, 0x80, 0x3F
-        assertEquals(0x00, bytes[8].toInt() and 0xFF)
-        assertEquals(0x00, bytes[9].toInt() and 0xFF)
-        assertEquals(0x80, bytes[10].toInt() and 0xFF)
-        assertEquals(0x3F, bytes[11].toInt() and 0xFF)
+
+        listOf(
+            FloatCase(
+                label = "sampleRaw = 1.0f",
+                packet = UdpSoundSyncPacket(sampleRaw = 1.0f),
+                offset = 8,
+                expectedBytes = listOf(0x00, 0x00, 0x80, 0x3F),
+            ),
+            FloatCase(
+                label = "sampleRaw = -1.0f",
+                packet = UdpSoundSyncPacket(sampleRaw = -1.0f),
+                offset = 8,
+                expectedBytes = listOf(0x00, 0x00, 0x80, 0xBF),
+            ),
+            FloatCase(
+                label = "sampleSmth = 2.0f",
+                packet = UdpSoundSyncPacket(sampleSmth = 2.0f),
+                offset = 12,
+                expectedBytes = listOf(0x00, 0x00, 0x00, 0x40),
+            ),
+            FloatCase(
+                label = "fftMagnitude = 1.0f",
+                packet = UdpSoundSyncPacket(fftMagnitude = 1.0f),
+                offset = 36,
+                expectedBytes = listOf(0x00, 0x00, 0x80, 0x3F),
+            ),
+            FloatCase(
+                label = "fftMajorPeak = 440.0f",
+                packet = UdpSoundSyncPacket(fftMajorPeak = 440.0f),
+                offset = 40,
+                expectedBytes = listOf(0x00, 0x00, 0xDC, 0x43),
+            ),
+        ).forEach { case ->
+            val bytes = case.packet.toByteArray()
+            case.expectedBytes.forEachIndexed { idx, expected ->
+                assertEquals(
+                    expected,
+                    bytes[case.offset + idx].toInt() and 0xFF,
+                    "${case.label} byte $idx",
+                )
+            }
+        }
     }
 
     @Test
-    fun toByteArray_sampleSmthIsLittleEndianFloat() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 0f,
-            sampleSmth = 2.0f,
-            samplePeak = false,
-            frameCounter = 0,
-            fftResult = ByteArray(16),
-            fftMagnitude = 0f,
-            fftMajorPeak = 0f,
-        )
-        val bytes = packet.toByteArray()
-        // 2.0f in little-endian IEEE 754: 0x00, 0x00, 0x00, 0x40
-        assertEquals(0x00, bytes[12].toInt() and 0xFF)
-        assertEquals(0x00, bytes[13].toInt() and 0xFF)
-        assertEquals(0x00, bytes[14].toInt() and 0xFF)
-        assertEquals(0x40, bytes[15].toInt() and 0xFF)
+    fun toByteArray_samplePeakEncodesBooleanAtOffset16() {
+        listOf(false to 0, true to 1).forEach { (isPeak, expectedByte) ->
+            val bytes = UdpSoundSyncPacket(samplePeak = isPeak).toByteArray()
+            assertEquals(expectedByte, bytes[16].toInt())
+        }
     }
 
     @Test
-    fun toByteArray_samplePeakIsZeroWhenNoPeak() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 0f,
-            sampleSmth = 0f,
-            samplePeak = false,
-            frameCounter = 0,
-            fftResult = ByteArray(16),
-            fftMagnitude = 0f,
-            fftMajorPeak = 0f,
-        )
-        assertEquals(0, packet.toByteArray()[16].toInt())
-    }
-
-    @Test
-    fun toByteArray_samplePeakIsOneWhenPeakDetected() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 0f,
-            sampleSmth = 0f,
-            samplePeak = true,
-            frameCounter = 0,
-            fftResult = ByteArray(16),
-            fftMagnitude = 0f,
-            fftMajorPeak = 0f,
-        )
-        assertEquals(1, packet.toByteArray()[16].toInt())
-    }
-
-    @Test
-    fun toByteArray_frameCounterIsWrittenAtOffset17() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 0f,
-            sampleSmth = 0f,
-            samplePeak = false,
-            frameCounter = 42,
-            fftResult = ByteArray(16),
-            fftMagnitude = 0f,
-            fftMajorPeak = 0f,
-        )
-        assertEquals(42, packet.toByteArray()[17].toInt())
+    fun toByteArray_frameCounterWritesLowByteAtOffset17() {
+        listOf(0 to 0, 42 to 42, 255 to 255, 256 to 0).forEach { (counter, expectedByte) ->
+            val bytes = UdpSoundSyncPacket(frameCounter = counter).toByteArray()
+            assertEquals(expectedByte, bytes[UdpSoundSyncPacket.OFFSET_FRAME_COUNTER].toInt() and 0xFF)
+        }
     }
 
     @Test
     fun toByteArray_fftResultIs16BytesAtOffset18() {
         val fft = ByteArray(16) { (it * 16).toByte() }
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 0f,
-            sampleSmth = 0f,
-            samplePeak = false,
-            frameCounter = 0,
-            fftResult = fft,
-            fftMagnitude = 0f,
-            fftMajorPeak = 0f,
-        )
-        val bytes = packet.toByteArray()
-        val extractedFft = bytes.sliceArray(18..33)
-        assertContentEquals(fft, extractedFft)
+        val bytes = UdpSoundSyncPacket(fftResult = fft).toByteArray()
+        assertContentEquals(fft, bytes.sliceArray(18..33))
     }
 
     @Test
-    fun toByteArray_fftMagnitudeIsLittleEndianFloatAtOffset36() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 0f,
-            sampleSmth = 0f,
-            samplePeak = false,
-            frameCounter = 0,
-            fftResult = ByteArray(16),
-            fftMagnitude = 1.0f,
-            fftMajorPeak = 0f,
-        )
-        val bytes = packet.toByteArray()
-        assertEquals(0x00, bytes[36].toInt() and 0xFF)
-        assertEquals(0x00, bytes[37].toInt() and 0xFF)
-        assertEquals(0x80, bytes[38].toInt() and 0xFF)
-        assertEquals(0x3F, bytes[39].toInt() and 0xFF)
-    }
-
-    @Test
-    fun toByteArray_fftMajorPeakIsLittleEndianFloatAtOffset40() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 0f,
-            sampleSmth = 0f,
-            samplePeak = false,
-            frameCounter = 0,
-            fftResult = ByteArray(16),
-            fftMagnitude = 0f,
-            fftMajorPeak = 440.0f,
-        )
-        val bytes = packet.toByteArray()
-        // 440.0f in little-endian IEEE 754: 0x00, 0x00, 0xDC, 0x43
-        assertEquals(0x00, bytes[40].toInt() and 0xFF)
-        assertEquals(0x00, bytes[41].toInt() and 0xFF)
-        assertEquals(0xDC, bytes[42].toInt() and 0xFF)
-        assertEquals(0x43, bytes[43].toInt() and 0xFF)
-    }
-
-    @Test
-    fun toByteArray_negativeSampleRawIsEncodedCorrectly() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = -1.0f,
-            sampleSmth = 0f,
-            samplePeak = false,
-            frameCounter = 0,
-            fftResult = ByteArray(16),
-            fftMagnitude = 0f,
-            fftMajorPeak = 0f,
-        )
-        val bytes = packet.toByteArray()
-        // -1.0f in little-endian IEEE 754: 0x00, 0x00, 0x80, 0xBF
-        assertEquals(0x00, bytes[8].toInt() and 0xFF)
-        assertEquals(0x00, bytes[9].toInt() and 0xFF)
-        assertEquals(0x80, bytes[10].toInt() and 0xFF)
-        assertEquals(0xBF, bytes[11].toInt() and 0xFF)
-    }
-
-    @Test
-    fun toByteArray_frameCounterWrapsAt256() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 0f,
-            sampleSmth = 0f,
-            samplePeak = false,
-            frameCounter = 256,
-            fftResult = ByteArray(16),
-            fftMagnitude = 0f,
-            fftMajorPeak = 0f,
-        )
-        assertEquals(0, packet.toByteArray()[17].toInt())
-    }
-
-    @Test
-    fun toByteArray_allZerosProducesValidPacket() {
-        val packet = UdpSoundSyncPacket(
-            sampleRaw = 0f,
-            sampleSmth = 0f,
-            samplePeak = false,
-            frameCounter = 0,
-            fftResult = ByteArray(16),
-            fftMagnitude = 0f,
-            fftMajorPeak = 0f,
-        )
-        val bytes = packet.toByteArray()
-        assertEquals(44, bytes.size)
-        // Header should still be "00002"
-        assertEquals("00002", bytes.sliceArray(0..4).toString(Charsets.US_ASCII))
-        assertEquals(0, bytes[5].toInt())
-        // All other bytes should be zero
-        for (i in 6 until 44) {
+    fun defaultValues_produceSilentPacketWithValidV2Header() {
+        val bytes = UdpSoundSyncPacket().toByteArray()
+        assertEquals(UdpSoundSyncPacket.PACKET_SIZE, bytes.size)
+        assertEquals("00002", bytes.decodeToString(startIndex = 0, endIndex = 5))
+        for (i in 5 until UdpSoundSyncPacket.PACKET_SIZE) {
             assertEquals(0, bytes[i].toInt(), "Byte at offset $i should be zero")
         }
     }
 
     @Test
-    fun defaultValues_produceSilentPacket() {
-        val packet = UdpSoundSyncPacket()
-        val bytes = packet.toByteArray()
-        assertEquals(44, bytes.size)
-        assertTrue(bytes[16].toInt() == 0, "samplePeak should be 0 by default")
+    fun init_invalidFftResultSize_throwsIllegalArgumentException() {
+        listOf(0, 15, 17).forEach { size ->
+            assertFailsWith<IllegalArgumentException> {
+                UdpSoundSyncPacket(fftResult = ByteArray(size))
+            }
+        }
     }
 }

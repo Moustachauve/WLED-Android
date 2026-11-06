@@ -1,6 +1,7 @@
 package ca.cgagnier.wlednativeandroid.service.soundsync.dsp
 
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.sin
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -16,18 +17,6 @@ class FftAnalyzerTest {
         val samples = FloatArray(512) { 0.1f }
         val result = analyzer.analyze(samples)
         assertEquals(16, result.fftChannels.size)
-    }
-
-    @Test
-    fun analyze_channelValuesAreInByteRange() {
-        val analyzer = FftAnalyzer(fftSize = 512, sampleRate = sampleRate)
-        // Generate a loud signal
-        val samples = generateSineWave(frequency = 1000f, sampleRate = sampleRate, count = 512, amplitude = 0.9f)
-        val result = analyzer.analyze(samples)
-        for (i in result.fftChannels.indices) {
-            val value = result.fftChannels[i].toInt() and 0xFF
-            assertTrue(value in 0..255, "Channel $i value $value should be in 0-255 range")
-        }
     }
 
     @Test
@@ -65,13 +54,11 @@ class FftAnalyzerTest {
     @Test
     fun analyze_majorPeakReportsCorrectFrequency() {
         val analyzer = FftAnalyzer(fftSize = 512, sampleRate = sampleRate)
-        // 1000 Hz sine wave
         val samples = generateSineWave(frequency = 1000f, sampleRate = sampleRate, count = 512, amplitude = 0.5f)
         val result = analyzer.analyze(samples)
-        // Major peak should be near 1000 Hz (within one bin width: sampleRate/fftSize ≈ 86 Hz)
         val binWidth = sampleRate.toFloat() / 512
         assertTrue(
-            kotlin.math.abs(result.majorPeak - 1000f) < binWidth * 2,
+            abs(result.majorPeak - 1000f) < binWidth * 2,
             "Major peak should be near 1000 Hz, got ${result.majorPeak} Hz",
         )
     }
@@ -85,11 +72,17 @@ class FftAnalyzerTest {
     }
 
     @Test
-    fun analyze_inputSmallerThanFftSize_padsWithZeros() {
+    fun analyze_inputSmallerThanFftSize_padsWithZerosAndDetectsSignal() {
         val analyzer = FftAnalyzer(fftSize = 512, sampleRate = sampleRate)
-        val samples = FloatArray(256) { 0.5f }
+        val samples = generateSineWave(frequency = 1000f, sampleRate = sampleRate, count = 256, amplitude = 0.5f)
         val result = analyzer.analyze(samples)
+        val binWidth = sampleRate.toFloat() / 512
         assertEquals(16, result.fftChannels.size)
+        assertTrue(result.magnitude > 0f, "256-sample sine wave should produce non-zero magnitude")
+        assertTrue(
+            abs(result.majorPeak - 1000f) < binWidth * 3,
+            "256-sample sine wave should still peak near 1000 Hz, got ${result.majorPeak} Hz",
+        )
     }
 
     @Test
@@ -100,7 +93,6 @@ class FftAnalyzerTest {
             if (i >= 512) sin(2.0 * PI * 1000.0 * (i - 512) / sampleRate).toFloat() * 0.5f else 0f
         }
         val result = analyzer.analyze(samples)
-        // Should detect the 1000 Hz signal from the last 512 samples
         assertTrue(result.magnitude > 0f, "Should detect signal in the last 512 samples")
     }
 
@@ -122,10 +114,9 @@ class FftAnalyzerTest {
         val highSamples = generateSineWave(frequency = 5000f, sampleRate = sampleRate, count = 512, amplitude = 0.5f)
         val lowResult = analyzer.analyze(lowSamples)
         val highResult = analyzer.analyze(highSamples)
-        // The channel patterns should be different
         var differences = 0
         for (i in 0 until 16) {
-            if (kotlin.math.abs(
+            if (abs(
                     (lowResult.fftChannels[i].toInt() and 0xFF) -
                         (highResult.fftChannels[i].toInt() and 0xFF),
                 ) > 10

@@ -1,11 +1,18 @@
 package ca.cgagnier.wlednativeandroid.ui.soundsync
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -23,24 +31,32 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.R
-import ca.cgagnier.wlednativeandroid.service.soundsync.audio.SoundSyncAudioSourceType
+import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncError
+import ca.cgagnier.wlednativeandroid.service.soundsync.UdpSoundSyncPacket
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.GainControl
+import kotlinx.coroutines.flow.StateFlow
 import org.koin.androidx.compose.koinViewModel
 
 private const val CHART_HEIGHT_DP = 120
@@ -51,18 +67,30 @@ private const val BAR_GAP_RATIO = 0.15f
 @Composable
 fun SoundSyncScreen(navigateUp: () -> Unit, viewModel: SoundSyncViewModel = koinViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var permanentlyDenied by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { granted ->
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results ->
         viewModel.refreshPermissionState()
-        if (granted) {
+        if (results[Manifest.permission.RECORD_AUDIO] == true) {
+            permanentlyDenied = false
             viewModel.start()
+        } else {
+            val activity = context.findActivity()
+            permanentlyDenied = activity != null &&
+                !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.RECORD_AUDIO)
         }
     }
 
-    LaunchedEffect(Unit) {
+    LifecycleResumeEffect(Unit) {
         viewModel.refreshPermissionState()
+        onPauseOrDispose { }
+    }
+
+    if (uiState.hasRecordAudioPermission && permanentlyDenied) {
+        permanentlyDenied = false
     }
 
     Scaffold(
@@ -82,7 +110,14 @@ fun SoundSyncScreen(navigateUp: () -> Unit, viewModel: SoundSyncViewModel = koin
     ) { innerPadding ->
         SoundSyncContent(
             uiState = uiState,
-            permissionLauncher = permissionLauncher,
+            permanentlyDenied = permanentlyDenied,
+            onRequestPermissionOrSettings = {
+                if (permanentlyDenied) {
+                    openAppSettings(context)
+                } else {
+                    permissionLauncher.launch(requiredPermissions())
+                }
+            },
             viewModel = viewModel,
             modifier = Modifier.padding(innerPadding),
         )
@@ -92,7 +127,8 @@ fun SoundSyncScreen(navigateUp: () -> Unit, viewModel: SoundSyncViewModel = koin
 @Composable
 private fun SoundSyncContent(
     uiState: SoundSyncUiState,
-    permissionLauncher: androidx.activity.result.ActivityResultLauncher<String>,
+    permanentlyDenied: Boolean,
+    onRequestPermissionOrSettings: () -> Unit,
     viewModel: SoundSyncViewModel,
     modifier: Modifier = Modifier,
 ) {
@@ -108,33 +144,24 @@ private fun SoundSyncContent(
                 .widthIn(0.dp, 1100.dp),
         ) {
             DescriptionCard()
-            SourceSelectionCard(
-                sourceType = uiState.sourceType,
-                isRunning = uiState.isRunning,
-                onSourceSelected = { viewModel.setSourceType(it) },
-            )
             GainCard(
                 gain = uiState.gain,
                 agcEnabled = uiState.agcEnabled,
                 onGainChanged = { viewModel.setGain(it) },
+                onGainChangeFinished = { viewModel.saveGain() },
                 onAgcChanged = { viewModel.setAgcEnabled(it) },
             )
             if (uiState.isRunning) {
-                VisualizationCard(
-                    fftChannels = uiState.fftChannels,
-                    sampleLevel = uiState.sampleLevel,
-                    isPeak = uiState.isPeak,
-                )
+                VisualizationCard(latestPacketFlow = viewModel.latestPacket)
             }
-            uiState.errorMessage?.let { message ->
-                ErrorCard(errorMessage = message)
-            }
+            uiState.error?.let { ErrorCard(it) }
             StartStopCard(
                 isRunning = uiState.isRunning,
                 hasRecordAudioPermission = uiState.hasRecordAudioPermission,
+                permanentlyDenied = permanentlyDenied,
                 onStart = {
                     if (!uiState.hasRecordAudioPermission) {
-                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        onRequestPermissionOrSettings()
                     } else {
                         viewModel.start()
                     }
@@ -147,11 +174,8 @@ private fun SoundSyncContent(
 
 @Composable
 private fun DescriptionCard() {
-    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+    SoundSyncCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 painter = painterResource(id = R.drawable.baseline_graphic_eq_24),
                 contentDescription = null,
@@ -167,53 +191,34 @@ private fun DescriptionCard() {
 }
 
 @Composable
-private fun SourceSelectionCard(
-    sourceType: SoundSyncAudioSourceType,
-    isRunning: Boolean,
-    onSourceSelected: (SoundSyncAudioSourceType) -> Unit,
-) {
-    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                stringResource(R.string.sound_sync_audio_source),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            SourceRadioRow(
-                label = stringResource(R.string.sound_sync_source_microphone),
-                selected = sourceType == SoundSyncAudioSourceType.MICROPHONE,
-                enabled = !isRunning,
-                onSelected = { onSourceSelected(SoundSyncAudioSourceType.MICROPHONE) },
-            )
-            SourceRadioRow(
-                label = stringResource(R.string.sound_sync_source_music),
-                selected = sourceType == SoundSyncAudioSourceType.MUSIC,
-                enabled = !isRunning,
-                onSelected = { onSourceSelected(SoundSyncAudioSourceType.MUSIC) },
-            )
-        }
+private fun ErrorCard(error: SoundSyncError) {
+    val messageResId = when (error) {
+        SoundSyncError.PERMISSION_REQUIRED -> R.string.sound_sync_error_permission
+        SoundSyncError.CAPTURE_FAILED -> R.string.sound_sync_error_capture
+    }
+    SoundSyncCard {
+        Text(
+            text = stringResource(R.string.sound_sync_error, stringResource(messageResId)),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
+        )
     }
 }
 
 @Composable
-private fun SourceRadioRow(label: String, selected: Boolean, enabled: Boolean, onSelected: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+private fun SoundSyncCard(
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = onSelected,
-            enabled = enabled,
-        )
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (enabled) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = horizontalAlignment,
+            content = content,
         )
     }
 }
@@ -223,82 +228,95 @@ private fun GainCard(
     gain: Float,
     agcEnabled: Boolean,
     onGainChanged: (Float) -> Unit,
+    onGainChangeFinished: () -> Unit,
     onAgcChanged: (Boolean) -> Unit,
 ) {
-    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                stringResource(R.string.sound_sync_gain),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+    SoundSyncCard {
+        Text(
+            stringResource(R.string.sound_sync_gain),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Slider(
+                value = gain,
+                onValueChange = onGainChanged,
+                onValueChangeFinished = onGainChangeFinished,
+                valueRange = 0f..GainControl.MAX_MANUAL_GAIN,
+                modifier = Modifier.weight(1f),
+                enabled = !agcEnabled,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Slider(
-                    value = gain,
-                    onValueChange = onGainChanged,
-                    valueRange = 0f..10f,
-                    modifier = Modifier.weight(1f),
-                    enabled = !agcEnabled,
-                )
-                Text(
-                    text = "${(gain * 10).toInt() / 10f}x",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(R.string.sound_sync_agc),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                Switch(
-                    checked = agcEnabled,
-                    onCheckedChange = onAgcChanged,
-                )
-            }
+            Text(
+                text = stringResource(R.string.sound_sync_gain_value, gain),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(start = 8.dp),
+            )
         }
-    }
-}
-
-@Composable
-private fun VisualizationCard(fftChannels: ByteArray, sampleLevel: Float, isPeak: Boolean) {
-    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = agcEnabled,
+                    onValueChange = onAgcChanged,
+                    role = Role.Switch,
+                )
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
-                stringResource(R.string.sound_sync_fft_visualization),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+                stringResource(R.string.sound_sync_agc),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            FftBarChart(
-                fftChannels = fftChannels,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(CHART_HEIGHT_DP.dp),
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            SampleLevelIndicator(
-                sampleLevel = sampleLevel,
-                isPeak = isPeak,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp),
+            Switch(
+                checked = agcEnabled,
+                onCheckedChange = null,
             )
         }
     }
 }
 
 @Composable
-private fun FftBarChart(fftChannels: ByteArray, modifier: Modifier = Modifier) {
+private fun VisualizationCard(latestPacketFlow: StateFlow<UdpSoundSyncPacket>) {
+    val packet by latestPacketFlow.collectAsStateWithLifecycle()
+    SoundSyncCard {
+        Text(
+            stringResource(R.string.sound_sync_fft_visualization),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        FftBarChart(
+            fftChannelsProvider = { packet.fftResult },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(CHART_HEIGHT_DP.dp),
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.sound_sync_sample_level),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        SampleLevelIndicator(
+            sampleLevelProvider = { packet.sampleSmth },
+            isPeakProvider = { packet.samplePeak },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp),
+        )
+    }
+}
+
+@Composable
+private fun FftBarChart(fftChannelsProvider: () -> ByteArray, modifier: Modifier = Modifier) {
     val barColor = MaterialTheme.colorScheme.primary
     Canvas(modifier = modifier) {
+        val fftChannels = fftChannelsProvider()
         val channelCount = fftChannels.size
         if (channelCount == 0) return@Canvas
         val barWidth = size.width / channelCount
@@ -318,47 +336,19 @@ private fun FftBarChart(fftChannels: ByteArray, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SampleLevelIndicator(sampleLevel: Float, isPeak: Boolean, modifier: Modifier = Modifier) {
+private fun SampleLevelIndicator(
+    sampleLevelProvider: () -> Float,
+    isPeakProvider: () -> Boolean,
+    modifier: Modifier = Modifier,
+) {
     val backgroundColor = MaterialTheme.colorScheme.surfaceVariant
-    val levelColor = if (isPeak) {
-        MaterialTheme.colorScheme.error
-    } else {
-        MaterialTheme.colorScheme.primary
-    }
-    Box(modifier = modifier) {
-        Canvas(modifier = Modifier.matchParentSize()) {
-            drawRect(
-                color = backgroundColor,
-                topLeft = Offset.Zero,
-                size = size,
-            )
-            val levelWidth = sampleLevel.coerceIn(0f, CHANNEL_MAX_VALUE) / CHANNEL_MAX_VALUE * size.width
-            drawRect(
-                color = levelColor,
-                topLeft = Offset.Zero,
-                size = Size(levelWidth, size.height),
-            )
-        }
-        Text(
-            text = stringResource(R.string.sound_sync_sample_level),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = 4.dp),
-        )
-    }
-}
-
-@Composable
-private fun ErrorCard(errorMessage: String) {
-    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(
-            text = stringResource(R.string.sound_sync_error, errorMessage),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.padding(12.dp),
-        )
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val errorColor = MaterialTheme.colorScheme.error
+    Canvas(modifier = modifier) {
+        drawRect(color = backgroundColor, topLeft = Offset.Zero, size = size)
+        val levelColor = if (isPeakProvider()) errorColor else primaryColor
+        val levelWidth = sampleLevelProvider().coerceIn(0f, CHANNEL_MAX_VALUE) / CHANNEL_MAX_VALUE * size.width
+        drawRect(color = levelColor, topLeft = Offset.Zero, size = Size(levelWidth, size.height))
     }
 }
 
@@ -366,50 +356,62 @@ private fun ErrorCard(errorMessage: String) {
 private fun StartStopCard(
     isRunning: Boolean,
     hasRecordAudioPermission: Boolean,
+    permanentlyDenied: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
 ) {
-    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            if (isRunning) {
-                Text(
-                    text = stringResource(R.string.sound_sync_running),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = onStop,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.sound_sync_stop))
-                }
-            } else {
-                if (!hasRecordAudioPermission) {
-                    Text(
-                        text = stringResource(R.string.sound_sync_permission_required),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = onStart,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.sound_sync_grant_permission))
-                    }
+    SoundSyncCard(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (isRunning) {
+            Text(
+                text = stringResource(R.string.sound_sync_running),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = onStop, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.sound_sync_stop))
+            }
+        } else if (!hasRecordAudioPermission) {
+            Text(
+                text = stringResource(R.string.sound_sync_permission_required),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(onClick = onStart, modifier = Modifier.fillMaxWidth()) {
+                val buttonTextRes = if (permanentlyDenied) {
+                    R.string.sound_sync_open_settings
                 } else {
-                    Button(
-                        onClick = onStart,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.sound_sync_start))
-                    }
+                    R.string.sound_sync_grant_permission
                 }
+                Text(stringResource(buttonTextRes))
+            }
+        } else {
+            Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.sound_sync_start))
             }
         }
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+private fun openAppSettings(context: Context) {
+    val intent = Intent(
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.fromParts("package", context.packageName, null),
+    ).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(intent)
+}
+
+private fun requiredPermissions(): Array<String> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.POST_NOTIFICATIONS)
+} else {
+    arrayOf(Manifest.permission.RECORD_AUDIO)
 }

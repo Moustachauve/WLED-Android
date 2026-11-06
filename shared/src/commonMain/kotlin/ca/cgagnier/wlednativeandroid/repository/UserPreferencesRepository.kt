@@ -20,9 +20,6 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     val lastChangelogVersionSeen: Flow<String> = dataStore.data.map {
         it.lastChangelogVersionSeen
     }.distinctUntilChanged()
-    val soundSyncSourceType: Flow<String> = dataStore.data.map {
-        it.soundSyncSourceType
-    }.distinctUntilChanged()
     val soundSyncGain: Flow<Float> = dataStore.data.map {
         it.soundSyncGain
     }.distinctUntilChanged()
@@ -85,16 +82,6 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         dataStore.updateData {
             it.copy(
                 lastChangelogVersionSeen = version,
-                dateLastWritten = currentTimeMillis(),
-            )
-        }
-    }
-
-    suspend fun updateSoundSyncSourceType(sourceType: String) {
-        logger.d { "updateSoundSyncSourceType" }
-        dataStore.updateData {
-            it.copy(
-                soundSyncSourceType = sourceType,
                 dateLastWritten = currentTimeMillis(),
             )
         }

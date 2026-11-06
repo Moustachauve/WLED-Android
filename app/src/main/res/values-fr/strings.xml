@@ -144,4 +144,27 @@
     <string name="local_network_instructions">Aller dans Paramètres → Applications → WLED → Autorisations → Appareils à proximité</string>
     <string name="local_network_allow_access">Autoriser l\'accès</string>
 
+    <!-- Sound Sync -->
+    <string name="sound_sync">Synchro Sonore</string>
+    <string name="sound_sync_description">Envoyez des données réactives à l\'audio vers vos appareils WLED avec la synchronisation sonore UDP. Les appareils doivent être en mode Réception dans leurs paramètres de synchronisation audio.</string>
+    <string name="sound_sync_gain">Gain</string>
+    <string name="sound_sync_gain_value">%1$.1fx</string>
+    <string name="sound_sync_agc">Contrôle Automatique du Gain</string>
+    <string name="sound_sync_start">Démarrer la Synchro Sonore</string>
+    <string name="sound_sync_stop">Arrêter la Synchro Sonore</string>
+    <string name="sound_sync_running">La synchronisation sonore est active</string>
+    <string name="sound_sync_permission_required">L\'autorisation d\'accès au microphone est requise pour la synchronisation sonore</string>
+    <string name="sound_sync_grant_permission">Accorder l\'autorisation</string>
+    <string name="sound_sync_open_settings">Ouvrir les paramètres</string>
+    <string name="sound_sync_error">Erreur de synchronisation sonore : %1$s</string>
+    <string name="sound_sync_fft_visualization">Visualisation des fréquences</string>
+    <string name="sound_sync_sample_level">Niveau du signal</string>
+    <string name="sound_sync_notification_title">Synchro Sonore active</string>
+    <string name="sound_sync_notification_text">Envoi des données audio aux appareils WLED</string>
+    <string name="sound_sync_notification_stop">Arrêter</string>
+    <string name="sound_sync_notification_channel">Synchro Sonore</string>
+    <string name="sound_sync_notification_channel_description">S\'affiche lorsque la synchronisation sonore est active</string>
+    <string name="sound_sync_error_permission">L\'autorisation d\'accès au microphone est requise</string>
+    <string name="sound_sync_error_capture">Échec du démarrage de la capture audio.</string>
+
 </resources>

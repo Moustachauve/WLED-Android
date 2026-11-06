@@ -144,4 +144,27 @@
     <string name="local_network_instructions">Gehe zu Einstellungen → Apps → WLED → Berechtigungen → Geräte in der Nähe</string>
     <string name="local_network_allow_access">Zugriff erlauben</string>
 
+    <!-- Sound Sync -->
+    <string name="sound_sync">Sound Sync</string>
+    <string name="sound_sync_description">Sende audioreaktive Daten über UDP Sound Sync an deine WLED-Geräte. Die Geräte müssen in ihren Audio-Sync-Einstellungen auf den Empfangsmodus eingestellt sein.</string>
+    <string name="sound_sync_gain">Verstärkung</string>
+    <string name="sound_sync_gain_value">%1$.1fx</string>
+    <string name="sound_sync_agc">Automatische Verstärkungsregelung</string>
+    <string name="sound_sync_start">Sound Sync starten</string>
+    <string name="sound_sync_stop">Sound Sync stoppen</string>
+    <string name="sound_sync_running">Sound Sync läuft</string>
+    <string name="sound_sync_permission_required">Für Sound Sync ist die Mikrofonberechtigung erforderlich</string>
+    <string name="sound_sync_grant_permission">Berechtigung erteilen</string>
+    <string name="sound_sync_open_settings">Einstellungen öffnen</string>
+    <string name="sound_sync_error">Sound-Sync-Fehler: %1$s</string>
+    <string name="sound_sync_fft_visualization">Frequenzvisualisierung</string>
+    <string name="sound_sync_sample_level">Signalpegel</string>
+    <string name="sound_sync_notification_title">Sound Sync aktiv</string>
+    <string name="sound_sync_notification_text">Sende Audiodaten an WLED-Geräte</string>
+    <string name="sound_sync_notification_stop">Stoppen</string>
+    <string name="sound_sync_notification_channel">Sound Sync</string>
+    <string name="sound_sync_notification_channel_description">Wird angezeigt, wenn Sound Sync aktiv ist</string>
+    <string name="sound_sync_error_permission">Mikrofonberechtigung ist erforderlich</string>
+    <string name="sound_sync_error_capture">Audioaufnahme konnte nicht gestartet werden.</string>
+
 </resources>

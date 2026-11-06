@@ -8,8 +8,8 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private const val TAG = "MicrophoneAudioSource"
 private val logger = Logger.withTag(TAG)
@@ -31,19 +30,24 @@ private val logger = Logger.withTag(TAG)
  */
 class MicrophoneAudioSource(
     private val context: Context,
+    coroutineScope: CoroutineScope,
+    ioDispatcher: CoroutineDispatcher,
     override val sampleRate: Int = DEFAULT_SAMPLE_RATE,
-    private val bufferSizeMultiplier: Int = 4,
+    private val bufferSizeMultiplier: Int = DEFAULT_BUFFER_SIZE_MULTIPLIER,
 ) : AudioSource {
+
+    private val scope = CoroutineScope(
+        coroutineScope.coroutineContext + SupervisorJob(coroutineScope.coroutineContext[Job]) + ioDispatcher,
+    )
 
     private val _isRunning = MutableStateFlow(false)
     override val isRunning: StateFlow<Boolean> = _isRunning.asStateFlow()
 
-    private var audioRecord: AudioRecord? = null
     private var captureJob: Job? = null
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    fun hasPermission(): Boolean = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-        PackageManager.PERMISSION_GRANTED
+    override fun hasPermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
 
     @Synchronized
     override fun start(onAudioData: (FloatArray) -> Unit): Boolean {
@@ -53,21 +57,19 @@ class MicrophoneAudioSource(
             return false
         }
 
-        val (record, bufferSize) = createAudioRecord() ?: return false
+        val (record, readChunkSamples) = createAudioRecord() ?: return false
 
-        audioRecord = record
         record.startRecording()
         if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
             logger.e { "AudioRecord failed to start recording" }
-            record.stop()
-            record.release()
-            audioRecord = null
+            runCatching { record.stop() }
+            runCatching { record.release() }
             return false
         }
 
         _isRunning.value = true
         captureJob = scope.launch {
-            captureLoop(record, bufferSize, onAudioData)
+            captureLoop(record, readChunkSamples, onAudioData)
         }
         return true
     }
@@ -76,27 +78,38 @@ class MicrophoneAudioSource(
         val minBufferSize = AudioRecord.getMinBufferSize(
             sampleRate,
             AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
+            AudioFormat.ENCODING_PCM_FLOAT,
         )
         if (minBufferSize <= 0) {
             logger.e { "Failed to get min buffer size: $minBufferSize" }
             return null
         }
-        val bufferSize = minBufferSize * bufferSizeMultiplier
+        val internalBufferSize = minBufferSize * bufferSizeMultiplier
+        // Read ~20ms chunks (e.g. 882 samples at 44.1 kHz) so callbacks fire at ~50fps
+        val maxSamplesInBuffer = (internalBufferSize / BYTES_PER_SAMPLE_FLOAT).coerceAtLeast(1)
+        val readChunkSamples = (sampleRate / TARGET_CHUNKS_PER_SECOND).coerceAtMost(maxSamplesInBuffer)
 
-        val record = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            sampleRate,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            bufferSize,
-        )
+        @Suppress("TooGenericExceptionCaught")
+        val record = try {
+            AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                sampleRate,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_FLOAT,
+                internalBufferSize,
+            )
+        } catch (e: Exception) {
+            // AudioRecord constructor can throw IllegalArgumentException,
+            // UnsupportedOperationException, or SecurityException
+            logger.e(e) { "Failed to create AudioRecord" }
+            return null
+        }
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             logger.e { "AudioRecord failed to initialize" }
             record.release()
             return null
         }
-        return record to bufferSize
+        return record to readChunkSamples
     }
 
     @Synchronized
@@ -104,36 +117,40 @@ class MicrophoneAudioSource(
         _isRunning.value = false
         captureJob?.cancel()
         captureJob = null
-        audioRecord?.let { record ->
-            runCatching { record.stop() }
-            runCatching { record.release() }
-        }
-        audioRecord = null
     }
 
-    fun destroy() {
+    override fun destroy() {
         stop()
         scope.cancel()
     }
 
-    private suspend fun captureLoop(record: AudioRecord, bufferSize: Int, onAudioData: (FloatArray) -> Unit) {
-        val byteBuffer = ByteArray(bufferSize)
-        withContext(Dispatchers.IO) {
+    private fun CoroutineScope.captureLoop(
+        record: AudioRecord,
+        readChunkSamples: Int,
+        onAudioData: (FloatArray) -> Unit,
+    ) {
+        val floatBuffer = FloatArray(readChunkSamples)
+        try {
             while (isActive && _isRunning.value) {
-                val bytesRead = record.read(byteBuffer, 0, bufferSize)
-                if (bytesRead > 0) {
-                    val samples = pcm16BytesToFloat(byteBuffer, bytesRead)
-                    onAudioData(samples)
-                } else if (bytesRead < 0) {
-                    logger.e { "AudioRecord read error: $bytesRead" }
+                val samplesRead = record.read(floatBuffer, 0, readChunkSamples, AudioRecord.READ_BLOCKING)
+                if (samplesRead < 0) {
+                    logger.e { "AudioRecord read error: $samplesRead" }
+                    _isRunning.value = false
                     break
+                } else if (samplesRead > 0 && isActive && _isRunning.value) {
+                    onAudioData(floatBuffer.copyOf(samplesRead))
                 }
             }
+        } finally {
+            runCatching { record.stop() }
+            runCatching { record.release() }
         }
-        _isRunning.value = false
     }
 
     companion object {
         const val DEFAULT_SAMPLE_RATE = 44100
+        private const val DEFAULT_BUFFER_SIZE_MULTIPLIER = 4
+        private const val TARGET_CHUNKS_PER_SECOND = 50
+        private const val BYTES_PER_SAMPLE_FLOAT = 4
     }
 }

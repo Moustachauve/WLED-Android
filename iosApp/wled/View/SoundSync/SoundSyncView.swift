@@ -1,3 +1,4 @@
+import Shared
 import SwiftUI
 
 private let chartHeight: CGFloat = 120
@@ -6,12 +7,9 @@ private let barGapRatio: CGFloat = 0.15
 
 struct SoundSyncView: View {
 
-    @State private var viewModel: SoundSyncViewModel
+    @Bindable var viewModel: SoundSyncViewModel
     @Environment(\.dismiss) private var dismiss
-
-    init(viewModel: SoundSyncViewModel) {
-        _viewModel = State(wrappedValue: viewModel)
-    }
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -42,6 +40,11 @@ struct SoundSyncView: View {
                 viewModel.refreshPermissionState()
                 await viewModel.observe()
             }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    viewModel.refreshPermissionState()
+                }
+            }
         }
     }
 
@@ -62,25 +65,32 @@ struct SoundSyncView: View {
         Section("Gain") {
             HStack {
                 Slider(
-                    value: $viewModel.gain,
-                    in: 0...10,
-                    onEditingChanged: { editing in
-                        if !editing {
-                            viewModel.setGain(viewModel.gain)
-                        }
+                    value: Binding(
+                        get: { viewModel.gain },
+                        set: { viewModel.updateLiveGain($0) }
+                    ),
+                    in: 0...GainControl.Companion.shared.MAX_MANUAL_GAIN
+                ) {
+                    Text("Gain")
+                } onEditingChanged: { editing in
+                    if !editing {
+                        viewModel.saveGain()
                     }
-                )
+                }
+                .labelsHidden()
                 .disabled(viewModel.agcEnabled)
 
-                Text(String(format: "%.1fx", viewModel.gain))
+                Text("\(viewModel.gain.formatted(.number.precision(.fractionLength(1))))x")
                     .monospacedDigit()
-                    .frame(width: 44, alignment: .trailing)
             }
 
-            Toggle("Automatic Gain Control", isOn: $viewModel.agcEnabled)
-                .onChange(of: viewModel.agcEnabled) { _, newValue in
-                    viewModel.setAgcEnabled(newValue)
-                }
+            Toggle(
+                "Automatic Gain Control",
+                isOn: Binding(
+                    get: { viewModel.agcEnabled },
+                    set: { viewModel.setAgcEnabled($0) }
+                )
+            )
         }
     }
 
@@ -88,12 +98,14 @@ struct SoundSyncView: View {
         Section("Frequency visualization") {
             FftBarChart(channels: viewModel.fftChannels)
                 .frame(height: chartHeight)
+                .accessibilityHidden(true)
 
             SampleLevelIndicator(
                 level: viewModel.sampleLevel,
                 isPeak: viewModel.isPeak
             )
             .frame(height: 8)
+            .accessibilityHidden(true)
         }
     }
 
@@ -112,12 +124,14 @@ struct SoundSyncView: View {
                         .foregroundStyle(.tint)
 
                     Button("Stop Sound Sync", role: .destructive) {
-                        viewModel.stop()
+                        Task {
+                            await viewModel.stop()
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity)
                 }
-            } else if !viewModel.hasRecordAudioPermission {
+            } else if viewModel.isPermissionDenied {
                 VStack(spacing: 8) {
                     Text("Microphone permission is required for sound sync")
                         .foregroundStyle(.red)
@@ -150,22 +164,22 @@ private struct FftBarChart: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let channelCount = CGFloat(channels.count)
-            guard channelCount > 0 else { return }
+            if !channels.isEmpty {
+                let channelCount = CGFloat(channels.count)
+                let barWidth = geometry.size.width / channelCount
+                let gap = barWidth * barGapRatio
+                let actualBarWidth = barWidth - gap
 
-            let barWidth = geometry.size.width / channelCount
-            let gap = barWidth * barGapRatio
-            let actualBarWidth = barWidth - gap
+                HStack(spacing: gap) {
+                    ForEach(0..<channels.count, id: \.self) { index in
+                        let value = CGFloat(channels[index]) / CGFloat(channelMaxValue)
+                        let barHeight = value * geometry.size.height
 
-            HStack(spacing: gap) {
-                ForEach(0..<channels.count, id: \.self) { index in
-                    let value = CGFloat(channels[index]) / CGFloat(channelMaxValue)
-                    let barHeight = value * geometry.size.height
-
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.accentColor)
-                        .frame(width: actualBarWidth, height: max(barHeight, 2))
-                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.accentColor)
+                            .frame(width: actualBarWidth, height: max(barHeight, 2))
+                            .frame(maxHeight: .infinity, alignment: .bottom)
+                    }
                 }
             }
         }

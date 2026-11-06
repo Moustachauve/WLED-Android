@@ -3,8 +3,7 @@ package ca.cgagnier.wlednativeandroid.service.soundsync.audio
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Audio source for sound sync. Implementations capture audio from either
- * the device microphone or the currently playing system audio, and emit
+ * Audio source for sound sync. Implementations capture audio and emit
  * normalized PCM samples (floats in [-1.0, 1.0]) via the [onAudioData] callback.
  */
 interface AudioSource {
@@ -13,6 +12,9 @@ interface AudioSource {
 
     /** Whether the source is currently capturing audio. */
     val isRunning: StateFlow<Boolean>
+
+    /** Returns `true` if the required audio recording permission is granted. */
+    fun hasPermission(): Boolean
 
     /**
      * Starts audio capture. The [onAudioData] callback is invoked with chunks
@@ -23,15 +25,9 @@ interface AudioSource {
      */
     fun start(onAudioData: (FloatArray) -> Unit): Boolean
 
-    /** Stops audio capture and releases resources. */
+    /** Stops audio capture and releases active recording resources. */
     fun stop()
-}
 
-/** Audio source type for sound sync. */
-enum class SoundSyncAudioSourceType {
-    /** Capture from the device microphone. */
-    MICROPHONE,
-
-    /** Capture from the currently playing system audio (music, etc.). */
-    MUSIC,
+    /** Permanently stops capture and cancels any internal coroutine scopes. */
+    fun destroy()
 }

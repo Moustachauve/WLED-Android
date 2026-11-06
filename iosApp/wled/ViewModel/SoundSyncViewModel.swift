@@ -1,12 +1,8 @@
+import AVFAudio
 import Foundation
 import Observation
-import OSLog
 import Shared
-
-private let logger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native",
-    category: "SoundSyncViewModel"
-)
+import UIKit
 
 /// View model for the Sound Sync screen.
 ///
@@ -22,84 +18,70 @@ final class SoundSyncViewModel {
     var isRunning: Bool = false
     var gain: Float = 1.0
     var agcEnabled: Bool = false
-    var fftChannels: [UInt8] = Array(repeating: 0, count: 16)
+    var fftChannels: [UInt8] = Array(repeating: 0, count: Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT))
     var sampleLevel: Float = 0
     var isPeak: Bool = false
     var errorMessage: String?
-    var hasRecordAudioPermission: Bool = false
+    var recordPermission: AVAudioApplication.recordPermission = .undetermined
+
+    var isPermissionDenied: Bool {
+        recordPermission == .denied
+    }
 
     // MARK: - Private Properties
 
-    private let soundSyncManager: SoundSyncManager
+    private let soundSyncManager: any SoundSyncManaging
     private let userPreferencesRepository: UserPreferencesRepository
     private let deviceRepository: DeviceRepository
-    @ObservationIgnored private var stateObserverTask: Task<Void, Never>?
-    @ObservationIgnored private var deviceObserverTask: Task<Void, Never>?
-    @ObservationIgnored private var isSyncingPreferences = false
+    private let openSettings: @MainActor () -> Void
+    @ObservationIgnored private var deviceObservationTask: Task<Void, Never>?
+    @ObservationIgnored private var gainUpdateTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
     init(
-        soundSyncManager: SoundSyncManager = SoundSyncManager(),
+        soundSyncManager: any SoundSyncManaging = SoundSyncManager(),
         userPreferencesRepository: UserPreferencesRepository,
-        deviceRepository: DeviceRepository
+        deviceRepository: DeviceRepository,
+        openSettings: @escaping @MainActor () -> Void = SoundSyncViewModel.defaultOpenAppSettings
     ) {
         self.soundSyncManager = soundSyncManager
         self.userPreferencesRepository = userPreferencesRepository
         self.deviceRepository = deviceRepository
-        self.hasRecordAudioPermission = soundSyncManager.hasRecordAudioPermission()
+        self.openSettings = openSettings
+        self.recordPermission = soundSyncManager.recordPermissionStatus()
     }
 
     // MARK: - Lifecycle
 
-    /// Starts observing the sound sync manager state and device list.
+    /// Loads saved preferences, syncs current manager state, and observes live updates.
     func observe() async {
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.observeSoundSyncState() }
-            group.addTask { await self.observeGainPreference() }
-            group.addTask { await self.observeAgcPreference() }
-            group.addTask { await self.observeDevices() }
-        }
-    }
+        let initialState = await soundSyncManager.getState()
+        applyState(initialState)
 
-    private func observeSoundSyncState() async {
-        for await state in soundSyncManager.stateStream {
-            guard !Task.isCancelled else { break }
-            isRunning = state.isRunning
-            gain = state.gain
-            agcEnabled = state.agcEnabled
-            fftChannels = state.fftChannels
-            sampleLevel = state.sampleLevel
-            isPeak = state.isPeak
-            errorMessage = state.errorMessage
-        }
-    }
+        if initialState.isRunning {
+            gain = initialState.gain
+            agcEnabled = initialState.agcEnabled
+        } else {
+            if let savedGain = await userPreferencesRepository.soundSyncGain.firstValue()?.floatValue {
+                gain = savedGain
+                await soundSyncManager.setGain(savedGain)
+            } else {
+                gain = initialState.gain
+            }
 
-    private func observeGainPreference() async {
-        for await value in userPreferencesRepository.soundSyncGain {
-            guard !Task.isCancelled else { break }
-            isSyncingPreferences = true
-            gain = value.floatValue
-            isSyncingPreferences = false
+            if let savedAgc = await userPreferencesRepository.soundSyncAgcEnabled.firstValue()?.boolValue {
+                agcEnabled = savedAgc
+                await soundSyncManager.setAgcEnabled(savedAgc)
+            } else {
+                agcEnabled = initialState.agcEnabled
+            }
         }
-    }
 
-    private func observeAgcPreference() async {
-        for await value in userPreferencesRepository.soundSyncAgcEnabled {
+        let stream = await soundSyncManager.stateStream()
+        for await state in stream {
             guard !Task.isCancelled else { break }
-            isSyncingPreferences = true
-            agcEnabled = value.boolValue
-            isSyncingPreferences = false
-        }
-    }
-
-    private func observeDevices() async {
-        for await devices in deviceRepository.allDevices {
-            guard !Task.isCancelled else { break }
-            let addresses = devices
-                .filter { !$0.isHidden.boolValue }
-                .map { $0.address }
-            await soundSyncManager.updateDeviceAddresses(addresses)
+            applyState(state)
         }
     }
 
@@ -107,48 +89,65 @@ final class SoundSyncViewModel {
 
     /// Refreshes the microphone permission state.
     func refreshPermissionState() {
-        hasRecordAudioPermission = soundSyncManager.hasRecordAudioPermission()
+        recordPermission = soundSyncManager.recordPermissionStatus()
     }
 
-    /// Requests microphone permission and starts sound sync if granted.
+    /// Requests microphone permission (or opens Settings if previously denied) and starts sound sync if granted.
     func start() async {
-        if !hasRecordAudioPermission {
+        refreshPermissionState()
+        if recordPermission == .denied {
+            openSettings()
+            return
+        }
+        if recordPermission != .granted {
             let granted = await soundSyncManager.requestRecordAudioPermission()
-            hasRecordAudioPermission = granted
+            refreshPermissionState()
             guard granted else { return }
         }
 
-        let addresses = await getDeviceAddresses()
+        let devices = await deviceRepository.allDevices.firstValue() ?? []
+        let addresses = Self.visibleAddresses(from: devices)
         let started = await soundSyncManager.start(
             gain: gain,
             agcEnabled: agcEnabled,
             deviceAddresses: addresses
         )
-        if !started {
-            errorMessage = String(localized: "Failed to start audio capture.")
+        let currentState = await soundSyncManager.getState()
+        applyState(currentState)
+        if started {
+            startObservingDevices()
         }
     }
 
     /// Stops sound sync.
-    func stop() {
-        Task {
-            await soundSyncManager.stop()
+    func stop() async {
+        stopObservingDevices()
+        await soundSyncManager.stop()
+        let currentState = await soundSyncManager.getState()
+        applyState(currentState)
+    }
+
+    /// Updates the manual gain in real-time while dragging.
+    func updateLiveGain(_ newGain: Float) {
+        gain = newGain
+        gainUpdateTask?.cancel()
+        gainUpdateTask = Task { [soundSyncManager] in
+            await soundSyncManager.setGain(newGain)
         }
     }
 
-    /// Updates the manual gain and persists the preference.
-    func setGain(_ newGain: Float) {
-        guard !isSyncingPreferences else { return }
-        gain = newGain
-        Task {
-            await soundSyncManager.setGain(newGain)
-            try? await userPreferencesRepository.updateSoundSyncGain(gain: newGain)
+    /// Persists the manual gain preference when slider editing finishes.
+    func saveGain() {
+        let currentGain = gain
+        gainUpdateTask?.cancel()
+        gainUpdateTask = Task { [soundSyncManager, userPreferencesRepository] in
+            await soundSyncManager.setGain(currentGain)
+            try? await userPreferencesRepository.updateSoundSyncGain(gain: currentGain)
         }
     }
 
     /// Toggles AGC and persists the preference.
     func setAgcEnabled(_ enabled: Bool) {
-        guard !isSyncingPreferences else { return }
         agcEnabled = enabled
         Task {
             await soundSyncManager.setAgcEnabled(enabled)
@@ -158,14 +157,38 @@ final class SoundSyncViewModel {
 
     // MARK: - Private
 
-    private func getDeviceAddresses() async -> [String] {
-        var addresses: [String] = []
-        for await devices in deviceRepository.allDevices {
-            addresses = devices
-                .filter { !$0.isHidden.boolValue }
-                .map { $0.address }
-            break
+    private func applyState(_ state: SoundSyncState) {
+        isRunning = state.isRunning
+        fftChannels = state.fftChannels
+        sampleLevel = state.sampleLevel
+        isPeak = state.isPeak
+        errorMessage = state.errorMessage
+    }
+
+    private func startObservingDevices() {
+        deviceObservationTask?.cancel()
+        deviceObservationTask = Task { [weak self] in
+            guard let self else { return }
+            for await devices in self.deviceRepository.allDevices {
+                guard !Task.isCancelled else { break }
+                await self.soundSyncManager.updateDeviceAddresses(Self.visibleAddresses(from: devices))
+            }
         }
-        return addresses
+    }
+
+    private func stopObservingDevices() {
+        deviceObservationTask?.cancel()
+        deviceObservationTask = nil
+    }
+
+    private static func defaultOpenAppSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
+    }
+
+    private static func visibleAddresses(from devices: [Shared.Device]) -> [String] {
+        devices
+            .filter { !$0.isHidden }
+            .map { $0.address }
     }
 }

@@ -423,9 +423,44 @@
         }
       }
     },
+    "Audio capture was interrupted." : {
+      "comment" : "Error message when audio capture is interrupted or the route changes during Sound Sync.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Audioaufnahme wurde unterbrochen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio capture was interrupted."
+          }
+        },
+        "fr-CA" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La capture audio a été interrompue."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频采集已中断。"
+          }
+        }
+      }
+    },
     "Automatic Gain Control" : {
       "comment" : "Label for the Automatic Gain Control toggle in Sound Sync.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatische Verstärkungsregelung"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -436,6 +471,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Contrôle Automatique du Gain"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动增益控制"
           }
         }
       }
@@ -1155,6 +1196,12 @@
     "Failed to start audio capture." : {
       "comment" : "Error message when audio capture fails to start.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audioaufnahme konnte nicht gestartet werden."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1166,12 +1213,24 @@
             "state" : "translated",
             "value" : "Échec du démarrage de la capture audio."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法启动音频采集。"
+          }
         }
       }
     },
     "Frequency visualization" : {
       "comment" : "Label for the frequency visualization in Sound Sync.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequenzvisualisierung"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1182,6 +1241,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Visualisation des fréquences"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "频率可视化"
           }
         }
       }
@@ -1219,6 +1284,12 @@
     "Gain" : {
       "comment" : "Label for the gain slider in Sound Sync.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verstärkung"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1230,12 +1301,24 @@
             "state" : "translated",
             "value" : "Gain"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "增益"
+          }
         }
       }
     },
     "Grant Permission" : {
       "comment" : "Button to grant microphone permission for Sound Sync.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Berechtigung erteilen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1246,6 +1329,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Autoriser"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "授予权限"
           }
         }
       }
@@ -1636,6 +1725,12 @@
     "Microphone permission is required for sound sync" : {
       "comment" : "Message shown when microphone permission is required for Sound Sync.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für Sound Sync ist die Mikrofonberechtigung erforderlich"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1646,6 +1741,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "L'autorisation du micro est requise pour la synchronisation sonore"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "声音同步需要麦克风权限"
           }
         }
       }
@@ -2246,6 +2347,12 @@
     "Send audio-reactive data to your WLED devices using UDP Sound Sync. Devices must be set to Receive mode in their audio sync settings." : {
       "comment" : "Description of the Sound Sync feature.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sende audioreaktive Daten über UDP Sound Sync an deine WLED-Geräte. Die Geräte müssen in ihren Audio-Sync-Einstellungen auf den Empfangsmodus eingestellt sein."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2256,6 +2363,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Envoyez des données réactives à l'audio à vos appareils WLED via UDP Sound Sync. Les appareils doivent être en mode Réception dans leurs paramètres de synchronisation audio."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 UDP 声音同步将音频响应数据发送到您的 WLED 设备。设备必须在其音频同步设置中设置为接收模式。"
           }
         }
       }
@@ -2620,6 +2733,12 @@
     "Sound Sync" : {
       "comment" : "Title for the Sound Sync feature. Also used as a toolbar button label.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound Sync"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2631,12 +2750,24 @@
             "state" : "translated",
             "value" : "Synchronisation Sonore"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "声音同步"
+          }
         }
       }
     },
     "Sound sync error: %@" : {
       "comment" : "Error message format for Sound Sync. %@ is the error detail.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound-Sync-Fehler: %@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2648,12 +2779,24 @@
             "state" : "translated",
             "value" : "Erreur de synchronisation sonore : %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "声音同步错误：%@"
+          }
         }
       }
     },
     "Sound sync is running" : {
       "comment" : "Text shown when Sound Sync is running.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound Sync läuft"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2664,6 +2807,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La synchronisation sonore est active"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "声音同步正在运行"
           }
         }
       }
@@ -2700,6 +2849,12 @@
     "Start Sound Sync" : {
       "comment" : "Button to start Sound Sync.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound Sync starten"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2710,6 +2865,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Démarrer la Synchro Sonore"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始声音同步"
           }
         }
       }
@@ -2835,6 +2996,12 @@
     "Stop Sound Sync" : {
       "comment" : "Button to stop Sound Sync.",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound Sync stoppen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2845,6 +3012,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Arrêter la Synchro Sonore"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止声音同步"
           }
         }
       }

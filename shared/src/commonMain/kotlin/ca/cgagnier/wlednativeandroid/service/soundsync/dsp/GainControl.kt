@@ -21,16 +21,14 @@ class GainControl(
     private val targetLevel: Float = DEFAULT_TARGET_LEVEL,
     private val maxAmplitude: Float = 1.0f,
 ) {
-    private var _manualGain = manualGain.coerceIn(0f, MAX_MANUAL_GAIN)
-    private var _agcEnabled = agcEnabled
+    var manualGain: Float = manualGain.coerceIn(0f, MAX_MANUAL_GAIN)
+        private set
+    var agcEnabled: Boolean = agcEnabled
+        private set
 
     // AGC state
     private var agcGain = 1.0f
     private var peakEnvelope = 0f
-
-    val manualGain: Float get() = _manualGain
-    val agcEnabled: Boolean get() = _agcEnabled
-    val currentAgcGain: Float get() = agcGain
 
     /**
      * Processes a block of audio samples through the gain stage.
@@ -47,14 +45,13 @@ class GainControl(
             val chunkSize = min(AGC_UPDATE_INTERVAL, samples.size - offset)
 
             // Apply current gain to this chunk
-            val totalGain = _manualGain * agcGain
+            val totalGain = manualGain * agcGain
             for (i in 0 until chunkSize) {
-                val amplified = samples[offset + i] * totalGain
-                output[offset + i] = amplified.coerceIn(-maxAmplitude, maxAmplitude)
+                output[offset + i] = (samples[offset + i] * totalGain).coerceIn(-maxAmplitude, maxAmplitude)
             }
 
             // Update AGC for the next chunk
-            if (_agcEnabled) {
+            if (agcEnabled) {
                 updateAgc(samples, offset, chunkSize)
             }
 
@@ -64,15 +61,12 @@ class GainControl(
     }
 
     fun setManualGain(gain: Float) {
-        _manualGain = gain.coerceIn(0f, MAX_MANUAL_GAIN)
+        manualGain = gain.coerceIn(0f, MAX_MANUAL_GAIN)
     }
 
     fun setAgcEnabled(enabled: Boolean) {
-        _agcEnabled = enabled
-        if (!enabled) {
-            agcGain = 1.0f
-            peakEnvelope = 0f
-        }
+        agcEnabled = enabled
+        if (!enabled) reset()
     }
 
     /** Clears AGC state. Call when switching audio sources. */
@@ -85,8 +79,8 @@ class GainControl(
         // Track the peak amplitude in this chunk
         var chunkPeak = 0f
         for (i in offset until offset + count) {
-            val abs = abs(samples[i] * _manualGain)
-            if (abs > chunkPeak) chunkPeak = abs
+            val amplitude = abs(samples[i] * manualGain)
+            if (amplitude > chunkPeak) chunkPeak = amplitude
         }
 
         // Update envelope with attack/release
@@ -99,16 +93,16 @@ class GainControl(
         // Calculate AGC gain to bring envelope toward target level
         if (peakEnvelope > AGC_MIN_ENVELOPE) {
             val desiredGain = targetLevel / peakEnvelope
-            agcGain = agcGain * AGC_SMOOTHING + desiredGain * (1f - AGC_SMOOTHING)
-            agcGain = agcGain.coerceIn(MIN_AGC_GAIN, MAX_AGC_GAIN)
+            agcGain = (agcGain * AGC_SMOOTHING + desiredGain * (1f - AGC_SMOOTHING))
+                .coerceIn(MIN_AGC_GAIN, MAX_AGC_GAIN)
         }
     }
 
     companion object {
-        const val DEFAULT_TARGET_LEVEL = 0.5f
         const val MAX_MANUAL_GAIN = 10.0f
-        const val MIN_AGC_GAIN = 0.1f
-        const val MAX_AGC_GAIN = 20.0f
+        const val DEFAULT_TARGET_LEVEL = 0.5f
+        private const val MIN_AGC_GAIN = 0.1f
+        private const val MAX_AGC_GAIN = 20.0f
         private const val AGC_UPDATE_INTERVAL = 256
         private const val AGC_RELEASE = 0.95f
         private const val AGC_SMOOTHING = 0.5f

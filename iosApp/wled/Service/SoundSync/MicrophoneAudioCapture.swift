@@ -9,75 +9,92 @@ private let logger = Logger(
 
 /// Captures audio from the device microphone using `AVAudioEngine`.
 ///
-/// Emits normalized Float samples in [-1.0, 1.0] at 44100 Hz, mono.
+/// Emits normalized Float samples in [-1.0, 1.0] at the hardware sample rate, mono.
 /// Requires the microphone permission (`NSMicrophoneUsageDescription`).
 actor MicrophoneAudioCapture {
 
     // MARK: - Properties
 
-    private let engine = AVAudioEngine()
+    private var engine: AVAudioEngine?
     private var isCapturing = false
-    private var onAudioData: (@Sendable ([Float]) -> Void)?
+    private var notificationObservers: [any NSObjectProtocol] = []
 
     // MARK: - Public API
 
-    /// Checks whether the microphone permission has been granted.
-    nonisolated func hasPermission() -> Bool {
-        AVAudioApplication.shared.recordPermission == .granted
+    /// Returns the current microphone record permission status.
+    nonisolated func permissionStatus() -> AVAudioApplication.recordPermission {
+        AVAudioApplication.shared.recordPermission
     }
 
     /// Requests microphone permission. Returns `true` if already granted or granted by the user.
     nonisolated func requestPermission() async -> Bool {
-        await withCheckedContinuation { continuation in
-            AVAudioApplication.requestRecordPermission { granted in
-                continuation.resume(returning: granted)
-            }
-        }
+        await AVAudioApplication.requestRecordPermission()
     }
 
-    /// Starts audio capture. The `onAudioData` callback is invoked on a background queue
-    /// with chunks of normalized PCM samples.
+    /// Starts audio capture. The `onAudioData` callback is invoked with chunks
+    /// of normalized PCM samples and the hardware sample rate in Hz.
     ///
-    /// - Parameter onAudioData: Callback invoked with audio sample chunks.
+    /// - Parameters:
+    ///   - onAudioData: Callback invoked with `(samples, sampleRate)`.
+    ///   - onInterruption: Callback invoked when audio capture is interrupted or the route changes.
     /// - Returns: `true` if capture started successfully.
-    func start(onAudioData: @escaping @Sendable ([Float]) -> Void) -> Bool {
+    func start(
+        onAudioData: @escaping @Sendable ([Float], Int) -> Void,
+        onInterruption: @escaping @Sendable () -> Void
+    ) -> Bool {
         guard !isCapturing else { return true }
-        guard hasPermission() else {
+        guard permissionStatus() == .granted else {
             logger.warning("Microphone permission not granted")
             return false
         }
 
-        self.onAudioData = onAudioData
-
-        let inputNode = engine.inputNode
-        let inputFormat = inputNode.outputFormat(forBus: 0)
-
-        // Use the hardware's native format; we'll convert to Float samples
-        let targetSampleRate: Double = 44100
-        guard let monoFormat = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: targetSampleRate,
-            channels: 1,
-            interleaved: false
-        ) else {
-            logger.error("Failed to create mono audio format")
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            // Use `.defaultToSpeaker` so music playing on the device is not routed to the
+            // quiet earpiece receiver, and omit `.allowBluetoothHFP` so connected Bluetooth
+            // speakers/headphones remain in high-quality A2DP output mode while capturing
+            // from the built-in microphone.
+            try audioSession.setCategory(
+                .playAndRecord,
+                mode: .measurement,
+                options: [.mixWithOthers, .defaultToSpeaker]
+            )
+            try audioSession.setActive(true)
+        } catch {
+            logger.error("Failed to configure AVAudioSession: \(error.localizedDescription)")
             return false
         }
 
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: monoFormat) { [weak self] buffer, _ in
-            Task { [weak self] in
-                await self?.processBuffer(buffer)
-            }
+        let audioEngine = AVAudioEngine()
+        let inputNode = audioEngine.inputNode
+        let inputFormat = inputNode.outputFormat(forBus: 0)
+        let hardwareSampleRate = Int(inputFormat.sampleRate)
+        guard hardwareSampleRate > 0, inputFormat.channelCount > 0 else {
+            logger.error("Invalid hardware input format: \(inputFormat.sampleRate) Hz, \(inputFormat.channelCount) ch")
+            try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
+            return false
+        }
+
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, _ in
+            guard let channelData = buffer.floatChannelData else { return }
+            let frameCount = Int(buffer.frameLength)
+            guard frameCount > 0 else { return }
+            let samplesPtr = channelData[0]
+            let samples = Array(UnsafeBufferPointer(start: samplesPtr, count: frameCount))
+            onAudioData(samples, hardwareSampleRate)
         }
 
         do {
-            try engine.start()
+            try audioEngine.start()
+            engine = audioEngine
             isCapturing = true
-            logger.info("Microphone capture started")
+            registerNotifications(for: audioEngine, onInterruption: onInterruption)
+            logger.info("Microphone capture started at \(hardwareSampleRate) Hz")
             return true
         } catch {
             logger.error("Failed to start audio engine: \(error.localizedDescription)")
             inputNode.removeTap(onBus: 0)
+            try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
             return false
         }
     }
@@ -85,26 +102,53 @@ actor MicrophoneAudioCapture {
     /// Stops audio capture and releases resources.
     func stop() {
         guard isCapturing else { return }
-        engine.stop()
-        engine.inputNode.removeTap(onBus: 0)
+        removeNotificationObservers()
+        engine?.stop()
+        engine?.inputNode.removeTap(onBus: 0)
+        engine = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         isCapturing = false
-        onAudioData = nil
         logger.info("Microphone capture stopped")
     }
 
     // MARK: - Private
 
-    private func processBuffer(_ buffer: AVAudioPCMBuffer) {
-        guard let channelData = buffer.floatChannelData else { return }
-        let frameCount = Int(buffer.frameLength)
-        let samples = channelData[0]
+    private func registerNotifications(
+        for audioEngine: AVAudioEngine,
+        onInterruption: @escaping @Sendable () -> Void
+    ) {
+        removeNotificationObservers()
+        let center = NotificationCenter.default
 
-        var floatArray = [Float](unsafeUninitializedCapacity: frameCount) { dest, count in
-            dest.baseAddress?.initialize(from: samples, count: frameCount)
-            count = frameCount
+        let interruptionObserver = center.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: nil
+        ) { notification in
+            let typeValue = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            if typeValue == AVAudioSession.InterruptionType.began.rawValue {
+                onInterruption()
+            }
         }
 
-        // Normalize from [-1.0, 1.0] (already Float32 PCM)
-        onAudioData?(floatArray)
+        // Stop Sound Sync if the audio hardware route changes (e.g. headphones plugged in),
+        // since the input node's hardware sample rate or channel layout may have changed.
+        let configObserver = center.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: audioEngine,
+            queue: nil
+        ) { _ in
+            onInterruption()
+        }
+
+        notificationObservers = [interruptionObserver, configObserver]
+    }
+
+    private func removeNotificationObservers() {
+        let center = NotificationCenter.default
+        for observer in notificationObservers {
+            center.removeObserver(observer)
+        }
+        notificationObservers.removeAll()
     }
 }

@@ -12,7 +12,6 @@
   "dateLastWritten": 1705000100,
   "showHiddenDevices": true,
   "lastChangelogVersionSeen": "2.1.0",
-  "soundSyncSourceType": "MICROPHONE",
   "soundSyncGain": 1.0,
   "soundSyncAgcEnabled": false
 }
@@ -30,7 +29,6 @@
   "dateLastWritten": 0,
   "showHiddenDevices": false,
   "lastChangelogVersionSeen": "7.0.1",
-  "soundSyncSourceType": "MICROPHONE",
   "soundSyncGain": 1.0,
   "soundSyncAgcEnabled": false
 }

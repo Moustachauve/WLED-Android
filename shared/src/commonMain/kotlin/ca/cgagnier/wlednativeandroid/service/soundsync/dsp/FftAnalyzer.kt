@@ -3,7 +3,6 @@ package ca.cgagnier.wlednativeandroid.service.soundsync.dsp
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.ln
-import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -62,6 +61,7 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
     // Scratch buffers for FFT (reused across calls)
     private val realBuffer = FloatArray(fftSize)
     private val imagBuffer = FloatArray(fftSize)
+    private val magnitudes = FloatArray(numBins)
 
     /**
      * Analyzes a block of audio samples and returns the 16-channel GEQ result.
@@ -74,18 +74,12 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
             return FftResult(ByteArray(FFT_CHANNEL_COUNT), 0f, 0f)
         }
 
-        // Fill real buffer with windowed samples (last fftSize samples)
+        // Fill real buffer with windowed samples (last fftSize samples), zero-padding if shorter
         val offset = maxOf(0, samples.size - fftSize)
-        val count = min(fftSize, samples.size)
         for (i in 0 until fftSize) {
             val sampleIndex = offset + i
             val sample = if (sampleIndex < samples.size) samples[sampleIndex] else 0f
             realBuffer[i] = sample * windowCoeffs[i]
-            imagBuffer[i] = 0f
-        }
-        // Zero-pad the beginning if input was shorter than fftSize
-        for (i in 0 until fftSize - count) {
-            realBuffer[i] = 0f
             imagBuffer[i] = 0f
         }
 
@@ -93,7 +87,6 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
         fft(realBuffer, imagBuffer)
 
         // Compute magnitude spectrum
-        val magnitudes = FloatArray(numBins)
         for (i in 0 until numBins) {
             magnitudes[i] = sqrt(realBuffer[i] * realBuffer[i] + imagBuffer[i] * imagBuffer[i])
         }
@@ -121,8 +114,7 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
             }
             // Scale to 0-255 range with logarithmic compression
             val avgMagnitude = if (range.isEmpty()) 0f else sum / range.count()
-            val logDenominator = ln(1.0 + CHANNEL_SCALE * CHANNEL_MAX_INPUT)
-            val scaled = (ln(1.0 + avgMagnitude * CHANNEL_SCALE) / logDenominator).toFloat()
+            val scaled = (ln(1.0 + avgMagnitude * CHANNEL_SCALE) / LOG_DENOMINATOR).toFloat()
             channels[ch] = (scaled * CHANNEL_MAX_VALUE).toInt().coerceIn(0, CHANNEL_MAX_VALUE_INT).toByte()
         }
 
@@ -135,13 +127,19 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
 
     /**
      * Maps FFT bins to 16 GEQ channels using WLED's frequency boundaries.
-     * Each channel covers a logarithmic frequency range.
+     * Each channel covers a logarithmic frequency range starting at bin 1 (skipping DC).
      */
-    private fun computeChannelBinRanges(): List<IntRange> = GEQ_FREQ_BOUNDARIES.mapIndexed { index, upperFreq ->
-        val lowerFreq = if (index == 0) 0f else GEQ_FREQ_BOUNDARIES[index - 1]
-        val lowerBin = (lowerFreq / binFrequencyWidth).toInt()
-        val upperBin = (upperFreq / binFrequencyWidth).toInt().coerceAtMost(numBins - 1)
-        lowerBin..upperBin
+    private fun computeChannelBinRanges(): List<IntRange> {
+        var nextMinBin = 1
+        return GEQ_FREQ_BOUNDARIES.mapIndexed { index, upperFreq ->
+            val lowerFreq = if (index == 0) 0f else GEQ_FREQ_BOUNDARIES[index - 1]
+            val rawLowerBin = (lowerFreq / binFrequencyWidth).toInt().coerceIn(1, numBins - 1)
+            val rawUpperBin = (upperFreq / binFrequencyWidth).toInt().coerceIn(1, numBins - 1)
+            val lowerBin = maxOf(rawLowerBin, nextMinBin).coerceAtMost(rawUpperBin)
+            val upperBin = maxOf(lowerBin, rawUpperBin)
+            nextMinBin = (upperBin + 1).coerceAtMost(numBins - 1)
+            lowerBin..upperBin
+        }
     }
 
     /**
@@ -177,12 +175,12 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
         while (size <= n) {
             val halfSize = size / FFT_STAGE_MULTIPLIER
             val angleStep = -TWO_PI / size
-            for (i in 0 until n step size) {
-                for (k in 0 until halfSize) {
-                    val angle = angleStep * k
-                    val twiddleReal = cos(angle).toFloat()
-                    val twiddleImag = sin(angle).toFloat()
+            for (k in 0 until halfSize) {
+                val angle = angleStep * k
+                val twiddleReal = cos(angle).toFloat()
+                val twiddleImag = sin(angle).toFloat()
 
+                for (i in 0 until n step size) {
                     val evenReal = real[i + k]
                     val evenImag = imag[i + k]
                     val oddReal = real[i + k + halfSize] * twiddleReal - imag[i + k + halfSize] * twiddleImag
@@ -248,5 +246,8 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
 
         /** Scaling factor for channel magnitude compression. */
         private const val CHANNEL_SCALE = 10.0
+
+        /** Precomputed denominator for logarithmic compression scaling. */
+        private val LOG_DENOMINATOR = ln(1.0 + CHANNEL_SCALE * CHANNEL_MAX_INPUT)
     }
 }

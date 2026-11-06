@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import OSLog
+import Shared
 
 private let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "ca.cgagnier.wled-native",
@@ -9,50 +10,45 @@ private let logger = Logger(
 
 /// Sends UDP Sound Sync V2 packets to WLED devices.
 ///
-/// Sends to the multicast group (239.0.0.1:11988) and unicast to all known
-/// device addresses. Uses `NWConnection` for multicast and unicast sending.
+/// Sends unicast UDP datagrams on port 11988 to all known visible WLED device addresses.
+/// On iOS 14+, sending IP multicast to `239.0.0.1` requires the restricted
+/// `com.apple.developer.networking.multicast` entitlement; because WLED's Sound Sync V2
+/// receiver accepts both multicast and unicast packets on port 11988, unicast delivery
+/// works reliably across all discovered devices without requiring special entitlements.
 actor UdpSoundSyncSender {
 
     // MARK: - Constants
 
-    private static let multicastAddress = "239.0.0.1"
-    private static let port: UInt16 = 11988
+    private static let port = UInt16(UdpSoundSyncPacket.Companion.shared.DEFAULT_PORT)
+    private static let frameCounterOffset = Int(UdpSoundSyncPacket.Companion.shared.OFFSET_FRAME_COUNTER)
+    private static let reconnectBackoff: Duration = .seconds(2)
 
     // MARK: - Properties
 
-    private var multicastConnection: NWConnection?
+    private var targetAddresses: Set<String> = []
     private var unicastConnections: [String: NWConnection] = [:]
+    private var retryAfter: [String: ContinuousClock.Instant] = [:]
     private var frameCounter: UInt8 = 0
     private var isClosed = false
 
     // MARK: - Public API
 
-    init() {
-        setupMulticastConnection()
-    }
+    init() {}
 
-    /// Sends a sound sync packet to the multicast group and all unicast addresses.
+    /// Sends a sound sync packet to all unicast target addresses.
     /// The packet's frame counter is overridden with an auto-incrementing value.
     func sendPacket(packetData: Data) {
-        guard !isClosed else { return }
+        guard !isClosed, packetData.count > Self.frameCounterOffset else { return }
 
-        // Increment frame counter (wraps at 256)
+        reconnectFailedTargetsIfNeeded()
+
+        var payload = packetData
+        payload[Self.frameCounterOffset] = frameCounter
         frameCounter &+= 1
 
-        // Send to multicast
-        multicastConnection?.send(
-            content: packetData,
-            completion: .contentProcessed { error in
-                if let error {
-                    logger.warning("Failed to send multicast packet: \(error.localizedDescription)")
-                }
-            }
-        )
-
-        // Send unicast to each known device
-        for (_, connection) in unicastConnections {
+        for (_, connection) in unicastConnections where connection.state == .ready {
             connection.send(
-                content: packetData,
+                content: payload,
                 completion: .contentProcessed { error in
                     if let error {
                         logger.warning("Failed to send unicast packet: \(error.localizedDescription)")
@@ -64,16 +60,21 @@ actor UdpSoundSyncSender {
 
     /// Updates the list of unicast target addresses (e.g., when the device list changes).
     func updateUnicastAddresses(_ addresses: [String]) {
-        // Remove connections for addresses no longer in the list
+        guard !isClosed else { return }
+
         let newAddressSet = Set(addresses)
+        targetAddresses = newAddressSet
+
         for (address, connection) in unicastConnections where !newAddressSet.contains(address) {
+            connection.stateUpdateHandler = nil
             connection.cancel()
             unicastConnections.removeValue(forKey: address)
+            retryAfter.removeValue(forKey: address)
         }
 
-        // Add connections for new addresses
-        for address in addresses where unicastConnections[address] == nil {
-            guard let connection = createUnicastConnection(to: address) else { continue }
+        for address in newAddressSet where unicastConnections[address] == nil {
+            retryAfter.removeValue(forKey: address)
+            guard let connection = createConnection(to: address, label: address) else { continue }
             unicastConnections[address] = connection
         }
     }
@@ -82,9 +83,10 @@ actor UdpSoundSyncSender {
     func close() {
         guard !isClosed else { return }
         isClosed = true
-        multicastConnection?.cancel()
-        multicastConnection = nil
+        targetAddresses.removeAll()
+        retryAfter.removeAll()
         for (_, connection) in unicastConnections {
+            connection.stateUpdateHandler = nil
             connection.cancel()
         }
         unicastConnections.removeAll()
@@ -92,42 +94,30 @@ actor UdpSoundSyncSender {
 
     // MARK: - Private
 
-    private func setupMulticastConnection() {
-        guard let endpoint = NWEndpoint.hostPort(
-            host: NWEndpoint.Host(Self.multicastAddress),
-            port: NWEndpoint.Port(integerLiteral: Self.port)
-        ) else {
-            logger.error("Failed to create multicast endpoint")
-            return
-        }
-
-        let params = NWParameters.udp
-        params.multipathServiceType = .handoff
-
-        let connection = NWConnection(to: endpoint, using: params)
-        connection.stateUpdateHandler = { [weak self] state in
-            Task { [weak self] in
-                await self?.handleConnectionState(state, for: "multicast")
+    private func reconnectFailedTargetsIfNeeded() {
+        guard !retryAfter.isEmpty else { return }
+        let now = ContinuousClock.now
+        for address in targetAddresses where unicastConnections[address] == nil {
+            if let nextRetry = retryAfter[address], now < nextRetry {
+                continue
+            }
+            retryAfter.removeValue(forKey: address)
+            if let connection = createConnection(to: address, label: address) {
+                unicastConnections[address] = connection
             }
         }
-        connection.start(queue: .global(qos: .userInitiated))
-        multicastConnection = connection
     }
 
-    private func createUnicastConnection(to address: String) -> NWConnection? {
-        guard let endpoint = NWEndpoint.hostPort(
-            host: NWEndpoint.Host(address),
-            port: NWEndpoint.Port(integerLiteral: Self.port)
-        ) else {
-            logger.error("Failed to create unicast endpoint for \(address)")
+    private func createConnection(to host: String, label: String) -> NWConnection? {
+        guard let nwPort = NWEndpoint.Port(rawValue: Self.port) else {
+            logger.error("Invalid UDP port: \(Self.port)")
             return nil
         }
-
-        let params = NWParameters.udp
-        let connection = NWConnection(to: endpoint, using: params)
+        let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: nwPort)
+        let connection = NWConnection(to: endpoint, using: .udp)
         connection.stateUpdateHandler = { [weak self] state in
             Task { [weak self] in
-                await self?.handleConnectionState(state, for: address)
+                await self?.handleConnectionState(state, for: label)
             }
         }
         connection.start(queue: .global(qos: .userInitiated))
@@ -135,13 +125,19 @@ actor UdpSoundSyncSender {
     }
 
     private func handleConnectionState(_ state: NWConnection.State, for label: String) {
+        guard !isClosed else { return }
         switch state {
         case .ready:
             logger.debug("Connection ready: \(label)")
         case .failed(let error):
             logger.warning("Connection failed (\(label)): \(error.localizedDescription)")
-        case .cancelled:
-            break
+            if let connection = unicastConnections.removeValue(forKey: label) {
+                connection.stateUpdateHandler = nil
+                connection.cancel()
+                if targetAddresses.contains(label) {
+                    retryAfter[label] = ContinuousClock.now + Self.reconnectBackoff
+                }
+            }
         default:
             break
         }

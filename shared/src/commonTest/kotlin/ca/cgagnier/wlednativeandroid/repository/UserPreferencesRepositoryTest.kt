@@ -59,6 +59,8 @@ class UserPreferencesRepositoryTest {
         assertFalse(repo.showHiddenDevices.first())
         assertEquals(0L, repo.lastUpdateCheckDate.first())
         assertEquals("", repo.lastChangelogVersionSeen.first())
+        assertEquals(1.0f, repo.soundSyncGain.first())
+        assertFalse(repo.soundSyncAgcEnabled.first())
     }
 
     @Test
@@ -107,6 +109,18 @@ class UserPreferencesRepositoryTest {
     fun updateLastChangelogVersionSeen_updatesFlow() = withRepository { repo ->
         repo.updateLastChangelogVersionSeen("v2.5.0")
         assertEquals("v2.5.0", repo.lastChangelogVersionSeen.first())
+    }
+
+    @Test
+    fun updateSoundSyncGain_updatesFlow() = withRepository { repo ->
+        repo.updateSoundSyncGain(3.5f)
+        assertEquals(3.5f, repo.soundSyncGain.first())
+    }
+
+    @Test
+    fun updateSoundSyncAgcEnabled_updatesFlow() = withRepository { repo ->
+        repo.updateSoundSyncAgcEnabled(true)
+        assertTrue(repo.soundSyncAgcEnabled.first())
     }
 
     @Test

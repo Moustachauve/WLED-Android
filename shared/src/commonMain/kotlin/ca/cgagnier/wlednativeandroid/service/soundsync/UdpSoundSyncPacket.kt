@@ -19,7 +19,7 @@ package ca.cgagnier.wlednativeandroid.service.soundsync
  * };
  * ```
  *
- * @see <a href="https://github.com/atuline/WLED/wiki/UDP-Sound-Sync">UDP Sound Sync Wiki</a>
+ * @see <a href="https://kno.wled.ge/interfaces/udp-sound-sync/">UDP Sound Sync Documentation</a>
  */
 data class UdpSoundSyncPacket(
     val sampleRaw: Float = 0f,
@@ -30,52 +30,40 @@ data class UdpSoundSyncPacket(
     val fftMagnitude: Float = 0f,
     val fftMajorPeak: Float = 0f,
 ) {
+    init {
+        require(fftResult.size == FFT_CHANNEL_COUNT) {
+            "fftResult must have exactly $FFT_CHANNEL_COUNT channels, got ${fftResult.size}"
+        }
+    }
+
     /**
      * Serializes this packet to a 44-byte little-endian binary array matching
      * the WLED V2 `audioSyncPacket` struct layout.
      */
     fun toByteArray(): ByteArray = ByteArray(PACKET_SIZE).apply {
-        // Header: "00002\0" (6 bytes, null-terminated to match C char[6])
-        // ASCII bytes for "00002" — avoids Charsets dependency for Kotlin/Native compatibility
-        this[OFFSET_HEADER_0] = HEADER_BYTE_0
-        this[OFFSET_HEADER_1] = HEADER_BYTE_1
-        this[OFFSET_HEADER_2] = HEADER_BYTE_2
-        this[OFFSET_HEADER_3] = HEADER_BYTE_3
-        this[OFFSET_HEADER_4] = HEADER_BYTE_4
-        this[OFFSET_HEADER_TERMINATOR] = 0
-
-        // gap1[2] at offset 6 — already zero from ByteArray initialization
-
+        // Header: "00002\0" (6 bytes, null-terminated to match C char[6]); gap1[2] at offset 6 is already zero
+        V2_HEADER.encodeToByteArray().copyInto(this)
         // sampleRaw (float, little-endian) at offset 8
         writeFloatLE(sampleRaw, offset = OFFSET_SAMPLE_RAW)
-
         // sampleSmth (float, little-endian) at offset 12
         writeFloatLE(sampleSmth, offset = OFFSET_SAMPLE_SMTH)
-
         // samplePeak (uint8) at offset 16
         this[OFFSET_SAMPLE_PEAK] = if (samplePeak) BYTE_TRUE else BYTE_FALSE
-
         // frameCounter (uint8, wraps at 256) at offset 17
         this[OFFSET_FRAME_COUNTER] = (frameCounter and BYTE_MASK).toByte()
-
-        // fftResult[16] at offset 18
+        // fftResult[16] at offset 18; gap2[2] at offset 34 is already zero
         fftResult.copyInto(this, destinationOffset = OFFSET_FFT_RESULT)
-
-        // gap2[2] at offset 34 — already zero
-
         // FFT_Magnitude (float, little-endian) at offset 36
         writeFloatLE(fftMagnitude, offset = OFFSET_FFT_MAGNITUDE)
-
         // FFT_MajorPeak (float, little-endian) at offset 40
         writeFloatLE(fftMajorPeak, offset = OFFSET_FFT_MAJOR_PEAK)
     }
 
     private fun ByteArray.writeFloatLE(value: Float, offset: Int) {
         val bits = value.toBits()
-        this[offset + BYTE_OFFSET_0] = (bits and BYTE_MASK).toByte()
-        this[offset + BYTE_OFFSET_1] = ((bits shr BYTE_SHIFT_1) and BYTE_MASK).toByte()
-        this[offset + BYTE_OFFSET_2] = ((bits shr BYTE_SHIFT_2) and BYTE_MASK).toByte()
-        this[offset + BYTE_OFFSET_3] = ((bits shr BYTE_SHIFT_3) and BYTE_MASK).toByte()
+        for (i in 0 until FLOAT_BYTES) {
+            this[offset + i] = (bits ushr i * BITS_PER_BYTE and BYTE_MASK).toByte()
+        }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -107,16 +95,10 @@ data class UdpSoundSyncPacket(
         const val FFT_CHANNEL_COUNT = 16
 
         // Packet field offsets (matching WLED audioSyncPacket struct layout)
-        private const val OFFSET_HEADER_0 = 0
-        private const val OFFSET_HEADER_1 = 1
-        private const val OFFSET_HEADER_2 = 2
-        private const val OFFSET_HEADER_3 = 3
-        private const val OFFSET_HEADER_4 = 4
-        private const val OFFSET_HEADER_TERMINATOR = 5
         private const val OFFSET_SAMPLE_RAW = 8
         private const val OFFSET_SAMPLE_SMTH = 12
         private const val OFFSET_SAMPLE_PEAK = 16
-        private const val OFFSET_FRAME_COUNTER = 17
+        const val OFFSET_FRAME_COUNTER = 17
         private const val OFFSET_FFT_RESULT = 18
         private const val OFFSET_FFT_MAGNITUDE = 36
         private const val OFFSET_FFT_MAJOR_PEAK = 40
@@ -125,20 +107,8 @@ data class UdpSoundSyncPacket(
         private const val BYTE_MASK = 0xFF
         private const val BYTE_TRUE = 1.toByte()
         private const val BYTE_FALSE = 0.toByte()
-        private const val BYTE_OFFSET_0 = 0
-        private const val BYTE_OFFSET_1 = 1
-        private const val BYTE_OFFSET_2 = 2
-        private const val BYTE_OFFSET_3 = 3
-        private const val BYTE_SHIFT_1 = 8
-        private const val BYTE_SHIFT_2 = 16
-        private const val BYTE_SHIFT_3 = 24
-
-        // ASCII bytes for "00002" header (avoids Charsets dependency for Kotlin/Native)
-        private const val HEADER_BYTE_0: Byte = 48 // '0'
-        private const val HEADER_BYTE_1: Byte = 48 // '0'
-        private const val HEADER_BYTE_2: Byte = 48 // '0'
-        private const val HEADER_BYTE_3: Byte = 48 // '0'
-        private const val HEADER_BYTE_4: Byte = 50 // '2'
+        private const val FLOAT_BYTES = 4
+        private const val BITS_PER_BYTE = 8
 
         /** Default UDP multicast group for WLED sound sync. */
         const val DEFAULT_MULTICAST_ADDRESS = "239.0.0.1"
