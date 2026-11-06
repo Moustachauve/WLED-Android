@@ -11,6 +11,8 @@
   "lastUpdateCheckDate": 0,
   "dateLastWritten": 0,
   "showHiddenDevices": false,
-  "lastChangelogVersionSeen": ""
+  "lastChangelogVersionSeen": "",
+  "soundSyncGain": 1.0,
+  "soundSyncAgcEnabled": false
 }
 ╔═ [end of file] ═╗

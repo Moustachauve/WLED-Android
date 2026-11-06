@@ -10,6 +10,7 @@ import ca.cgagnier.wlednativeandroid.service.DeviceDiscovery
 import ca.cgagnier.wlednativeandroid.service.DeviceFirstContactService
 import ca.cgagnier.wlednativeandroid.service.NetworkConnectivityManager
 import ca.cgagnier.wlednativeandroid.service.WidgetStateSync
+import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncManager
 import ca.cgagnier.wlednativeandroid.ui.ChangelogViewModel
 import ca.cgagnier.wlednativeandroid.ui.MainViewModel
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.DeviceListDetailViewModel
@@ -18,6 +19,7 @@ import ca.cgagnier.wlednativeandroid.ui.homeScreen.deviceEdit.DeviceEditViewMode
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.list.DeviceWebsocketListViewModel
 import ca.cgagnier.wlednativeandroid.ui.homeScreen.update.UpdateInstallingViewModel
 import ca.cgagnier.wlednativeandroid.ui.settingsScreen.SettingsViewModel
+import ca.cgagnier.wlednativeandroid.ui.soundsync.SoundSyncViewModel
 import ca.cgagnier.wlednativeandroid.ui.theme.ThemeViewModel
 import ca.cgagnier.wlednativeandroid.widget.WledWidgetManager
 import io.mockk.every
@@ -75,12 +77,14 @@ class KoinModuleTest : KoinTest {
         assertNotNull(get<DeviceListDetailViewModel>())
         assertNotNull(get<DeviceWebsocketListViewModel>())
         assertNotNull(get<DeviceAddViewModel>())
+        assertNotNull(get<SoundSyncViewModel>())
     }
 
     @Test
     fun resolveAppServices() {
         assertNotNull(get<WledWidgetManager>())
         assertNotNull(get<WidgetStateSync>())
+        assertNotNull(get<SoundSyncManager>())
         assertNotNull(get<DeviceConnectionManagerConfig>())
         assertNotNull(get<DeviceConnectionManager>())
         assertNotNull(get<DeviceFirstContactService>())

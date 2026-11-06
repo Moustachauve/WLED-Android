@@ -11,7 +11,9 @@
   "lastUpdateCheckDate": 1705000000,
   "dateLastWritten": 1705000100,
   "showHiddenDevices": true,
-  "lastChangelogVersionSeen": "2.1.0"
+  "lastChangelogVersionSeen": "2.1.0",
+  "soundSyncGain": 1.0,
+  "soundSyncAgcEnabled": false
 }
 ╔═ migrate_withV0LegacyProto_setsExpectedDefaultsAndResetsDataSharingFlags ═╗
 {
@@ -26,6 +28,8 @@
   "lastUpdateCheckDate": 0,
   "dateLastWritten": 0,
   "showHiddenDevices": false,
-  "lastChangelogVersionSeen": "7.0.1"
+  "lastChangelogVersionSeen": "7.0.1",
+  "soundSyncGain": 1.0,
+  "soundSyncAgcEnabled": false
 }
 ╔═ [end of file] ═╗

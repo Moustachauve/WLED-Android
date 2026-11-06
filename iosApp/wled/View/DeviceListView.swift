@@ -8,6 +8,8 @@ struct DeviceListView: View {
     // MARK: - Properties
     @State private var viewModel: DeviceWebsocketListViewModel
     @State private var changelogViewModel: ChangelogViewModel
+    @State private var soundSyncViewModel: SoundSyncViewModel?
+    private let database: AppDatabase
 
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
@@ -15,6 +17,7 @@ struct DeviceListView: View {
 
     @State private var addDeviceButtonActive: Bool = false
     @State private var showSettingsSheet: Bool = false
+    @State private var showSoundSyncSheet: Bool = false
     @State private var pendingShowChangelog: Bool = false
     @State private var devicePendingDeletion: DeviceWithState?
     @State private var pendingDeepLinkMac: String?
@@ -31,10 +34,14 @@ struct DeviceListView: View {
     init(
         viewModel: DeviceWebsocketListViewModel,
         changelogViewModel: ChangelogViewModel = ChangelogViewModel(),
+        soundSyncViewModel: SoundSyncViewModel? = nil,
+        database: AppDatabase = .shared,
         navigation: DeviceListNavigation = DeviceListNavigation()
     ) {
         _viewModel = State(wrappedValue: viewModel)
         _changelogViewModel = State(wrappedValue: changelogViewModel)
+        _soundSyncViewModel = State(wrappedValue: soundSyncViewModel)
+        self.database = database
         _navigation = State(wrappedValue: navigation)
     }
 
@@ -48,7 +55,11 @@ struct DeviceListView: View {
             database: database
         )
         let changelogViewModel = ChangelogViewModel(database: database)
-        self.init(viewModel: viewModel, changelogViewModel: changelogViewModel)
+        self.init(
+            viewModel: viewModel,
+            changelogViewModel: changelogViewModel,
+            database: database
+        )
     }
 
     // MARK: - Body
@@ -81,6 +92,11 @@ struct DeviceListView: View {
                         )
                     }
                 )
+                .sheet(isPresented: $showSoundSyncSheet) {
+                    if let soundSyncViewModel {
+                        SoundSyncView(viewModel: soundSyncViewModel)
+                    }
+                }
                 .sheet(
                     isPresented: Binding(
                         get: { !changelogViewModel.changelogs.isEmpty },
@@ -137,6 +153,11 @@ struct DeviceListView: View {
                 viewModel.onResume()
             case .background:
                 viewModel.onPause()
+                if let soundSyncViewModel {
+                    Task {
+                        await soundSyncViewModel.stop()
+                    }
+                }
             case .inactive:
                 break // Don't disconnect during transient gestures (app switcher, notifications)
             @unknown default:
@@ -300,7 +321,25 @@ private extension DeviceListView {
                 Label("Add Device", systemImage: "plus")
             }
 
-            // 2. Settings Button
+            // 2. Sound Sync Button
+            Button {
+                if soundSyncViewModel == nil {
+                    soundSyncViewModel = SoundSyncViewModel(
+                        userPreferencesRepository: database.userPreferencesRepository,
+                        deviceRepository: database.deviceRepository
+                    )
+                }
+                showSoundSyncSheet.toggle()
+            } label: {
+                let isSoundSyncRunning = soundSyncViewModel?.isRunning == true
+                Label(
+                    "Sound Sync",
+                    systemImage: isSoundSyncRunning ? "waveform.badge.mic" : "waveform"
+                )
+                .symbolEffect(.variableColor.iterative, isActive: isSoundSyncRunning)
+            }
+
+            // 3. Settings Button
             Button {
                 showSettingsSheet.toggle()
             } label: {

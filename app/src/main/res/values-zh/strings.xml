@@ -142,4 +142,27 @@
     <string name="local_network_instructions">前往“设置” → “应用” → WLED → “权限” → “附近的设备”</string>
     <string name="local_network_allow_access">允许访问</string>
 
+    <!-- Sound Sync -->
+    <string name="sound_sync">声音同步</string>
+    <string name="sound_sync_description">使用 UDP 声音同步将音频响应数据发送到您的 WLED 设备。设备必须在其音频同步设置中设置为接收模式。</string>
+    <string name="sound_sync_gain">增益</string>
+    <string name="sound_sync_gain_value">%1$.1fx</string>
+    <string name="sound_sync_agc">自动增益控制</string>
+    <string name="sound_sync_start">开始声音同步</string>
+    <string name="sound_sync_stop">停止声音同步</string>
+    <string name="sound_sync_running">声音同步正在运行</string>
+    <string name="sound_sync_permission_required">声音同步需要麦克风权限</string>
+    <string name="sound_sync_grant_permission">授予权限</string>
+    <string name="sound_sync_open_settings">打开设置</string>
+    <string name="sound_sync_error">声音同步错误：%1$s</string>
+    <string name="sound_sync_fft_visualization">频率可视化</string>
+    <string name="sound_sync_sample_level">采样电平</string>
+    <string name="sound_sync_notification_title">声音同步已开启</string>
+    <string name="sound_sync_notification_text">正在向 WLED 设备发送音频数据</string>
+    <string name="sound_sync_notification_stop">停止</string>
+    <string name="sound_sync_notification_channel">声音同步</string>
+    <string name="sound_sync_notification_channel_description">在声音同步处于活动状态时显示</string>
+    <string name="sound_sync_error_permission">需要麦克风录音权限</string>
+    <string name="sound_sync_error_capture">无法启动音频采集。</string>
+
 </resources>
