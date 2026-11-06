@@ -228,7 +228,11 @@ jobs:
         if: github.event_name == 'pull_request' && github.base_ref == 'main'
         run: |
           set -euo pipefail
-          TOML_VERSION=$(grep -E '^app-versionName\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          TOML_VERSION=$(grep -E '^app_versionName\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          if [[ "$TOML_VERSION" == *-* ]]; then
+            echo "::error file=gradle/libs.versions.toml::app_versionName is \"$TOML_VERSION\" (pre-release). Update it to the stable X.Y.Z version before merging to main."
+            exit 1
+          fi
           if [ -f "app/src/main/assets/changelog/dev.md" ] || [ -f "iosApp/wled/changelog/dev.md" ] || [ -f "fastlane/changelogs/dev.txt" ]; then
             echo "::error::dev changelog still exists! Before merging to main, rename app/src/main/assets/changelog/dev.md and iosApp/wled/changelog/dev.md to ${TOML_VERSION}.md and create fastlane/changelogs/${TOML_VERSION}.txt."
             exit 1

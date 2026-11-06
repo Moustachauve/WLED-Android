@@ -16,17 +16,11 @@ android {
         minSdk = 24
         targetSdk = 37
         versionCode =
-            providers
-                .gradleProperty("versionCode")
-                .map { it.toInt() }
-                .orElse(
-                    libs.versions.app.versionCode
-                        .map { it.toInt() },
-                ).get()
+            libs.versions.app.versionCode
+                .get()
+                .toInt()
         versionName =
-            providers
-                .gradleProperty("versionName")
-                .orElse(libs.versions.app.versionName)
+            libs.versions.app.versionName
                 .get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
