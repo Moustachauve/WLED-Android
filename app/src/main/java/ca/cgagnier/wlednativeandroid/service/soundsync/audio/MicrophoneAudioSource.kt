@@ -1,7 +1,6 @@
 package ca.cgagnier.wlednativeandroid.service.soundsync.audio
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.AudioFormat
@@ -75,8 +74,13 @@ class MicrophoneAudioSource(
         return true
     }
 
-    @SuppressLint("MissingPermission")
     private fun createAudioRecord(): Pair<AudioRecord, Int>? {
+        if (
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return null
+        }
         val minBufferSize = AudioRecord.getMinBufferSize(
             sampleRate,
             AudioFormat.CHANNEL_IN_MONO,
