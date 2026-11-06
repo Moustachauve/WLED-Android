@@ -70,10 +70,10 @@ jobs:
           set -euo pipefail
 
           # 1. Read committed version metadata from gradle/libs.versions.toml (single source of truth for Reproducible Builds)
-          TOML_VERSION_NAME=$(grep -E '^app-versionName\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
-          VERSION_CODE=$(grep -E '^app-versionCode\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          TOML_VERSION_NAME=$(grep -E '^app_versionName\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          VERSION_CODE=$(grep -E '^app_versionCode\s*=' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')
           if [ -z "$TOML_VERSION_NAME" ] || ! [[ "$VERSION_CODE" =~ ^[0-9]+$ ]]; then
-            echo "::error::Invalid app-versionName (\"$TOML_VERSION_NAME\") or app-versionCode (\"$VERSION_CODE\") in gradle/libs.versions.toml."
+            echo "::error::Invalid app_versionName (\"$TOML_VERSION_NAME\") or app_versionCode (\"$VERSION_CODE\") in gradle/libs.versions.toml."
             exit 1
           fi
 
@@ -104,7 +104,7 @@ jobs:
 
           VERSION_NAME="${RAW_VERSION#v}"
           if [ "$VERSION_NAME" != "$TOML_VERSION_NAME" ]; then
-            echo "::error::Release version \"$VERSION_NAME\" does not match app-versionName=\"$TOML_VERSION_NAME\" in gradle/libs.versions.toml. Run /prepare-release so builds are reproducible."
+            echo "::error::Release version \"$VERSION_NAME\" does not match app_versionName=\"$TOML_VERSION_NAME\" in gradle/libs.versions.toml. Run /prepare-release so builds are reproducible."
             exit 1
           fi
           if [ "$IS_BETA" = "false" ] && [[ "$VERSION_NAME" == *-* ]]; then

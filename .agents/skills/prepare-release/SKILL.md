@@ -63,7 +63,7 @@ Use this skill to prepare either a **Beta (`beta`)** or a **Full / Stable (`prod
    - `dev.md` is **cumulative**: it contains everything new since the last **stable** release.
    - If the Phase 2 audit found missing user-facing items, update the affected platform `dev.md` file(s) following the changelog style rules in `AGENTS.md` and each changelog directory's `README.md`. Keep `dev.md` in English only and do not rename it (for Beta builds on Google Play, `fastlane/Fastfile` automatically summarizes `app/src/main/assets/changelog/dev.md` to `<= 500` characters, so do not commit a standing `fastlane/changelogs/dev.txt` on `dev`).
 2. **Bump Version Metadata (`gradle/libs.versions.toml` & `project.pbxproj`):**
-   - Increment `app-versionCode` by `+1` and set `app-versionName = "<version>-beta.<N>"` in `gradle/libs.versions.toml` (committed in git so Android builds are 100% reproducible from the release tag).
+   - Increment `app_versionCode` by `+1` and set `app_versionName = "<version>-beta.<N>"` in `gradle/libs.versions.toml` (committed in git so Android builds are 100% reproducible from the release tag).
    - Set `MARKETING_VERSION = <version>;` (numeric `X.Y.Z` without `-beta.<N>`) and `CURRENT_PROJECT_VERSION = <new-versionCode>;` on the `WLED` and `WLEDWidgets` targets in `iosApp/wled.xcodeproj/project.pbxproj`.
 3. **Open the Beta Preparation PR to `dev`:**
    - Create a branch off `dev` (e.g., `chore/prepare-release-<version>-beta.<N>`), run verification checks (`./gradlew spotlessApply detekt`), ask the user for confirmation, and open a PR targeting `dev`.
@@ -99,7 +99,7 @@ Use this skill to prepare either a **Beta (`beta`)** or a **Full / Stable (`prod
 2. **Translate `<version>.md` and `fastlane/changelogs/<version>.txt` into Supported Languages:**
    - Read `.agents/skills/translate-changelog/SKILL.md` and execute Steps 2–5 (skipping Step 1 since `<version>.md` and `<version>.txt` were already prepared above) to generate `<version>.<lang>.md` translations across all supported platforms and `<version>.<lang>.txt` translations in `fastlane/changelogs/` (each verified to be `<= 500` characters).
 3. **Bump Version Metadata (`gradle/libs.versions.toml` & `project.pbxproj`):**
-   - Increment `app-versionCode` by `+1` and set `app-versionName = "<version>"` in `gradle/libs.versions.toml` (committed in git so Android builds are 100% reproducible from the release tag).
+   - Increment `app_versionCode` by `+1` and set `app_versionName = "<version>"` in `gradle/libs.versions.toml` (committed in git so Android builds are 100% reproducible from the release tag).
    - Set `MARKETING_VERSION = <version>;` and `CURRENT_PROJECT_VERSION = <new-versionCode>;` on the `WLED` and `WLEDWidgets` targets in `iosApp/wled.xcodeproj/project.pbxproj`.
 4. **Open the Release Preparation PR to `dev`:**
    - Run repository lint/verification checks (`./gradlew spotlessApply detekt`).

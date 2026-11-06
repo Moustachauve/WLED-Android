@@ -12,8 +12,8 @@ WLED-App uses GitHub Actions (`.github/workflows/release.yml`) and Fastlane (`fa
 
 ### Version Numbers & Build Codes
 - **Single Source of Truth (`gradle/libs.versions.toml` & `project.pbxproj`)**:
-  - `app-versionName` and `app-versionCode` in `gradle/libs.versions.toml` (and `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in `iosApp/wled.xcodeproj/project.pbxproj`) are bumped by `/prepare-release` before every Beta and Production release.
-  - Because `release.yml` reads `app-versionName` and `app-versionCode` directly from `gradle/libs.versions.toml` without overriding them via `-P` flags or mutating tracked files, any third party (such as **IzzyOnDroid / F-Droid**) building from the release git tag gets a byte-for-byte **Reproducible Build**.
+  - `app_versionName` and `app_versionCode` in `gradle/libs.versions.toml` (and `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in `iosApp/wled.xcodeproj/project.pbxproj`) are bumped by `/prepare-release` before every Beta and Production release.
+  - Because `release.yml` reads `app_versionName` and `app_versionCode` directly from `gradle/libs.versions.toml` without overriding them via `-P` flags or mutating tracked files, any third party (such as **IzzyOnDroid / F-Droid**) building from the release git tag gets a byte-for-byte **Reproducible Build**.
 
 ### IzzyOnDroid / F-Droid Compliance
 - The codebase contains zero proprietary Google Play Services or Firebase SDKs.
@@ -25,9 +25,9 @@ WLED-App uses GitHub Actions (`.github/workflows/release.yml`) and Fastlane (`fa
 
 ## 2. Publishing a Beta / TestFlight Build (from `dev`)
 
-*(Tip: Run the `/prepare-release` skill to automatically audit commits/PRs since the last stable release, verify `dev.md` on both platforms, bump `app-versionCode` and `app-versionName` in a release-prep PR to `dev`, and prepare the incremental Beta GitHub Release draft.)*
+*(Tip: Run the `/prepare-release` skill to automatically audit commits/PRs since the last stable release, verify `dev.md` on both platforms, bump `app_versionCode` and `app_versionName` in a release-prep PR to `dev`, and prepare the incremental Beta GitHub Release draft.)*
 
-Once the Beta release-prep PR (bumping `app-versionCode` by `+1` and `app-versionName` to e.g. `8.1.0-beta.1`) is merged into `dev`, you can trigger the Beta build to Google Play Open Testing (`beta`) and the TestFlight `"Beta"` external group in any of three ways:
+Once the Beta release-prep PR (bumping `app_versionCode` by `+1` and `app_versionName` to e.g. `8.1.0-beta.1`) is merged into `dev`, you can trigger the Beta build to Google Play Open Testing (`beta`) and the TestFlight `"Beta"` external group in any of three ways:
 
 ### Option A: Publish the Release Drafter Draft as a Pre-Release (GitHub UI)
 1. Go to **GitHub Releases** and open the draft created by Release Drafter.
@@ -54,8 +54,8 @@ gh release create v8.1.0-beta.1 --prerelease --target dev --title "v8.1.0-beta.1
    - Rename `iosApp/wled/changelog/dev.md` → `<version>.md` (e.g. `8.1.0.md`).
    - Create `fastlane/changelogs/<version>.txt` and curate the top highlights so it stays within Google Play's **500-character limit** (`fastlane/changelogs/README.md`), while keeping `app/src/main/assets/changelog/<version>.md` full-length for the in-app "What's New" sheet.
    - Run the `/translate-changelog` skill to generate localized `<version>.<lang>.md` release notes (e.g. `8.1.0.fr.md`, `8.1.0.de.md`, `8.1.0.zh.md`) and localized `fastlane/changelogs/<version>.<lang>.txt` summaries (`<= 500` chars each). Both the in-app "What's New" sheet and Fastlane store uploads automatically pick up localized files when present and fall back to English.
-   - Increment `app-versionCode` by `+1` and update `app-versionName` in `gradle/libs.versions.toml`, and update `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `iosApp/wled.xcodeproj/project.pbxproj`.
-   - *(Safety net)*: The `Check` workflow on PRs targeting `main` will block merging if `dev.md` hasn't been renamed, if `fastlane/changelogs/<version>.txt` is missing, or if `app-versionName` still has a `-beta` suffix, and `release.yml` verifies in `prepare` that the tag matches `gradle/libs.versions.toml`.
+   - Increment `app_versionCode` by `+1` and update `app_versionName` in `gradle/libs.versions.toml`, and update `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `iosApp/wled.xcodeproj/project.pbxproj`.
+   - *(Safety net)*: The `Check` workflow on PRs targeting `main` will block merging if `dev.md` hasn't been renamed, if `fastlane/changelogs/<version>.txt` is missing, or if `app_versionName` still has a `-beta` suffix, and `release.yml` verifies in `prepare` that the tag matches `gradle/libs.versions.toml`.
 2. **Merge `dev` into `main`**:
    - Open and merge a PR from `dev` → `main`.
 3. **Publish the GitHub Release**:
