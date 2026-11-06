@@ -2,16 +2,17 @@ package ca.cgagnier.wlednativeandroid.service.soundsync
 
 import android.Manifest
 import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
+import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import ca.cgagnier.wlednativeandroid.R
@@ -105,12 +106,17 @@ class SoundSyncService : Service() {
     private fun startForegroundWithNotification() {
         createNotificationChannel()
         val notification = buildNotification()
+        val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        } else {
+            0
+        }
         runCatching {
             ServiceCompat.startForeground(
                 this,
                 NOTIFICATION_ID,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+                foregroundServiceType,
             )
         }.onFailure {
             logger.w(it) { "Failed to promote SoundSyncService to foreground" }
@@ -151,16 +157,15 @@ class SoundSyncService : Service() {
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
+        val channel = NotificationChannelCompat.Builder(
             CHANNEL_ID,
-            getString(R.string.sound_sync_notification_channel),
-            NotificationManager.IMPORTANCE_LOW,
-        ).apply {
-            description = getString(R.string.sound_sync_notification_channel_description)
-            setShowBadge(false)
-        }
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.createNotificationChannel(channel)
+            NotificationManagerCompat.IMPORTANCE_LOW,
+        )
+            .setName(getString(R.string.sound_sync_notification_channel))
+            .setDescription(getString(R.string.sound_sync_notification_channel_description))
+            .setShowBadge(false)
+            .build()
+        NotificationManagerCompat.from(this).createNotificationChannel(channel)
     }
 
     companion object {
