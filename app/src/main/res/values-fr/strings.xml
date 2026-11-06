@@ -118,6 +118,8 @@
     <string name="widget_please_configure">Veuillez configurer</string>
     <string name="widget_toggle_power">Basculer l\'alimentation</string>
     <string name="widget_refresh">Rafraîchir</string>
+    <string name="widget_action_notification_channel">Actions du widget</string>
+    <string name="widget_action_notification_title">Envoi de la commande à l\'appareil WLED</string>
     <string name="select_a_device">Sélectionnez un appareil</string>
 
     <!-- Deep linking -->
