@@ -20,7 +20,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -52,12 +51,14 @@ import ca.cgagnier.wlednativeandroid.service.websocket.PartitionedDevices
 import ca.cgagnier.wlednativeandroid.service.websocket.getApModeDeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.partitionDevices
 import ca.cgagnier.wlednativeandroid.ui.components.DeviceInfoTwoRows
+import ca.cgagnier.wlednativeandroid.ui.soundsync.SoundSyncToolbarIcon
 import ca.cgagnier.wlednativeandroid.ui.theme.DeviceTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 private const val TAG = "screen_DeviceList"
+private val EmptyFftChannels = ByteArray(0)
 
 data class DeviceListState(
     val allDevices: List<DeviceWithState>,
@@ -68,6 +69,7 @@ data class DeviceListState(
     val showHiddenDevices: Boolean = false,
     val showSoundSync: Boolean = false,
     val isSoundSyncRunning: Boolean = false,
+    val soundSyncFftChannelsProvider: () -> ByteArray = { EmptyFftChannels },
     val isInitialLoading: Boolean = false,
     val currentTime: Long = 0L,
 )
@@ -99,6 +101,10 @@ fun DeviceList(
     val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
     val showSoundSync by viewModel.soundSyncBetaEnabled.collectAsStateWithLifecycle()
     val isSoundSyncRunning by viewModel.isSoundSyncRunning.collectAsStateWithLifecycle()
+    val soundSyncPacketState = viewModel.soundSyncPacket.collectAsStateWithLifecycle()
+    val soundSyncFftChannelsProvider = remember(soundSyncPacketState) {
+        { soundSyncPacketState.value.fftResult }
+    }
 
     var isInitialLoading by rememberSaveable { mutableStateOf(true) }
 
@@ -131,6 +137,7 @@ fun DeviceList(
             showHiddenDevices = showHiddenDevices,
             showSoundSync = showSoundSync,
             isSoundSyncRunning = isSoundSyncRunning,
+            soundSyncFftChannelsProvider = soundSyncFftChannelsProvider,
             isInitialLoading = isInitialLoading,
             currentTime = currentTime,
         ),
@@ -436,14 +443,9 @@ fun DeviceListAppBar(state: DeviceListState, actions: DeviceListActions, modifie
     }, actions = {
         if (state.showSoundSync) {
             IconButton(onClick = actions.onOpenSoundSync) {
-                Icon(
-                    painter = painterResource(id = R.drawable.baseline_graphic_eq_24),
-                    contentDescription = stringResource(R.string.sound_sync),
-                    tint = if (state.isSoundSyncRunning) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        LocalContentColor.current
-                    },
+                SoundSyncToolbarIcon(
+                    isRunning = state.isSoundSyncRunning,
+                    fftChannelsProvider = state.soundSyncFftChannelsProvider,
                 )
             }
         }

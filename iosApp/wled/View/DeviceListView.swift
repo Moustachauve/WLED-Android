@@ -151,6 +151,9 @@ struct DeviceListView: View {
             async let changelogTask: Void = changelogViewModel.checkChangelog()
             _ = await (observeTask, changelogTask)
         }
+        .task(id: soundSyncViewModel != nil) {
+            await soundSyncViewModel?.observe()
+        }
         .onAppear(perform: appearAction)
         .onOpenURL { url in
             handleOpenURL(url)
@@ -340,12 +343,7 @@ private extension DeviceListView {
                     }
                     showSoundSyncSheet.toggle()
                 } label: {
-                    let isSoundSyncRunning = soundSyncViewModel?.isRunning == true
-                    Label(
-                        "Sound Sync",
-                        systemImage: isSoundSyncRunning ? "waveform.badge.mic" : "waveform"
-                    )
-                    .symbolEffect(.variableColor.iterative, isActive: isSoundSyncRunning)
+                    SoundSyncToolbarIcon(viewModel: soundSyncViewModel)
                 }
             }
 
