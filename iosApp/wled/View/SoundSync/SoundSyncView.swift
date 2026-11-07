@@ -49,9 +49,8 @@ struct SoundSyncView: View {
                     }
                 }
             }
-            .task {
+            .onAppear {
                 viewModel.refreshPermissionState()
-                await viewModel.observe()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
