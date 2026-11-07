@@ -1,6 +1,8 @@
 import Shared
 import SwiftUI
 
+private typealias State = SwiftUI.State
+
 private let iconSize: CGFloat = 22
 private let viewportSize: CGFloat = 24
 private let barWidthUnits: CGFloat = 2
