@@ -59,15 +59,7 @@ class MicrophoneAudioSource(
             return false
         }
 
-        val (record, readChunkSamples) = createAudioRecord() ?: return false
-
-        record.startRecording()
-        if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-            logger.e { "AudioRecord failed to start recording" }
-            runCatching { record.stop() }
-            runCatching { record.release() }
-            return false
-        }
+        val (record, readChunkSamples) = createAndStartAudioRecord() ?: return false
 
         _isRunning.value = true
         captureJob = scope.launch {
@@ -76,7 +68,7 @@ class MicrophoneAudioSource(
         return true
     }
 
-    private fun createAudioRecord(): Pair<AudioRecord, Int>? {
+    private fun createAndStartAudioRecord(): Pair<AudioRecord, Int>? {
         if (
             ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
             PackageManager.PERMISSION_GRANTED
@@ -98,7 +90,7 @@ class MicrophoneAudioSource(
         val readChunkSamples = (sampleRate / TARGET_CHUNKS_PER_SECOND).coerceAtMost(maxSamplesInBuffer)
 
         for (audioSource in candidateAudioSources()) {
-            val record = tryCreateAudioRecord(audioSource, internalBufferSize)
+            val record = tryStartAudioRecord(audioSource, internalBufferSize)
             if (record != null) {
                 return record to readChunkSamples
             }
@@ -112,10 +104,9 @@ class MicrophoneAudioSource(
      * falling back to [MediaRecorder.AudioSource.VOICE_RECOGNITION] and [MediaRecorder.AudioSource.MIC].
      */
     private fun candidateAudioSources(): List<Int> {
-        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        val audioManager = context.getSystemService(AudioManager::class.java)
         val supportsUnprocessed =
-            audioManager?.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED)
-                ?.equals("true", ignoreCase = true) == true
+            audioManager?.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED).toBoolean()
         return if (supportsUnprocessed) {
             listOf(
                 MediaRecorder.AudioSource.UNPROCESSED,
@@ -131,7 +122,7 @@ class MicrophoneAudioSource(
     }
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    private fun tryCreateAudioRecord(audioSource: Int, internalBufferSize: Int): AudioRecord? {
+    private fun tryStartAudioRecord(audioSource: Int, internalBufferSize: Int): AudioRecord? {
         @Suppress("TooGenericExceptionCaught")
         val record = try {
             AudioRecord(
@@ -150,6 +141,13 @@ class MicrophoneAudioSource(
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             logger.w { "AudioRecord failed to initialize for source $audioSource" }
             record.release()
+            return null
+        }
+        record.startRecording()
+        if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+            logger.w { "AudioRecord failed to start recording for source $audioSource" }
+            runCatching { record.stop() }
+            runCatching { record.release() }
             return null
         }
         return record

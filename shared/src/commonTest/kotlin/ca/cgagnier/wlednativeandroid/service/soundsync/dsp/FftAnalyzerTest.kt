@@ -147,6 +147,53 @@ class FftAnalyzerTest {
         )
     }
 
+    @Test
+    fun analyze_whenSilent_mutesMagnitudeAndZeroesMajorPeak() {
+        val analyzer = FftAnalyzer()
+        val samples = generateSineWave(
+            frequency = 1000f,
+            sampleRate = FftAnalyzer.DEFAULT_SAMPLE_RATE,
+            count = FftAnalyzer.DEFAULT_FFT_SIZE,
+            amplitude = 0.5f,
+        )
+        val result = analyzer.analyze(samples, isSilent = true)
+        assertEquals(0.001f, result.magnitude, 0.0001f)
+        assertEquals(0f, result.majorPeak, 0.0001f)
+    }
+
+    @Test
+    fun analyze_whenSilentAfterLoudFrame_decaysChannelsWithoutSnappingToZero() {
+        val analyzer = FftAnalyzer()
+        val samples = generateSineWave(
+            frequency = 1000f,
+            sampleRate = FftAnalyzer.DEFAULT_SAMPLE_RATE,
+            count = FftAnalyzer.DEFAULT_FFT_SIZE,
+            amplitude = 0.2f,
+        )
+        val activePeak = analyzer.analyze(samples, isSilent = false).fftChannels.maxOf { it.toInt() and 0xFF }
+        val decayedPeak = analyzer.analyze(samples, isSilent = true).fftChannels.maxOf { it.toInt() and 0xFF }
+        assertTrue(
+            decayedPeak in 1 until activePeak,
+            "Silent frame should decay GEQ channels smoothly (got $decayedPeak from $activePeak)",
+        )
+    }
+
+    @Test
+    fun analyze_oneKilohertzSine_peaksInChannelSevenAt44100And48000Hz() {
+        listOf(44100, 48000).forEach { rate ->
+            val analyzer = FftAnalyzer(fftSize = FftAnalyzer.DEFAULT_FFT_SIZE, sampleRate = rate)
+            val samples = generateSineWave(
+                frequency = 1000f,
+                sampleRate = rate,
+                count = FftAnalyzer.DEFAULT_FFT_SIZE,
+                amplitude = 0.5f,
+            )
+            val result = analyzer.analyze(samples)
+            val peakChannel = result.fftChannels.withIndex().maxByOrNull { it.value.toInt() and 0xFF }?.index ?: -1
+            assertEquals(7, peakChannel, "1 kHz should center in GEQ channel 7 at $rate Hz, got channel $peakChannel")
+        }
+    }
+
     private fun generateSineWave(frequency: Float, sampleRate: Int, count: Int, amplitude: Float = 0.5f): FloatArray =
         FloatArray(count) { i ->
             sin(2.0 * PI * frequency * i / sampleRate).toFloat() * amplitude

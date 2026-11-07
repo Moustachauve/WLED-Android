@@ -91,15 +91,18 @@ class SoundSyncProcessorTest {
     fun process_whenAgcEnabled_roomNoiseDoesNotOpenNoiseGate() {
         val processor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.0f, agcEnabled = true)
         val windowSize = SoundSyncProcessor.FFT_WINDOW_SIZE
-        // Sub-gate signal (~0.006) ramps AGC gain up toward MAX_AGC_GAIN (32x), then room drops to ~0.003 noise
+        // Quiet passage just above the gate (0.006 > 0.005) ramps AGC toward 32x; then room drops to 0.003 noise
         val quietPassage =
             generateSineWave(frequency = 440f, sampleRate = 44100, count = windowSize * 4, amplitude = 0.006f)
         val roomNoise = generateSineWave(frequency = 440f, sampleRate = 44100, count = windowSize, amplitude = 0.003f)
 
         assertNotNull(processor.process(quietPassage, nowMs = 0L))
-        var silentPacket = processor.process(roomNoise, nowMs = 20L)
-        for (frame in 2..30) {
-            silentPacket = processor.process(roomNoise, nowMs = frame * 20L)
+        var silentPacket: UdpSoundSyncPacket? = null
+        repeat(SILENT_DECAY_FRAME_COUNT) { frame ->
+            silentPacket = processor.process(
+                roomNoise,
+                nowMs = (frame + 1) * UdpSoundSyncPacket.PACKET_INTERVAL_MS,
+            )
         }
         val finalPacket = assertNotNull(silentPacket)
 
@@ -146,4 +149,8 @@ class SoundSyncProcessorTest {
         FloatArray(count) { i ->
             sin(2.0 * PI * frequency * i / sampleRate).toFloat() * amplitude
         }
+
+    companion object {
+        private const val SILENT_DECAY_FRAME_COUNT = 25
+    }
 }

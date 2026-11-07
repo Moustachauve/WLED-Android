@@ -182,11 +182,9 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
      */
     private fun computeChannelBinRanges(): List<IntRange> {
         val maxBinIndex = numBins - 1
-        return GEQ_FREQ_BOUNDARIES.indices.map { index ->
-            val lowerFreq = GEQ_LOWER_FREQ_BOUNDARIES[index]
-            val upperFreq = GEQ_FREQ_BOUNDARIES[index]
-            val lowerBin = (lowerFreq / binFrequencyWidth).roundToInt().coerceIn(1, maxBinIndex)
-            val upperBin = maxOf(lowerBin, (upperFreq / binFrequencyWidth).roundToInt().coerceIn(1, maxBinIndex))
+        return (0 until FFT_CHANNEL_COUNT).map { index ->
+            val lowerBin = (GEQ_FREQ_EDGES[index] / binFrequencyWidth).roundToInt().coerceIn(1, maxBinIndex)
+            val upperBin = (GEQ_FREQ_EDGES[index + 1] / binFrequencyWidth).roundToInt().coerceIn(1, maxBinIndex)
             lowerBin..upperBin
         }
     }
@@ -277,7 +275,8 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
 
         /**
          * WLED window downscaling factor (`FFT_DOWNSCALE = 0.40f` in `audio_reactive.cpp`
-         * when `FFT_PREFER_EXACT_PEAKS` is enabled).
+         * when `FFT_PREFER_EXACT_PEAKS` / Blackman-Harris is enabled), kept for WLED parity.
+         * This analyzer uses a Hann window whose coherent gain is normalized by [WLED_CHANNEL_SCALE_NUMERATOR].
          */
         private const val FFT_DOWNSCALE = 0.40f
 
@@ -336,20 +335,13 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
         private const val HANN_ONE_INT = 1
 
         /**
-         * WLED GEQ channel lower frequency boundaries in Hz (`fftAddAvg` start bins at 22.05 kHz).
+         * WLED 17-entry GEQ channel frequency edges in Hz (`fftAddAvg` start/end bins at 22.05 kHz).
+         * Channel `i` covers `GEQ_FREQ_EDGES[i]..GEQ_FREQ_EDGES[i + 1]` (`43..86 Hz` through
+         * `7106..9259 Hz`, with 1 kHz centered in channel 7), matching WLED's
+         * `usermods/audioreactive_v1/audio_reactive.cpp`.
          */
-        private val GEQ_LOWER_FREQ_BOUNDARIES = floatArrayOf(
-            43f, 86f, 129f, 216f, 301f, 430f, 560f, 818f,
-            1120f, 1421f, 1895f, 2412f, 3015f, 3704f, 4479f, 7106f,
-        )
-
-        /**
-         * WLED GEQ channel upper frequency boundaries in Hz (`fftAddAvg` end bins at 22.05 kHz).
-         * Channel 0 covers 43-86 Hz, channel 1 covers 86-129 Hz, etc., with 1 kHz centered in channel 7.
-         * Matches the frequency mapping used by WLED (`usermods/audioreactive_v1/audio_reactive.cpp`).
-         */
-        val GEQ_FREQ_BOUNDARIES = floatArrayOf(
-            86f, 129f, 216f, 301f, 430f, 560f, 818f, 1120f,
+        private val GEQ_FREQ_EDGES = floatArrayOf(
+            43f, 86f, 129f, 216f, 301f, 430f, 560f, 818f, 1120f,
             1421f, 1895f, 2412f, 3015f, 3704f, 4479f, 7106f, 9259f,
         )
 
