@@ -43,6 +43,7 @@ class SoundSyncViewModel(
         SoundSyncUiState(
             isRunning = state.isRunning,
             gain = state.gain,
+            effectiveGain = state.effectiveGain,
             agcEnabled = state.agcEnabled,
             error = state.error,
             hasRecordAudioPermission = hasPermission,
@@ -54,6 +55,7 @@ class SoundSyncViewModel(
             SoundSyncUiState(
                 isRunning = current.isRunning,
                 gain = current.gain,
+                effectiveGain = current.effectiveGain,
                 agcEnabled = current.agcEnabled,
                 error = current.error,
                 hasRecordAudioPermission = hasRecordAudioPermission.value,
@@ -113,7 +115,11 @@ class SoundSyncViewModel(
 data class SoundSyncUiState(
     val isRunning: Boolean = false,
     val gain: Float = 1.0f,
+    val effectiveGain: Float = 1.0f,
     val agcEnabled: Boolean = false,
     val error: SoundSyncError? = null,
     val hasRecordAudioPermission: Boolean = false,
-)
+) {
+    val displayedGain: Float
+        get() = if (isRunning && agcEnabled) effectiveGain else gain
+}

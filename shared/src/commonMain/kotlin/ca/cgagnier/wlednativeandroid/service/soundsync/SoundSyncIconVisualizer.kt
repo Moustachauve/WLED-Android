@@ -126,6 +126,33 @@ object SoundSyncIconVisualizer {
         return previous + (target - previous) * factor
     }
 
+    /**
+     * Updates [smoothedOutput] in-place with time-normalized (`0f..1f`) heights for each channel
+     * in [fftChannels], keeping the 16-bar frequency visualization chart smooth and consistent
+     * across 60 Hz and 120 Hz displays.
+     */
+    fun smoothFftChannels(
+        isRunning: Boolean,
+        fftChannels: ByteArray,
+        deltaTimeMs: Long,
+        smoothedOutput: FloatArray = FloatArray(UdpSoundSyncPacket.FFT_CHANNEL_COUNT),
+    ): FloatArray {
+        for (i in smoothedOutput.indices) {
+            val target = if (isRunning && i < fftChannels.size) {
+                ((fftChannels[i].toInt() and BYTE_MASK) / CHANNEL_MAX_VALUE).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+            smoothedOutput[i] = smoothBarLevel(
+                previous = smoothedOutput[i],
+                target = target,
+                isRunning = isRunning,
+                deltaTimeMs = deltaTimeMs,
+            )
+        }
+        return smoothedOutput
+    }
+
     private fun computeBandPeakChannelValue(fftChannels: ByteArray, startChannel: Int, endChannelInclusive: Int): Int {
         var maxChannelValue = 0
         for (ch in startChannel..endChannelInclusive) {

@@ -15,14 +15,21 @@ final class SoundSyncViewModel {
 
     // MARK: - Observable Properties
 
+    private static let effectiveGainUpdateEpsilon: Float = 0.05
+
     var isRunning: Bool = false
     var gain: Float = 1.0
+    var effectiveGain: Float = 1.0
     var agcEnabled: Bool = false
     var fftChannels: [UInt8] = Array(repeating: 0, count: Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT))
     var sampleLevel: Float = 0
     var isPeak: Bool = false
     var errorMessage: String?
     var recordPermission: AVAudioApplication.recordPermission = .undetermined
+
+    var displayedGain: Float {
+        (isRunning && agcEnabled) ? effectiveGain : gain
+    }
 
     var isPermissionDenied: Bool {
         recordPermission == .denied
@@ -114,6 +121,9 @@ final class SoundSyncViewModel {
     /// Updates the manual gain in real-time while dragging.
     func updateLiveGain(_ newGain: Float) {
         gain = newGain
+        if !agcEnabled || !isRunning {
+            effectiveGain = newGain
+        }
         gainUpdateTask?.cancel()
         gainUpdateTask = Task { [soundSyncManager] in
             await soundSyncManager.setGain(newGain)
@@ -133,6 +143,9 @@ final class SoundSyncViewModel {
     /// Toggles AGC and persists the preference.
     func setAgcEnabled(_ enabled: Bool) {
         agcEnabled = enabled
+        if !enabled {
+            effectiveGain = gain
+        }
         Task {
             await soundSyncManager.setAgcEnabled(enabled)
             try? await userPreferencesRepository.updateSoundSyncAgcEnabled(enabled: enabled)
@@ -146,6 +159,9 @@ final class SoundSyncViewModel {
             if gain != initialState.gain {
                 gain = initialState.gain
             }
+            if effectiveGain != initialState.effectiveGain {
+                effectiveGain = initialState.effectiveGain
+            }
             if agcEnabled != initialState.agcEnabled {
                 agcEnabled = initialState.agcEnabled
             }
@@ -157,6 +173,9 @@ final class SoundSyncViewModel {
         guard !Task.isCancelled else { return }
         if gain != resolvedGain {
             gain = resolvedGain
+        }
+        if effectiveGain != resolvedGain {
+            effectiveGain = resolvedGain
         }
         await soundSyncManager.setGain(resolvedGain)
 
@@ -172,6 +191,13 @@ final class SoundSyncViewModel {
     private func applyState(_ state: SoundSyncState) {
         if isRunning != state.isRunning {
             isRunning = state.isRunning
+        }
+        if !state.isRunning || !state.agcEnabled {
+            if effectiveGain != state.gain {
+                effectiveGain = state.gain
+            }
+        } else if abs(effectiveGain - state.effectiveGain) >= Self.effectiveGainUpdateEpsilon {
+            effectiveGain = state.effectiveGain
         }
         if fftChannels != state.fftChannels {
             fftChannels = state.fftChannels

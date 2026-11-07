@@ -18,8 +18,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 private const val TAG = "SoundSyncManager"
+private const val EFFECTIVE_GAIN_UPDATE_EPSILON = 0.05f
 private val logger = Logger.withTag(TAG)
 
 /**
@@ -36,6 +38,7 @@ enum class SoundSyncError {
 data class SoundSyncState(
     val isRunning: Boolean = false,
     val gain: Float = 1.0f,
+    val effectiveGain: Float = 1.0f,
     val agcEnabled: Boolean = false,
     val error: SoundSyncError? = null,
 )
@@ -97,28 +100,47 @@ class SoundSyncManager(
         }
 
         val clampedGain = gain.coerceIn(0f, GainControl.MAX_MANUAL_GAIN)
-        _state.update { it.copy(gain = clampedGain, agcEnabled = agcEnabled, error = null) }
+        _state.update {
+            it.copy(
+                gain = clampedGain,
+                effectiveGain = clampedGain,
+                agcEnabled = agcEnabled,
+                error = null,
+            )
+        }
 
         if (!audioSource.hasPermission()) {
             _state.update { it.copy(error = SoundSyncError.PERMISSION_REQUIRED) }
             return false
         }
 
-        synchronized(processorLock) {
+        val initialEffectiveGain = synchronized(processorLock) {
             processor.reset()
             processor.configureSampleRate(audioSource.sampleRate)
             processor.setGain(clampedGain)
             processor.setAgcEnabled(agcEnabled)
+            processor.effectiveGain
         }
 
         acquireMulticastLock()
         udpSender = senderFactory()
         startObservingDevices()
-        _state.update { it.copy(isRunning = true) }
+        _state.update {
+            it.copy(
+                isRunning = true,
+                effectiveGain = if (agcEnabled) initialEffectiveGain else clampedGain,
+            )
+        }
 
         val started = audioSource.start { samples -> processAudioSamples(samples) }
         if (!started) {
-            _state.update { it.copy(isRunning = false, error = SoundSyncError.CAPTURE_FAILED) }
+            _state.update {
+                it.copy(
+                    isRunning = false,
+                    effectiveGain = it.gain,
+                    error = SoundSyncError.CAPTURE_FAILED,
+                )
+            }
             cleanup()
             return false
         }
@@ -133,7 +155,7 @@ class SoundSyncManager(
     fun stop() {
         if (!_state.value.isRunning) return
 
-        _state.update { it.copy(isRunning = false) }
+        _state.update { it.copy(isRunning = false, effectiveGain = it.gain) }
         _latestPacket.value = UdpSoundSyncPacket()
         audioSource.stop()
         cleanup()
@@ -146,15 +168,26 @@ class SoundSyncManager(
         synchronized(processorLock) {
             processor.setGain(clampedGain)
         }
-        _state.update { it.copy(gain = clampedGain) }
+        _state.update {
+            it.copy(
+                gain = clampedGain,
+                effectiveGain = if (it.agcEnabled && it.isRunning) it.effectiveGain else clampedGain,
+            )
+        }
     }
 
     /** Toggles automatic gain control in real-time. */
     fun setAgcEnabled(enabled: Boolean) {
-        synchronized(processorLock) {
+        val currentEffectiveGain = synchronized(processorLock) {
             processor.setAgcEnabled(enabled)
+            processor.effectiveGain
         }
-        _state.update { it.copy(agcEnabled = enabled) }
+        _state.update {
+            it.copy(
+                agcEnabled = enabled,
+                effectiveGain = if (enabled && it.isRunning) currentEffectiveGain else it.gain,
+            )
+        }
     }
 
     @Synchronized
@@ -165,13 +198,25 @@ class SoundSyncManager(
     }
 
     private fun processAudioSamples(samples: FloatArray) {
-        val packet = synchronized(processorLock) {
+        val (packet, currentEffectiveGain) = synchronized(processorLock) {
             if (!_state.value.isRunning) return
-            processor.process(samples, System.currentTimeMillis())
-        } ?: return
+            val emitted = processor.process(samples, System.currentTimeMillis()) ?: return
+            emitted to processor.effectiveGain
+        }
         udpSender?.sendPacket(packet)
         if (_state.value.isRunning) {
             _latestPacket.value = packet
+            if (_state.value.agcEnabled) {
+                _state.update { state ->
+                    if (state.isRunning && state.agcEnabled &&
+                        abs(state.effectiveGain - currentEffectiveGain) >= EFFECTIVE_GAIN_UPDATE_EPSILON
+                    ) {
+                        state.copy(effectiveGain = currentEffectiveGain)
+                    } else {
+                        state
+                    }
+                }
+            }
         }
     }
 

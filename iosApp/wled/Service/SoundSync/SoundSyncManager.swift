@@ -12,6 +12,7 @@ private let logger = Logger(
 struct SoundSyncState: Equatable, Sendable {
     var isRunning: Bool = false
     var gain: Float = 1.0
+    var effectiveGain: Float = 1.0
     var agcEnabled: Bool = false
     var fftChannels: [UInt8] = Array(repeating: 0, count: Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT))
     var sampleLevel: Float = 0
@@ -106,15 +107,17 @@ actor SoundSyncManager: SoundSyncManaging {
         isStarting = true
 
         let clampedGain = min(max(gain, 0), GainControl.Companion.shared.MAX_MANUAL_GAIN)
-        updateState {
-            $0.gain = clampedGain
-            $0.agcEnabled = agcEnabled
-            $0.errorMessage = nil
-        }
-
         processor.reset()
         processor.setGain(gain: clampedGain)
         processor.setAgcEnabled(enabled: agcEnabled)
+        let initialEffectiveGain = processor.effectiveGain
+
+        updateState {
+            $0.gain = clampedGain
+            $0.effectiveGain = clampedGain
+            $0.agcEnabled = agcEnabled
+            $0.errorMessage = nil
+        }
 
         let sender = UdpSoundSyncSender()
         await sender.updateUnicastAddresses(deviceAddresses)
@@ -162,7 +165,10 @@ actor SoundSyncManager: SoundSyncManaging {
             return false
         }
 
-        updateState { $0.isRunning = true }
+        updateState {
+            $0.isRunning = true
+            $0.effectiveGain = agcEnabled ? initialEffectiveGain : clampedGain
+        }
         captureProcessingTask = Task { [weak self] in
             for await (samples, sampleRate) in audioStream {
                 guard !Task.isCancelled else { break }
@@ -191,6 +197,7 @@ actor SoundSyncManager: SoundSyncManaging {
         let channelCount = Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT)
         updateState {
             $0.isRunning = false
+            $0.effectiveGain = $0.gain
             $0.fftChannels = Array(repeating: 0, count: channelCount)
             $0.sampleLevel = 0
             $0.isPeak = false
@@ -205,13 +212,22 @@ actor SoundSyncManager: SoundSyncManaging {
     func setGain(_ gain: Float) {
         let clampedGain = min(max(gain, 0), GainControl.Companion.shared.MAX_MANUAL_GAIN)
         processor.setGain(gain: clampedGain)
-        updateState { $0.gain = clampedGain }
+        updateState {
+            $0.gain = clampedGain
+            if !$0.agcEnabled || !$0.isRunning {
+                $0.effectiveGain = clampedGain
+            }
+        }
     }
 
     /// Toggles automatic gain control in real-time.
     func setAgcEnabled(_ enabled: Bool) {
         processor.setAgcEnabled(enabled: enabled)
-        updateState { $0.agcEnabled = enabled }
+        let currentEffectiveGain = processor.effectiveGain
+        updateState {
+            $0.agcEnabled = enabled
+            $0.effectiveGain = (enabled && $0.isRunning) ? currentEffectiveGain : $0.gain
+        }
     }
 
     /// Updates the list of device addresses for unicast sending.
@@ -242,10 +258,14 @@ actor SoundSyncManager: SoundSyncManaging {
         guard let packet = processor.process(samples: kotlinSamples, nowMs: nowMs) else { return }
 
         let fftChannels = packet.fftResult.toUInt8Array()
+        let currentEffectiveGain = processor.effectiveGain
         updateState {
             $0.fftChannels = fftChannels
             $0.sampleLevel = packet.sampleSmth
             $0.isPeak = packet.samplePeak
+            if $0.agcEnabled {
+                $0.effectiveGain = currentEffectiveGain
+            }
         }
 
         let packetData = packet.toByteArray().toData()

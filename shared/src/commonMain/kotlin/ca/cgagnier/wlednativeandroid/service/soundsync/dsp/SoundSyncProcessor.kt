@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.service.soundsync.dsp
 
 import ca.cgagnier.wlednativeandroid.service.soundsync.UdpSoundSyncPacket
 import kotlin.math.abs
+import kotlin.math.pow
 
 /**
  * Shared KMP audio-reactive DSP coordinator.
@@ -44,6 +45,7 @@ class SoundSyncProcessor(
 
     val sampleRate: Int get() = currentSampleRate
     val gain: Float get() = gainControl.manualGain
+    val effectiveGain: Float get() = gainControl.effectiveGain
     val agcEnabled: Boolean get() = gainControl.agcEnabled
 
     /**
@@ -99,6 +101,11 @@ class SoundSyncProcessor(
         ) {
             return null
         }
+        val deltaTimeMs = if (lastFrameTimeMs == UNSET_TIME_MS) {
+            UdpSoundSyncPacket.PACKET_INTERVAL_MS
+        } else {
+            (nowMs - lastFrameTimeMs).coerceAtLeast(1L)
+        }
         lastFrameTimeMs = nowMs
 
         val rawPeak = pendingRawPeak
@@ -110,12 +117,12 @@ class SoundSyncProcessor(
         // does not amplify ambient room noise past the gate in a silent room.
         val gatedPeak = if (rawPeak < NOISE_FLOOR_AMPLITUDE) 0f else gainedPeak
         val sampleRaw = (gatedPeak * SAMPLE_MAX_VALUE).coerceIn(0f, SAMPLE_MAX_VALUE)
-        val sampleSmth = updateSmoothedSample(sampleRaw)
+        val sampleSmth = updateSmoothedSample(sampleRaw, deltaTimeMs)
         val samplePeak = beatDetector.detect(gatedPeak)
 
         populateFftWindow()
         val isSilent = sampleSmth < MIN_SMOOTHED_SAMPLE
-        val fftResult = fftAnalyzer.analyze(fftWindow, isSilent = isSilent)
+        val fftResult = fftAnalyzer.analyze(fftWindow, isSilent = isSilent, deltaTimeMs = deltaTimeMs)
 
         return UdpSoundSyncPacket(
             sampleRaw = sampleRaw,
@@ -132,12 +139,16 @@ class SoundSyncProcessor(
      * attack (`0.50`) and intentionally slower release (`0.85`) for smoother LED fades
      * between 20 ms UDP frames, snapping to zero below [MIN_SMOOTHED_SAMPLE].
      */
-    private fun updateSmoothedSample(sampleRaw: Float): Float {
-        smoothedSample = if (sampleRaw > smoothedSample) {
-            smoothedSample * SAMPLE_ATTACK_RETENTION + sampleRaw * (1f - SAMPLE_ATTACK_RETENTION)
+    private fun updateSmoothedSample(sampleRaw: Float, deltaTimeMs: Long): Float {
+        val normalizedFrames = (deltaTimeMs / REFERENCE_PACKET_INTERVAL_MS)
+            .coerceIn(MIN_FRAME_MULTIPLIER, MAX_FRAME_MULTIPLIER)
+        val baseRetention = if (sampleRaw > smoothedSample) {
+            SAMPLE_ATTACK_RETENTION
         } else {
-            smoothedSample * SAMPLE_DECAY_RETENTION + sampleRaw * (1f - SAMPLE_DECAY_RETENTION)
+            SAMPLE_DECAY_RETENTION
         }
+        val retention = baseRetention.pow(normalizedFrames)
+        smoothedSample = smoothedSample * retention + sampleRaw * (1f - retention)
         if (smoothedSample < MIN_SMOOTHED_SAMPLE) {
             smoothedSample = 0f
         }
@@ -200,6 +211,11 @@ class SoundSyncProcessor(
 
         /** Envelope retention weight when signal amplitude is falling (smooth release). */
         private const val SAMPLE_DECAY_RETENTION = 0.85f
+
+        /** Reference 20 ms packet interval for normalizing envelope smoothing weights. */
+        private const val REFERENCE_PACKET_INTERVAL_MS = 20f
+        private const val MIN_FRAME_MULTIPLIER = 0.25f
+        private const val MAX_FRAME_MULTIPLIER = 6f
 
         /** Noise gate threshold below which `sampleSmth` snaps to 0 (matches WLED `volumeSmth < 1`). */
         private const val MIN_SMOOTHED_SAMPLE = 1.0f
