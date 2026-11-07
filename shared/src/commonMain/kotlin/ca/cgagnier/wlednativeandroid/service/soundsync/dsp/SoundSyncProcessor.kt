@@ -9,7 +9,7 @@ import kotlin.math.pow
  *
  * Processes incoming normalized PCM float chunks (`-1.0..1.0`) through:
  * 1. [LowCutFilter] (stateful 2nd-order high-pass filter)
- * 2. [GainControl] (manual gain + optional AGC)
+ * 2. [GainControl] (manual gain + optional two-zone AGC)
  * 3. A chronological 1024-sample ring buffer
  * 4. [BeatDetector] and [FftAnalyzer] (throttled to [UdpSoundSyncPacket.PACKET_INTERVAL_MS])
  *
@@ -20,15 +20,22 @@ import kotlin.math.pow
 class SoundSyncProcessor(
     sampleRate: Int = DEFAULT_SAMPLE_RATE,
     manualGain: Float = DEFAULT_GAIN,
-    agcEnabled: Boolean = false,
+    agcMode: AgcMode = AgcMode.OFF,
+    squelch: Int = DEFAULT_SQUELCH,
 ) {
-    constructor() : this(DEFAULT_SAMPLE_RATE, DEFAULT_GAIN, false)
+    constructor() : this(DEFAULT_SAMPLE_RATE, DEFAULT_GAIN, AgcMode.OFF, DEFAULT_SQUELCH)
 
     private var currentSampleRate = sampleRate.coerceAtLeast(MIN_SAMPLE_RATE)
+    var squelch: Int = squelch.coerceIn(MIN_SQUELCH, MAX_SQUELCH)
+        private set
+    private var currentSquelchAmplitude: Float = squelchToAmplitude(this.squelch)
+
     private var lowCutFilter = LowCutFilter(sampleRate = currentSampleRate)
     private val gainControl = GainControl(
         manualGain = manualGain,
-        agcEnabled = agcEnabled,
+        agcMode = agcMode,
+        sampleRate = currentSampleRate,
+        squelchAmplitude = currentSquelchAmplitude,
         manualGainMultiplier = MANUAL_GAIN_SENSITIVITY,
     )
     private var fftAnalyzer = FftAnalyzer(fftSize = FFT_WINDOW_SIZE, sampleRate = currentSampleRate)
@@ -41,7 +48,7 @@ class SoundSyncProcessor(
     private var pendingRawPeak = 0f
     private var pendingGainedPeak = 0f
     private var smoothedSample = 0f
-    private var smoothedEffectiveGain = gainControl.effectiveGain
+    private var smoothedEffectiveGain = DEFAULT_GAIN
     private var lastFrameTimeMs = UNSET_TIME_MS
     private var nextDeadlineMs = UNSET_TIME_MS
 
@@ -49,6 +56,7 @@ class SoundSyncProcessor(
     val gain: Float get() = gainControl.manualGain
     val effectiveGain: Float
         get() = if (gainControl.agcEnabled) smoothedEffectiveGain else gainControl.manualGain
+    val agcMode: AgcMode get() = gainControl.agcMode
     val agcEnabled: Boolean get() = gainControl.agcEnabled
 
     /**
@@ -59,6 +67,7 @@ class SoundSyncProcessor(
         if (validRate == currentSampleRate) return
         currentSampleRate = validRate
         lowCutFilter = LowCutFilter(sampleRate = validRate)
+        gainControl.setSampleRate(validRate)
         fftAnalyzer = FftAnalyzer(fftSize = FFT_WINDOW_SIZE, sampleRate = validRate)
         resetSampleBuffer()
     }
@@ -67,9 +76,18 @@ class SoundSyncProcessor(
         gainControl.setManualGain(gain)
     }
 
-    fun setAgcEnabled(enabled: Boolean) {
-        gainControl.setAgcEnabled(enabled)
-        smoothedEffectiveGain = gainControl.effectiveGain
+    fun setAgcMode(mode: AgcMode) {
+        gainControl.setAgcMode(mode)
+        if (!gainControl.agcEnabled) {
+            smoothedEffectiveGain = DEFAULT_GAIN
+        }
+    }
+
+    fun setSquelch(squelch: Int) {
+        val clamped = squelch.coerceIn(MIN_SQUELCH, MAX_SQUELCH)
+        this.squelch = clamped
+        currentSquelchAmplitude = squelchToAmplitude(clamped)
+        gainControl.setSquelchAmplitude(currentSquelchAmplitude)
     }
 
     /**
@@ -81,7 +99,7 @@ class SoundSyncProcessor(
         beatDetector.reset()
         fftAnalyzer.reset()
         resetSampleBuffer()
-        smoothedEffectiveGain = gainControl.effectiveGain
+        smoothedEffectiveGain = DEFAULT_GAIN
         lastFrameTimeMs = UNSET_TIME_MS
         nextDeadlineMs = UNSET_TIME_MS
     }
@@ -128,7 +146,7 @@ class SoundSyncProcessor(
 
         // Check noise gate (squelch) against pre-gain peak amplitude so AGC or high manual gain
         // does not amplify ambient room noise past the gate in a silent room.
-        val gatedPeak = if (rawPeak < NOISE_FLOOR_AMPLITUDE) 0f else gainedPeak
+        val gatedPeak = if (rawPeak < currentSquelchAmplitude) 0f else gainedPeak
         val sampleRaw = (gatedPeak * SAMPLE_MAX_VALUE).coerceIn(0f, SAMPLE_MAX_VALUE)
         val sampleSmth = updateSmoothedSample(sampleRaw, normalizedFrames)
         updateSmoothedEffectiveGain(normalizedFrames)
@@ -214,18 +232,21 @@ class SoundSyncProcessor(
         const val FFT_WINDOW_SIZE = FftAnalyzer.DEFAULT_FFT_SIZE
         const val DEFAULT_SAMPLE_RATE = FftAnalyzer.DEFAULT_SAMPLE_RATE
         const val DEFAULT_GAIN = 1.0f
+        const val DEFAULT_SQUELCH = 10
+        const val MIN_SQUELCH = 0
+        const val MAX_SQUELCH = 100
         const val SAMPLE_MAX_VALUE = 255f
         private const val MIN_SAMPLE_RATE = 8000
         private const val UNSET_TIME_MS = Long.MIN_VALUE
 
         /**
          * Baseline microphone sensitivity multiplier applied in manual gain mode so the
-         * `1.0x..10.0x` UI slider spans `3x..30x` effective gain (matching AGC's `32x` range).
+         * `1.0x..30.0x` UI slider spans `3x..90x` effective gain (matching AGC's `90x` range).
          */
         private const val MANUAL_GAIN_SENSITIVITY = 3.0f
 
-        /** Minimum pre-gain peak amplitude required before opening the sample noise gate (squelch). */
-        private const val NOISE_FLOOR_AMPLITUDE = 0.005f
+        /** Pre-gain amplitude step per unit of [squelch] (`10` -> `0.005f`, `100` -> `0.05f`). */
+        private const val SQUELCH_AMPLITUDE_STEP = 0.0005f
 
         /** Envelope retention weight when signal amplitude is rising (fast attack). */
         private const val SAMPLE_ATTACK_RETENTION = 0.5f
@@ -238,6 +259,11 @@ class SoundSyncProcessor(
 
         /** Noise gate threshold below which `sampleSmth` snaps to 0 (matches WLED `volumeSmth < 1`). */
         private const val MIN_SMOOTHED_SAMPLE = 1.0f
+
+        internal fun squelchToAmplitude(squelch: Int): Float {
+            val clamped = squelch.coerceIn(MIN_SQUELCH, MAX_SQUELCH)
+            return (clamped * SQUELCH_AMPLITUDE_STEP).coerceAtLeast(GainControl.MIN_SQUELCH_AMPLITUDE)
+        }
     }
 }
 

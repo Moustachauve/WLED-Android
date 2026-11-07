@@ -1,6 +1,8 @@
 package ca.cgagnier.wlednativeandroid.repository
 
 import androidx.datastore.core.DataStore
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.AgcMode
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.SoundSyncProcessor
 import ca.cgagnier.wlednativeandroid.shared.currentTimeMillis
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.Flow
@@ -23,8 +25,11 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     val soundSyncGain: Flow<Float> = dataStore.data.map {
         it.soundSyncGain
     }.distinctUntilChanged()
-    val soundSyncAgcEnabled: Flow<Boolean> = dataStore.data.map {
-        it.soundSyncAgcEnabled
+    val soundSyncAgcMode: Flow<AgcMode> = dataStore.data.map {
+        it.soundSyncAgcMode ?: if (it.soundSyncAgcEnabled) AgcMode.NORMAL else AgcMode.OFF
+    }.distinctUntilChanged()
+    val soundSyncSquelch: Flow<Int> = dataStore.data.map {
+        it.soundSyncSquelch
     }.distinctUntilChanged()
     val soundSyncBetaEnabled: Flow<Boolean> = dataStore.data.map {
         it.soundSyncBetaEnabled
@@ -100,11 +105,23 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         }
     }
 
-    suspend fun updateSoundSyncAgcEnabled(enabled: Boolean) {
-        logger.d { "updateSoundSyncAgcEnabled" }
+    suspend fun updateSoundSyncAgcMode(mode: AgcMode) {
+        logger.d { "updateSoundSyncAgcMode" }
         dataStore.updateData {
             it.copy(
-                soundSyncAgcEnabled = enabled,
+                soundSyncAgcMode = mode,
+                soundSyncAgcEnabled = mode != AgcMode.OFF,
+                dateLastWritten = currentTimeMillis(),
+            )
+        }
+    }
+
+    suspend fun updateSoundSyncSquelch(squelch: Int) {
+        logger.d { "updateSoundSyncSquelch" }
+        val clamped = squelch.coerceIn(SoundSyncProcessor.MIN_SQUELCH, SoundSyncProcessor.MAX_SQUELCH)
+        dataStore.updateData {
+            it.copy(
+                soundSyncSquelch = clamped,
                 dateLastWritten = currentTimeMillis(),
             )
         }

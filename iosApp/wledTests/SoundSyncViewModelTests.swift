@@ -51,11 +51,17 @@ private actor FakeSoundSyncManager: SoundSyncManaging {
         return requestPermissionResult
     }
 
-    func start(gain: Float, agcEnabled: Bool, deviceAddresses: [String]) async -> Bool {
+    func start(
+        gain: Float,
+        agcMode: AgcMode,
+        squelch: Int32,
+        deviceAddresses: [String]
+    ) async -> Bool {
         startCallCount += 1
         lastStartedAddresses = deviceAddresses
         state.gain = gain
-        state.agcEnabled = agcEnabled
+        state.agcMode = agcMode
+        state.squelch = squelch
         if startResult {
             state.isRunning = true
             state.errorMessage = nil
@@ -80,8 +86,13 @@ private actor FakeSoundSyncManager: SoundSyncManaging {
         stateContinuation?.yield(state)
     }
 
-    func setAgcEnabled(_ enabled: Bool) async {
-        state.agcEnabled = enabled
+    func setAgcMode(_ mode: AgcMode) async {
+        state.agcMode = mode
+        stateContinuation?.yield(state)
+    }
+
+    func setSquelch(_ squelch: Int32) async {
+        state.squelch = squelch
         stateContinuation?.yield(state)
     }
 
@@ -115,21 +126,33 @@ struct SoundSyncViewModelTests {
         #expect(await manager.getState().gain == 4.5)
     }
 
-    @Test func observeLoadsPersistedAgcWhenNotRunning() async throws {
-        try await database.userPreferencesRepository.updateSoundSyncAgcEnabled(enabled: true)
+    @Test func observeLoadsPersistedAgcModeWhenNotRunning() async throws {
+        try await database.userPreferencesRepository.updateSoundSyncAgcMode(mode: .vivid)
         let manager = FakeSoundSyncManager()
         let viewModel = makeViewModel(manager: manager)
 
         try await runObserveUntil(viewModel: viewModel, manager: manager) {
-            viewModel.agcEnabled
+            viewModel.agcMode == .vivid
         }
 
-        #expect(await manager.getState().agcEnabled)
+        #expect(await manager.getState().agcMode == .vivid)
+    }
+
+    @Test func observeLoadsPersistedSquelchWhenNotRunning() async throws {
+        try await database.userPreferencesRepository.updateSoundSyncSquelch(squelch: 35)
+        let manager = FakeSoundSyncManager()
+        let viewModel = makeViewModel(manager: manager)
+
+        try await runObserveUntil(viewModel: viewModel, manager: manager) {
+            viewModel.squelch == 35
+        }
+
+        #expect(await manager.getState().squelch == 35)
     }
 
     @Test func observePreservesLiveGainWhenAlreadyRunning() async throws {
         try await database.userPreferencesRepository.updateSoundSyncGain(gain: 1.0)
-        let runningState = SoundSyncState(isRunning: true, gain: 7.5, agcEnabled: false)
+        let runningState = SoundSyncState(isRunning: true, gain: 7.5, agcMode: .off)
         let manager = FakeSoundSyncManager(initialState: runningState)
         let viewModel = makeViewModel(manager: manager)
 
@@ -140,17 +163,17 @@ struct SoundSyncViewModelTests {
         #expect(await manager.getState().gain == 7.5)
     }
 
-    @Test func observePreservesLiveAgcWhenAlreadyRunning() async throws {
-        try await database.userPreferencesRepository.updateSoundSyncAgcEnabled(enabled: false)
-        let runningState = SoundSyncState(isRunning: true, gain: 1.0, agcEnabled: true)
+    @Test func observePreservesLiveAgcModeWhenAlreadyRunning() async throws {
+        try await database.userPreferencesRepository.updateSoundSyncAgcMode(mode: .off)
+        let runningState = SoundSyncState(isRunning: true, gain: 1.0, agcMode: .lazy)
         let manager = FakeSoundSyncManager(initialState: runningState)
         let viewModel = makeViewModel(manager: manager)
 
         try await runObserveUntil(viewModel: viewModel, manager: manager) {
-            viewModel.isRunning && viewModel.agcEnabled
+            viewModel.isRunning && viewModel.agcMode == .lazy
         }
 
-        #expect(await manager.getState().agcEnabled)
+        #expect(await manager.getState().agcMode == .lazy)
     }
 
     @Test func startWhenPermissionDeniedOpensSettingsAndDoesNotStart() async {
@@ -216,30 +239,30 @@ struct SoundSyncViewModelTests {
 
     @Test(
         arguments: [
-            (true, true, Float(5.5)),
-            (true, false, Float(2.0)),
-            (false, true, Float(2.0))
+            (true, AgcMode.normal, Float(5.5)),
+            (true, AgcMode.off, Float(2.0)),
+            (false, AgcMode.vivid, Float(2.0))
         ]
     )
     func observeReflectsDisplayedGainForRunningAndAgcStates(
         isRunning: Bool,
-        agcEnabled: Bool,
+        agcMode: AgcMode,
         expectedDisplayedGain: Float
     ) async throws {
         try await database.userPreferencesRepository.updateSoundSyncGain(gain: 2.0)
-        try await database.userPreferencesRepository.updateSoundSyncAgcEnabled(enabled: agcEnabled)
+        try await database.userPreferencesRepository.updateSoundSyncAgcMode(mode: agcMode)
         let initialState = SoundSyncState(
             isRunning: isRunning,
             gain: 2.0,
             effectiveGain: 5.5,
-            agcEnabled: agcEnabled
+            agcMode: agcMode
         )
         let manager = FakeSoundSyncManager(initialState: initialState)
         let viewModel = makeViewModel(manager: manager)
 
         try await runObserveUntil(viewModel: viewModel, manager: manager) {
             viewModel.isRunning == isRunning &&
-                viewModel.agcEnabled == agcEnabled &&
+                viewModel.agcMode == agcMode &&
                 viewModel.displayedGain == expectedDisplayedGain
         }
 

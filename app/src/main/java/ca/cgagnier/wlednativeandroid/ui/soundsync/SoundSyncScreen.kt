@@ -22,10 +22,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -34,9 +34,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,7 +55,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -62,9 +65,12 @@ import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncError
 import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncIconVisualizer
 import ca.cgagnier.wlednativeandroid.service.soundsync.UdpSoundSyncPacket
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.AgcMode
 import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.GainControl
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.SoundSyncProcessor
 import kotlinx.coroutines.flow.StateFlow
 import org.koin.androidx.compose.koinViewModel
+import kotlin.math.roundToInt
 
 private const val CHART_HEIGHT_DP = 120
 private const val CHANNEL_MAX_VALUE = 255f
@@ -187,11 +193,8 @@ private fun SoundSyncContent(
                 VisualizationCard(latestPacketFlow = viewModel.latestPacket)
             }
             GainCard(
-                gain = uiState.displayedGain,
-                agcEnabled = uiState.agcEnabled,
-                onGainChanged = { viewModel.setGain(it) },
-                onGainChangeFinished = { viewModel.saveGain() },
-                onAgcChanged = { viewModel.setAgcEnabled(it) },
+                uiState = uiState,
+                viewModel = viewModel,
             )
         }
     }
@@ -256,13 +259,9 @@ private fun SoundSyncCard(
 }
 
 @Composable
-private fun GainCard(
-    gain: Float,
-    agcEnabled: Boolean,
-    onGainChanged: (Float) -> Unit,
-    onGainChangeFinished: () -> Unit,
-    onAgcChanged: (Boolean) -> Unit,
-) {
+private fun GainCard(uiState: SoundSyncUiState, viewModel: SoundSyncViewModel) {
+    val gain = uiState.displayedGain
+    val agcEnabled = uiState.agcEnabled
     val animatedAgcGain by animateFloatAsState(
         targetValue = gain,
         label = "agcGainSlider",
@@ -281,8 +280,8 @@ private fun GainCard(
         ) {
             Slider(
                 value = sliderGain,
-                onValueChange = onGainChanged,
-                onValueChangeFinished = onGainChangeFinished,
+                onValueChange = { viewModel.setGain(it) },
+                onValueChangeFinished = { viewModel.saveGain() },
                 valueRange = 0f..GainControl.MAX_MANUAL_GAIN,
                 modifier = Modifier.weight(1f),
                 enabled = !agcEnabled,
@@ -293,28 +292,123 @@ private fun GainCard(
                 modifier = Modifier.padding(start = 8.dp),
             )
         }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .toggleable(
-                    value = agcEnabled,
-                    onValueChange = onAgcChanged,
-                    role = Role.Switch,
-                )
-                .padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                stringResource(R.string.sound_sync_agc),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f),
-            )
-            Switch(
-                checked = agcEnabled,
-                onCheckedChange = null,
+        Spacer(modifier = Modifier.height(8.dp))
+        AgcModeSection(
+            agcMode = uiState.agcMode,
+            onAgcModeChanged = { viewModel.setAgcMode(it) },
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        SquelchSection(
+            squelch = uiState.squelch,
+            onSquelchChanged = { viewModel.setSquelch(it) },
+            onSquelchChangeFinished = { viewModel.saveSquelch() },
+            onSquelchStepped = { viewModel.stepSquelch(it) },
+        )
+    }
+}
+
+@Composable
+private fun AgcModeSection(agcMode: AgcMode, onAgcModeChanged: (AgcMode) -> Unit) {
+    val modes = AgcMode.entries
+    Text(
+        text = stringResource(R.string.sound_sync_agc),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+    )
+    Spacer(modifier = Modifier.height(6.dp))
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        modes.forEachIndexed { index, mode ->
+            SegmentedButton(
+                selected = agcMode == mode,
+                onClick = { onAgcModeChanged(mode) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
+                label = {
+                    Text(
+                        text = stringResource(mode.labelResId()),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
             )
         }
     }
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(
+        text = stringResource(agcMode.descriptionResId()),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun SquelchSection(
+    squelch: Int,
+    onSquelchChanged: (Int) -> Unit,
+    onSquelchChangeFinished: () -> Unit,
+    onSquelchStepped: (Int) -> Unit,
+) {
+    Text(
+        text = stringResource(R.string.sound_sync_squelch),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(
+            onClick = { onSquelchStepped(-1) },
+            enabled = squelch > SoundSyncProcessor.MIN_SQUELCH,
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_remove_24),
+                contentDescription = stringResource(R.string.sound_sync_squelch_decrease),
+            )
+        }
+        Slider(
+            value = squelch.toFloat(),
+            onValueChange = { onSquelchChanged(it.roundToInt()) },
+            onValueChangeFinished = onSquelchChangeFinished,
+            valueRange = SoundSyncProcessor.MIN_SQUELCH.toFloat()..SoundSyncProcessor.MAX_SQUELCH.toFloat(),
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(
+            onClick = { onSquelchStepped(1) },
+            enabled = squelch < SoundSyncProcessor.MAX_SQUELCH,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = stringResource(R.string.sound_sync_squelch_increase),
+            )
+        }
+        Text(
+            text = squelch.toString(),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.End,
+            modifier = Modifier
+                .widthIn(min = 32.dp)
+                .padding(start = 4.dp),
+        )
+    }
+    Text(
+        text = stringResource(R.string.sound_sync_squelch_description),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+private fun AgcMode.labelResId(): Int = when (this) {
+    AgcMode.OFF -> R.string.sound_sync_agc_mode_off
+    AgcMode.NORMAL -> R.string.sound_sync_agc_mode_normal
+    AgcMode.VIVID -> R.string.sound_sync_agc_mode_vivid
+    AgcMode.LAZY -> R.string.sound_sync_agc_mode_lazy
+}
+
+private fun AgcMode.descriptionResId(): Int = when (this) {
+    AgcMode.OFF -> R.string.sound_sync_agc_mode_off_description
+    AgcMode.NORMAL -> R.string.sound_sync_agc_mode_normal_description
+    AgcMode.VIVID -> R.string.sound_sync_agc_mode_vivid_description
+    AgcMode.LAZY -> R.string.sound_sync_agc_mode_lazy_description
 }
 
 @Composable

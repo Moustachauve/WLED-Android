@@ -104,13 +104,70 @@ struct SoundSyncView: View {
                     .monospacedDigit()
             }
 
-            Toggle(
-                "Automatic Gain Control",
-                isOn: Binding(
-                    get: { viewModel.agcEnabled },
-                    set: { viewModel.setAgcEnabled($0) }
-                )
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Automatic Gain Control")
+                    .font(.subheadline)
+                Picker(
+                    "Automatic Gain Control",
+                    selection: Binding(
+                        get: { viewModel.agcMode },
+                        set: { viewModel.setAgcMode($0) }
+                    )
+                ) {
+                    ForEach(AgcMode.allCases, id: \.self) { mode in
+                        Text(mode.localizedTitle).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+
+                Text(viewModel.agcMode.localizedDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 4)
+
+            VStack(alignment: .leading, spacing: 6) {
+                let minSquelchInt = SoundSyncProcessor.Companion.shared.MIN_SQUELCH
+                let maxSquelchInt = SoundSyncProcessor.Companion.shared.MAX_SQUELCH
+                HStack {
+                    Text("Squelch")
+                        .font(.subheadline)
+                    Spacer()
+                    Text(verbatim: viewModel.squelch.formatted(.number))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    Stepper(
+                        "Squelch",
+                        value: Binding(
+                            get: { viewModel.squelch },
+                            set: { viewModel.setSquelch($0) }
+                        ),
+                        in: minSquelchInt...maxSquelchInt,
+                        step: 1
+                    )
+                    .labelsHidden()
+                }
+                Slider(
+                    value: Binding(
+                        get: { Float(viewModel.squelch) },
+                        set: { viewModel.updateLiveSquelch(Int32($0.rounded())) }
+                    ),
+                    in: Float(minSquelchInt)...Float(maxSquelchInt),
+                    step: 1
+                ) {
+                    Text("Squelch")
+                } onEditingChanged: { editing in
+                    if !editing {
+                        viewModel.saveSquelch()
+                    }
+                }
+                .labelsHidden()
+                Text("Ignores background noise below this threshold when no music is playing.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 4)
         }
     }
 
@@ -316,6 +373,36 @@ private final class VisualizationSmoother {
             normalizedChannels: smoothedChannels,
             sampleLevel: smoothedSampleLevel
         )
+    }
+}
+
+// MARK: - AgcMode Localization
+
+private extension AgcMode {
+    var localizedTitle: LocalizedStringResource {
+        switch self {
+        case .off:
+            "Off"
+        case .normal:
+            "Normal"
+        case .vivid:
+            "Vivid"
+        case .lazy:
+            "Lazy"
+        }
+    }
+
+    var localizedDescription: LocalizedStringResource {
+        switch self {
+        case .off:
+            "No automatic adjustment. Uses the Gain value as set."
+        case .normal:
+            "Smoothly follows changes in volume. A good default for most setups."
+        case .vivid:
+            "Reacts quickly to volume changes for a more dramatic response to dynamics."
+        case .lazy:
+            "Slower to adjust. Works well for GEQ effects or music with wide dynamic range."
+        }
     }
 }
 

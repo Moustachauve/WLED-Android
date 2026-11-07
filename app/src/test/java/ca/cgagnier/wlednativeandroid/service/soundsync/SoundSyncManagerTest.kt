@@ -4,6 +4,7 @@ import android.content.Context
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.soundsync.audio.AudioSource
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.AgcMode
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +36,7 @@ class SoundSyncManagerTest {
         val audioSource = FakeAudioSource(permissionGranted = false)
         val manager = createManager(audioSource = audioSource)
 
-        val started = manager.start(gain = 2.0f, agcEnabled = true)
+        val started = manager.start(gain = 2.0f, agcMode = AgcMode.NORMAL)
 
         assertFalse(started)
         assertFalse(manager.state.value.isRunning)
@@ -47,7 +48,7 @@ class SoundSyncManagerTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = false)
         val manager = createManager(audioSource = audioSource)
 
-        val started = manager.start(gain = 1.5f, agcEnabled = false)
+        val started = manager.start(gain = 1.5f, agcMode = AgcMode.OFF)
 
         assertFalse(started)
         assertFalse(manager.state.value.isRunning)
@@ -59,7 +60,7 @@ class SoundSyncManagerTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val manager = createManager(audioSource = audioSource)
 
-        val started = manager.start(gain = 3.0f, agcEnabled = false)
+        val started = manager.start(gain = 3.0f, agcMode = AgcMode.OFF)
 
         assertTrue(started)
         assertTrue(manager.state.value.isRunning)
@@ -71,7 +72,7 @@ class SoundSyncManagerTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val sender = FakeSoundSyncPacketSender()
         val manager = createManager(audioSource = audioSource, sender = sender)
-        manager.start(gain = 3.0f, agcEnabled = false)
+        manager.start(gain = 3.0f, agcMode = AgcMode.OFF)
 
         val sineSamples = FloatArray(512) { i -> sin(2.0 * PI * 440.0 * i / audioSource.sampleRate).toFloat() }
         audioSource.emitSamples(sineSamples)
@@ -84,12 +85,12 @@ class SoundSyncManagerTest {
     fun processAudioSamples_whenAgcEnabled_updatesEffectiveGainAndPreservesManualGain() = runTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val manager = createManager(audioSource = audioSource)
-        manager.start(gain = 1.5f, agcEnabled = true)
+        manager.start(gain = 1.5f, agcMode = AgcMode.VIVID)
 
         val quietSineSamples = FloatArray(4096) { i ->
             0.02f * sin(2.0 * PI * 440.0 * i / audioSource.sampleRate).toFloat()
         }
-        repeat(3) {
+        repeat(5) {
             audioSource.emitSamples(quietSineSamples)
         }
 
@@ -98,11 +99,21 @@ class SoundSyncManagerTest {
     }
 
     @Test
+    fun setSquelch_clampsAndUpdatesState() = runTest {
+        val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
+        val manager = createManager(audioSource = audioSource)
+
+        manager.setSquelch(42)
+
+        assertEquals(42, manager.state.value.squelch)
+    }
+
+    @Test
     fun stop_resetsRunningAndVisualizationState() = runTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val sender = FakeSoundSyncPacketSender()
         val manager = createManager(audioSource = audioSource, sender = sender)
-        manager.start(gain = 2.0f, agcEnabled = false)
+        manager.start(gain = 2.0f, agcMode = AgcMode.OFF)
         val sineSamples = FloatArray(512) { i -> sin(2.0 * PI * 440.0 * i / audioSource.sampleRate).toFloat() }
         audioSource.emitSamples(sineSamples)
 
@@ -120,7 +131,7 @@ class SoundSyncManagerTest {
     fun audioSourceStoppingUnexpectedly_stopsManagerAndSetsCaptureError() = runTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val manager = createManager(audioSource = audioSource)
-        manager.start(gain = 1.0f, agcEnabled = false)
+        manager.start(gain = 1.0f, agcMode = AgcMode.OFF)
         advanceUntilIdle()
 
         audioSource.simulateReadFailure()

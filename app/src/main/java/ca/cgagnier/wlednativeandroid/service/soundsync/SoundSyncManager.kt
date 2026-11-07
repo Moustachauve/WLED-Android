@@ -5,6 +5,7 @@ import android.net.wifi.WifiManager
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.soundsync.audio.AudioSource
 import ca.cgagnier.wlednativeandroid.service.soundsync.audio.MicrophoneAudioSource
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.AgcMode
 import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.GainControl
 import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.SoundSyncProcessor
 import co.touchlab.kermit.Logger
@@ -40,9 +41,13 @@ data class SoundSyncState(
     val isRunning: Boolean = false,
     val gain: Float = 1.0f,
     val effectiveGain: Float = 1.0f,
-    val agcEnabled: Boolean = false,
+    val agcMode: AgcMode = AgcMode.OFF,
+    val squelch: Int = SoundSyncProcessor.DEFAULT_SQUELCH,
     val error: SoundSyncError? = null,
-)
+) {
+    val agcEnabled: Boolean
+        get() = agcMode != AgcMode.OFF
+}
 
 /**
  * Coordinates microphone audio capture, shared KMP DSP processing, and UDP packet sending
@@ -91,21 +96,28 @@ class SoundSyncManager(
     /**
      * Starts sound sync with the given configuration.
      *
-     * @param gain Manual gain factor (0.0 - 10.0).
-     * @param agcEnabled Whether automatic gain control is enabled.
+     * @param gain Manual gain factor (0.0 - 30.0).
+     * @param agcMode Automatic gain control mode.
+     * @param squelch Noise gate threshold (`0..100`).
      * @return `true` if started successfully.
      */
     @Synchronized
-    fun start(gain: Float, agcEnabled: Boolean): Boolean {
+    fun start(
+        gain: Float,
+        agcMode: AgcMode = AgcMode.OFF,
+        squelch: Int = SoundSyncProcessor.DEFAULT_SQUELCH,
+    ): Boolean {
         if (_state.value.isRunning) {
             stop()
         }
 
         val clampedGain = gain.coerceIn(0f, GainControl.MAX_MANUAL_GAIN)
+        val clampedSquelch = squelch.coerceIn(SoundSyncProcessor.MIN_SQUELCH, SoundSyncProcessor.MAX_SQUELCH)
         _state.update {
             it.copy(
                 gain = clampedGain,
-                agcEnabled = agcEnabled,
+                agcMode = agcMode,
+                squelch = clampedSquelch,
                 error = null,
             )
         }
@@ -120,7 +132,8 @@ class SoundSyncManager(
             processor.reset()
             processor.configureSampleRate(audioSource.sampleRate)
             processor.setGain(clampedGain)
-            processor.setAgcEnabled(agcEnabled)
+            processor.setAgcMode(agcMode)
+            processor.setSquelch(clampedSquelch)
             processor.effectiveGain
         }
 
@@ -172,18 +185,27 @@ class SoundSyncManager(
         _state.update { it.copy(gain = clampedGain) }
     }
 
-    /** Toggles automatic gain control in real-time. */
-    fun setAgcEnabled(enabled: Boolean) {
+    /** Updates automatic gain control mode in real-time. */
+    fun setAgcMode(mode: AgcMode) {
         val currentEffectiveGain = synchronized(processorLock) {
-            processor.setAgcEnabled(enabled)
+            processor.setAgcMode(mode)
             processor.effectiveGain
         }
         _state.update {
             it.copy(
-                agcEnabled = enabled,
+                agcMode = mode,
                 effectiveGain = currentEffectiveGain,
             )
         }
+    }
+
+    /** Updates the squelch noise gate threshold in real-time. */
+    fun setSquelch(squelch: Int) {
+        val clamped = squelch.coerceIn(SoundSyncProcessor.MIN_SQUELCH, SoundSyncProcessor.MAX_SQUELCH)
+        synchronized(processorLock) {
+            processor.setSquelch(clamped)
+        }
+        _state.update { it.copy(squelch = clamped) }
     }
 
     @Synchronized
