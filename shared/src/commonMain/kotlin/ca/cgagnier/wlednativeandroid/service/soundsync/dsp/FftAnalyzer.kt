@@ -1,7 +1,9 @@
 package ca.cgagnier.wlednativeandroid.service.soundsync.dsp
 
+import ca.cgagnier.wlednativeandroid.service.soundsync.UdpSoundSyncPacket
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -77,13 +79,25 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
      * @param samples Input PCM samples.
      * @param isSilent When `true` (noise gate closed), decays linear channel state toward zero
      *   and mutes [FftResult.magnitude] (`0.001f`) to match WLED's `audio_reactive.cpp` gate.
+     * @param deltaTimeMs Elapsed milliseconds since the previous frame, normalized against
+     *   [UdpSoundSyncPacket.PACKET_INTERVAL_MS] so attack and decay rates are cadence-independent.
      */
-    fun analyze(samples: FloatArray, isSilent: Boolean = false): FftResult {
+    fun analyze(
+        samples: FloatArray,
+        isSilent: Boolean = false,
+        deltaTimeMs: Long = UdpSoundSyncPacket.PACKET_INTERVAL_MS,
+    ): FftResult = analyze(
+        samples = samples,
+        isSilent = isSilent,
+        normalizedFrames = normalizePacketFrameDelta(deltaTimeMs),
+    )
+
+    internal fun analyze(samples: FloatArray, isSilent: Boolean, normalizedFrames: Float): FftResult {
         if (samples.isEmpty()) {
             return FftResult(ByteArray(FFT_CHANNEL_COUNT), 0f, 0f)
         }
         if (isSilent) {
-            return decaySilentResult()
+            return decaySilentResult(normalizedFrames)
         }
 
         // Fill real buffer with windowed samples (last fftSize samples), zero-padding if shorter
@@ -116,7 +130,7 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
         val wledMagnitude = maxMagnitude * wledChannelBinScale * WLED_RAW_MAGNITUDE_RATIO
 
         return FftResult(
-            fftChannels = computeSmoothedGeqChannels(),
+            fftChannels = computeSmoothedGeqChannels(normalizedFrames),
             magnitude = wledMagnitude,
             majorPeak = if (maxMagnitude > MIN_PEAK_MAGNITUDE) majorPeakFrequency else 0f,
         )
@@ -127,10 +141,11 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
         smoothedLinearChannels.fill(0f)
     }
 
-    private fun decaySilentResult(): FftResult {
+    private fun decaySilentResult(normalizedFrames: Float): FftResult {
         val channels = ByteArray(FFT_CHANNEL_COUNT)
+        val decayRetention = SILENCE_CHANNEL_DECAY.pow(normalizedFrames)
         for (ch in 0 until FFT_CHANNEL_COUNT) {
-            var decayed = smoothedLinearChannels[ch] * SILENCE_CHANNEL_DECAY
+            var decayed = smoothedLinearChannels[ch] * decayRetention
             if (decayed < MIN_LINEAR_CHANNEL_MAGNITUDE) decayed = 0f
             smoothedLinearChannels[ch] = decayed
             channels[ch] = scaleChannelToWledRange(decayed, ch)
@@ -142,8 +157,10 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
         )
     }
 
-    private fun computeSmoothedGeqChannels(): ByteArray {
+    private fun computeSmoothedGeqChannels(normalizedFrames: Float): ByteArray {
         val channels = ByteArray(FFT_CHANNEL_COUNT)
+        val riseWeight = 1f - (1f - FFT_RISE_WEIGHT).pow(normalizedFrames)
+        val fallWeight = 1f - (1f - FFT_FALL_WEIGHT).pow(normalizedFrames)
         for (ch in 0 until FFT_CHANNEL_COUNT) {
             val range = channelBinRanges[ch]
             var sum = 0f
@@ -153,11 +170,8 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
             val avgMagnitude = sum / range.count() * wledChannelBinScale * GEQ_CHANNEL_DAMPING[ch]
             val currentLinear = avgMagnitude * FFT_RESULT_PINK[ch] * FFT_DOWNSCALE
             val previousLinear = smoothedLinearChannels[ch]
-            val smoothedLinear = if (currentLinear >= previousLinear) {
-                currentLinear * FFT_RISE_WEIGHT + previousLinear * (1f - FFT_RISE_WEIGHT)
-            } else {
-                currentLinear * FFT_FALL_WEIGHT + previousLinear * (1f - FFT_FALL_WEIGHT)
-            }
+            val weight = if (currentLinear >= previousLinear) riseWeight else fallWeight
+            val smoothedLinear = currentLinear * weight + previousLinear * (1f - weight)
             smoothedLinearChannels[ch] = if (smoothedLinear < MIN_LINEAR_CHANNEL_MAGNITUDE) 0f else smoothedLinear
             channels[ch] = scaleChannelToWledRange(smoothedLinearChannels[ch], ch)
         }

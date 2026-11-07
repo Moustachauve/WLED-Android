@@ -2,6 +2,7 @@ package ca.cgagnier.wlednativeandroid.service.soundsync.dsp
 
 import ca.cgagnier.wlednativeandroid.service.soundsync.UdpSoundSyncPacket
 import kotlin.math.abs
+import kotlin.math.pow
 
 /**
  * Shared KMP audio-reactive DSP coordinator.
@@ -40,10 +41,14 @@ class SoundSyncProcessor(
     private var pendingRawPeak = 0f
     private var pendingGainedPeak = 0f
     private var smoothedSample = 0f
+    private var smoothedEffectiveGain = gainControl.effectiveGain
     private var lastFrameTimeMs = UNSET_TIME_MS
+    private var nextDeadlineMs = UNSET_TIME_MS
 
     val sampleRate: Int get() = currentSampleRate
     val gain: Float get() = gainControl.manualGain
+    val effectiveGain: Float
+        get() = if (gainControl.agcEnabled) smoothedEffectiveGain else gainControl.manualGain
     val agcEnabled: Boolean get() = gainControl.agcEnabled
 
     /**
@@ -64,6 +69,7 @@ class SoundSyncProcessor(
 
     fun setAgcEnabled(enabled: Boolean) {
         gainControl.setAgcEnabled(enabled)
+        smoothedEffectiveGain = gainControl.effectiveGain
     }
 
     /**
@@ -75,31 +81,45 @@ class SoundSyncProcessor(
         beatDetector.reset()
         fftAnalyzer.reset()
         resetSampleBuffer()
+        smoothedEffectiveGain = gainControl.effectiveGain
         lastFrameTimeMs = UNSET_TIME_MS
+        nextDeadlineMs = UNSET_TIME_MS
     }
 
     /**
      * Processes a chunk of normalized PCM audio samples (`-1.0..1.0`).
      *
      * @param samples Input PCM samples.
-     * @param nowMs Current monotonic/wall-clock timestamp in milliseconds used for 50 fps throttling.
-     * @return A [UdpSoundSyncPacket] if at least [UdpSoundSyncPacket.PACKET_INTERVAL_MS] has elapsed
-     *   since the last emitted frame, or `null` if throttled or [samples] is empty.
+     * @param nowMs Current monotonic/sample-clock timestamp in milliseconds used for 50 Hz scheduling.
+     * @return A [UdpSoundSyncPacket] if the next [UdpSoundSyncPacket.PACKET_INTERVAL_MS] deadline
+     *   has been reached, or `null` if throttled or [samples] is empty.
      */
     fun process(samples: FloatArray, nowMs: Long): UdpSoundSyncPacket? {
         if (samples.isEmpty()) return null
 
         // Always run stateful filters and accumulate into the FFT ring buffer
         val filtered = lowCutFilter.process(samples)
-        val gained = gainControl.process(filtered)
+        val gained = gainControl.process(samples = filtered)
         accumulateSamples(filtered, gained)
 
-        if (lastFrameTimeMs != UNSET_TIME_MS &&
-            nowMs - lastFrameTimeMs < UdpSoundSyncPacket.PACKET_INTERVAL_MS
-        ) {
+        if (nextDeadlineMs != UNSET_TIME_MS && nowMs < nextDeadlineMs) {
             return null
         }
+        val deltaTimeMs = if (lastFrameTimeMs == UNSET_TIME_MS) {
+            UdpSoundSyncPacket.PACKET_INTERVAL_MS
+        } else {
+            nowMs - lastFrameTimeMs
+        }
         lastFrameTimeMs = nowMs
+        nextDeadlineMs = if (nextDeadlineMs == UNSET_TIME_MS) {
+            nowMs + UdpSoundSyncPacket.PACKET_INTERVAL_MS
+        } else {
+            maxOf(
+                nextDeadlineMs + UdpSoundSyncPacket.PACKET_INTERVAL_MS,
+                nowMs - UdpSoundSyncPacket.PACKET_INTERVAL_MS + 1L,
+            )
+        }
+        val normalizedFrames = normalizePacketFrameDelta(deltaTimeMs)
 
         val rawPeak = pendingRawPeak
         val gainedPeak = pendingGainedPeak
@@ -110,12 +130,13 @@ class SoundSyncProcessor(
         // does not amplify ambient room noise past the gate in a silent room.
         val gatedPeak = if (rawPeak < NOISE_FLOOR_AMPLITUDE) 0f else gainedPeak
         val sampleRaw = (gatedPeak * SAMPLE_MAX_VALUE).coerceIn(0f, SAMPLE_MAX_VALUE)
-        val sampleSmth = updateSmoothedSample(sampleRaw)
+        val sampleSmth = updateSmoothedSample(sampleRaw, normalizedFrames)
+        updateSmoothedEffectiveGain(normalizedFrames)
         val samplePeak = beatDetector.detect(gatedPeak)
 
         populateFftWindow()
         val isSilent = sampleSmth < MIN_SMOOTHED_SAMPLE
-        val fftResult = fftAnalyzer.analyze(fftWindow, isSilent = isSilent)
+        val fftResult = fftAnalyzer.analyze(fftWindow, isSilent = isSilent, normalizedFrames = normalizedFrames)
 
         return UdpSoundSyncPacket(
             sampleRaw = sampleRaw,
@@ -132,16 +153,27 @@ class SoundSyncProcessor(
      * attack (`0.50`) and intentionally slower release (`0.85`) for smoother LED fades
      * between 20 ms UDP frames, snapping to zero below [MIN_SMOOTHED_SAMPLE].
      */
-    private fun updateSmoothedSample(sampleRaw: Float): Float {
-        smoothedSample = if (sampleRaw > smoothedSample) {
-            smoothedSample * SAMPLE_ATTACK_RETENTION + sampleRaw * (1f - SAMPLE_ATTACK_RETENTION)
+    private fun updateSmoothedSample(sampleRaw: Float, normalizedFrames: Float): Float {
+        val baseRetention = if (sampleRaw > smoothedSample) {
+            SAMPLE_ATTACK_RETENTION
         } else {
-            smoothedSample * SAMPLE_DECAY_RETENTION + sampleRaw * (1f - SAMPLE_DECAY_RETENTION)
+            SAMPLE_DECAY_RETENTION
         }
+        val retention = baseRetention.pow(normalizedFrames)
+        smoothedSample = smoothedSample * retention + sampleRaw * (1f - retention)
         if (smoothedSample < MIN_SMOOTHED_SAMPLE) {
             smoothedSample = 0f
         }
         return smoothedSample.coerceIn(0f, SAMPLE_MAX_VALUE)
+    }
+
+    private fun updateSmoothedEffectiveGain(normalizedFrames: Float) {
+        if (!gainControl.agcEnabled) return
+        val retention = DISPLAY_AGC_RETENTION.pow(normalizedFrames)
+        smoothedEffectiveGain = (
+            smoothedEffectiveGain * retention +
+                gainControl.effectiveGain * (1f - retention)
+            ).coerceIn(0f, GainControl.MAX_MANUAL_GAIN)
     }
 
     private fun accumulateSamples(filtered: FloatArray, gained: FloatArray) {
@@ -201,7 +233,21 @@ class SoundSyncProcessor(
         /** Envelope retention weight when signal amplitude is falling (smooth release). */
         private const val SAMPLE_DECAY_RETENTION = 0.85f
 
+        /** Per-frame retention weight (~240 ms time constant, 0.92 retention per 20 ms) for UI display of AGC gain. */
+        private const val DISPLAY_AGC_RETENTION = 0.92f
+
         /** Noise gate threshold below which `sampleSmth` snaps to 0 (matches WLED `volumeSmth < 1`). */
         private const val MIN_SMOOTHED_SAMPLE = 1.0f
     }
 }
+
+private const val MIN_PACKET_FRAME_MULTIPLIER = 0.25f
+private const val MAX_PACKET_FRAME_MULTIPLIER = 6f
+
+/**
+ * Normalizes [deltaTimeMs] relative to [UdpSoundSyncPacket.PACKET_INTERVAL_MS] so
+ * frame-to-frame exponential smoothing stays consistent regardless of capture cadence.
+ */
+internal fun normalizePacketFrameDelta(deltaTimeMs: Long): Float =
+    (deltaTimeMs.toFloat() / UdpSoundSyncPacket.PACKET_INTERVAL_MS)
+        .coerceIn(MIN_PACKET_FRAME_MULTIPLIER, MAX_PACKET_FRAME_MULTIPLIER)

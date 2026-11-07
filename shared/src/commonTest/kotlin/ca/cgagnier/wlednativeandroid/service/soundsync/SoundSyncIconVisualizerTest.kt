@@ -106,4 +106,23 @@ class SoundSyncIconVisualizerTest {
 
         assertEquals(single60HzStep, two120HzSteps, 0.001f)
     }
+
+    @Test
+    fun smoothFftChannelsNormalizesUnsignedByteValuesTowardTargetRatio() {
+        val channels = ByteArray(UdpSoundSyncPacket.FFT_CHANNEL_COUNT) { 200.toByte() }
+        val smoothedOutput = FloatArray(UdpSoundSyncPacket.FFT_CHANNEL_COUNT)
+
+        repeat(20) {
+            SoundSyncIconVisualizer.smoothFftChannels(
+                fftChannels = channels,
+                deltaTimeMs = 16L,
+                smoothedOutput = smoothedOutput,
+            )
+        }
+
+        val expectedTarget = 200f / 255f
+        for (i in smoothedOutput.indices) {
+            assertEquals(expectedTarget, smoothedOutput[i], 0.001f)
+        }
+    }
 }

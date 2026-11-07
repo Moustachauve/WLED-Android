@@ -81,6 +81,23 @@ class SoundSyncManagerTest {
     }
 
     @Test
+    fun processAudioSamples_whenAgcEnabled_updatesEffectiveGainAndPreservesManualGain() = runTest {
+        val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
+        val manager = createManager(audioSource = audioSource)
+        manager.start(gain = 1.5f, agcEnabled = true)
+
+        val quietSineSamples = FloatArray(4096) { i ->
+            0.02f * sin(2.0 * PI * 440.0 * i / audioSource.sampleRate).toFloat()
+        }
+        repeat(3) {
+            audioSource.emitSamples(quietSineSamples)
+        }
+
+        assertEquals(1.5f, manager.state.value.gain, 0.001f)
+        assertTrue(manager.state.value.effectiveGain > 2.0f)
+    }
+
+    @Test
     fun stop_resetsRunningAndVisualizationState() = runTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val sender = FakeSoundSyncPacketSender()

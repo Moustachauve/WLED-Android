@@ -28,9 +28,20 @@ class GainControl(
     var agcEnabled: Boolean = agcEnabled
         private set
 
+    private val safeGainMultiplier: Float = manualGainMultiplier.coerceAtLeast(MIN_GAIN_MULTIPLIER)
+
     // AGC state
-    private var agcGain = 1.0f
+    private var agcGain = safeGainMultiplier
     private var peakEnvelope = 0f
+
+    /**
+     * Effective gain on the `0.0..MAX_MANUAL_GAIN` UI slider scale.
+     *
+     * Returns [manualGain] when AGC is disabled, or the active automatic gain mapped
+     * to the slider range when AGC is enabled.
+     */
+    val effectiveGain: Float
+        get() = if (agcEnabled) mappedAgcGain() else manualGain
 
     /**
      * Processes a block of audio samples through the gain stage.
@@ -74,9 +85,11 @@ class GainControl(
 
     /** Clears AGC state. Call when switching audio sources. */
     fun reset() {
-        agcGain = 1.0f
+        agcGain = safeGainMultiplier
         peakEnvelope = 0f
     }
+
+    private fun mappedAgcGain(): Float = (agcGain / safeGainMultiplier).coerceIn(0f, MAX_MANUAL_GAIN)
 
     private fun updateAgc(samples: FloatArray, offset: Int, count: Int) {
         // Track the unscaled peak amplitude in this chunk
@@ -104,6 +117,7 @@ class GainControl(
     companion object {
         const val MAX_MANUAL_GAIN = 10.0f
         const val DEFAULT_TARGET_LEVEL = 0.75f
+        private const val MIN_GAIN_MULTIPLIER = 0.001f
         private const val MIN_AGC_GAIN = 0.1f
         private const val MAX_AGC_GAIN = 32.0f
         private const val AGC_UPDATE_INTERVAL = 256

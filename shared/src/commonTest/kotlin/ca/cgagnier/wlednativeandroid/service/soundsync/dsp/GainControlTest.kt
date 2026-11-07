@@ -133,6 +133,41 @@ class GainControlTest {
         assertEquals(zeroGainRms, highGainRms, 0.0001f)
     }
 
+    @Test
+    fun effectiveGain_whenAgcEnabled_dividesAgcGainByManualGainMultiplier() {
+        val gain = GainControl(
+            manualGain = 1.5f,
+            agcEnabled = true,
+            targetLevel = 0.75f,
+            manualGainMultiplier = 3.0f,
+        )
+        // Non-saturating 0.1f peak -> desiredGain = 0.75 / 0.1 = 7.5 -> mappedAgcGain = 7.5 / 3.0 = 2.5
+        val input = FloatArray(4096) {
+            0.1f * sin(2.0 * PI * 440.0 * it / 44100.0).toFloat()
+        }
+
+        gain.process(input)
+
+        assertEquals(2.5f, gain.effectiveGain, 0.05f)
+    }
+
+    @Test
+    fun process_whenAgcEnabled_doesNotMutateManualGain() {
+        val gain = GainControl(
+            manualGain = 1.5f,
+            agcEnabled = true,
+            targetLevel = 0.75f,
+            manualGainMultiplier = 3.0f,
+        )
+        val input = FloatArray(4096) {
+            0.1f * sin(2.0 * PI * 440.0 * it / 44100.0).toFloat()
+        }
+
+        gain.process(input)
+
+        assertEquals(1.5f, gain.manualGain, 0.0001f)
+    }
+
     private fun rms(samples: List<Float>): Float {
         if (samples.isEmpty()) return 0f
         val sumSquares = samples.sumOf { (it * it).toDouble() }

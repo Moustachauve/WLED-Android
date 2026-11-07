@@ -17,12 +17,17 @@ final class SoundSyncViewModel {
 
     var isRunning: Bool = false
     var gain: Float = 1.0
+    var effectiveGain: Float = 1.0
     var agcEnabled: Bool = false
     var fftChannels: [UInt8] = Array(repeating: 0, count: Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT))
     var sampleLevel: Float = 0
     var isPeak: Bool = false
     var errorMessage: String?
     var recordPermission: AVAudioApplication.recordPermission = .undetermined
+
+    var displayedGain: Float {
+        (isRunning && agcEnabled) ? effectiveGain : gain
+    }
 
     var isPermissionDenied: Bool {
         recordPermission == .denied
@@ -172,6 +177,9 @@ final class SoundSyncViewModel {
     private func applyState(_ state: SoundSyncState) {
         if isRunning != state.isRunning {
             isRunning = state.isRunning
+        }
+        if effectiveGain != state.effectiveGain {
+            effectiveGain = state.effectiveGain
         }
         if fftChannels != state.fftChannels {
             fftChannels = state.fftChannels

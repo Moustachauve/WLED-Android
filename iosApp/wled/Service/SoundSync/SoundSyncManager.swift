@@ -12,6 +12,7 @@ private let logger = Logger(
 struct SoundSyncState: Equatable, Sendable {
     var isRunning: Bool = false
     var gain: Float = 1.0
+    var effectiveGain: Float = 1.0
     var agcEnabled: Bool = false
     var fftChannels: [UInt8] = Array(repeating: 0, count: Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT))
     var sampleLevel: Float = 0
@@ -36,13 +37,24 @@ protocol SoundSyncManaging: Sendable {
 /// for the sound sync feature on iOS.
 actor SoundSyncManager: SoundSyncManaging {
 
+    // MARK: - Types
+
+    private struct CapturedAudioChunk: Sendable {
+        let samples: [Float]
+        let sampleRate: Int
+        let sampleTimeMs: Int64
+    }
+
     // MARK: - Properties
+
+    private static let effectiveGainUpdateEpsilon: Float = 0.05
+    private static let audioStreamBufferCapacity = 32
 
     private let audioCapture = MicrophoneAudioCapture()
     private let processor = SoundSyncProcessor()
     private var udpSender: UdpSoundSyncSender?
     private var captureProcessingTask: Task<Void, Never>?
-    private var audioBufferContinuation: AsyncStream<([Float], Int)>.Continuation?
+    private var audioBufferContinuation: AsyncStream<CapturedAudioChunk>.Continuation?
     private var isStarting = false
     private var lifecycleGeneration: UInt64 = 0
 
@@ -106,15 +118,16 @@ actor SoundSyncManager: SoundSyncManaging {
         isStarting = true
 
         let clampedGain = min(max(gain, 0), GainControl.Companion.shared.MAX_MANUAL_GAIN)
+        processor.reset()
+        processor.setGain(gain: clampedGain)
+        processor.setAgcEnabled(enabled: agcEnabled)
+        let initialEffectiveGain = processor.effectiveGain
+
         updateState {
             $0.gain = clampedGain
             $0.agcEnabled = agcEnabled
             $0.errorMessage = nil
         }
-
-        processor.reset()
-        processor.setGain(gain: clampedGain)
-        processor.setAgcEnabled(enabled: agcEnabled)
 
         let sender = UdpSoundSyncSender()
         await sender.updateUnicastAddresses(deviceAddresses)
@@ -126,14 +139,20 @@ actor SoundSyncManager: SoundSyncManaging {
         udpSender = sender
 
         let (audioStream, audioContinuation) = AsyncStream.makeStream(
-            of: ([Float], Int).self,
-            bufferingPolicy: .bufferingNewest(4)
+            of: CapturedAudioChunk.self,
+            bufferingPolicy: .bufferingNewest(Self.audioStreamBufferCapacity)
         )
         audioBufferContinuation = audioContinuation
 
         let started = await audioCapture.start(
-            onAudioData: { samples, sampleRate in
-                audioContinuation.yield((samples, sampleRate))
+            onAudioData: { samples, sampleRate, sampleTimeMs in
+                audioContinuation.yield(
+                    CapturedAudioChunk(
+                        samples: samples,
+                        sampleRate: sampleRate,
+                        sampleTimeMs: sampleTimeMs
+                    )
+                )
             },
             onInterruption: { [weak self] in
                 Task { [weak self] in
@@ -162,11 +181,14 @@ actor SoundSyncManager: SoundSyncManaging {
             return false
         }
 
-        updateState { $0.isRunning = true }
+        updateState {
+            $0.isRunning = true
+            $0.effectiveGain = initialEffectiveGain
+        }
         captureProcessingTask = Task { [weak self] in
-            for await (samples, sampleRate) in audioStream {
+            for await chunk in audioStream {
                 guard !Task.isCancelled else { break }
-                await self?.processAudioSamples(samples, sampleRate: sampleRate)
+                await self?.processAudioSamples(chunk)
             }
         }
         logger.info("Sound sync started")
@@ -211,7 +233,11 @@ actor SoundSyncManager: SoundSyncManaging {
     /// Toggles automatic gain control in real-time.
     func setAgcEnabled(_ enabled: Bool) {
         processor.setAgcEnabled(enabled: enabled)
-        updateState { $0.agcEnabled = enabled }
+        let currentEffectiveGain = processor.effectiveGain
+        updateState {
+            $0.agcEnabled = enabled
+            $0.effectiveGain = currentEffectiveGain
+        }
     }
 
     /// Updates the list of device addresses for unicast sending.
@@ -228,24 +254,27 @@ actor SoundSyncManager: SoundSyncManaging {
         await stop()
     }
 
-    private func processAudioSamples(_ samples: [Float], sampleRate: Int) async {
-        guard _state.isRunning, !samples.isEmpty else { return }
+    private func processAudioSamples(_ chunk: CapturedAudioChunk) async {
+        guard _state.isRunning, !chunk.samples.isEmpty else { return }
 
-        processor.configureSampleRate(sampleRate: Int32(sampleRate))
+        processor.configureSampleRate(sampleRate: Int32(chunk.sampleRate))
 
-        let kotlinSamples = KotlinFloatArray(size: Int32(samples.count))
-        for (index, value) in samples.enumerated() {
+        let kotlinSamples = KotlinFloatArray(size: Int32(chunk.samples.count))
+        for (index, value) in chunk.samples.enumerated() {
             kotlinSamples.set(index: Int32(index), value: value)
         }
 
-        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
-        guard let packet = processor.process(samples: kotlinSamples, nowMs: nowMs) else { return }
+        guard let packet = processor.process(samples: kotlinSamples, nowMs: chunk.sampleTimeMs) else { return }
 
         let fftChannels = packet.fftResult.toUInt8Array()
+        let currentEffectiveGain = processor.effectiveGain
         updateState {
             $0.fftChannels = fftChannels
             $0.sampleLevel = packet.sampleSmth
             $0.isPeak = packet.samplePeak
+            if $0.agcEnabled && abs($0.effectiveGain - currentEffectiveGain) >= Self.effectiveGainUpdateEpsilon {
+                $0.effectiveGain = currentEffectiveGain
+            }
         }
 
         let packetData = packet.toByteArray().toData()

@@ -145,6 +145,83 @@ class SoundSyncProcessorTest {
         )
     }
 
+    @Test
+    fun process_normalizesSampleSmthRiseAcrossDifferentFrameCadences() {
+        val windowSize = SoundSyncProcessor.FFT_WINDOW_SIZE
+        val loudWave = generateSineWave(frequency = 440f, sampleRate = 44100, count = windowSize, amplitude = 0.8f)
+
+        val twentyMsProcessor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.0f)
+        val fortyMsProcessor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.0f)
+
+        assertNotNull(twentyMsProcessor.process(loudWave, nowMs = 0L))
+        assertNotNull(fortyMsProcessor.process(loudWave, nowMs = 0L))
+        assertNotNull(twentyMsProcessor.process(loudWave, nowMs = 20L))
+        val twoTwentyMsRise = assertNotNull(twentyMsProcessor.process(loudWave, nowMs = 40L))
+        val oneFortyMsRise = assertNotNull(fortyMsProcessor.process(loudWave, nowMs = 40L))
+
+        assertEquals(twoTwentyMsRise.sampleSmth, oneFortyMsRise.sampleSmth, 0.01f)
+    }
+
+    @Test
+    fun process_normalizesSampleSmthDecayAcrossDifferentFrameCadences() {
+        val windowSize = SoundSyncProcessor.FFT_WINDOW_SIZE
+        val loudWave = generateSineWave(frequency = 440f, sampleRate = 44100, count = windowSize, amplitude = 0.8f)
+        val silence = FloatArray(windowSize) { 0f }
+
+        val twentyMsProcessor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.0f).apply {
+            assertNotNull(process(loudWave, nowMs = 0L))
+            // Flush the high-pass filter tail at 20 ms so subsequent silent frames have zero sampleRaw
+            assertNotNull(process(silence, nowMs = 20L))
+        }
+        val fortyMsProcessor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.0f).apply {
+            assertNotNull(process(loudWave, nowMs = 0L))
+            assertNotNull(process(silence, nowMs = 20L))
+        }
+
+        assertNotNull(twentyMsProcessor.process(silence, nowMs = 40L))
+        val twoTwentyMsDecay = assertNotNull(twentyMsProcessor.process(silence, nowMs = 60L))
+        val oneFortyMsDecay = assertNotNull(fortyMsProcessor.process(silence, nowMs = 60L))
+
+        assertEquals(twoTwentyMsDecay.sampleSmth, oneFortyMsDecay.sampleSmth, 0.01f)
+    }
+
+    @Test
+    fun process_whenAgcEnabled_normalizesEffectiveGainSmoothingAcrossFrameCadences() {
+        val quietWave = generateSineWave(
+            frequency = 440f,
+            sampleRate = 44100,
+            count = SoundSyncProcessor.FFT_WINDOW_SIZE * 2,
+            amplitude = 0.02f,
+        )
+        val twentyMsProcessor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.5f, agcEnabled = true)
+        val fortyMsProcessor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.5f, agcEnabled = true)
+
+        assertNotNull(twentyMsProcessor.process(quietWave, nowMs = 0L))
+        assertNotNull(fortyMsProcessor.process(quietWave, nowMs = 0L))
+        assertNotNull(twentyMsProcessor.process(quietWave, nowMs = 20L))
+        assertNotNull(twentyMsProcessor.process(quietWave, nowMs = 40L))
+        assertNotNull(fortyMsProcessor.process(quietWave, nowMs = 40L))
+
+        assertEquals(twentyMsProcessor.effectiveGain, fortyMsProcessor.effectiveGain, 0.01f)
+    }
+
+    @Test
+    fun process_maintainsFiftyHertzCadenceAcrossTenMillisecondSubFrames() {
+        val processor = SoundSyncProcessor(sampleRate = 48000)
+        val subFrame = generateSineWave(frequency = 440f, sampleRate = 48000, count = 512, amplitude = 0.5f)
+
+        // 50 sub-frames of 512 samples at 48 kHz (~533 ms total) should emit 27 packets (~50 Hz)
+        var emittedCount = 0
+        for (chunkIndex in 0 until 50) {
+            val sampleTimeMs = chunkIndex * 512L * 1000L / 48000L
+            if (processor.process(subFrame, nowMs = sampleTimeMs) != null) {
+                emittedCount++
+            }
+        }
+
+        assertEquals(27, emittedCount)
+    }
+
     private fun generateSineWave(frequency: Float, sampleRate: Int, count: Int, amplitude: Float = 0.5f): FloatArray =
         FloatArray(count) { i ->
             sin(2.0 * PI * frequency * i / sampleRate).toFloat() * amplitude

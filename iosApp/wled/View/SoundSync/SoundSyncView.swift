@@ -1,6 +1,8 @@
 import Shared
 import SwiftUI
 
+private typealias State = SwiftUI.State
+
 private let chartHeight: CGFloat = 120
 private let channelMaxValue: Float = 255
 private let barGapRatio: CGFloat = 0.15
@@ -15,17 +17,17 @@ struct SoundSyncView: View {
         NavigationStack {
             Form {
                 descriptionSection
-                gainSection
-
-                if viewModel.isRunning {
-                    visualizationSection
-                }
+                startStopSection
 
                 if let errorMessage = viewModel.errorMessage {
                     errorSection(errorMessage)
                 }
 
-                startStopSection
+                if viewModel.isRunning {
+                    visualizationSection
+                }
+
+                gainSection
             }
             .navigationTitle("Sound Sync")
             .navigationBarTitleDisplayMode(.inline)
@@ -83,7 +85,7 @@ struct SoundSyncView: View {
             HStack {
                 Slider(
                     value: Binding(
-                        get: { viewModel.gain },
+                        get: { viewModel.displayedGain },
                         set: { viewModel.updateLiveGain($0) }
                     ),
                     in: 0...GainControl.Companion.shared.MAX_MANUAL_GAIN
@@ -96,8 +98,9 @@ struct SoundSyncView: View {
                 }
                 .labelsHidden()
                 .disabled(viewModel.agcEnabled)
+                .animation(viewModel.agcEnabled ? .smooth : nil, value: viewModel.displayedGain)
 
-                Text("\(viewModel.gain.formatted(.number.precision(.fractionLength(1))))x")
+                Text("\(viewModel.displayedGain.formatted(.number.precision(.fractionLength(1))))x")
                     .monospacedDigit()
             }
 
@@ -113,16 +116,11 @@ struct SoundSyncView: View {
 
     private var visualizationSection: some View {
         Section("Frequency visualization") {
-            FftBarChart(channels: viewModel.fftChannels)
-                .frame(height: chartHeight)
-                .accessibilityHidden(true)
-
-            SampleLevelIndicator(
-                level: viewModel.sampleLevel,
+            FrequencyVisualizationView(
+                fftChannels: viewModel.fftChannels,
+                sampleLevel: viewModel.sampleLevel,
                 isPeak: viewModel.isPeak
             )
-            .frame(height: 8)
-            .accessibilityHidden(true)
         }
     }
 
@@ -174,22 +172,55 @@ struct SoundSyncView: View {
     }
 }
 
+// MARK: - Frequency Visualization View
+
+private struct FrequencyVisualizationView: View {
+    let fftChannels: [UInt8]
+    let sampleLevel: Float
+    let isPeak: Bool
+
+    @State private var smoother = VisualizationSmoother()
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let frame = smoother.nextFrame(
+                fftChannels: fftChannels,
+                sampleLevel: sampleLevel,
+                date: timeline.date
+            )
+
+            VStack(spacing: 12) {
+                FftBarChart(normalizedChannels: frame.normalizedChannels)
+                    .frame(height: chartHeight)
+                    .accessibilityHidden(true)
+
+                SampleLevelIndicator(
+                    level: frame.sampleLevel,
+                    isPeak: isPeak
+                )
+                .frame(height: 8)
+                .accessibilityHidden(true)
+            }
+        }
+    }
+}
+
 // MARK: - FFT Bar Chart
 
 private struct FftBarChart: View {
-    let channels: [UInt8]
+    let normalizedChannels: [Float]
 
     var body: some View {
         GeometryReader { geometry in
-            if !channels.isEmpty {
-                let channelCount = CGFloat(channels.count)
+            if !normalizedChannels.isEmpty {
+                let channelCount = CGFloat(normalizedChannels.count)
                 let barWidth = geometry.size.width / channelCount
                 let gap = barWidth * barGapRatio
                 let actualBarWidth = barWidth - gap
 
                 HStack(spacing: gap) {
-                    ForEach(0..<channels.count, id: \.self) { index in
-                        let value = CGFloat(channels[index]) / CGFloat(channelMaxValue)
+                    ForEach(0..<normalizedChannels.count, id: \.self) { index in
+                        let value = CGFloat(normalizedChannels[index])
                         let barHeight = value * geometry.size.height
 
                         RoundedRectangle(cornerRadius: 2)
@@ -223,6 +254,68 @@ private struct SampleLevelIndicator: View {
                     .frame(width: max(levelWidth, 2))
             }
         }
+    }
+}
+
+// MARK: - Visualization Smoother
+
+@MainActor
+private final class VisualizationSmoother {
+    struct Frame {
+        let normalizedChannels: [Float]
+        let sampleLevel: Float
+    }
+
+    private static let visualizer = SoundSyncIconVisualizer.shared
+    private static let channelCount = Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT)
+
+    private let kotlinFftChannels = KotlinByteArray(size: Int32(channelCount))
+    private let kotlinSmoothedChannels = KotlinFloatArray(size: Int32(channelCount))
+    private var smoothedChannels: [Float] = Array(repeating: 0, count: channelCount)
+    private var smoothedSampleLevel: Float = 0
+    private var lastFrameDate: Date?
+
+    func nextFrame(
+        fftChannels: [UInt8],
+        sampleLevel: Float,
+        date: Date
+    ) -> Frame {
+        let deltaTimeMs: Int64
+        if let lastFrameDate {
+            deltaTimeMs = max(0, Int64(date.timeIntervalSince(lastFrameDate) * 1000))
+        } else {
+            deltaTimeMs = 0
+        }
+        lastFrameDate = date
+
+        for index in 0..<Self.channelCount {
+            let byteValue: UInt8 = index < fftChannels.count ? fftChannels[index] : 0
+            kotlinFftChannels.set(index: Int32(index), value: Int8(bitPattern: byteValue))
+        }
+
+        let visualizer = Self.visualizer
+        _ = visualizer.smoothFftChannels(
+            fftChannels: kotlinFftChannels,
+            deltaTimeMs: deltaTimeMs,
+            smoothedOutput: kotlinSmoothedChannels
+        )
+
+        for index in 0..<Self.channelCount {
+            smoothedChannels[index] = kotlinSmoothedChannels.get(index: Int32(index))
+        }
+
+        let clampedTargetLevel = min(max(sampleLevel, 0), channelMaxValue)
+        smoothedSampleLevel = visualizer.smoothBarLevel(
+            previous: smoothedSampleLevel,
+            target: clampedTargetLevel,
+            isRunning: true,
+            deltaTimeMs: deltaTimeMs
+        )
+
+        return Frame(
+            normalizedChannels: smoothedChannels,
+            sampleLevel: smoothedSampleLevel
+        )
     }
 }
 

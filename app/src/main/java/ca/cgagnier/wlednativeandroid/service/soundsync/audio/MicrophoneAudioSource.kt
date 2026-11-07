@@ -85,7 +85,8 @@ class MicrophoneAudioSource(
             return null
         }
         val internalBufferSize = minBufferSize * bufferSizeMultiplier
-        // Read ~20ms chunks (e.g. 882 samples at 44.1 kHz) so callbacks fire at ~50fps
+        // Read ~10ms sub-frames (e.g. 441 samples at 44.1 kHz) so the processor's 20ms
+        // sample-clock deadline emits a steady 50 Hz packet stream.
         val maxSamplesInBuffer = (internalBufferSize / BYTES_PER_SAMPLE_FLOAT).coerceAtLeast(1)
         val readChunkSamples = (sampleRate / TARGET_CHUNKS_PER_SECOND).coerceAtMost(maxSamplesInBuffer)
 
@@ -191,7 +192,7 @@ class MicrophoneAudioSource(
     companion object {
         const val DEFAULT_SAMPLE_RATE = 44100
         private const val DEFAULT_BUFFER_SIZE_MULTIPLIER = 4
-        private const val TARGET_CHUNKS_PER_SECOND = 50
+        private const val TARGET_CHUNKS_PER_SECOND = 100
         private const val BYTES_PER_SAMPLE_FLOAT = 4
     }
 }

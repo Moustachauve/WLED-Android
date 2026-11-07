@@ -10,6 +10,8 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -37,8 +39,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,13 +60,13 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ca.cgagnier.wlednativeandroid.R
 import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncError
+import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncIconVisualizer
 import ca.cgagnier.wlednativeandroid.service.soundsync.UdpSoundSyncPacket
 import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.GainControl
 import kotlinx.coroutines.flow.StateFlow
 import org.koin.androidx.compose.koinViewModel
 
 private const val CHART_HEIGHT_DP = 120
-private const val BYTE_MASK = 0xFF
 private const val CHANNEL_MAX_VALUE = 255f
 private const val BAR_GAP_RATIO = 0.15f
 
@@ -164,17 +169,6 @@ private fun SoundSyncContent(
                 .widthIn(0.dp, 1100.dp),
         ) {
             DescriptionCard()
-            GainCard(
-                gain = uiState.gain,
-                agcEnabled = uiState.agcEnabled,
-                onGainChanged = { viewModel.setGain(it) },
-                onGainChangeFinished = { viewModel.saveGain() },
-                onAgcChanged = { viewModel.setAgcEnabled(it) },
-            )
-            if (uiState.isRunning) {
-                VisualizationCard(latestPacketFlow = viewModel.latestPacket)
-            }
-            uiState.error?.let { ErrorCard(it) }
             StartStopCard(
                 isRunning = uiState.isRunning,
                 hasRecordAudioPermission = uiState.hasRecordAudioPermission,
@@ -187,6 +181,17 @@ private fun SoundSyncContent(
                     }
                 },
                 onStop = { viewModel.stop() },
+            )
+            uiState.error?.let { ErrorCard(it) }
+            if (uiState.isRunning) {
+                VisualizationCard(latestPacketFlow = viewModel.latestPacket)
+            }
+            GainCard(
+                gain = uiState.displayedGain,
+                agcEnabled = uiState.agcEnabled,
+                onGainChanged = { viewModel.setGain(it) },
+                onGainChangeFinished = { viewModel.saveGain() },
+                onAgcChanged = { viewModel.setAgcEnabled(it) },
             )
         }
     }
@@ -258,6 +263,12 @@ private fun GainCard(
     onGainChangeFinished: () -> Unit,
     onAgcChanged: (Boolean) -> Unit,
 ) {
+    val animatedAgcGain by animateFloatAsState(
+        targetValue = gain,
+        label = "agcGainSlider",
+    )
+    val sliderGain = if (agcEnabled) animatedAgcGain else gain
+
     SoundSyncCard {
         Text(
             stringResource(R.string.sound_sync_gain),
@@ -269,7 +280,7 @@ private fun GainCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Slider(
-                value = gain,
+                value = sliderGain,
                 onValueChange = onGainChanged,
                 onValueChangeFinished = onGainChangeFinished,
                 valueRange = 0f..GainControl.MAX_MANUAL_GAIN,
@@ -309,6 +320,15 @@ private fun GainCard(
 @Composable
 private fun VisualizationCard(latestPacketFlow: StateFlow<UdpSoundSyncPacket>) {
     val packet by latestPacketFlow.collectAsStateWithLifecycle()
+    var frameTimeMs by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(Unit) {
+        val startTimeMs = withInfiniteAnimationFrameMillis { it }
+        while (true) {
+            frameTimeMs = withInfiniteAnimationFrameMillis { it - startTimeMs }
+        }
+    }
+
     SoundSyncCard {
         Text(
             stringResource(R.string.sound_sync_fft_visualization),
@@ -318,6 +338,7 @@ private fun VisualizationCard(latestPacketFlow: StateFlow<UdpSoundSyncPacket>) {
         Spacer(modifier = Modifier.height(8.dp))
         FftBarChart(
             fftChannelsProvider = { packet.fftResult },
+            frameTimeMsProvider = { frameTimeMs },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(CHART_HEIGHT_DP.dp),
@@ -332,6 +353,7 @@ private fun VisualizationCard(latestPacketFlow: StateFlow<UdpSoundSyncPacket>) {
         SampleLevelIndicator(
             sampleLevelProvider = { packet.sampleSmth },
             isPeakProvider = { packet.samplePeak },
+            frameTimeMsProvider = { frameTimeMs },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8.dp),
@@ -340,18 +362,32 @@ private fun VisualizationCard(latestPacketFlow: StateFlow<UdpSoundSyncPacket>) {
 }
 
 @Composable
-private fun FftBarChart(fftChannelsProvider: () -> ByteArray, modifier: Modifier = Modifier) {
+private fun FftBarChart(
+    fftChannelsProvider: () -> ByteArray,
+    frameTimeMsProvider: () -> Long,
+    modifier: Modifier = Modifier,
+) {
     val barColor = MaterialTheme.colorScheme.primary
+    val lastDrawTimeMs = remember { LongArray(1) }
+    val smoothedChannels = remember { FloatArray(UdpSoundSyncPacket.FFT_CHANNEL_COUNT) }
+
     Canvas(modifier = modifier) {
+        val elapsedMs = frameTimeMsProvider()
+        val deltaTimeMs = (elapsedMs - lastDrawTimeMs[0]).coerceAtLeast(0L).also {
+            lastDrawTimeMs[0] = elapsedMs
+        }
         val fftChannels = fftChannelsProvider()
-        val channelCount = fftChannels.size
-        if (channelCount == 0) return@Canvas
-        val barWidth = size.width / channelCount
+        SoundSyncIconVisualizer.smoothFftChannels(
+            fftChannels = fftChannels,
+            deltaTimeMs = deltaTimeMs,
+            smoothedOutput = smoothedChannels,
+        )
+
+        val barWidth = size.width / smoothedChannels.size
         val gap = barWidth * BAR_GAP_RATIO
         val actualBarWidth = barWidth - gap
-        for (i in 0 until channelCount) {
-            val value = (fftChannels[i].toInt() and BYTE_MASK) / CHANNEL_MAX_VALUE
-            val barHeight = value * size.height
+        for (i in smoothedChannels.indices) {
+            val barHeight = smoothedChannels[i] * size.height
             val left = i * barWidth + gap / 2f
             drawRect(
                 color = barColor,
@@ -366,15 +402,31 @@ private fun FftBarChart(fftChannelsProvider: () -> ByteArray, modifier: Modifier
 private fun SampleLevelIndicator(
     sampleLevelProvider: () -> Float,
     isPeakProvider: () -> Boolean,
+    frameTimeMsProvider: () -> Long,
     modifier: Modifier = Modifier,
 ) {
     val backgroundColor = MaterialTheme.colorScheme.surfaceVariant
     val primaryColor = MaterialTheme.colorScheme.primary
     val errorColor = MaterialTheme.colorScheme.error
+    val lastDrawTimeMs = remember { LongArray(1) }
+    val smoothedLevel = remember { FloatArray(1) }
+
     Canvas(modifier = modifier) {
+        val elapsedMs = frameTimeMsProvider()
+        val deltaTimeMs = (elapsedMs - lastDrawTimeMs[0]).coerceAtLeast(0L).also {
+            lastDrawTimeMs[0] = elapsedMs
+        }
+        val targetLevel = sampleLevelProvider().coerceIn(0f, CHANNEL_MAX_VALUE)
+        smoothedLevel[0] = SoundSyncIconVisualizer.smoothBarLevel(
+            previous = smoothedLevel[0],
+            target = targetLevel,
+            isRunning = true,
+            deltaTimeMs = deltaTimeMs,
+        )
+
         drawRect(color = backgroundColor, topLeft = Offset.Zero, size = size)
         val levelColor = if (isPeakProvider()) errorColor else primaryColor
-        val levelWidth = sampleLevelProvider().coerceIn(0f, CHANNEL_MAX_VALUE) / CHANNEL_MAX_VALUE * size.width
+        val levelWidth = smoothedLevel[0] / CHANNEL_MAX_VALUE * size.width
         drawRect(color = levelColor, topLeft = Offset.Zero, size = Size(levelWidth, size.height))
     }
 }

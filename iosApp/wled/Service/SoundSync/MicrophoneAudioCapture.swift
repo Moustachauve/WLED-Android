@@ -15,7 +15,13 @@ actor MicrophoneAudioCapture {
 
     // MARK: - Properties
 
+    /// Requests ~10 ms hardware I/O buffers (hint; CoreAudio typically selects a nearby power-of-two
+    /// frame count such as 512 frames / ~10.7 ms at 48 kHz) so `SoundSyncProcessor`'s 20 ms deadline
+    /// scheduler receives two sub-frames per packet interval.
+    private static let preferredIOBufferDuration: TimeInterval = 0.01
+
     private var engine: AVAudioEngine?
+    private var sinkNode: AVAudioSinkNode?
     private var isCapturing = false
     private var notificationObservers: [any NSObjectProtocol] = []
 
@@ -32,14 +38,15 @@ actor MicrophoneAudioCapture {
     }
 
     /// Starts audio capture. The `onAudioData` callback is invoked with chunks
-    /// of normalized PCM samples and the hardware sample rate in Hz.
+    /// of normalized PCM samples, the hardware sample rate in Hz, and the capture sample-clock
+    /// timestamp in milliseconds.
     ///
     /// - Parameters:
-    ///   - onAudioData: Callback invoked with `(samples, sampleRate)`.
+    ///   - onAudioData: Callback invoked with `(samples, sampleRate, sampleTimeMs)`.
     ///   - onInterruption: Callback invoked when audio capture is interrupted or the route changes.
     /// - Returns: `true` if capture started successfully.
     func start(
-        onAudioData: @escaping @Sendable ([Float], Int) -> Void,
+        onAudioData: @escaping @Sendable ([Float], Int, Int64) -> Void,
         onInterruption: @escaping @Sendable () -> Void
     ) -> Bool {
         guard !isCapturing else { return true }
@@ -59,6 +66,7 @@ actor MicrophoneAudioCapture {
                 mode: .measurement,
                 options: [.mixWithOthers, .defaultToSpeaker]
             )
+            try audioSession.setPreferredIOBufferDuration(Self.preferredIOBufferDuration)
             try audioSession.setActive(true)
         } catch {
             logger.error("Failed to configure AVAudioSession: \(error.localizedDescription)")
@@ -75,25 +83,36 @@ actor MicrophoneAudioCapture {
             return false
         }
 
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, _ in
-            guard let channelData = buffer.floatChannelData else { return }
-            let frameCount = Int(buffer.frameLength)
-            guard frameCount > 0 else { return }
-            let samplesPtr = channelData[0]
-            let samples = Array(UnsafeBufferPointer(start: samplesPtr, count: frameCount))
-            onAudioData(samples, hardwareSampleRate)
+        // Use AVAudioSinkNode rather than installTap, as installTap enforces a 100 ms minimum
+        // buffer duration (~10 Hz) on iOS regardless of the requested bufferSize. The receiver
+        // block runs on the real-time audio I/O thread; copying the small mono frame slice and
+        // yielding into the bounded AsyncStream is accepted for capture-only use.
+        let sink = AVAudioSinkNode { timestamp, frameCount, audioBufferList -> OSStatus in
+            guard frameCount > 0 else { return noErr }
+            let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: audioBufferList))
+            guard let firstBuffer = buffers.first,
+                  let dataPtr = firstBuffer.mData?.assumingMemoryBound(to: Float.self) else {
+                return noErr
+            }
+            let samples = Array(UnsafeBufferPointer(start: dataPtr, count: Int(frameCount)))
+            let sampleTimeMs = Int64(timestamp.pointee.mSampleTime * 1000.0 / Double(hardwareSampleRate))
+            onAudioData(samples, hardwareSampleRate, sampleTimeMs)
+            return noErr
         }
+        audioEngine.attach(sink)
+        audioEngine.connect(inputNode, to: sink, format: inputFormat)
 
         do {
             try audioEngine.start()
             engine = audioEngine
+            sinkNode = sink
             isCapturing = true
             registerNotifications(for: audioEngine, onInterruption: onInterruption)
             logger.info("Microphone capture started at \(hardwareSampleRate) Hz")
             return true
         } catch {
             logger.error("Failed to start audio engine: \(error.localizedDescription)")
-            inputNode.removeTap(onBus: 0)
+            audioEngine.detach(sink)
             try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
             return false
         }
@@ -104,7 +123,10 @@ actor MicrophoneAudioCapture {
         guard isCapturing else { return }
         removeNotificationObservers()
         engine?.stop()
-        engine?.inputNode.removeTap(onBus: 0)
+        if let sink = sinkNode {
+            engine?.detach(sink)
+            sinkNode = nil
+        }
         engine = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         isCapturing = false

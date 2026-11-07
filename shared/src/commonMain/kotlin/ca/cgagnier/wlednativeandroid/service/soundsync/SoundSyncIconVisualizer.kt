@@ -5,11 +5,13 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 /**
- * Shared visualizer math for the 5-bar Sound Sync toolbar icon across Android and iOS.
+ * Shared visualizer math for the 5-bar Sound Sync toolbar icon and 16-channel frequency
+ * visualization chart across Android and iOS.
  *
  * Computes normalized vertical bar height ratios (`0.2f..1.0f`) matching the 5 centered
  * bars of the `graphic_eq` / `waveform` icon, combining a gentle sinusoidal idle wave
- * during silence with live 5-band FFT channel levels when audio plays.
+ * during silence with live 5-band FFT channel levels when audio plays, and provides
+ * frame-rate-independent smoothing for both toolbar and chart bars.
  */
 object SoundSyncIconVisualizer {
     const val BAR_COUNT = 5
@@ -124,6 +126,32 @@ object SoundSyncIconVisualizer {
         val normalizedFrames = (deltaTimeMs / REFERENCE_FRAME_MS).coerceAtMost(MAX_FRAME_MULTIPLIER)
         val factor = 1f - (1f - baseFactor).pow(normalizedFrames)
         return previous + (target - previous) * factor
+    }
+
+    /**
+     * Updates [smoothedOutput] in-place with time-normalized (`0f..1f`) heights for each channel
+     * in [fftChannels], keeping the 16-bar frequency visualization chart smooth and consistent
+     * across 60 Hz and 120 Hz displays.
+     */
+    fun smoothFftChannels(
+        fftChannels: ByteArray,
+        deltaTimeMs: Long,
+        smoothedOutput: FloatArray = FloatArray(UdpSoundSyncPacket.FFT_CHANNEL_COUNT),
+    ): FloatArray {
+        for (i in smoothedOutput.indices) {
+            val target = if (i < fftChannels.size) {
+                ((fftChannels[i].toInt() and BYTE_MASK) / CHANNEL_MAX_VALUE).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+            smoothedOutput[i] = smoothBarLevel(
+                previous = smoothedOutput[i],
+                target = target,
+                isRunning = true,
+                deltaTimeMs = deltaTimeMs,
+            )
+        }
+        return smoothedOutput
     }
 
     private fun computeBandPeakChannelValue(fftChannels: ByteArray, startChannel: Int, endChannelInclusive: Int): Int {
