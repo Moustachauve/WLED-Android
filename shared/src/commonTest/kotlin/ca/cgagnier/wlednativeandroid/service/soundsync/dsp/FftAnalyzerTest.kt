@@ -64,11 +64,14 @@ class FftAnalyzerTest {
     }
 
     @Test
-    fun analyze_magnitudeIsPositiveForNonSilentSignal() {
+    fun analyze_scalesMagnitudeToWledRange() {
         val analyzer = FftAnalyzer(fftSize = 512, sampleRate = sampleRate)
         val samples = generateSineWave(frequency = 440f, sampleRate = sampleRate, count = 512, amplitude = 0.5f)
         val result = analyzer.analyze(samples)
-        assertTrue(result.magnitude > 0f, "Magnitude should be positive for non-silent signal")
+        assertTrue(
+            result.magnitude > 5000f,
+            "Magnitude should be scaled to WLED raw FFT_Magnitude range (16x channel scale), got ${result.magnitude}",
+        )
     }
 
     @Test
@@ -125,6 +128,70 @@ class FftAnalyzerTest {
             }
         }
         assertTrue(differences > 0, "Different frequencies should produce different channel patterns")
+    }
+
+    @Test
+    fun analyze_defaultFftSize_scalesPeakChannelIntoWledUpperRange() {
+        val analyzer = FftAnalyzer()
+        val samples = generateSineWave(
+            frequency = 1000f,
+            sampleRate = FftAnalyzer.DEFAULT_SAMPLE_RATE,
+            count = FftAnalyzer.DEFAULT_FFT_SIZE,
+            amplitude = 0.5f,
+        )
+        val result = analyzer.analyze(samples)
+        val maxChannelLevel = result.fftChannels.maxOf { it.toInt() and 0xFF }
+        assertTrue(
+            maxChannelLevel > 150,
+            "Expected peak GEQ channel to reach WLED upper byte range (> 150), got $maxChannelLevel",
+        )
+    }
+
+    @Test
+    fun analyze_whenSilent_mutesMagnitudeAndZeroesMajorPeak() {
+        val analyzer = FftAnalyzer()
+        val samples = generateSineWave(
+            frequency = 1000f,
+            sampleRate = FftAnalyzer.DEFAULT_SAMPLE_RATE,
+            count = FftAnalyzer.DEFAULT_FFT_SIZE,
+            amplitude = 0.5f,
+        )
+        val result = analyzer.analyze(samples, isSilent = true)
+        assertEquals(0.001f, result.magnitude, 0.0001f)
+        assertEquals(0f, result.majorPeak, 0.0001f)
+    }
+
+    @Test
+    fun analyze_whenSilentAfterLoudFrame_decaysChannelsWithoutSnappingToZero() {
+        val analyzer = FftAnalyzer()
+        val samples = generateSineWave(
+            frequency = 1000f,
+            sampleRate = FftAnalyzer.DEFAULT_SAMPLE_RATE,
+            count = FftAnalyzer.DEFAULT_FFT_SIZE,
+            amplitude = 0.2f,
+        )
+        val activePeak = analyzer.analyze(samples, isSilent = false).fftChannels.maxOf { it.toInt() and 0xFF }
+        val decayedPeak = analyzer.analyze(samples, isSilent = true).fftChannels.maxOf { it.toInt() and 0xFF }
+        assertTrue(
+            decayedPeak in 1 until activePeak,
+            "Silent frame should decay GEQ channels smoothly (got $decayedPeak from $activePeak)",
+        )
+    }
+
+    @Test
+    fun analyze_oneKilohertzSine_peaksInChannelSevenAt44100And48000Hz() {
+        listOf(44100, 48000).forEach { rate ->
+            val analyzer = FftAnalyzer(fftSize = FftAnalyzer.DEFAULT_FFT_SIZE, sampleRate = rate)
+            val samples = generateSineWave(
+                frequency = 1000f,
+                sampleRate = rate,
+                count = FftAnalyzer.DEFAULT_FFT_SIZE,
+                amplitude = 0.5f,
+            )
+            val result = analyzer.analyze(samples)
+            val peakChannel = result.fftChannels.withIndex().maxByOrNull { it.value.toInt() and 0xFF }?.index ?: -1
+            assertEquals(7, peakChannel, "1 kHz should center in GEQ channel 7 at $rate Hz, got channel $peakChannel")
+        }
     }
 
     private fun generateSineWave(frequency: Float, sampleRate: Int, count: Int, amplitude: Float = 0.5f): FloatArray =
