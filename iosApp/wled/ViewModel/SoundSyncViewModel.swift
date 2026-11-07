@@ -34,6 +34,9 @@ final class SoundSyncViewModel {
     private let userPreferencesRepository: UserPreferencesRepository
     private let deviceRepository: DeviceRepository
     private let openSettings: @MainActor () -> Void
+    @ObservationIgnored private var observationTask: Task<Void, Never>?
+    @ObservationIgnored private var activeObservationTaskId: UUID?
+    @ObservationIgnored private var observationSubscribers: [UUID: CheckedContinuation<Void, Never>] = [:]
     @ObservationIgnored private var deviceObservationTask: Task<Void, Never>?
     @ObservationIgnored private var gainUpdateTask: Task<Void, Never>?
 
@@ -55,33 +58,36 @@ final class SoundSyncViewModel {
     // MARK: - Lifecycle
 
     /// Loads saved preferences, syncs current manager state, and observes live updates.
+    ///
+    /// Multiple callers (such as `DeviceListView` and `SoundSyncView`) share a single
+    /// underlying state stream subscription that remains active until all callers cancel
+    /// or the stream terminates.
     func observe() async {
-        let initialState = await soundSyncManager.getState()
-        applyState(initialState)
-
-        if initialState.isRunning {
-            gain = initialState.gain
-            agcEnabled = initialState.agcEnabled
-        } else {
-            if let savedGain = await userPreferencesRepository.soundSyncGain.firstValue()?.floatValue {
-                gain = savedGain
-                await soundSyncManager.setGain(savedGain)
-            } else {
-                gain = initialState.gain
-            }
-
-            if let savedAgc = await userPreferencesRepository.soundSyncAgcEnabled.firstValue()?.boolValue {
-                agcEnabled = savedAgc
-                await soundSyncManager.setAgcEnabled(savedAgc)
-            } else {
-                agcEnabled = initialState.agcEnabled
+        guard !Task.isCancelled else { return }
+        let subscriberId = UUID()
+        if observationTask == nil {
+            let taskId = UUID()
+            activeObservationTaskId = taskId
+            observationTask = Task { [weak self] in
+                await self?.runObservationLoop(taskId: taskId)
             }
         }
 
-        let stream = await soundSyncManager.stateStream()
-        for await state in stream {
-            guard !Task.isCancelled else { break }
-            applyState(state)
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                guard observationTask != nil else {
+                    continuation.resume()
+                    return
+                }
+                observationSubscribers[subscriberId] = continuation
+                if Task.isCancelled {
+                    removeObservationSubscriber(id: subscriberId)
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.removeObservationSubscriber(id: subscriberId)
+            }
         }
     }
 
@@ -157,12 +163,86 @@ final class SoundSyncViewModel {
 
     // MARK: - Private
 
+    private func runObservationLoop(taskId: UUID) async {
+        defer {
+            if activeObservationTaskId == taskId {
+                let continuations = Array(observationSubscribers.values)
+                observationSubscribers.removeAll()
+                activeObservationTaskId = nil
+                observationTask = nil
+                for continuation in continuations {
+                    continuation.resume()
+                }
+            }
+        }
+
+        let initialState = await soundSyncManager.getState()
+        guard !Task.isCancelled else { return }
+        applyState(initialState)
+        await syncInitialPreferences(from: initialState)
+
+        guard !Task.isCancelled else { return }
+        let stream = await soundSyncManager.stateStream()
+        for await state in stream {
+            guard !Task.isCancelled else { break }
+            applyState(state)
+        }
+    }
+
+    private func syncInitialPreferences(from initialState: SoundSyncState) async {
+        if initialState.isRunning {
+            if gain != initialState.gain {
+                gain = initialState.gain
+            }
+            if agcEnabled != initialState.agcEnabled {
+                agcEnabled = initialState.agcEnabled
+            }
+            return
+        }
+
+        let resolvedGain = await userPreferencesRepository.soundSyncGain.firstValue()?.floatValue
+            ?? initialState.gain
+        guard !Task.isCancelled else { return }
+        if gain != resolvedGain {
+            gain = resolvedGain
+        }
+        await soundSyncManager.setGain(resolvedGain)
+
+        let resolvedAgc = await userPreferencesRepository.soundSyncAgcEnabled.firstValue()?.boolValue
+            ?? initialState.agcEnabled
+        guard !Task.isCancelled else { return }
+        if agcEnabled != resolvedAgc {
+            agcEnabled = resolvedAgc
+        }
+        await soundSyncManager.setAgcEnabled(resolvedAgc)
+    }
+
+    private func removeObservationSubscriber(id: UUID) {
+        guard let continuation = observationSubscribers.removeValue(forKey: id) else { return }
+        continuation.resume()
+        if observationSubscribers.isEmpty {
+            activeObservationTaskId = nil
+            observationTask?.cancel()
+            observationTask = nil
+        }
+    }
+
     private func applyState(_ state: SoundSyncState) {
-        isRunning = state.isRunning
-        fftChannels = state.fftChannels
-        sampleLevel = state.sampleLevel
-        isPeak = state.isPeak
-        errorMessage = state.errorMessage
+        if isRunning != state.isRunning {
+            isRunning = state.isRunning
+        }
+        if fftChannels != state.fftChannels {
+            fftChannels = state.fftChannels
+        }
+        if sampleLevel != state.sampleLevel {
+            sampleLevel = state.sampleLevel
+        }
+        if isPeak != state.isPeak {
+            isPeak = state.isPeak
+        }
+        if errorMessage != state.errorMessage {
+            errorMessage = state.errorMessage
+        }
     }
 
     private func startObservingDevices() {

@@ -6,6 +6,7 @@ import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
 import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncManager
+import ca.cgagnier.wlednativeandroid.service.soundsync.UdpSoundSyncPacket
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -57,6 +58,8 @@ class DeviceWebsocketListViewModel(
                 started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
                 initialValue = soundSyncManager.state.value.isRunning,
             )
+
+    val soundSyncPacket: StateFlow<UdpSoundSyncPacket> = soundSyncManager.latestPacket
 
     val isPaused: StateFlow<Boolean> = deviceConnectionManager.isPaused
 

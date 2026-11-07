@@ -89,6 +89,11 @@ private actor FakeSoundSyncManager: SoundSyncManaging {
         lastStartedAddresses = addresses
     }
 
+    func emitState(_ newState: SoundSyncState) {
+        state = newState
+        stateContinuation?.yield(newState)
+    }
+
     func finishStream() {
         stateContinuation?.finish()
     }
@@ -222,6 +227,38 @@ struct SoundSyncViewModelTests {
         await viewModel.stop()
 
         #expect(!viewModel.isRunning)
+    }
+
+    @Test func observeKeepsStreamActiveWhenOneOfMultipleObserversCancels() async throws {
+        let manager = FakeSoundSyncManager(initialState: SoundSyncState(isRunning: true))
+        let viewModel = makeViewModel(manager: manager)
+
+        let sheetObserverTask = Task {
+            await viewModel.observe()
+        }
+        let toolbarObserverTask = Task {
+            await viewModel.observe()
+        }
+
+        try await waitUntil { viewModel.isRunning }
+
+        sheetObserverTask.cancel()
+        await sheetObserverTask.value
+
+        var updatedChannels = Array(
+            repeating: UInt8(0),
+            count: Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT)
+        )
+        updatedChannels[7] = 200
+        await manager.emitState(
+            SoundSyncState(isRunning: true, fftChannels: updatedChannels, sampleLevel: 200)
+        )
+        try await waitUntil {
+            viewModel.fftChannels == updatedChannels
+        }
+
+        await manager.finishStream()
+        await toolbarObserverTask.value
     }
 
     private func makeViewModel(

@@ -5,6 +5,7 @@ import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
 import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncManager
 import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncState
+import ca.cgagnier.wlednativeandroid.service.soundsync.UdpSoundSyncPacket
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
 import io.mockk.coEvery
@@ -42,6 +43,7 @@ class DeviceWebsocketListViewModelTest {
     private val isPausedFlow = MutableStateFlow(false)
     private val soundSyncBetaEnabledFlow = MutableStateFlow(false)
     private val soundSyncStateFlow = MutableStateFlow(SoundSyncState())
+    private val soundSyncPacketFlow = MutableStateFlow(UdpSoundSyncPacket())
 
     private val sampleDevice = Device(
         macAddress = "AA:BB:CC:DD:EE:01",
@@ -62,6 +64,7 @@ class DeviceWebsocketListViewModelTest {
         every { deviceConnectionManager.allDevicesWithState } returns allDevicesWithStateFlow
         every { deviceConnectionManager.isPaused } returns isPausedFlow
         every { soundSyncManager.state } returns soundSyncStateFlow
+        every { soundSyncManager.latestPacket } returns soundSyncPacketFlow
     }
 
     @AfterEach
@@ -157,5 +160,15 @@ class DeviceWebsocketListViewModelTest {
         advanceUntilIdle()
 
         assertTrue(viewModel.isSoundSyncRunning.value)
+    }
+
+    @Test
+    fun `soundSyncPacket reflects sound sync manager latestPacket`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val packet = UdpSoundSyncPacket(sampleSmth = 120f, samplePeak = true)
+
+        soundSyncPacketFlow.value = packet
+
+        assertEquals(packet, viewModel.soundSyncPacket.value)
     }
 }
