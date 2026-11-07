@@ -32,6 +32,7 @@ class SoundSyncScreenshotTest {
                     hasRecordAudioPermission = true,
                     gain = 1.0f,
                     effectiveGain = 1.0f,
+                    agcEnabled = true,
                     agcMode = AgcMode.NORMAL,
                     squelch = 10,
                 ),

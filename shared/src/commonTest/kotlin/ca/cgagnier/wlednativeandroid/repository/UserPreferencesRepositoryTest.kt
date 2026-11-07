@@ -62,7 +62,8 @@ class UserPreferencesRepositoryTest {
         assertEquals(0L, repo.lastUpdateCheckDate.first())
         assertEquals("", repo.lastChangelogVersionSeen.first())
         assertEquals(1.0f, repo.soundSyncGain.first())
-        assertEquals(AgcMode.OFF, repo.soundSyncAgcMode.first())
+        assertFalse(repo.soundSyncAgcEnabled.first())
+        assertEquals(AgcMode.NORMAL, repo.soundSyncAgcMode.first())
         assertEquals(SoundSyncProcessor.DEFAULT_SQUELCH, repo.soundSyncSquelch.first())
         assertFalse(repo.soundSyncBetaEnabled.first())
     }
@@ -122,19 +123,18 @@ class UserPreferencesRepositoryTest {
     }
 
     @Test
-    fun updateSoundSyncAgcMode_updatesFlow() = withRepository { repo ->
-        repo.updateSoundSyncAgcMode(AgcMode.VIVID)
-        assertEquals(AgcMode.VIVID, repo.soundSyncAgcMode.first())
+    fun updateSoundSyncAgcEnabled_updatesFlow() = withRepository { repo ->
+        repo.updateSoundSyncAgcEnabled(true)
+        assertTrue(repo.soundSyncAgcEnabled.first())
+
+        repo.updateSoundSyncAgcEnabled(false)
+        assertFalse(repo.soundSyncAgcEnabled.first())
     }
 
     @Test
-    fun legacySoundSyncAgcEnabledTrue_migratesToNormalMode() = withTestDir { testFile ->
-        FileSystem.SYSTEM.write(testFile) {
-            writeUtf8("""{"soundSyncAgcEnabled":true}""")
-        }
-
-        val repo = createRepository(testFile, backgroundScope)
-        assertEquals(AgcMode.NORMAL, repo.soundSyncAgcMode.first())
+    fun updateSoundSyncAgcMode_updatesFlow() = withRepository { repo ->
+        repo.updateSoundSyncAgcMode(AgcMode.VIVID)
+        assertEquals(AgcMode.VIVID, repo.soundSyncAgcMode.first())
     }
 
     @Test

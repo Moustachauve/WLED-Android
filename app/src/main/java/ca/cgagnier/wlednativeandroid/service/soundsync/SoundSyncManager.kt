@@ -41,13 +41,11 @@ data class SoundSyncState(
     val isRunning: Boolean = false,
     val gain: Float = 1.0f,
     val effectiveGain: Float = 1.0f,
-    val agcMode: AgcMode = AgcMode.OFF,
+    val agcEnabled: Boolean = false,
+    val agcMode: AgcMode = AgcMode.NORMAL,
     val squelch: Int = SoundSyncProcessor.DEFAULT_SQUELCH,
     val error: SoundSyncError? = null,
-) {
-    val agcEnabled: Boolean
-        get() = agcMode != AgcMode.OFF
-}
+)
 
 /**
  * Coordinates microphone audio capture, shared KMP DSP processing, and UDP packet sending
@@ -97,14 +95,16 @@ class SoundSyncManager(
      * Starts sound sync with the given configuration.
      *
      * @param gain Manual gain factor (0.0 - 30.0).
-     * @param agcMode Automatic gain control mode.
+     * @param agcEnabled Whether automatic gain control is enabled.
+     * @param agcMode Automatic gain control preset mode.
      * @param squelch Noise gate threshold (`0..100`).
      * @return `true` if started successfully.
      */
     @Synchronized
     fun start(
         gain: Float,
-        agcMode: AgcMode = AgcMode.OFF,
+        agcEnabled: Boolean = false,
+        agcMode: AgcMode = AgcMode.NORMAL,
         squelch: Int = SoundSyncProcessor.DEFAULT_SQUELCH,
     ): Boolean {
         if (_state.value.isRunning) {
@@ -116,6 +116,7 @@ class SoundSyncManager(
         _state.update {
             it.copy(
                 gain = clampedGain,
+                agcEnabled = agcEnabled,
                 agcMode = agcMode,
                 squelch = clampedSquelch,
                 error = null,
@@ -132,6 +133,7 @@ class SoundSyncManager(
             processor.reset()
             processor.configureSampleRate(audioSource.sampleRate)
             processor.setGain(clampedGain)
+            processor.setAgcEnabled(agcEnabled)
             processor.setAgcMode(agcMode)
             processor.setSquelch(clampedSquelch)
             processor.effectiveGain
@@ -185,7 +187,21 @@ class SoundSyncManager(
         _state.update { it.copy(gain = clampedGain) }
     }
 
-    /** Updates automatic gain control mode in real-time. */
+    /** Updates whether automatic gain control is enabled in real-time. */
+    fun setAgcEnabled(enabled: Boolean) {
+        val currentEffectiveGain = synchronized(processorLock) {
+            processor.setAgcEnabled(enabled)
+            processor.effectiveGain
+        }
+        _state.update {
+            it.copy(
+                agcEnabled = enabled,
+                effectiveGain = currentEffectiveGain,
+            )
+        }
+    }
+
+    /** Updates automatic gain control preset mode in real-time. */
     fun setAgcMode(mode: AgcMode) {
         val currentEffectiveGain = synchronized(processorLock) {
             processor.setAgcMode(mode)

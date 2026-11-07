@@ -18,17 +18,14 @@ final class SoundSyncViewModel {
     var isRunning: Bool = false
     var gain: Float = 1.0
     var effectiveGain: Float = 1.0
-    var agcMode: AgcMode = .off
+    var agcEnabled: Bool = false
+    var agcMode: AgcMode = .normal
     var squelch: Int32 = SoundSyncProcessor.Companion.shared.DEFAULT_SQUELCH
     var fftChannels: [UInt8] = Array(repeating: 0, count: Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT))
     var sampleLevel: Float = 0
     var isPeak: Bool = false
     var errorMessage: String?
     var recordPermission: AVAudioApplication.recordPermission = .undetermined
-
-    var agcEnabled: Bool {
-        agcMode != .off
-    }
 
     var displayedGain: Float {
         (isRunning && agcEnabled) ? effectiveGain : gain
@@ -104,6 +101,7 @@ final class SoundSyncViewModel {
         let addresses = Self.visibleAddresses(from: devices)
         let started = await soundSyncManager.start(
             gain: gain,
+            agcEnabled: agcEnabled,
             agcMode: agcMode,
             squelch: squelch,
             deviceAddresses: addresses
@@ -142,7 +140,16 @@ final class SoundSyncViewModel {
         }
     }
 
-    /// Updates the AGC mode and persists the preference.
+    /// Updates the AGC toggle and persists the preference.
+    func setAgcEnabled(_ enabled: Bool) {
+        agcEnabled = enabled
+        Task {
+            await soundSyncManager.setAgcEnabled(enabled)
+            try? await userPreferencesRepository.updateSoundSyncAgcEnabled(enabled: enabled)
+        }
+    }
+
+    /// Updates the AGC preset mode and persists the preference.
     func setAgcMode(_ mode: AgcMode) {
         agcMode = mode
         Task {
@@ -191,6 +198,9 @@ final class SoundSyncViewModel {
             if gain != initialState.gain {
                 gain = initialState.gain
             }
+            if agcEnabled != initialState.agcEnabled {
+                agcEnabled = initialState.agcEnabled
+            }
             if agcMode != initialState.agcMode {
                 agcMode = initialState.agcMode
             }
@@ -207,6 +217,14 @@ final class SoundSyncViewModel {
             gain = resolvedGain
         }
         await soundSyncManager.setGain(resolvedGain)
+
+        let resolvedAgcEnabled = await userPreferencesRepository.soundSyncAgcEnabled.firstValue()?.boolValue
+            ?? initialState.agcEnabled
+        guard !Task.isCancelled else { return }
+        if agcEnabled != resolvedAgcEnabled {
+            agcEnabled = resolvedAgcEnabled
+        }
+        await soundSyncManager.setAgcEnabled(resolvedAgcEnabled)
 
         let resolvedAgcMode = await userPreferencesRepository.soundSyncAgcMode.firstValue()
             ?? initialState.agcMode

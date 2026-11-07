@@ -14,7 +14,7 @@
   "lastChangelogVersionSeen": "",
   "soundSyncGain": 1.0,
   "soundSyncAgcEnabled": false,
-  "soundSyncAgcMode": null,
+  "soundSyncAgcMode": "NORMAL",
   "soundSyncSquelch": 10,
   "soundSyncBetaEnabled": false
 }
@@ -34,7 +34,7 @@
   "lastChangelogVersionSeen": "",
   "soundSyncGain": 1.0,
   "soundSyncAgcEnabled": false,
-  "soundSyncAgcMode": null,
+  "soundSyncAgcMode": "NORMAL",
   "soundSyncSquelch": 10,
   "soundSyncBetaEnabled": false
 }
@@ -54,7 +54,7 @@
   "lastChangelogVersionSeen": "",
   "soundSyncGain": 1.0,
   "soundSyncAgcEnabled": false,
-  "soundSyncAgcMode": null,
+  "soundSyncAgcMode": "NORMAL",
   "soundSyncSquelch": 10,
   "soundSyncBetaEnabled": false
 }
@@ -74,7 +74,7 @@
   "lastChangelogVersionSeen": "1.5.0",
   "soundSyncGain": 1.0,
   "soundSyncAgcEnabled": false,
-  "soundSyncAgcMode": null,
+  "soundSyncAgcMode": "NORMAL",
   "soundSyncSquelch": 10,
   "soundSyncBetaEnabled": false
 }

@@ -20,10 +20,11 @@ import kotlin.math.pow
 class SoundSyncProcessor(
     sampleRate: Int = DEFAULT_SAMPLE_RATE,
     manualGain: Float = DEFAULT_GAIN,
-    agcMode: AgcMode = AgcMode.OFF,
+    agcEnabled: Boolean = false,
+    agcMode: AgcMode = AgcMode.NORMAL,
     squelch: Int = DEFAULT_SQUELCH,
 ) {
-    constructor() : this(DEFAULT_SAMPLE_RATE, DEFAULT_GAIN, AgcMode.OFF, DEFAULT_SQUELCH)
+    constructor() : this(DEFAULT_SAMPLE_RATE, DEFAULT_GAIN, false, AgcMode.NORMAL, DEFAULT_SQUELCH)
 
     private var currentSampleRate = sampleRate.coerceAtLeast(MIN_SAMPLE_RATE)
     var squelch: Int = squelch.coerceIn(MIN_SQUELCH, MAX_SQUELCH)
@@ -33,6 +34,7 @@ class SoundSyncProcessor(
     private var lowCutFilter = LowCutFilter(sampleRate = currentSampleRate)
     private val gainControl = GainControl(
         manualGain = manualGain,
+        agcEnabled = agcEnabled,
         agcMode = agcMode,
         sampleRate = currentSampleRate,
         squelchAmplitude = currentSquelchAmplitude,
@@ -76,11 +78,15 @@ class SoundSyncProcessor(
         gainControl.setManualGain(gain)
     }
 
-    fun setAgcMode(mode: AgcMode) {
-        gainControl.setAgcMode(mode)
-        if (!gainControl.agcEnabled) {
+    fun setAgcEnabled(enabled: Boolean) {
+        gainControl.setAgcEnabled(enabled)
+        if (!enabled) {
             smoothedEffectiveGain = DEFAULT_GAIN
         }
+    }
+
+    fun setAgcMode(mode: AgcMode) {
+        gainControl.setAgcMode(mode)
     }
 
     fun setSquelch(squelch: Int) {

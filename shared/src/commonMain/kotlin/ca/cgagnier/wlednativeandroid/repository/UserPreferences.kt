@@ -20,7 +20,7 @@ data class UserPreferences(
     val lastChangelogVersionSeen: String = "",
     val soundSyncGain: Float = 1.0f,
     val soundSyncAgcEnabled: Boolean = false,
-    val soundSyncAgcMode: AgcMode? = null,
+    val soundSyncAgcMode: AgcMode = AgcMode.NORMAL,
     val soundSyncSquelch: Int = SoundSyncProcessor.DEFAULT_SQUELCH,
     val soundSyncBetaEnabled: Boolean = false,
 )

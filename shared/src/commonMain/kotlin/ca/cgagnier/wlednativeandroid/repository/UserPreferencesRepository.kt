@@ -25,8 +25,11 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     val soundSyncGain: Flow<Float> = dataStore.data.map {
         it.soundSyncGain
     }.distinctUntilChanged()
+    val soundSyncAgcEnabled: Flow<Boolean> = dataStore.data.map {
+        it.soundSyncAgcEnabled
+    }.distinctUntilChanged()
     val soundSyncAgcMode: Flow<AgcMode> = dataStore.data.map {
-        it.soundSyncAgcMode ?: if (it.soundSyncAgcEnabled) AgcMode.NORMAL else AgcMode.OFF
+        it.soundSyncAgcMode
     }.distinctUntilChanged()
     val soundSyncSquelch: Flow<Int> = dataStore.data.map {
         it.soundSyncSquelch
@@ -105,12 +108,21 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         }
     }
 
+    suspend fun updateSoundSyncAgcEnabled(enabled: Boolean) {
+        logger.d { "updateSoundSyncAgcEnabled" }
+        dataStore.updateData {
+            it.copy(
+                soundSyncAgcEnabled = enabled,
+                dateLastWritten = currentTimeMillis(),
+            )
+        }
+    }
+
     suspend fun updateSoundSyncAgcMode(mode: AgcMode) {
         logger.d { "updateSoundSyncAgcMode" }
         dataStore.updateData {
             it.copy(
                 soundSyncAgcMode = mode,
-                soundSyncAgcEnabled = mode != AgcMode.OFF,
                 dateLastWritten = currentTimeMillis(),
             )
         }

@@ -12,7 +12,7 @@ class GainControlTest {
 
     @Test
     fun process_withUnityGain_returnsInputUnchanged() {
-        val gain = GainControl(manualGain = 1.0f, agcMode = AgcMode.OFF)
+        val gain = GainControl(manualGain = 1.0f, agcEnabled = false)
         val input = floatArrayOf(0.1f, -0.2f, 0.3f, -0.1f)
         val output = gain.process(input)
         assertEquals(input.size, output.size)
@@ -23,7 +23,7 @@ class GainControlTest {
 
     @Test
     fun process_withGainOf2_doublesAmplitude() {
-        val gain = GainControl(manualGain = 2.0f, agcMode = AgcMode.OFF)
+        val gain = GainControl(manualGain = 2.0f, agcEnabled = false)
         val input = floatArrayOf(0.1f, -0.2f, 0.3f)
         val output = gain.process(input)
         assertEquals(0.2f, output[0], 0.0001f)
@@ -33,7 +33,7 @@ class GainControlTest {
 
     @Test
     fun process_withHighManualGain_allowsUpToMaxManualGain() {
-        val gain = GainControl(manualGain = 25.0f, agcMode = AgcMode.OFF)
+        val gain = GainControl(manualGain = 25.0f, agcEnabled = false)
         val input = floatArrayOf(0.02f)
         val output = gain.process(input)
         assertEquals(0.5f, output[0], 0.0001f)
@@ -41,7 +41,7 @@ class GainControlTest {
 
     @Test
     fun process_withZeroGain_returnsSilence() {
-        val gain = GainControl(manualGain = 0.0f, agcMode = AgcMode.OFF)
+        val gain = GainControl(manualGain = 0.0f, agcEnabled = false)
         val input = floatArrayOf(0.5f, -0.5f, 0.3f)
         val output = gain.process(input)
         for (sample in output) {
@@ -51,7 +51,7 @@ class GainControlTest {
 
     @Test
     fun process_clipsToMaxAmplitude() {
-        val gain = GainControl(manualGain = 10.0f, agcMode = AgcMode.OFF, maxAmplitude = 1.0f)
+        val gain = GainControl(manualGain = 10.0f, agcEnabled = false)
         val input = floatArrayOf(0.5f, -0.5f)
         val output = gain.process(input)
         assertTrue(abs(output[0]) <= 1.0f, "Output should be clipped to 1.0")
@@ -60,7 +60,7 @@ class GainControlTest {
 
     @Test
     fun process_agcNormalizesLowSignal() {
-        val gain = GainControl(manualGain = 1.0f, agcMode = AgcMode.NORMAL)
+        val gain = GainControl(manualGain = 1.0f, agcEnabled = true, agcMode = AgcMode.NORMAL)
         val input = sineWave(amplitude = 0.02f, count = 44100)
         val output = gain.process(input)
         val tailRms = rms(output.takeLast(4096))
@@ -72,7 +72,12 @@ class GainControlTest {
 
     @Test
     fun process_agcAttenuatesLoudSignal() {
-        val gain = GainControl(manualGain = 1.0f, agcMode = AgcMode.NORMAL, manualGainMultiplier = 3.0f)
+        val gain = GainControl(
+            manualGain = 1.0f,
+            agcEnabled = true,
+            agcMode = AgcMode.NORMAL,
+            manualGainMultiplier = 3.0f,
+        )
         val input = sineWave(amplitude = 0.9f, count = 44100)
         val output = gain.process(input)
         val tailRms = rms(output.takeLast(4096))
@@ -91,7 +96,7 @@ class GainControlTest {
 
     @Test
     fun setManualGain_updatesGainFactor() {
-        val gain = GainControl(manualGain = 1.0f, agcMode = AgcMode.OFF)
+        val gain = GainControl(manualGain = 1.0f, agcEnabled = false)
         gain.setManualGain(3.0f)
         val input = floatArrayOf(0.1f)
         val output = gain.process(input)
@@ -99,9 +104,9 @@ class GainControlTest {
     }
 
     @Test
-    fun setAgcMode_enablesAgcBoost() {
-        val gain = GainControl(manualGain = 1.0f, agcMode = AgcMode.OFF)
-        gain.setAgcMode(AgcMode.VIVID)
+    fun setAgcEnabled_enablesAgcBoost() {
+        val gain = GainControl(manualGain = 1.0f, agcEnabled = false, agcMode = AgcMode.VIVID)
+        gain.setAgcEnabled(true)
         val input = FloatArray(22050) { 0.02f }
         val output = gain.process(input)
         val avg = output.takeLast(2048).average()
@@ -110,7 +115,7 @@ class GainControlTest {
 
     @Test
     fun reset_clearsAgcState() {
-        val gain = GainControl(manualGain = 1.0f, agcMode = AgcMode.VIVID)
+        val gain = GainControl(manualGain = 1.0f, agcEnabled = true, agcMode = AgcMode.VIVID)
         gain.process(FloatArray(22050) { 0.02f })
         gain.reset()
         assertEquals(1.0f, gain.effectiveGain, 0.0001f)
@@ -119,8 +124,8 @@ class GainControlTest {
     @Test
     fun process_whenAgcEnabled_ignoresDisabledManualGainSetting() {
         val input = sineWave(amplitude = 0.05f, count = 22050)
-        val zeroManualGainAgc = GainControl(manualGain = 0.0f, agcMode = AgcMode.NORMAL)
-        val highManualGainAgc = GainControl(manualGain = 10.0f, agcMode = AgcMode.NORMAL)
+        val zeroManualGainAgc = GainControl(manualGain = 0.0f, agcEnabled = true, agcMode = AgcMode.NORMAL)
+        val highManualGainAgc = GainControl(manualGain = 10.0f, agcEnabled = true, agcMode = AgcMode.NORMAL)
 
         val zeroGainRms = rms(zeroManualGainAgc.process(input).takeLast(1024))
         val highGainRms = rms(highManualGainAgc.process(input).takeLast(1024))
@@ -133,6 +138,7 @@ class GainControlTest {
     fun effectiveGain_whenAgcEnabled_dividesAgcGainByManualGainMultiplier() {
         val gain = GainControl(
             manualGain = 1.5f,
+            agcEnabled = true,
             agcMode = AgcMode.VIVID,
             manualGainMultiplier = 3.0f,
         )
@@ -148,6 +154,7 @@ class GainControlTest {
     fun process_whenAgcEnabled_doesNotMutateManualGain() {
         val gain = GainControl(
             manualGain = 1.5f,
+            agcEnabled = true,
             agcMode = AgcMode.NORMAL,
             manualGainMultiplier = 3.0f,
         )
@@ -161,9 +168,9 @@ class GainControlTest {
         // Amplitude 0.30f starts inside the normal zone (0.30 * 1.0 = 0.30 in 0.14..0.90)
         // and moves upward toward targetLevel (0.55..0.65 -> gain ~1.83..2.16)
         val input = sineWave(amplitude = 0.30f, count = 22050)
-        val vivid = GainControl(agcMode = AgcMode.VIVID)
-        val normal = GainControl(agcMode = AgcMode.NORMAL)
-        val lazy = GainControl(agcMode = AgcMode.LAZY)
+        val vivid = GainControl(agcEnabled = true, agcMode = AgcMode.VIVID)
+        val normal = GainControl(agcEnabled = true, agcMode = AgcMode.NORMAL)
+        val lazy = GainControl(agcEnabled = true, agcMode = AgcMode.LAZY)
 
         vivid.process(input)
         normal.process(input)
@@ -183,6 +190,7 @@ class GainControlTest {
     fun process_belowSquelchAmplitude_holdsAgcGainSteady() {
         val gain = GainControl(
             manualGain = 1.0f,
+            agcEnabled = true,
             agcMode = AgcMode.VIVID,
             squelchAmplitude = 0.01f,
             manualGainMultiplier = 3.0f,
@@ -195,7 +203,12 @@ class GainControlTest {
 
     @Test
     fun setAgcMode_switchingBetweenActiveModes_preservesCurrentGain() {
-        val gain = GainControl(manualGain = 1.0f, agcMode = AgcMode.VIVID, manualGainMultiplier = 3.0f)
+        val gain = GainControl(
+            manualGain = 1.0f,
+            agcEnabled = true,
+            agcMode = AgcMode.VIVID,
+            manualGainMultiplier = 3.0f,
+        )
         gain.process(sineWave(amplitude = 0.02f, count = 22050))
         val boostedGain = gain.effectiveGain
         assertTrue(boostedGain > 2.0f)

@@ -54,12 +54,13 @@ class SoundSyncService : Service() {
                     return START_NOT_STICKY
                 }
                 val gain = intent.getFloatExtra(EXTRA_GAIN, 1.0f)
+                val agcEnabled = intent.getBooleanExtra(EXTRA_AGC_ENABLED, false)
                 val agcModeName = intent.getStringExtra(EXTRA_AGC_MODE)
                 val agcMode = agcModeName?.let { name ->
                     AgcMode.entries.firstOrNull { it.name == name }
-                } ?: AgcMode.OFF
+                } ?: AgcMode.NORMAL
                 val squelch = intent.getIntExtra(EXTRA_SQUELCH, SoundSyncProcessor.DEFAULT_SQUELCH)
-                val started = soundSyncManager.start(gain, agcMode, squelch)
+                val started = soundSyncManager.start(gain, agcEnabled, agcMode, squelch)
                 if (!started) {
                     ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -181,13 +182,15 @@ class SoundSyncService : Service() {
         const val ACTION_START = "ca.cgagnier.wlednativeandroid.action.START_SOUND_SYNC"
         const val ACTION_STOP = "ca.cgagnier.wlednativeandroid.action.STOP_SOUND_SYNC"
         const val EXTRA_GAIN = "extra_gain"
+        const val EXTRA_AGC_ENABLED = "extra_agc_enabled"
         const val EXTRA_AGC_MODE = "extra_agc_mode"
         const val EXTRA_SQUELCH = "extra_squelch"
 
-        fun startIntent(context: Context, gain: Float, agcMode: AgcMode, squelch: Int): Intent =
+        fun startIntent(context: Context, gain: Float, agcEnabled: Boolean, agcMode: AgcMode, squelch: Int): Intent =
             Intent(context, SoundSyncService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_GAIN, gain)
+                putExtra(EXTRA_AGC_ENABLED, agcEnabled)
                 putExtra(EXTRA_AGC_MODE, agcMode.name)
                 putExtra(EXTRA_SQUELCH, squelch)
             }

@@ -8,10 +8,10 @@ import kotlin.math.min
  * Gain control stage combining a manual gain slider with optional WLED-style
  * two-zone automatic gain control (AGC).
  *
- * When [agcMode] is [AgcMode.OFF], [manualGain] scales the input directly. When an
- * active [AgcMode] (`NORMAL`, `VIVID`, or `LAZY`) is selected, AGC tracks the unscaled
- * input peak envelope with a slow peak hold ([AgcMode.peakDecayTimeSec]) and adjusts
- * gain using two speed zones:
+ * When [agcEnabled] is `false`, [manualGain] scales the input directly. When
+ * [agcEnabled] is `true`, AGC tracks the unscaled input peak envelope with a slow
+ * peak hold ([AgcMode.peakDecayTimeSec]) using the selected [agcMode] (`NORMAL`,
+ * `VIVID`, or `LAZY`) and adjusts gain using two speed zones:
  * - **Normal zone** (`[zoneLow]..[zoneHigh]`): Gain glides slowly ([AgcMode.slowFollowTimeSec])
  *   toward [AgcMode.targetLevel] so musical dynamics between beats and phrases are preserved.
  * - **Emergency zone** (`< zoneLow` or `> zoneHigh`): Gain adapts quickly
@@ -19,22 +19,22 @@ import kotlin.math.min
  * - **Squelch freeze**: When the unscaled signal is at or below [squelchAmplitude],
  *   AGC holds its gain steady instead of amplifying background room noise.
  *
- * Output is hard-clipped to `[-maxAmplitude, maxAmplitude]` to prevent distortion.
+ * Output is hard-clipped to `[-MAX_AMPLITUDE, MAX_AMPLITUDE]` to prevent distortion.
  */
 class GainControl(
     manualGain: Float = 1.0f,
-    agcMode: AgcMode = AgcMode.OFF,
+    agcEnabled: Boolean = false,
+    agcMode: AgcMode = AgcMode.NORMAL,
     sampleRate: Int = FftAnalyzer.DEFAULT_SAMPLE_RATE,
     squelchAmplitude: Float = DEFAULT_SQUELCH_AMPLITUDE,
-    private val maxAmplitude: Float = 1.0f,
     private val manualGainMultiplier: Float = 1.0f,
 ) {
     var manualGain: Float = manualGain.coerceIn(0f, MAX_MANUAL_GAIN)
         private set
+    var agcEnabled: Boolean = agcEnabled
+        private set
     var agcMode: AgcMode = agcMode
         private set
-    val agcEnabled: Boolean
-        get() = agcMode != AgcMode.OFF
 
     private var currentSampleRate: Int = sampleRate.coerceAtLeast(MIN_SAMPLE_RATE)
     private var currentSquelchAmplitude: Float = squelchAmplitude.coerceAtLeast(MIN_SQUELCH_AMPLITUDE)
@@ -71,7 +71,7 @@ class GainControl(
             // saved manualGain value does not mute or clip AGC while the slider is disabled)
             val totalGain = if (agcEnabled) agcGain else manualGain * manualGainMultiplier
             for (i in 0 until chunkSize) {
-                output[offset + i] = (samples[offset + i] * totalGain).coerceIn(-maxAmplitude, maxAmplitude)
+                output[offset + i] = (samples[offset + i] * totalGain).coerceIn(-MAX_AMPLITUDE, MAX_AMPLITUDE)
             }
 
             if (agcEnabled) {
@@ -87,11 +87,15 @@ class GainControl(
         manualGain = gain.coerceIn(0f, MAX_MANUAL_GAIN)
     }
 
-    fun setAgcMode(mode: AgcMode) {
-        agcMode = mode
-        if (mode == AgcMode.OFF) {
+    fun setAgcEnabled(enabled: Boolean) {
+        agcEnabled = enabled
+        if (!enabled) {
             reset()
         }
+    }
+
+    fun setAgcMode(mode: AgcMode) {
+        agcMode = mode
     }
 
     fun setSampleRate(sampleRate: Int) {
@@ -112,7 +116,6 @@ class GainControl(
 
     private fun updateAgc(samples: FloatArray, offset: Int, count: Int) {
         val mode = agcMode
-        if (mode == AgcMode.OFF) return
 
         var chunkPeak = 0f
         for (i in offset until offset + count) {
@@ -160,6 +163,7 @@ class GainControl(
     companion object {
         const val MAX_MANUAL_GAIN = 30.0f
         const val DEFAULT_SQUELCH_AMPLITUDE = 0.005f
+        private const val MAX_AMPLITUDE = 1.0f
         internal const val MIN_SQUELCH_AMPLITUDE = 0.0001f
         private const val MIN_SAMPLE_RATE = 8000
         private const val MIN_GAIN_MULTIPLIER = 0.001f

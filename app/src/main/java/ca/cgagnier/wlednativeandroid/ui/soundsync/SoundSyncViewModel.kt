@@ -33,6 +33,7 @@ class SoundSyncViewModel(
         viewModelScope.launch {
             if (!soundSyncManager.state.value.isRunning) {
                 soundSyncManager.setGain(preferencesRepository.soundSyncGain.first())
+                soundSyncManager.setAgcEnabled(preferencesRepository.soundSyncAgcEnabled.first())
                 soundSyncManager.setAgcMode(preferencesRepository.soundSyncAgcMode.first())
                 soundSyncManager.setSquelch(preferencesRepository.soundSyncSquelch.first())
             }
@@ -47,6 +48,7 @@ class SoundSyncViewModel(
             isRunning = state.isRunning,
             gain = state.gain,
             effectiveGain = state.effectiveGain,
+            agcEnabled = state.agcEnabled,
             agcMode = state.agcMode,
             squelch = state.squelch,
             error = state.error,
@@ -60,6 +62,7 @@ class SoundSyncViewModel(
                 isRunning = current.isRunning,
                 gain = current.gain,
                 effectiveGain = current.effectiveGain,
+                agcEnabled = current.agcEnabled,
                 agcMode = current.agcMode,
                 squelch = current.squelch,
                 error = current.error,
@@ -79,6 +82,7 @@ class SoundSyncViewModel(
         val intent = SoundSyncService.startIntent(
             context = context,
             gain = current.gain,
+            agcEnabled = current.agcEnabled,
             agcMode = current.agcMode,
             squelch = current.squelch,
         )
@@ -98,6 +102,13 @@ class SoundSyncViewModel(
         val currentGain = soundSyncManager.state.value.gain
         viewModelScope.launch {
             preferencesRepository.updateSoundSyncGain(currentGain)
+        }
+    }
+
+    fun setAgcEnabled(enabled: Boolean) {
+        soundSyncManager.setAgcEnabled(enabled)
+        viewModelScope.launch {
+            preferencesRepository.updateSoundSyncAgcEnabled(enabled)
         }
     }
 
@@ -142,14 +153,12 @@ data class SoundSyncUiState(
     val isRunning: Boolean = false,
     val gain: Float = 1.0f,
     val effectiveGain: Float = 1.0f,
-    val agcMode: AgcMode = AgcMode.OFF,
+    val agcEnabled: Boolean = false,
+    val agcMode: AgcMode = AgcMode.NORMAL,
     val squelch: Int = SoundSyncProcessor.DEFAULT_SQUELCH,
     val error: SoundSyncError? = null,
     val hasRecordAudioPermission: Boolean = false,
 ) {
-    val agcEnabled: Boolean
-        get() = agcMode != AgcMode.OFF
-
     val displayedGain: Float
         get() = if (isRunning && agcEnabled) effectiveGain else gain
 }

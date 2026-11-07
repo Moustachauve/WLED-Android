@@ -9,15 +9,16 @@ class SoundSyncUiStateTest {
 
     @ParameterizedTest
     @CsvSource(
-        "true, NORMAL, 5.5",
-        "true, VIVID, 5.5",
-        "true, LAZY, 5.5",
-        "true, OFF, 2.0",
-        "false, NORMAL, 2.0",
-        "false, OFF, 2.0",
+        "true, true, NORMAL, 5.5",
+        "true, true, VIVID, 5.5",
+        "true, true, LAZY, 5.5",
+        "true, false, NORMAL, 2.0",
+        "false, true, NORMAL, 2.0",
+        "false, false, NORMAL, 2.0",
     )
     fun displayedGain_returnsEffectiveGainOnlyWhenRunningWithAgcEnabled(
         isRunning: Boolean,
+        agcEnabled: Boolean,
         agcMode: AgcMode,
         expectedDisplayedGain: Float,
     ) {
@@ -25,6 +26,7 @@ class SoundSyncUiStateTest {
             isRunning = isRunning,
             gain = 2.0f,
             effectiveGain = 5.5f,
+            agcEnabled = agcEnabled,
             agcMode = agcMode,
         )
 

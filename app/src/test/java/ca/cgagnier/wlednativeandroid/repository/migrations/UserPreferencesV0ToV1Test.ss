@@ -14,7 +14,7 @@
   "lastChangelogVersionSeen": "",
   "soundSyncGain": 1.0,
   "soundSyncAgcEnabled": false,
-  "soundSyncAgcMode": null,
+  "soundSyncAgcMode": "NORMAL",
   "soundSyncSquelch": 10,
   "soundSyncBetaEnabled": false
 }

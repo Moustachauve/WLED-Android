@@ -23,16 +23,6 @@ enum class AgcMode(
     val zoneLow: Float,
     val zoneHigh: Float,
 ) {
-    /** No automatic adjustment; WLED uses the manual Gain value as set. */
-    OFF(
-        targetLevel = 0f,
-        peakDecayTimeSec = 0f,
-        slowFollowTimeSec = 0f,
-        fastFollowTimeSec = 0f,
-        zoneLow = 0f,
-        zoneHigh = 0f,
-    ),
-
     /** Smoothly follows changes in volume. A good default for most setups. */
     NORMAL(
         targetLevel = 0.60f,

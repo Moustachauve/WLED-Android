@@ -152,11 +152,10 @@
     <string name="sound_sync_gain">Gain</string>
     <string name="sound_sync_gain_value">%1$.1fx</string>
     <string name="sound_sync_agc">Contrôle Automatique du Gain</string>
-    <string name="sound_sync_agc_mode_off">Désactivé</string>
+    <string name="sound_sync_agc_description">Ajuste automatiquement le gain selon le volume ambiant</string>
     <string name="sound_sync_agc_mode_normal">Normal</string>
     <string name="sound_sync_agc_mode_vivid">Vif</string>
     <string name="sound_sync_agc_mode_lazy">Lent</string>
-    <string name="sound_sync_agc_mode_off_description">Aucun ajustement automatique. Utilise la valeur de gain définie.</string>
     <string name="sound_sync_agc_mode_normal_description">Suit en douceur les changements de volume. Un bon choix par défaut.</string>
     <string name="sound_sync_agc_mode_vivid_description">Réagit rapidement aux changements de volume pour une réponse plus marquée.</string>
     <string name="sound_sync_agc_mode_lazy_description">S\'ajuste plus lentement. Idéal pour les effets GEQ ou la musique à large plage dynamique.</string>

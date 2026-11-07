@@ -152,11 +152,10 @@
     <string name="sound_sync_gain">Verstärkung</string>
     <string name="sound_sync_gain_value">%1$.1fx</string>
     <string name="sound_sync_agc">Automatische Verstärkungsregelung</string>
-    <string name="sound_sync_agc_mode_off">Aus</string>
+    <string name="sound_sync_agc_description">Passt die Verstärkung automatisch an die Umgebungslautstärke an</string>
     <string name="sound_sync_agc_mode_normal">Normal</string>
     <string name="sound_sync_agc_mode_vivid">Lebhaft</string>
     <string name="sound_sync_agc_mode_lazy">Träge</string>
-    <string name="sound_sync_agc_mode_off_description">Keine automatische Anpassung. Verwendet den eingestellten Verstärkungswert.</string>
     <string name="sound_sync_agc_mode_normal_description">Folgt Lautstärkeänderungen gleichmäßig. Ein guter Standardwert.</string>
     <string name="sound_sync_agc_mode_vivid_description">Reagiert schnell auf Lautstärkeänderungen für eine dramatischere Dynamik.</string>
     <string name="sound_sync_agc_mode_lazy_description">Passt sich langsamer an. Gut für GEQ-Effekte oder Musik mit großem Dynamikumfang.</string>

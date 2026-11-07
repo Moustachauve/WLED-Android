@@ -36,7 +36,7 @@ class SoundSyncManagerTest {
         val audioSource = FakeAudioSource(permissionGranted = false)
         val manager = createManager(audioSource = audioSource)
 
-        val started = manager.start(gain = 2.0f, agcMode = AgcMode.NORMAL)
+        val started = manager.start(gain = 2.0f, agcEnabled = true, agcMode = AgcMode.NORMAL)
 
         assertFalse(started)
         assertFalse(manager.state.value.isRunning)
@@ -48,7 +48,7 @@ class SoundSyncManagerTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = false)
         val manager = createManager(audioSource = audioSource)
 
-        val started = manager.start(gain = 1.5f, agcMode = AgcMode.OFF)
+        val started = manager.start(gain = 1.5f, agcEnabled = false)
 
         assertFalse(started)
         assertFalse(manager.state.value.isRunning)
@@ -60,7 +60,7 @@ class SoundSyncManagerTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val manager = createManager(audioSource = audioSource)
 
-        val started = manager.start(gain = 3.0f, agcMode = AgcMode.OFF)
+        val started = manager.start(gain = 3.0f, agcEnabled = false)
 
         assertTrue(started)
         assertTrue(manager.state.value.isRunning)
@@ -72,7 +72,7 @@ class SoundSyncManagerTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val sender = FakeSoundSyncPacketSender()
         val manager = createManager(audioSource = audioSource, sender = sender)
-        manager.start(gain = 3.0f, agcMode = AgcMode.OFF)
+        manager.start(gain = 3.0f, agcEnabled = false)
 
         val sineSamples = FloatArray(512) { i -> sin(2.0 * PI * 440.0 * i / audioSource.sampleRate).toFloat() }
         audioSource.emitSamples(sineSamples)
@@ -85,7 +85,7 @@ class SoundSyncManagerTest {
     fun processAudioSamples_whenAgcEnabled_updatesEffectiveGainAndPreservesManualGain() = runTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val manager = createManager(audioSource = audioSource)
-        manager.start(gain = 1.5f, agcMode = AgcMode.VIVID)
+        manager.start(gain = 1.5f, agcEnabled = true, agcMode = AgcMode.VIVID)
 
         val quietSineSamples = FloatArray(4096) { i ->
             0.02f * sin(2.0 * PI * 440.0 * i / audioSource.sampleRate).toFloat()
@@ -113,7 +113,7 @@ class SoundSyncManagerTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val sender = FakeSoundSyncPacketSender()
         val manager = createManager(audioSource = audioSource, sender = sender)
-        manager.start(gain = 2.0f, agcMode = AgcMode.OFF)
+        manager.start(gain = 2.0f, agcEnabled = false)
         val sineSamples = FloatArray(512) { i -> sin(2.0 * PI * 440.0 * i / audioSource.sampleRate).toFloat() }
         audioSource.emitSamples(sineSamples)
 
@@ -131,7 +131,7 @@ class SoundSyncManagerTest {
     fun audioSourceStoppingUnexpectedly_stopsManagerAndSetsCaptureError() = runTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val manager = createManager(audioSource = audioSource)
-        manager.start(gain = 1.0f, agcMode = AgcMode.OFF)
+        manager.start(gain = 1.0f, agcEnabled = false)
         advanceUntilIdle()
 
         audioSource.simulateReadFailure()
