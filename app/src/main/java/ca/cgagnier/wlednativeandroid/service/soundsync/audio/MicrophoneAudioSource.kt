@@ -4,8 +4,10 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineDispatcher
@@ -95,10 +97,45 @@ class MicrophoneAudioSource(
         val maxSamplesInBuffer = (internalBufferSize / BYTES_PER_SAMPLE_FLOAT).coerceAtLeast(1)
         val readChunkSamples = (sampleRate / TARGET_CHUNKS_PER_SECOND).coerceAtMost(maxSamplesInBuffer)
 
+        for (audioSource in candidateAudioSources()) {
+            val record = tryCreateAudioRecord(audioSource, internalBufferSize)
+            if (record != null) {
+                return record to readChunkSamples
+            }
+        }
+        return null
+    }
+
+    /**
+     * Prefers [MediaRecorder.AudioSource.UNPROCESSED] when supported by hardware so platform AGC
+     * and noise suppression do not interfere with WLED DSP (matching iOS `.measurement` mode),
+     * falling back to [MediaRecorder.AudioSource.VOICE_RECOGNITION] and [MediaRecorder.AudioSource.MIC].
+     */
+    private fun candidateAudioSources(): List<Int> {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        val supportsUnprocessed =
+            audioManager?.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED)
+                ?.equals("true", ignoreCase = true) == true
+        return if (supportsUnprocessed) {
+            listOf(
+                MediaRecorder.AudioSource.UNPROCESSED,
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                MediaRecorder.AudioSource.MIC,
+            )
+        } else {
+            listOf(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                MediaRecorder.AudioSource.MIC,
+            )
+        }
+    }
+
+    @RequiresPermission(Manifest.permission.RECORD_AUDIO)
+    private fun tryCreateAudioRecord(audioSource: Int, internalBufferSize: Int): AudioRecord? {
         @Suppress("TooGenericExceptionCaught")
         val record = try {
             AudioRecord(
-                MediaRecorder.AudioSource.MIC,
+                audioSource,
                 sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_FLOAT,
@@ -107,15 +144,15 @@ class MicrophoneAudioSource(
         } catch (e: Exception) {
             // AudioRecord constructor can throw IllegalArgumentException,
             // UnsupportedOperationException, or SecurityException
-            logger.e(e) { "Failed to create AudioRecord" }
+            logger.w(e) { "Failed to create AudioRecord for source $audioSource" }
             return null
         }
         if (record.state != AudioRecord.STATE_INITIALIZED) {
-            logger.e { "AudioRecord failed to initialize" }
+            logger.w { "AudioRecord failed to initialize for source $audioSource" }
             record.release()
             return null
         }
-        return record to readChunkSamples
+        return record
     }
 
     @Synchronized

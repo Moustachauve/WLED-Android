@@ -64,13 +64,13 @@ class FftAnalyzerTest {
     }
 
     @Test
-    fun analyze_magnitudeIsPositiveForNonSilentSignal() {
+    fun analyze_scalesMagnitudeToWledRange() {
         val analyzer = FftAnalyzer(fftSize = 512, sampleRate = sampleRate)
         val samples = generateSineWave(frequency = 440f, sampleRate = sampleRate, count = 512, amplitude = 0.5f)
         val result = analyzer.analyze(samples)
         assertTrue(
-            result.magnitude > 500f,
-            "Magnitude should be scaled to WLED range (0..4096) for non-silent signal, got ${result.magnitude}",
+            result.magnitude > 5000f,
+            "Magnitude should be scaled to WLED raw FFT_Magnitude range (16x channel scale), got ${result.magnitude}",
         )
     }
 

@@ -57,7 +57,22 @@ class SoundSyncProcessorTest {
     }
 
     @Test
-    fun process_sampleSmthTracksPeakEnvelopeAndDecaysSmoothly() {
+    fun process_sampleSmthReachesUpperRangeOnLoudSignal() {
+        val processor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.0f)
+        val windowSize = SoundSyncProcessor.FFT_WINDOW_SIZE
+        val loudWave = generateSineWave(frequency = 440f, sampleRate = 44100, count = windowSize, amplitude = 0.8f)
+
+        assertNotNull(processor.process(loudWave, nowMs = 0L))
+        val secondPacket = assertNotNull(processor.process(loudWave, nowMs = 20L))
+
+        assertTrue(
+            secondPacket.sampleSmth > 180f,
+            "sampleSmth should reach WLED's upper range on loud signal, got ${secondPacket.sampleSmth}",
+        )
+    }
+
+    @Test
+    fun process_sampleSmthDecaysSmoothlyOnSilence() {
         val processor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.0f)
         val windowSize = SoundSyncProcessor.FFT_WINDOW_SIZE
         val loudWave = generateSineWave(frequency = 440f, sampleRate = 44100, count = windowSize, amplitude = 0.8f)
@@ -67,13 +82,35 @@ class SoundSyncProcessorTest {
         val decayingPacket = assertNotNull(processor.process(silence, nowMs = 20L))
 
         assertTrue(
-            activePacket.sampleSmth > 180f,
-            "sampleSmth should reach WLED's upper range on loud signal, got ${activePacket.sampleSmth}",
-        )
-        assertTrue(
             decayingPacket.sampleSmth > 0f && decayingPacket.sampleSmth < activePacket.sampleSmth,
             "sampleSmth should decay smoothly on silence, got ${decayingPacket.sampleSmth}",
         )
+    }
+
+    @Test
+    fun process_whenAgcEnabled_roomNoiseDoesNotOpenNoiseGate() {
+        val processor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.0f, agcEnabled = true)
+        val windowSize = SoundSyncProcessor.FFT_WINDOW_SIZE
+        // Sub-gate signal (~0.006) ramps AGC gain up toward MAX_AGC_GAIN (32x), then room drops to ~0.003 noise
+        val quietPassage =
+            generateSineWave(frequency = 440f, sampleRate = 44100, count = windowSize * 4, amplitude = 0.006f)
+        val roomNoise = generateSineWave(frequency = 440f, sampleRate = 44100, count = windowSize, amplitude = 0.003f)
+
+        assertNotNull(processor.process(quietPassage, nowMs = 0L))
+        var silentPacket = processor.process(roomNoise, nowMs = 20L)
+        for (frame in 2..30) {
+            silentPacket = processor.process(roomNoise, nowMs = frame * 20L)
+        }
+        val finalPacket = assertNotNull(silentPacket)
+
+        assertEquals(
+            0f,
+            finalPacket.sampleRaw,
+            0.001f,
+            "Pre-gain noise gate should block room noise even at high AGC gain",
+        )
+        assertEquals(0f, finalPacket.sampleSmth, 0.001f, "sampleSmth should decay to 0 on room noise")
+        assertEquals(0.001f, finalPacket.fftMagnitude, 0.0001f, "fftMagnitude should be muted when sampleSmth < 1")
     }
 
     @Test

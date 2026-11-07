@@ -35,12 +35,11 @@ class SoundSyncProcessor(
 
     private val sampleBuffer = FloatArray(FFT_WINDOW_SIZE)
     private val fftWindow = FloatArray(FFT_WINDOW_SIZE)
-    private val smoothedFftChannels = FloatArray(UdpSoundSyncPacket.FFT_CHANNEL_COUNT)
     private var sampleBufferIndex = 0
     private var sampleBufferFilled = false
-    private var pendingPeak = 0f
+    private var pendingRawPeak = 0f
+    private var pendingGainedPeak = 0f
     private var smoothedSample = 0f
-    private var hasSmoothedSample = false
     private var lastFrameTimeMs = UNSET_TIME_MS
 
     val sampleRate: Int get() = currentSampleRate
@@ -74,6 +73,7 @@ class SoundSyncProcessor(
         lowCutFilter.reset()
         gainControl.reset()
         beatDetector.reset()
+        fftAnalyzer.reset()
         resetSampleBuffer()
         lastFrameTimeMs = UNSET_TIME_MS
     }
@@ -92,7 +92,7 @@ class SoundSyncProcessor(
         // Always run stateful filters and accumulate into the FFT ring buffer
         val filtered = lowCutFilter.process(samples)
         val gained = gainControl.process(filtered)
-        accumulateSamples(gained)
+        accumulateSamples(filtered, gained)
 
         if (lastFrameTimeMs != UNSET_TIME_MS &&
             nowMs - lastFrameTimeMs < UdpSoundSyncPacket.PACKET_INTERVAL_MS
@@ -101,46 +101,42 @@ class SoundSyncProcessor(
         }
         lastFrameTimeMs = nowMs
 
-        val peak = pendingPeak
-        pendingPeak = 0f
+        val rawPeak = pendingRawPeak
+        val gainedPeak = pendingGainedPeak
+        pendingRawPeak = 0f
+        pendingGainedPeak = 0f
 
-        val gatedPeak = if (peak < NOISE_FLOOR_AMPLITUDE) 0f else peak
+        // Check noise gate (squelch) against pre-gain peak amplitude so AGC or high manual gain
+        // does not amplify ambient room noise past the gate in a silent room.
+        val gatedPeak = if (rawPeak < NOISE_FLOOR_AMPLITUDE) 0f else gainedPeak
         val sampleRaw = (gatedPeak * SAMPLE_MAX_VALUE).coerceIn(0f, SAMPLE_MAX_VALUE)
         val sampleSmth = updateSmoothedSample(sampleRaw)
-        val samplePeak = beatDetector.detect(peak)
+        val samplePeak = beatDetector.detect(gatedPeak)
 
         populateFftWindow()
-        val fftResult = fftAnalyzer.analyze(fftWindow)
-        val smoothedChannels = smoothFftChannels(fftResult.fftChannels)
+        val isSilent = sampleSmth < MIN_SMOOTHED_SAMPLE
+        val fftResult = fftAnalyzer.analyze(fftWindow, isSilent = isSilent)
 
         return UdpSoundSyncPacket(
             sampleRaw = sampleRaw,
             sampleSmth = sampleSmth,
             samplePeak = samplePeak,
-            fftResult = smoothedChannels,
+            fftResult = fftResult.fftChannels,
             fftMagnitude = fftResult.magnitude,
             fftMajorPeak = fftResult.majorPeak,
         )
     }
 
     /**
-     * Updates the exponentially smoothed sample envelope (`sampleSmth`) to match
-     * WLED's `sampleAvg` / `sampleAgc` behavior in `audio_reactive.cpp`.
+     * Updates the exponentially smoothed sample envelope (`sampleSmth`) using a fast
+     * attack (`0.50`) and intentionally slower release (`0.85`) for smoother LED fades
+     * between 20 ms UDP frames, snapping to zero below [MIN_SMOOTHED_SAMPLE].
      */
     private fun updateSmoothedSample(sampleRaw: Float): Float {
-        smoothedSample = when {
-            !hasSmoothedSample -> {
-                hasSmoothedSample = true
-                sampleRaw
-            }
-
-            sampleRaw > smoothedSample -> {
-                smoothedSample * SAMPLE_ATTACK_RETENTION + sampleRaw * (1f - SAMPLE_ATTACK_RETENTION)
-            }
-
-            else -> {
-                smoothedSample * SAMPLE_DECAY_RETENTION + sampleRaw * (1f - SAMPLE_DECAY_RETENTION)
-            }
+        smoothedSample = if (sampleRaw > smoothedSample) {
+            smoothedSample * SAMPLE_ATTACK_RETENTION + sampleRaw * (1f - SAMPLE_ATTACK_RETENTION)
+        } else {
+            smoothedSample * SAMPLE_DECAY_RETENTION + sampleRaw * (1f - SAMPLE_DECAY_RETENTION)
         }
         if (smoothedSample < MIN_SMOOTHED_SAMPLE) {
             smoothedSample = 0f
@@ -148,31 +144,14 @@ class SoundSyncProcessor(
         return smoothedSample.coerceIn(0f, SAMPLE_MAX_VALUE)
     }
 
-    /**
-     * Applies WLED's asymmetric rise/fall smoothing (`fftAvg` in `postProcessFFTResults`)
-     * so the 16 GEQ channels respond quickly to beats and decay smoothly.
-     */
-    private fun smoothFftChannels(rawChannels: ByteArray): ByteArray {
-        val smoothed = ByteArray(UdpSoundSyncPacket.FFT_CHANNEL_COUNT)
-        for (i in 0 until UdpSoundSyncPacket.FFT_CHANNEL_COUNT) {
-            val current = (rawChannels[i].toInt() and BYTE_MASK).toFloat()
-            val previous = smoothedFftChannels[i]
-            val next = if (current > previous) {
-                current * FFT_RISE_WEIGHT + previous * (1f - FFT_RISE_WEIGHT)
-            } else {
-                current * FFT_FALL_WEIGHT + previous * (1f - FFT_FALL_WEIGHT)
-            }
-            smoothedFftChannels[i] = if (next < MIN_FFT_CHANNEL_VALUE) 0f else next
-            smoothed[i] = smoothedFftChannels[i].toInt().coerceIn(0, MAX_FFT_CHANNEL_INT).toByte()
-        }
-        return smoothed
-    }
-
-    private fun accumulateSamples(samples: FloatArray) {
-        for (sample in samples) {
-            val amplitude = abs(sample)
-            if (amplitude > pendingPeak) pendingPeak = amplitude
-            sampleBuffer[sampleBufferIndex] = sample
+    private fun accumulateSamples(filtered: FloatArray, gained: FloatArray) {
+        for (i in gained.indices) {
+            val rawAmplitude = abs(filtered[i])
+            if (rawAmplitude > pendingRawPeak) pendingRawPeak = rawAmplitude
+            val gainedSample = gained[i]
+            val gainedAmplitude = abs(gainedSample)
+            if (gainedAmplitude > pendingGainedPeak) pendingGainedPeak = gainedAmplitude
+            sampleBuffer[sampleBufferIndex] = gainedSample
             sampleBufferIndex = (sampleBufferIndex + 1) % FFT_WINDOW_SIZE
             if (sampleBufferIndex == 0) sampleBufferFilled = true
         }
@@ -192,12 +171,11 @@ class SoundSyncProcessor(
     private fun resetSampleBuffer() {
         sampleBuffer.fill(0f)
         fftWindow.fill(0f)
-        smoothedFftChannels.fill(0f)
         sampleBufferIndex = 0
         sampleBufferFilled = false
-        pendingPeak = 0f
+        pendingRawPeak = 0f
+        pendingGainedPeak = 0f
         smoothedSample = 0f
-        hasSmoothedSample = false
     }
 
     companion object {
@@ -214,7 +192,7 @@ class SoundSyncProcessor(
          */
         private const val MANUAL_GAIN_SENSITIVITY = 3.0f
 
-        /** Minimum peak amplitude required before opening the sample noise gate (~1.2 / 255). */
+        /** Minimum pre-gain peak amplitude required before opening the sample noise gate (squelch). */
         private const val NOISE_FLOOR_AMPLITUDE = 0.005f
 
         /** Envelope retention weight when signal amplitude is rising (fast attack). */
@@ -223,22 +201,7 @@ class SoundSyncProcessor(
         /** Envelope retention weight when signal amplitude is falling (smooth release). */
         private const val SAMPLE_DECAY_RETENTION = 0.85f
 
-        /** Noise gate threshold below which `sampleSmth` snaps to 0 (matches WLED `sampleAvg < 1`). */
+        /** Noise gate threshold below which `sampleSmth` snaps to 0 (matches WLED `volumeSmth < 1`). */
         private const val MIN_SMOOTHED_SAMPLE = 1.0f
-
-        /** WLED fast-rise weight for GEQ channels (`0.75f` in `postProcessFFTResults`). */
-        private const val FFT_RISE_WEIGHT = 0.75f
-
-        /** WLED decay weight for GEQ channels (`0.22f` in `postProcessFFTResults`). */
-        private const val FFT_FALL_WEIGHT = 0.22f
-
-        /** Minimum smoothed FFT channel level before snapping to zero. */
-        private const val MIN_FFT_CHANNEL_VALUE = 1.0f
-
-        /** Maximum byte channel value as Int. */
-        private const val MAX_FFT_CHANNEL_INT = 255
-
-        /** Bitmask for unsigned byte conversion. */
-        private const val BYTE_MASK = 0xFF
     }
 }
