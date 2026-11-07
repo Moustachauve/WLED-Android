@@ -180,8 +180,7 @@ struct SoundSyncView: View {
                         get: { Float(viewModel.squelch) },
                         set: { viewModel.updateLiveSquelch(Int32($0.rounded())) }
                     ),
-                    in: Float(minSquelchInt)...Float(maxSquelchInt),
-                    step: 1
+                    in: Float(minSquelchInt)...Float(maxSquelchInt)
                 ) {
                     Text("Squelch")
                 } onEditingChanged: { editing in
