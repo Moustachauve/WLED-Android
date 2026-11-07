@@ -66,65 +66,53 @@ struct SoundSyncToolbarIcon: View {
 private final class BarLevelSmoother {
     private static let visualizer = SoundSyncIconVisualizer.shared
     private static let barCount = Int(visualizer.BAR_COUNT)
+    private static let fftChannelCount = Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT)
 
+    private let kotlinFftChannels = KotlinByteArray(size: Int32(fftChannelCount))
+    private let targetLevels = KotlinFloatArray(size: Int32(barCount))
     private var smoothedLevels: [Float] = (0..<barCount).map { index in
         visualizer.restingBarLevel(barIndex: Int32(index))
     }
+    private var lastElapsedTimeMs: Int64 = 0
 
     func nextLevels(
         isRunning: Bool,
         fftChannels: [UInt8],
         elapsedTimeMs: Int64
     ) -> [Float] {
+        let deltaTimeMs = max(0, elapsedTimeMs - lastElapsedTimeMs)
+        lastElapsedTimeMs = elapsedTimeMs
+
+        for index in 0..<Self.fftChannelCount {
+            let byteValue: UInt8 = index < fftChannels.count ? fftChannels[index] : 0
+            kotlinFftChannels.set(index: Int32(index), value: Int8(bitPattern: byteValue))
+        }
+
         let visualizer = Self.visualizer
+        _ = visualizer.computeBarLevels(
+            isRunning: isRunning,
+            fftChannels: kotlinFftChannels,
+            elapsedTimeMs: elapsedTimeMs,
+            output: targetLevels
+        )
+
         for index in 0..<Self.barCount {
-            let barIndex = Int32(index)
-            let peakChannelValue = isRunning
-                ? Self.bandPeakChannelValue(
-                    fftChannels: fftChannels,
-                    start: Int(visualizer.bandChannelStart(barIndex: barIndex)),
-                    endInclusive: Int(visualizer.bandChannelEndInclusive(barIndex: barIndex))
-                )
-                : 0
-            let target = visualizer.computeBarLevel(
-                barIndex: barIndex,
-                isRunning: isRunning,
-                bandPeakChannelValue: Int32(peakChannelValue),
-                elapsedTimeMs: elapsedTimeMs
-            )
-            let current = visualizer.smoothBarLevel(
+            let target = targetLevels.get(index: Int32(index))
+            smoothedLevels[index] = visualizer.smoothBarLevel(
                 previous: smoothedLevels[index],
                 target: target,
-                isRunning: isRunning
+                isRunning: isRunning,
+                deltaTimeMs: deltaTimeMs
             )
-            smoothedLevels[index] = current
         }
         return smoothedLevels
     }
 
     func reset() {
         let visualizer = Self.visualizer
+        lastElapsedTimeMs = 0
         for index in 0..<Self.barCount {
             smoothedLevels[index] = visualizer.restingBarLevel(barIndex: Int32(index))
         }
-    }
-
-    private static func bandPeakChannelValue(
-        fftChannels: [UInt8],
-        start: Int,
-        endInclusive: Int
-    ) -> Int {
-        guard !fftChannels.isEmpty, start <= endInclusive else { return 0 }
-        var maxChannelValue = 0
-        let upperBound = min(endInclusive, fftChannels.count - 1)
-        if start <= upperBound {
-            for channel in start...upperBound {
-                let value = Int(fftChannels[channel])
-                if value > maxChannelValue {
-                    maxChannelValue = value
-                }
-            }
-        }
-        return maxChannelValue
     }
 }

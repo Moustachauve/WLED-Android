@@ -1,6 +1,7 @@
 package ca.cgagnier.wlednativeandroid.service.soundsync
 
 import kotlin.math.PI
+import kotlin.math.pow
 import kotlin.math.sin
 
 /**
@@ -19,6 +20,10 @@ object SoundSyncIconVisualizer {
 
     const val ATTACK_SMOOTHING = 0.55f
     const val DECAY_SMOOTHING = 0.2f
+
+    /** Reference 60 Hz frame duration in milliseconds so smoothing speed is independent of display FPS. */
+    const val REFERENCE_FRAME_MS = 16.667f
+    private const val MAX_FRAME_MULTIPLIER = 4f
 
     private const val IDLE_WAVE_PERIOD_MS = 1200f
     private const val IDLE_BAR_PHASE_STEP = 0.9f
@@ -65,37 +70,7 @@ object SoundSyncIconVisualizer {
     /**
      * Returns the resting height ratio (`0.2f..1.0f`) for [barIndex] (`0 until BAR_COUNT`).
      */
-    fun restingBarLevel(barIndex: Int): Float = restingLevels[barIndex.coerceIn(0, BAR_COUNT - 1)]
-
-    /**
-     * Returns the first FFT channel index (`0..15`) mapped to [barIndex].
-     */
-    fun bandChannelStart(barIndex: Int): Int = bandStarts[barIndex.coerceIn(0, BAR_COUNT - 1)]
-
-    /**
-     * Returns the last FFT channel index (`0..15`, inclusive) mapped to [barIndex].
-     */
-    fun bandChannelEndInclusive(barIndex: Int): Int = bandEndsInclusive[barIndex.coerceIn(0, BAR_COUNT - 1)]
-
-    /**
-     * Computes the target normalized height (`0.2f..1.0f`) for a single bar given its
-     * peak unsigned FFT channel value (`0..255`) and elapsed animation time in milliseconds.
-     */
-    fun computeBarLevel(barIndex: Int, isRunning: Boolean, bandPeakChannelValue: Int, elapsedTimeMs: Long): Float {
-        val clampedIndex = barIndex.coerceIn(0, BAR_COUNT - 1)
-        if (!isRunning) {
-            return restingLevels[clampedIndex]
-        }
-
-        val basePhase = elapsedTimeMs / IDLE_WAVE_PERIOD_MS * TWO_PI_FLOAT
-        val wave = (sin(basePhase - clampedIndex * IDLE_BAR_PHASE_STEP) + 1f) * WAVE_NORMALIZATION_SCALE
-        val idleLevel = MIN_BAR_LEVEL + wave * (IDLE_MAX_BAR_LEVEL - MIN_BAR_LEVEL)
-
-        val bandNormalized = (bandPeakChannelValue / CHANNEL_MAX_VALUE).coerceIn(0f, 1f)
-        val audioLevel = MIN_BAR_LEVEL + bandNormalized * (MAX_BAR_LEVEL - MIN_BAR_LEVEL)
-
-        return maxOf(idleLevel, audioLevel).coerceIn(MIN_BAR_LEVEL, MAX_BAR_LEVEL)
-    }
+    fun restingBarLevel(barIndex: Int): Float = restingLevels[barIndex]
 
     /**
      * Computes the target normalized heights (`0.2f..1.0f`) for all 5 bars into [output].
@@ -110,34 +85,48 @@ object SoundSyncIconVisualizer {
             "output must have at least $BAR_COUNT elements"
         }
 
-        for (i in 0 until BAR_COUNT) {
-            val peakChannelValue = if (isRunning) {
-                computeBandPeakChannelValue(fftChannels, bandStarts[i], bandEndsInclusive[i])
-            } else {
-                0
+        if (!isRunning) {
+            for (i in 0 until BAR_COUNT) {
+                output[i] = restingLevels[i]
             }
-            output[i] = computeBarLevel(
-                barIndex = i,
-                isRunning = isRunning,
-                bandPeakChannelValue = peakChannelValue,
-                elapsedTimeMs = elapsedTimeMs,
+            return output
+        }
+
+        val basePhase = elapsedTimeMs / IDLE_WAVE_PERIOD_MS * TWO_PI_FLOAT
+        for (i in 0 until BAR_COUNT) {
+            val wave = (sin(basePhase - i * IDLE_BAR_PHASE_STEP) + 1f) * WAVE_NORMALIZATION_SCALE
+            val idleLevel = MIN_BAR_LEVEL + wave * (IDLE_MAX_BAR_LEVEL - MIN_BAR_LEVEL)
+
+            val peakChannelValue = computeBandPeakChannelValue(
+                fftChannels = fftChannels,
+                startChannel = bandStarts[i],
+                endChannelInclusive = bandEndsInclusive[i],
             )
+            val bandNormalized = (peakChannelValue / CHANNEL_MAX_VALUE).coerceIn(0f, 1f)
+            val audioLevel = MIN_BAR_LEVEL + bandNormalized * (MAX_BAR_LEVEL - MIN_BAR_LEVEL)
+
+            output[i] = maxOf(idleLevel, audioLevel).coerceIn(MIN_BAR_LEVEL, MAX_BAR_LEVEL)
         }
         return output
     }
 
     /**
-     * Smooths transitions between the [previous] and [target] bar levels using asymmetric
-     * attack/decay factors when [isRunning] is `true`, or snaps to [target] when stopped.
+     * Smooths transitions between the [previous] and [target] bar levels using time-adjusted
+     * asymmetric attack/decay factors when [isRunning] is `true`, or snaps to [target] when stopped.
+     *
+     * Adjusting the smoothing factor by [deltaTimeMs] relative to [REFERENCE_FRAME_MS] keeps
+     * bar movement speed consistent across 60 Hz, 90 Hz, and 120 Hz displays.
      */
-    fun smoothBarLevel(previous: Float, target: Float, isRunning: Boolean): Float {
+    fun smoothBarLevel(previous: Float, target: Float, isRunning: Boolean, deltaTimeMs: Long): Float {
         if (!isRunning) return target
-        val factor = if (target >= previous) ATTACK_SMOOTHING else DECAY_SMOOTHING
+        if (deltaTimeMs <= 0L) return previous
+        val baseFactor = if (target >= previous) ATTACK_SMOOTHING else DECAY_SMOOTHING
+        val normalizedFrames = (deltaTimeMs / REFERENCE_FRAME_MS).coerceAtMost(MAX_FRAME_MULTIPLIER)
+        val factor = 1f - (1f - baseFactor).pow(normalizedFrames)
         return previous + (target - previous) * factor
     }
 
     private fun computeBandPeakChannelValue(fftChannels: ByteArray, startChannel: Int, endChannelInclusive: Int): Int {
-        if (fftChannels.isEmpty()) return 0
         var maxChannelValue = 0
         for (ch in startChannel..endChannelInclusive) {
             if (ch < fftChannels.size) {

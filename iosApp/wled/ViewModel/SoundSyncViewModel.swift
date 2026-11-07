@@ -34,9 +34,6 @@ final class SoundSyncViewModel {
     private let userPreferencesRepository: UserPreferencesRepository
     private let deviceRepository: DeviceRepository
     private let openSettings: @MainActor () -> Void
-    @ObservationIgnored private var observationTask: Task<Void, Never>?
-    @ObservationIgnored private var activeObservationTaskId: UUID?
-    @ObservationIgnored private var observationSubscribers: [UUID: CheckedContinuation<Void, Never>] = [:]
     @ObservationIgnored private var deviceObservationTask: Task<Void, Never>?
     @ObservationIgnored private var gainUpdateTask: Task<Void, Never>?
 
@@ -58,36 +55,17 @@ final class SoundSyncViewModel {
     // MARK: - Lifecycle
 
     /// Loads saved preferences, syncs current manager state, and observes live updates.
-    ///
-    /// Multiple callers (such as `DeviceListView` and `SoundSyncView`) share a single
-    /// underlying state stream subscription that remains active until all callers cancel
-    /// or the stream terminates.
     func observe() async {
+        let initialState = await soundSyncManager.getState()
         guard !Task.isCancelled else { return }
-        let subscriberId = UUID()
-        if observationTask == nil {
-            let taskId = UUID()
-            activeObservationTaskId = taskId
-            observationTask = Task { [weak self] in
-                await self?.runObservationLoop(taskId: taskId)
-            }
-        }
+        applyState(initialState)
+        await syncInitialPreferences(from: initialState)
 
-        await withTaskCancellationHandler {
-            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                guard observationTask != nil else {
-                    continuation.resume()
-                    return
-                }
-                observationSubscribers[subscriberId] = continuation
-                if Task.isCancelled {
-                    removeObservationSubscriber(id: subscriberId)
-                }
-            }
-        } onCancel: {
-            Task { @MainActor [weak self] in
-                self?.removeObservationSubscriber(id: subscriberId)
-            }
+        guard !Task.isCancelled else { return }
+        let stream = await soundSyncManager.stateStream()
+        for await state in stream {
+            guard !Task.isCancelled else { break }
+            applyState(state)
         }
     }
 
@@ -163,32 +141,6 @@ final class SoundSyncViewModel {
 
     // MARK: - Private
 
-    private func runObservationLoop(taskId: UUID) async {
-        defer {
-            if activeObservationTaskId == taskId {
-                let continuations = Array(observationSubscribers.values)
-                observationSubscribers.removeAll()
-                activeObservationTaskId = nil
-                observationTask = nil
-                for continuation in continuations {
-                    continuation.resume()
-                }
-            }
-        }
-
-        let initialState = await soundSyncManager.getState()
-        guard !Task.isCancelled else { return }
-        applyState(initialState)
-        await syncInitialPreferences(from: initialState)
-
-        guard !Task.isCancelled else { return }
-        let stream = await soundSyncManager.stateStream()
-        for await state in stream {
-            guard !Task.isCancelled else { break }
-            applyState(state)
-        }
-    }
-
     private func syncInitialPreferences(from initialState: SoundSyncState) async {
         if initialState.isRunning {
             if gain != initialState.gain {
@@ -215,16 +167,6 @@ final class SoundSyncViewModel {
             agcEnabled = resolvedAgc
         }
         await soundSyncManager.setAgcEnabled(resolvedAgc)
-    }
-
-    private func removeObservationSubscriber(id: UUID) {
-        guard let continuation = observationSubscribers.removeValue(forKey: id) else { return }
-        continuation.resume()
-        if observationSubscribers.isEmpty {
-            activeObservationTaskId = nil
-            observationTask?.cancel()
-            observationTask = nil
-        }
     }
 
     private func applyState(_ state: SoundSyncState) {

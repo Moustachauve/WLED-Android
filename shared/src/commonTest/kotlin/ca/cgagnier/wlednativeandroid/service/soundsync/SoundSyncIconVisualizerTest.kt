@@ -69,15 +69,41 @@ class SoundSyncIconVisualizerTest {
             previous = 0.2f,
             target = 1.0f,
             isRunning = true,
+            deltaTimeMs = 16L,
         )
         val decayResult = SoundSyncIconVisualizer.smoothBarLevel(
             previous = 1.0f,
             target = 0.2f,
             isRunning = true,
+            deltaTimeMs = 16L,
         )
 
         val attackDelta = attackResult - 0.2f
         val decayDelta = 1.0f - decayResult
         assertTrue(attackDelta > decayDelta)
+    }
+
+    @Test
+    fun smoothBarLevelProducesConsistentDistanceAcrossDifferentFrameRates() {
+        val single60HzStep = SoundSyncIconVisualizer.smoothBarLevel(
+            previous = 0.2f,
+            target = 1.0f,
+            isRunning = true,
+            deltaTimeMs = 16L,
+        )
+        val first120HzStep = SoundSyncIconVisualizer.smoothBarLevel(
+            previous = 0.2f,
+            target = 1.0f,
+            isRunning = true,
+            deltaTimeMs = 8L,
+        )
+        val two120HzSteps = SoundSyncIconVisualizer.smoothBarLevel(
+            previous = first120HzStep,
+            target = 1.0f,
+            isRunning = true,
+            deltaTimeMs = 8L,
+        )
+
+        assertEquals(single60HzStep, two120HzSteps, 0.001f)
     }
 }
