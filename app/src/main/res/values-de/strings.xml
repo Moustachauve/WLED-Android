@@ -118,6 +118,8 @@
     <string name="widget_please_configure">Bitte konfigurieren</string>
     <string name="widget_toggle_power">Ein-/Ausschalten</string>
     <string name="widget_refresh">Aktualisieren</string>
+    <string name="widget_action_notification_channel">Widget-Aktionen</string>
+    <string name="widget_action_notification_title">Sende Befehl an WLED-Gerät</string>
     <string name="select_a_device">Wähle ein Gerät</string>
 
     <!-- Deep linking -->

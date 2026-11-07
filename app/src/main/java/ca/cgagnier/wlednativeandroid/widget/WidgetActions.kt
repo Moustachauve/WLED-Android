@@ -3,16 +3,11 @@ package ca.cgagnier.wlednativeandroid.widget
 import android.content.Context
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.action.ActionCallback
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 
-class TogglePowerAction :
-    ActionCallback,
-    KoinComponent {
-    private val widgetManager: WledWidgetManager by inject()
+// Both actions hand off to WidgetActionWorker: the callback itself may not have network access.
+class TogglePowerAction : ActionCallback {
 
     companion object {
         val keyIsOn = ActionParameters.Key<Boolean>("isOn")
@@ -20,20 +15,16 @@ class TogglePowerAction :
 
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val currentIsOn = parameters[keyIsOn] ?: false
-        val newIsOn = !currentIsOn
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(glanceId)
 
-        widgetManager.toggleState(context, glanceId, newIsOn)
+        WidgetActionWorker.enqueue(context, WidgetActionRequest(appWidgetId, targetIsOn = !currentIsOn))
     }
 }
 
-class RefreshAction :
-    ActionCallback,
-    KoinComponent {
-    private val widgetManager: WledWidgetManager by inject()
-
+class RefreshAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        withContext(Dispatchers.IO) {
-            widgetManager.refreshWidget(context, glanceId)
-        }
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(glanceId)
+
+        WidgetActionWorker.enqueue(context, WidgetActionRequest(appWidgetId, targetIsOn = null))
     }
 }
