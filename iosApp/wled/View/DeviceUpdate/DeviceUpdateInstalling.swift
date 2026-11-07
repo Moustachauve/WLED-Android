@@ -105,7 +105,7 @@ struct UpdateProgressStatusView: View {
         if let progress {
             let clampedProgress = min(max(progress, 0), 100)
             ProgressView(value: Double(clampedProgress), total: 100) {
-                Text("\(clampedProgress)%")
+                Text(clampedProgress, format: .percent)
                     .font(.caption)
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)

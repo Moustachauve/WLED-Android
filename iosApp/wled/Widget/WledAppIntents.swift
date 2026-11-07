@@ -87,7 +87,9 @@ struct SetDevicePowerIntent: AppIntent {
 /// Quick Settings `WledControlsService` range control.
 struct SetDeviceBrightnessIntent: AppIntent {
     static let title: LocalizedStringResource = "Set WLED Brightness"
-    static let description = IntentDescription("Sets the brightness of a WLED device from 0% to 100%.")
+    static let description = IntentDescription(
+        "Sets the brightness of a WLED device from \(0, format: .percent) to \(100, format: .percent)."
+    )
 
     @Parameter(title: "Device")
     var device: WledDeviceEntity
