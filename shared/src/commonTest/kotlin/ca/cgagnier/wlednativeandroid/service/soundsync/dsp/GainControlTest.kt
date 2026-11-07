@@ -1,6 +1,9 @@
 package ca.cgagnier.wlednativeandroid.service.soundsync.dsp
 
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -51,7 +54,7 @@ class GainControlTest {
     fun process_agcNormalizesLowSignal() {
         val gain = GainControl(manualGain = 1.0f, agcEnabled = true, targetLevel = 0.5f)
         // Feed a quiet signal; AGC should boost it
-        val input = FloatArray(4096) { 0.01f * kotlin.math.sin(2.0 * kotlin.math.PI * 440.0 * it / 44100.0).toFloat() }
+        val input = FloatArray(4096) { 0.01f * sin(2.0 * PI * 440.0 * it / 44100.0).toFloat() }
         val output = gain.process(input)
         val tailRms = rms(output.takeLast(2048))
         // AGC should bring the RMS close to the target level
@@ -65,7 +68,7 @@ class GainControlTest {
     fun process_agcAttenuatesLoudSignal() {
         val gain = GainControl(manualGain = 1.0f, agcEnabled = true, targetLevel = 0.3f)
         // Feed a loud signal; AGC should attenuate it
-        val input = FloatArray(4096) { 0.9f * kotlin.math.sin(2.0 * kotlin.math.PI * 440.0 * it / 44100.0).toFloat() }
+        val input = FloatArray(4096) { 0.9f * sin(2.0 * PI * 440.0 * it / 44100.0).toFloat() }
         val output = gain.process(input)
         val tailRms = rms(output.takeLast(2048))
         // AGC should bring the RMS down toward the target level
@@ -115,9 +118,24 @@ class GainControlTest {
         assertTrue(abs(output[0] - 0.1f) < 0.2f, "After reset, gain should be near unity")
     }
 
+    @Test
+    fun process_whenAgcEnabled_ignoresDisabledManualGainSetting() {
+        val input = FloatArray(4096) {
+            0.05f * sin(2.0 * PI * 440.0 * it / 44100.0).toFloat()
+        }
+        val zeroManualGainAgc = GainControl(manualGain = 0.0f, agcEnabled = true, targetLevel = 0.75f)
+        val highManualGainAgc = GainControl(manualGain = 10.0f, agcEnabled = true, targetLevel = 0.75f)
+
+        val zeroGainRms = rms(zeroManualGainAgc.process(input).takeLast(1024))
+        val highGainRms = rms(highManualGainAgc.process(input).takeLast(1024))
+
+        assertTrue(zeroGainRms > 0.3f, "AGC should normalize signal even if manualGain was 0.0f, got $zeroGainRms")
+        assertEquals(zeroGainRms, highGainRms, 0.0001f)
+    }
+
     private fun rms(samples: List<Float>): Float {
         if (samples.isEmpty()) return 0f
         val sumSquares = samples.sumOf { (it * it).toDouble() }
-        return kotlin.math.sqrt(sumSquares / samples.size).toFloat()
+        return sqrt(sumSquares / samples.size).toFloat()
     }
 }

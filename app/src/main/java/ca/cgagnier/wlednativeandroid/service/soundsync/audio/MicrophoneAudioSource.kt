@@ -4,8 +4,10 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineDispatcher
@@ -57,15 +59,7 @@ class MicrophoneAudioSource(
             return false
         }
 
-        val (record, readChunkSamples) = createAudioRecord() ?: return false
-
-        record.startRecording()
-        if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-            logger.e { "AudioRecord failed to start recording" }
-            runCatching { record.stop() }
-            runCatching { record.release() }
-            return false
-        }
+        val (record, readChunkSamples) = createAndStartAudioRecord() ?: return false
 
         _isRunning.value = true
         captureJob = scope.launch {
@@ -74,7 +68,7 @@ class MicrophoneAudioSource(
         return true
     }
 
-    private fun createAudioRecord(): Pair<AudioRecord, Int>? {
+    private fun createAndStartAudioRecord(): Pair<AudioRecord, Int>? {
         if (
             ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
             PackageManager.PERMISSION_GRANTED
@@ -95,10 +89,44 @@ class MicrophoneAudioSource(
         val maxSamplesInBuffer = (internalBufferSize / BYTES_PER_SAMPLE_FLOAT).coerceAtLeast(1)
         val readChunkSamples = (sampleRate / TARGET_CHUNKS_PER_SECOND).coerceAtMost(maxSamplesInBuffer)
 
+        for (audioSource in candidateAudioSources()) {
+            val record = tryStartAudioRecord(audioSource, internalBufferSize)
+            if (record != null) {
+                return record to readChunkSamples
+            }
+        }
+        return null
+    }
+
+    /**
+     * Prefers [MediaRecorder.AudioSource.UNPROCESSED] when supported by hardware so platform AGC
+     * and noise suppression do not interfere with WLED DSP (matching iOS `.measurement` mode),
+     * falling back to [MediaRecorder.AudioSource.VOICE_RECOGNITION] and [MediaRecorder.AudioSource.MIC].
+     */
+    private fun candidateAudioSources(): List<Int> {
+        val audioManager = context.getSystemService(AudioManager::class.java)
+        val supportsUnprocessed =
+            audioManager?.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED).toBoolean()
+        return if (supportsUnprocessed) {
+            listOf(
+                MediaRecorder.AudioSource.UNPROCESSED,
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                MediaRecorder.AudioSource.MIC,
+            )
+        } else {
+            listOf(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                MediaRecorder.AudioSource.MIC,
+            )
+        }
+    }
+
+    @RequiresPermission(Manifest.permission.RECORD_AUDIO)
+    private fun tryStartAudioRecord(audioSource: Int, internalBufferSize: Int): AudioRecord? {
         @Suppress("TooGenericExceptionCaught")
         val record = try {
             AudioRecord(
-                MediaRecorder.AudioSource.MIC,
+                audioSource,
                 sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_FLOAT,
@@ -107,15 +135,22 @@ class MicrophoneAudioSource(
         } catch (e: Exception) {
             // AudioRecord constructor can throw IllegalArgumentException,
             // UnsupportedOperationException, or SecurityException
-            logger.e(e) { "Failed to create AudioRecord" }
+            logger.w(e) { "Failed to create AudioRecord for source $audioSource" }
             return null
         }
         if (record.state != AudioRecord.STATE_INITIALIZED) {
-            logger.e { "AudioRecord failed to initialize" }
+            logger.w { "AudioRecord failed to initialize for source $audioSource" }
             record.release()
             return null
         }
-        return record to readChunkSamples
+        record.startRecording()
+        if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+            logger.w { "AudioRecord failed to start recording for source $audioSource" }
+            runCatching { record.stop() }
+            runCatching { record.release() }
+            return null
+        }
+        return record
     }
 
     @Synchronized
