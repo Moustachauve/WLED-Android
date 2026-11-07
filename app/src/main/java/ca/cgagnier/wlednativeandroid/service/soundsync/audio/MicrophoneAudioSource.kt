@@ -85,8 +85,8 @@ class MicrophoneAudioSource(
             return null
         }
         val internalBufferSize = minBufferSize * bufferSizeMultiplier
-        // Read ~10ms chunks (e.g. 441 samples at 44.1 kHz) so the 20ms processor throttle
-        // receives two chunks per frame and does not skip frames due to 1ms read boundary jitter.
+        // Read ~10ms sub-frames (e.g. 441 samples at 44.1 kHz) so the processor's 20ms
+        // sample-clock deadline emits a steady 50 Hz packet stream.
         val maxSamplesInBuffer = (internalBufferSize / BYTES_PER_SAMPLE_FLOAT).coerceAtLeast(1)
         val readChunkSamples = (sampleRate / TARGET_CHUNKS_PER_SECOND).coerceAtMost(maxSamplesInBuffer)
 

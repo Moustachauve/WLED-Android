@@ -214,22 +214,36 @@ struct SoundSyncViewModelTests {
         await viewModel.stop()
     }
 
-    @Test func observeReflectsEffectiveGainWhenRunningWithAgcEnabled() async throws {
-        let runningState = SoundSyncState(
-            isRunning: true,
+    @Test(
+        arguments: [
+            (true, true, Float(5.5)),
+            (true, false, Float(2.0)),
+            (false, true, Float(2.0))
+        ]
+    )
+    func observeReflectsDisplayedGainForRunningAndAgcStates(
+        isRunning: Bool,
+        agcEnabled: Bool,
+        expectedDisplayedGain: Float
+    ) async throws {
+        try await database.userPreferencesRepository.updateSoundSyncGain(gain: 2.0)
+        try await database.userPreferencesRepository.updateSoundSyncAgcEnabled(enabled: agcEnabled)
+        let initialState = SoundSyncState(
+            isRunning: isRunning,
             gain: 2.0,
             effectiveGain: 5.5,
-            agcEnabled: true
+            agcEnabled: agcEnabled
         )
-        let manager = FakeSoundSyncManager(initialState: runningState)
+        let manager = FakeSoundSyncManager(initialState: initialState)
         let viewModel = makeViewModel(manager: manager)
 
         try await runObserveUntil(viewModel: viewModel, manager: manager) {
-            viewModel.isRunning && viewModel.displayedGain == 5.5
+            viewModel.isRunning == isRunning &&
+                viewModel.agcEnabled == agcEnabled &&
+                viewModel.displayedGain == expectedDisplayedGain
         }
 
         #expect(viewModel.gain == 2.0)
-        #expect(viewModel.displayedGain == 5.5)
     }
 
     @Test func stopResetsRunningState() async {

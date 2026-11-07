@@ -86,11 +86,16 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
         samples: FloatArray,
         isSilent: Boolean = false,
         deltaTimeMs: Long = UdpSoundSyncPacket.PACKET_INTERVAL_MS,
-    ): FftResult {
+    ): FftResult = analyze(
+        samples = samples,
+        isSilent = isSilent,
+        normalizedFrames = normalizePacketFrameDelta(deltaTimeMs),
+    )
+
+    internal fun analyze(samples: FloatArray, isSilent: Boolean, normalizedFrames: Float): FftResult {
         if (samples.isEmpty()) {
             return FftResult(ByteArray(FFT_CHANNEL_COUNT), 0f, 0f)
         }
-        val normalizedFrames = SoundSyncProcessor.normalizeFrameDelta(deltaTimeMs)
         if (isSilent) {
             return decaySilentResult(normalizedFrames)
         }

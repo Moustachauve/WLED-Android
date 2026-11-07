@@ -16,8 +16,8 @@ actor MicrophoneAudioCapture {
     // MARK: - Properties
 
     /// Requests ~10 ms hardware I/O buffers (hint; CoreAudio typically selects a nearby power-of-two
-    /// frame count such as 512 frames / ~10.7 ms at 48 kHz) so `SoundSyncProcessor` receives two
-    /// sub-frames per 20 ms (~50 Hz) UDP packet interval without boundary-jitter frame drops.
+    /// frame count such as 512 frames / ~10.7 ms at 48 kHz) so `SoundSyncProcessor`'s 20 ms deadline
+    /// scheduler receives two sub-frames per packet interval.
     private static let preferredIOBufferDuration: TimeInterval = 0.01
 
     private var engine: AVAudioEngine?
@@ -38,14 +38,15 @@ actor MicrophoneAudioCapture {
     }
 
     /// Starts audio capture. The `onAudioData` callback is invoked with chunks
-    /// of normalized PCM samples and the hardware sample rate in Hz.
+    /// of normalized PCM samples, the hardware sample rate in Hz, and the capture sample-clock
+    /// timestamp in milliseconds.
     ///
     /// - Parameters:
-    ///   - onAudioData: Callback invoked with `(samples, sampleRate)`.
+    ///   - onAudioData: Callback invoked with `(samples, sampleRate, sampleTimeMs)`.
     ///   - onInterruption: Callback invoked when audio capture is interrupted or the route changes.
     /// - Returns: `true` if capture started successfully.
     func start(
-        onAudioData: @escaping @Sendable ([Float], Int) -> Void,
+        onAudioData: @escaping @Sendable ([Float], Int, Int64) -> Void,
         onInterruption: @escaping @Sendable () -> Void
     ) -> Bool {
         guard !isCapturing else { return true }
@@ -86,7 +87,7 @@ actor MicrophoneAudioCapture {
         // buffer duration (~10 Hz) on iOS regardless of the requested bufferSize. The receiver
         // block runs on the real-time audio I/O thread; copying the small mono frame slice and
         // yielding into the bounded AsyncStream is accepted for capture-only use.
-        let sink = AVAudioSinkNode { _, frameCount, audioBufferList -> OSStatus in
+        let sink = AVAudioSinkNode { timestamp, frameCount, audioBufferList -> OSStatus in
             guard frameCount > 0 else { return noErr }
             let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: audioBufferList))
             guard let firstBuffer = buffers.first,
@@ -94,7 +95,8 @@ actor MicrophoneAudioCapture {
                 return noErr
             }
             let samples = Array(UnsafeBufferPointer(start: dataPtr, count: Int(frameCount)))
-            onAudioData(samples, hardwareSampleRate)
+            let sampleTimeMs = Int64(timestamp.pointee.mSampleTime * 1000.0 / Double(hardwareSampleRate))
+            onAudioData(samples, hardwareSampleRate, sampleTimeMs)
             return noErr
         }
         audioEngine.attach(sink)

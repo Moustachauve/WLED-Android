@@ -13,8 +13,6 @@ struct SoundSyncView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
-    @State private var visualizationSmoother = VisualizationSmoother()
-
     var body: some View {
         NavigationStack {
             Form {
@@ -118,29 +116,11 @@ struct SoundSyncView: View {
 
     private var visualizationSection: some View {
         Section("Frequency visualization") {
-            TimelineView(.animation) { timeline in
-                let frame = visualizationSmoother.nextFrame(
-                    fftChannels: viewModel.fftChannels,
-                    sampleLevel: viewModel.sampleLevel,
-                    date: timeline.date
-                )
-
-                VStack(spacing: 12) {
-                    FftBarChart(normalizedChannels: frame.normalizedChannels)
-                        .frame(height: chartHeight)
-                        .accessibilityHidden(true)
-
-                    SampleLevelIndicator(
-                        level: frame.sampleLevel,
-                        isPeak: viewModel.isPeak
-                    )
-                    .frame(height: 8)
-                    .accessibilityHidden(true)
-                }
-            }
-            .onAppear {
-                visualizationSmoother.reset()
-            }
+            FrequencyVisualizationView(
+                fftChannels: viewModel.fftChannels,
+                sampleLevel: viewModel.sampleLevel,
+                isPeak: viewModel.isPeak
+            )
         }
     }
 
@@ -187,6 +167,39 @@ struct SoundSyncView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .frame(maxWidth: .infinity)
+            }
+        }
+    }
+}
+
+// MARK: - Frequency Visualization View
+
+private struct FrequencyVisualizationView: View {
+    let fftChannels: [UInt8]
+    let sampleLevel: Float
+    let isPeak: Bool
+
+    @State private var smoother = VisualizationSmoother()
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let frame = smoother.nextFrame(
+                fftChannels: fftChannels,
+                sampleLevel: sampleLevel,
+                date: timeline.date
+            )
+
+            VStack(spacing: 12) {
+                FftBarChart(normalizedChannels: frame.normalizedChannels)
+                    .frame(height: chartHeight)
+                    .accessibilityHidden(true)
+
+                SampleLevelIndicator(
+                    level: frame.sampleLevel,
+                    isPeak: isPeak
+                )
+                .frame(height: 8)
+                .accessibilityHidden(true)
             }
         }
     }
@@ -303,15 +316,6 @@ private final class VisualizationSmoother {
             normalizedChannels: smoothedChannels,
             sampleLevel: smoothedSampleLevel
         )
-    }
-
-    func reset() {
-        lastFrameDate = nil
-        smoothedSampleLevel = 0
-        for index in 0..<Self.channelCount {
-            kotlinSmoothedChannels.set(index: Int32(index), value: 0)
-            smoothedChannels[index] = 0
-        }
     }
 }
 

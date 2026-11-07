@@ -134,23 +134,37 @@ class GainControlTest {
     }
 
     @Test
-    fun effectiveGain_whenAgcEnabled_reflectsMappedAgcGainWithoutMutatingManualGain() {
+    fun effectiveGain_whenAgcEnabled_dividesAgcGainByManualGainMultiplier() {
         val gain = GainControl(
             manualGain = 1.5f,
             agcEnabled = true,
             targetLevel = 0.75f,
             manualGainMultiplier = 3.0f,
         )
-        val quietInput = FloatArray(4096) {
-            0.02f * sin(2.0 * PI * 440.0 * it / 44100.0).toFloat()
+        // Non-saturating 0.1f peak -> desiredGain = 0.75 / 0.1 = 7.5 -> mappedAgcGain = 7.5 / 3.0 = 2.5
+        val input = FloatArray(4096) {
+            0.1f * sin(2.0 * PI * 440.0 * it / 44100.0).toFloat()
         }
 
-        gain.process(quietInput)
+        gain.process(input)
 
-        assertTrue(
-            gain.effectiveGain > 2.0f,
-            "Expected effectiveGain to increase for quiet signal, got ${gain.effectiveGain}",
+        assertEquals(2.5f, gain.effectiveGain, 0.05f)
+    }
+
+    @Test
+    fun process_whenAgcEnabled_doesNotMutateManualGain() {
+        val gain = GainControl(
+            manualGain = 1.5f,
+            agcEnabled = true,
+            targetLevel = 0.75f,
+            manualGainMultiplier = 3.0f,
         )
+        val input = FloatArray(4096) {
+            0.1f * sin(2.0 * PI * 440.0 * it / 44100.0).toFloat()
+        }
+
+        gain.process(input)
+
         assertEquals(1.5f, gain.manualGain, 0.0001f)
     }
 

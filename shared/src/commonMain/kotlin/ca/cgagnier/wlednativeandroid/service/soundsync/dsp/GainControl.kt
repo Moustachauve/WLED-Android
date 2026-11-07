@@ -28,10 +28,10 @@ class GainControl(
     var agcEnabled: Boolean = agcEnabled
         private set
 
-    private val initialAgcGain: Float = manualGainMultiplier.coerceAtLeast(MIN_GAIN_MULTIPLIER)
+    private val safeGainMultiplier: Float = manualGainMultiplier.coerceAtLeast(MIN_GAIN_MULTIPLIER)
 
     // AGC state
-    private var agcGain = initialAgcGain
+    private var agcGain = safeGainMultiplier
     private var peakEnvelope = 0f
 
     /**
@@ -85,14 +85,11 @@ class GainControl(
 
     /** Clears AGC state. Call when switching audio sources. */
     fun reset() {
-        agcGain = initialAgcGain
+        agcGain = safeGainMultiplier
         peakEnvelope = 0f
     }
 
-    private fun mappedAgcGain(): Float {
-        val safeMultiplier = manualGainMultiplier.coerceAtLeast(MIN_GAIN_MULTIPLIER)
-        return (agcGain / safeMultiplier).coerceIn(0f, MAX_MANUAL_GAIN)
-    }
+    private fun mappedAgcGain(): Float = (agcGain / safeGainMultiplier).coerceIn(0f, MAX_MANUAL_GAIN)
 
     private fun updateAgc(samples: FloatArray, offset: Int, count: Int) {
         // Track the unscaled peak amplitude in this chunk

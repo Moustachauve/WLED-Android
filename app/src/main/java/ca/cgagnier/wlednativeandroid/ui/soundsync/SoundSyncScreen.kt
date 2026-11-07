@@ -377,8 +377,6 @@ private fun FftBarChart(
             lastDrawTimeMs[0] = elapsedMs
         }
         val fftChannels = fftChannelsProvider()
-        if (fftChannels.isEmpty()) return@Canvas
-
         SoundSyncIconVisualizer.smoothFftChannels(
             fftChannels = fftChannels,
             deltaTimeMs = deltaTimeMs,

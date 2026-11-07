@@ -19,12 +19,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import kotlin.time.TimeSource
 
 private const val TAG = "SoundSyncManager"
 private const val EFFECTIVE_GAIN_UPDATE_EPSILON = 0.05f
+private const val MILLIS_PER_SECOND = 1000L
 private val logger = Logger.withTag(TAG)
-private val monotonicTimeMark = TimeSource.Monotonic.markNow()
 
 /**
  * Locale-independent error codes for Sound Sync failures, resolved to localized strings in the UI.
@@ -61,7 +60,6 @@ class SoundSyncManager(
     private val ioDispatcher: CoroutineDispatcher,
     audioSource: AudioSource? = null,
     private val senderFactory: () -> SoundSyncPacketSender = { UdpSoundSyncSender() },
-    private val currentTimeMs: () -> Long = { monotonicTimeMark.elapsedNow().inWholeMilliseconds },
 ) {
     private val managerScope = CoroutineScope(
         coroutineScope.coroutineContext + SupervisorJob(coroutineScope.coroutineContext[Job]) + ioDispatcher,
@@ -75,6 +73,7 @@ class SoundSyncManager(
 
     private val processor = SoundSyncProcessor()
     private val processorLock = Any()
+    private var capturedSamples: Long = 0L
     private val audioSource: AudioSource = audioSource ?: MicrophoneAudioSource(
         context = context,
         coroutineScope = managerScope,
@@ -117,6 +116,7 @@ class SoundSyncManager(
         }
 
         val initialEffectiveGain = synchronized(processorLock) {
+            capturedSamples = 0L
             processor.reset()
             processor.configureSampleRate(audioSource.sampleRate)
             processor.setGain(clampedGain)
@@ -181,7 +181,7 @@ class SoundSyncManager(
         _state.update {
             it.copy(
                 agcEnabled = enabled,
-                effectiveGain = if (enabled) currentEffectiveGain else it.effectiveGain,
+                effectiveGain = currentEffectiveGain,
             )
         }
     }
@@ -196,7 +196,10 @@ class SoundSyncManager(
     private fun processAudioSamples(samples: FloatArray) {
         val (packet, currentEffectiveGain) = synchronized(processorLock) {
             if (!_state.value.isRunning) return
-            val emitted = processor.process(samples, currentTimeMs()) ?: return
+            val sampleRate = audioSource.sampleRate.coerceAtLeast(1)
+            val nowMs = capturedSamples * MILLIS_PER_SECOND / sampleRate
+            capturedSamples += samples.size
+            val emitted = processor.process(samples, nowMs) ?: return
             emitted to processor.effectiveGain
         }
         udpSender?.sendPacket(packet)

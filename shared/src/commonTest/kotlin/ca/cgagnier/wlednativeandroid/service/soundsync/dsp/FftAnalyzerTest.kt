@@ -195,7 +195,7 @@ class FftAnalyzerTest {
     }
 
     @Test
-    fun analyze_normalizesChannelRiseAndSilentDecayAcrossFrameDeltas() {
+    fun analyze_normalizesChannelRiseAcrossFrameDeltas() {
         val samples = generateSineWave(
             frequency = 1000f,
             sampleRate = FftAnalyzer.DEFAULT_SAMPLE_RATE,
@@ -210,6 +210,22 @@ class FftAnalyzerTest {
         val oneFortyMsRise = fortyMsAnalyzer.analyze(samples, isSilent = false, deltaTimeMs = 40L)
 
         assertTrue(twoTwentyMsRise.fftChannels.contentEquals(oneFortyMsRise.fftChannels))
+    }
+
+    @Test
+    fun analyze_normalizesSilentChannelDecayAcrossFrameDeltas() {
+        val samples = generateSineWave(
+            frequency = 1000f,
+            sampleRate = FftAnalyzer.DEFAULT_SAMPLE_RATE,
+            count = FftAnalyzer.DEFAULT_FFT_SIZE,
+            amplitude = 0.4f,
+        )
+        val twentyMsAnalyzer = FftAnalyzer().apply {
+            analyze(samples, isSilent = false, deltaTimeMs = 20L)
+        }
+        val fortyMsAnalyzer = FftAnalyzer().apply {
+            analyze(samples, isSilent = false, deltaTimeMs = 20L)
+        }
 
         twentyMsAnalyzer.analyze(samples, isSilent = true, deltaTimeMs = 20L)
         val twoTwentyMsDecay = twentyMsAnalyzer.analyze(samples, isSilent = true, deltaTimeMs = 20L)
