@@ -377,20 +377,18 @@ private fun FftBarChart(
             lastDrawTimeMs[0] = elapsedMs
         }
         val fftChannels = fftChannelsProvider()
-        val channelCount = fftChannels.size
-        if (channelCount == 0) return@Canvas
+        if (fftChannels.isEmpty()) return@Canvas
 
         SoundSyncIconVisualizer.smoothFftChannels(
-            isRunning = true,
             fftChannels = fftChannels,
             deltaTimeMs = deltaTimeMs,
             smoothedOutput = smoothedChannels,
         )
 
-        val barWidth = size.width / channelCount
+        val barWidth = size.width / smoothedChannels.size
         val gap = barWidth * BAR_GAP_RATIO
         val actualBarWidth = barWidth - gap
-        for (i in 0 until minOf(channelCount, smoothedChannels.size)) {
+        for (i in smoothedChannels.indices) {
             val barHeight = smoothedChannels[i] * size.height
             val left = i * barWidth + gap / 2f
             drawRect(

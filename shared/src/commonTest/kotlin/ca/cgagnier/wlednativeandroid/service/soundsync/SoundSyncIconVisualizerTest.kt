@@ -108,32 +108,21 @@ class SoundSyncIconVisualizerTest {
     }
 
     @Test
-    fun smoothFftChannelsProducesConsistentValuesAcrossFrameRates() {
+    fun smoothFftChannelsNormalizesUnsignedByteValuesTowardTargetRatio() {
         val channels = ByteArray(UdpSoundSyncPacket.FFT_CHANNEL_COUNT) { 200.toByte() }
-        val output60Hz = FloatArray(UdpSoundSyncPacket.FFT_CHANNEL_COUNT)
-        val output120Hz = FloatArray(UdpSoundSyncPacket.FFT_CHANNEL_COUNT)
+        val smoothedOutput = FloatArray(UdpSoundSyncPacket.FFT_CHANNEL_COUNT)
 
-        SoundSyncIconVisualizer.smoothFftChannels(
-            isRunning = true,
-            fftChannels = channels,
-            deltaTimeMs = 16L,
-            smoothedOutput = output60Hz,
-        )
-        SoundSyncIconVisualizer.smoothFftChannels(
-            isRunning = true,
-            fftChannels = channels,
-            deltaTimeMs = 8L,
-            smoothedOutput = output120Hz,
-        )
-        SoundSyncIconVisualizer.smoothFftChannels(
-            isRunning = true,
-            fftChannels = channels,
-            deltaTimeMs = 8L,
-            smoothedOutput = output120Hz,
-        )
+        repeat(20) {
+            SoundSyncIconVisualizer.smoothFftChannels(
+                fftChannels = channels,
+                deltaTimeMs = 16L,
+                smoothedOutput = smoothedOutput,
+            )
+        }
 
-        for (i in output60Hz.indices) {
-            assertEquals(output60Hz[i], output120Hz[i], 0.001f)
+        val expectedTarget = 200f / 255f
+        for (i in smoothedOutput.indices) {
+            assertEquals(expectedTarget, smoothedOutput[i], 0.001f)
         }
     }
 }

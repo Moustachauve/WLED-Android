@@ -39,6 +39,8 @@ actor SoundSyncManager: SoundSyncManaging {
 
     // MARK: - Properties
 
+    private static let effectiveGainUpdateEpsilon: Float = 0.05
+
     private let audioCapture = MicrophoneAudioCapture()
     private let processor = SoundSyncProcessor()
     private var udpSender: UdpSoundSyncSender?
@@ -114,7 +116,6 @@ actor SoundSyncManager: SoundSyncManaging {
 
         updateState {
             $0.gain = clampedGain
-            $0.effectiveGain = clampedGain
             $0.agcEnabled = agcEnabled
             $0.errorMessage = nil
         }
@@ -167,7 +168,7 @@ actor SoundSyncManager: SoundSyncManaging {
 
         updateState {
             $0.isRunning = true
-            $0.effectiveGain = agcEnabled ? initialEffectiveGain : clampedGain
+            $0.effectiveGain = initialEffectiveGain
         }
         captureProcessingTask = Task { [weak self] in
             for await (samples, sampleRate) in audioStream {
@@ -197,7 +198,6 @@ actor SoundSyncManager: SoundSyncManaging {
         let channelCount = Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT)
         updateState {
             $0.isRunning = false
-            $0.effectiveGain = $0.gain
             $0.fftChannels = Array(repeating: 0, count: channelCount)
             $0.sampleLevel = 0
             $0.isPeak = false
@@ -212,12 +212,7 @@ actor SoundSyncManager: SoundSyncManaging {
     func setGain(_ gain: Float) {
         let clampedGain = min(max(gain, 0), GainControl.Companion.shared.MAX_MANUAL_GAIN)
         processor.setGain(gain: clampedGain)
-        updateState {
-            $0.gain = clampedGain
-            if !$0.agcEnabled || !$0.isRunning {
-                $0.effectiveGain = clampedGain
-            }
-        }
+        updateState { $0.gain = clampedGain }
     }
 
     /// Toggles automatic gain control in real-time.
@@ -226,7 +221,9 @@ actor SoundSyncManager: SoundSyncManaging {
         let currentEffectiveGain = processor.effectiveGain
         updateState {
             $0.agcEnabled = enabled
-            $0.effectiveGain = (enabled && $0.isRunning) ? currentEffectiveGain : $0.gain
+            if enabled {
+                $0.effectiveGain = currentEffectiveGain
+            }
         }
     }
 
@@ -254,7 +251,7 @@ actor SoundSyncManager: SoundSyncManaging {
             kotlinSamples.set(index: Int32(index), value: value)
         }
 
-        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let nowMs = Int64(ProcessInfo.processInfo.systemUptime * 1000)
         guard let packet = processor.process(samples: kotlinSamples, nowMs: nowMs) else { return }
 
         let fftChannels = packet.fftResult.toUInt8Array()
@@ -263,7 +260,7 @@ actor SoundSyncManager: SoundSyncManaging {
             $0.fftChannels = fftChannels
             $0.sampleLevel = packet.sampleSmth
             $0.isPeak = packet.samplePeak
-            if $0.agcEnabled {
+            if $0.agcEnabled && abs($0.effectiveGain - currentEffectiveGain) >= Self.effectiveGainUpdateEpsilon {
                 $0.effectiveGain = currentEffectiveGain
             }
         }

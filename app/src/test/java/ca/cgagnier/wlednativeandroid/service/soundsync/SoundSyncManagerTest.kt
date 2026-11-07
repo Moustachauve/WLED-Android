@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.job
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -89,7 +90,10 @@ class SoundSyncManagerTest {
         val quietSineSamples = FloatArray(4096) { i ->
             0.02f * sin(2.0 * PI * 440.0 * i / audioSource.sampleRate).toFloat()
         }
-        audioSource.emitSamples(quietSineSamples)
+        repeat(3) {
+            audioSource.emitSamples(quietSineSamples)
+            advanceTimeBy(UdpSoundSyncPacket.PACKET_INTERVAL_MS)
+        }
 
         assertEquals(1.5f, manager.state.value.gain, 0.001f)
         assertTrue(manager.state.value.effectiveGain > 2.0f)
@@ -145,6 +149,7 @@ class SoundSyncManagerTest {
             ioDispatcher = dispatcher,
             audioSource = audioSource,
             senderFactory = { sender },
+            currentTimeMs = { testScheduler.currentTime },
         )
         coroutineContext.job.invokeOnCompletion {
             manager.destroy()

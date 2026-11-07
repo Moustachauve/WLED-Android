@@ -14,7 +14,6 @@ struct SoundSyncView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var visualizationSmoother = VisualizationSmoother()
-    @State private var visualizationReferenceDate = Date.now
 
     var body: some View {
         NavigationStack {
@@ -120,11 +119,10 @@ struct SoundSyncView: View {
     private var visualizationSection: some View {
         Section("Frequency visualization") {
             TimelineView(.animation) { timeline in
-                let elapsedTimeMs = Int64(timeline.date.timeIntervalSince(visualizationReferenceDate) * 1000)
                 let frame = visualizationSmoother.nextFrame(
                     fftChannels: viewModel.fftChannels,
                     sampleLevel: viewModel.sampleLevel,
-                    elapsedTimeMs: elapsedTimeMs
+                    date: timeline.date
                 )
 
                 VStack(spacing: 12) {
@@ -141,7 +139,6 @@ struct SoundSyncView: View {
                 }
             }
             .onAppear {
-                visualizationReferenceDate = Date.now
                 visualizationSmoother.reset()
             }
         }
@@ -263,15 +260,20 @@ private final class VisualizationSmoother {
     private let kotlinSmoothedChannels = KotlinFloatArray(size: Int32(channelCount))
     private var smoothedChannels: [Float] = Array(repeating: 0, count: channelCount)
     private var smoothedSampleLevel: Float = 0
-    private var lastElapsedTimeMs: Int64 = 0
+    private var lastFrameDate: Date?
 
     func nextFrame(
         fftChannels: [UInt8],
         sampleLevel: Float,
-        elapsedTimeMs: Int64
+        date: Date
     ) -> Frame {
-        let deltaTimeMs = max(0, elapsedTimeMs - lastElapsedTimeMs)
-        lastElapsedTimeMs = elapsedTimeMs
+        let deltaTimeMs: Int64
+        if let lastFrameDate {
+            deltaTimeMs = max(0, Int64(date.timeIntervalSince(lastFrameDate) * 1000))
+        } else {
+            deltaTimeMs = 0
+        }
+        lastFrameDate = date
 
         for index in 0..<Self.channelCount {
             let byteValue: UInt8 = index < fftChannels.count ? fftChannels[index] : 0
@@ -280,7 +282,6 @@ private final class VisualizationSmoother {
 
         let visualizer = Self.visualizer
         _ = visualizer.smoothFftChannels(
-            isRunning: true,
             fftChannels: kotlinFftChannels,
             deltaTimeMs: deltaTimeMs,
             smoothedOutput: kotlinSmoothedChannels
@@ -305,7 +306,7 @@ private final class VisualizationSmoother {
     }
 
     func reset() {
-        lastElapsedTimeMs = 0
+        lastFrameDate = nil
         smoothedSampleLevel = 0
         for index in 0..<Self.channelCount {
             kotlinSmoothedChannels.set(index: Int32(index), value: 0)

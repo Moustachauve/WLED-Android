@@ -145,6 +145,57 @@ class SoundSyncProcessorTest {
         )
     }
 
+    @Test
+    fun process_normalizesSampleSmthAcrossDifferentFrameCadences() {
+        val windowSize = SoundSyncProcessor.FFT_WINDOW_SIZE
+        val loudWave = generateSineWave(frequency = 440f, sampleRate = 44100, count = windowSize, amplitude = 0.8f)
+        val silence = FloatArray(windowSize) { 0f }
+
+        val twentyMsProcessor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.0f)
+        val fortyMsProcessor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.0f)
+
+        // Rise: 0 -> 20 -> 40 ms vs 0 -> 40 ms with constant peak input
+        assertNotNull(twentyMsProcessor.process(loudWave, nowMs = 0L))
+        assertNotNull(fortyMsProcessor.process(loudWave, nowMs = 0L))
+        assertNotNull(twentyMsProcessor.process(loudWave, nowMs = 20L))
+        val twoTwentyMsRise = assertNotNull(twentyMsProcessor.process(loudWave, nowMs = 40L))
+        val oneFortyMsRise = assertNotNull(fortyMsProcessor.process(loudWave, nowMs = 40L))
+
+        assertEquals(twoTwentyMsRise.sampleSmth, oneFortyMsRise.sampleSmth, 0.01f)
+
+        // Flush the high-pass filter tail at 60 ms so subsequent silent frames have zero sampleRaw
+        assertNotNull(twentyMsProcessor.process(silence, nowMs = 60L))
+        assertNotNull(fortyMsProcessor.process(silence, nowMs = 60L))
+
+        // Decay: 60 -> 80 -> 100 ms vs 60 -> 100 ms in silence
+        assertNotNull(twentyMsProcessor.process(silence, nowMs = 80L))
+        val twoTwentyMsDecay = assertNotNull(twentyMsProcessor.process(silence, nowMs = 100L))
+        val oneFortyMsDecay = assertNotNull(fortyMsProcessor.process(silence, nowMs = 100L))
+
+        assertEquals(twoTwentyMsDecay.sampleSmth, oneFortyMsDecay.sampleSmth, 0.01f)
+    }
+
+    @Test
+    fun process_whenAgcEnabled_smoothsEffectiveGainAcrossPacketsWithoutMutatingManualGain() {
+        val processor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.5f, agcEnabled = true)
+        val quietWave = generateSineWave(
+            frequency = 440f,
+            sampleRate = 44100,
+            count = SoundSyncProcessor.FFT_WINDOW_SIZE * 2,
+            amplitude = 0.02f,
+        )
+
+        val initialEffectiveGain = processor.effectiveGain
+        assertNotNull(processor.process(quietWave, nowMs = 0L))
+        val firstStepGain = processor.effectiveGain
+        assertNotNull(processor.process(quietWave, nowMs = 40L))
+        val laterStepGain = processor.effectiveGain
+
+        assertTrue(firstStepGain > initialEffectiveGain)
+        assertTrue(laterStepGain > firstStepGain)
+        assertEquals(1.5f, processor.gain, 0.0001f)
+    }
+
     private fun generateSineWave(frequency: Float, sampleRate: Int, count: Int, amplitude: Float = 0.5f): FloatArray =
         FloatArray(count) { i ->
             sin(2.0 * PI * frequency * i / sampleRate).toFloat() * amplitude

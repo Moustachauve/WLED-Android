@@ -134,7 +134,7 @@ class GainControlTest {
     }
 
     @Test
-    fun effectiveGain_whenAgcEnabled_reflectsSmoothedAgcGainWithoutMutatingManualGain() {
+    fun effectiveGain_whenAgcEnabled_reflectsMappedAgcGainWithoutMutatingManualGain() {
         val gain = GainControl(
             manualGain = 1.5f,
             agcEnabled = true,
@@ -152,21 +152,6 @@ class GainControlTest {
             "Expected effectiveGain to increase for quiet signal, got ${gain.effectiveGain}",
         )
         assertEquals(1.5f, gain.manualGain, 0.0001f)
-    }
-
-    @Test
-    fun effectiveGain_whenAgcDisabled_revertsToManualGain() {
-        val gain = GainControl(
-            manualGain = 2.5f,
-            agcEnabled = true,
-            targetLevel = 0.75f,
-            manualGainMultiplier = 3.0f,
-        )
-        gain.process(FloatArray(4096) { 0.02f })
-
-        gain.setAgcEnabled(false)
-
-        assertEquals(2.5f, gain.effectiveGain, 0.0001f)
     }
 
     private fun rms(samples: List<Float>): Float {

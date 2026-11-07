@@ -41,11 +41,13 @@ class SoundSyncProcessor(
     private var pendingRawPeak = 0f
     private var pendingGainedPeak = 0f
     private var smoothedSample = 0f
+    private var smoothedEffectiveGain = gainControl.effectiveGain
     private var lastFrameTimeMs = UNSET_TIME_MS
 
     val sampleRate: Int get() = currentSampleRate
     val gain: Float get() = gainControl.manualGain
-    val effectiveGain: Float get() = gainControl.effectiveGain
+    val effectiveGain: Float
+        get() = if (gainControl.agcEnabled) smoothedEffectiveGain else gainControl.manualGain
     val agcEnabled: Boolean get() = gainControl.agcEnabled
 
     /**
@@ -62,10 +64,14 @@ class SoundSyncProcessor(
 
     fun setGain(gain: Float) {
         gainControl.setManualGain(gain)
+        if (!gainControl.agcEnabled) {
+            smoothedEffectiveGain = gainControl.manualGain
+        }
     }
 
     fun setAgcEnabled(enabled: Boolean) {
         gainControl.setAgcEnabled(enabled)
+        smoothedEffectiveGain = gainControl.effectiveGain
     }
 
     /**
@@ -77,6 +83,7 @@ class SoundSyncProcessor(
         beatDetector.reset()
         fftAnalyzer.reset()
         resetSampleBuffer()
+        smoothedEffectiveGain = gainControl.effectiveGain
         lastFrameTimeMs = UNSET_TIME_MS
     }
 
@@ -118,6 +125,7 @@ class SoundSyncProcessor(
         val gatedPeak = if (rawPeak < NOISE_FLOOR_AMPLITUDE) 0f else gainedPeak
         val sampleRaw = (gatedPeak * SAMPLE_MAX_VALUE).coerceIn(0f, SAMPLE_MAX_VALUE)
         val sampleSmth = updateSmoothedSample(sampleRaw, deltaTimeMs)
+        updateSmoothedEffectiveGain(deltaTimeMs)
         val samplePeak = beatDetector.detect(gatedPeak)
 
         populateFftWindow()
@@ -140,8 +148,7 @@ class SoundSyncProcessor(
      * between 20 ms UDP frames, snapping to zero below [MIN_SMOOTHED_SAMPLE].
      */
     private fun updateSmoothedSample(sampleRaw: Float, deltaTimeMs: Long): Float {
-        val normalizedFrames = (deltaTimeMs / REFERENCE_PACKET_INTERVAL_MS)
-            .coerceIn(MIN_FRAME_MULTIPLIER, MAX_FRAME_MULTIPLIER)
+        val normalizedFrames = normalizeFrameDelta(deltaTimeMs)
         val baseRetention = if (sampleRaw > smoothedSample) {
             SAMPLE_ATTACK_RETENTION
         } else {
@@ -153,6 +160,19 @@ class SoundSyncProcessor(
             smoothedSample = 0f
         }
         return smoothedSample.coerceIn(0f, SAMPLE_MAX_VALUE)
+    }
+
+    private fun updateSmoothedEffectiveGain(deltaTimeMs: Long) {
+        if (!gainControl.agcEnabled) {
+            smoothedEffectiveGain = gainControl.manualGain
+            return
+        }
+        val normalizedFrames = normalizeFrameDelta(deltaTimeMs)
+        val retention = DISPLAY_AGC_RETENTION.pow(normalizedFrames)
+        smoothedEffectiveGain = (
+            smoothedEffectiveGain * retention +
+                gainControl.effectiveGain * (1f - retention)
+            ).coerceIn(0f, GainControl.MAX_MANUAL_GAIN)
     }
 
     private fun accumulateSamples(filtered: FloatArray, gained: FloatArray) {
@@ -212,12 +232,21 @@ class SoundSyncProcessor(
         /** Envelope retention weight when signal amplitude is falling (smooth release). */
         private const val SAMPLE_DECAY_RETENTION = 0.85f
 
-        /** Reference 20 ms packet interval for normalizing envelope smoothing weights. */
-        private const val REFERENCE_PACKET_INTERVAL_MS = 20f
+        /** Per-packet retention weight (~250 ms time constant at 50 Hz) for UI display of AGC gain. */
+        private const val DISPLAY_AGC_RETENTION = 0.92f
+
         private const val MIN_FRAME_MULTIPLIER = 0.25f
         private const val MAX_FRAME_MULTIPLIER = 6f
 
         /** Noise gate threshold below which `sampleSmth` snaps to 0 (matches WLED `volumeSmth < 1`). */
         private const val MIN_SMOOTHED_SAMPLE = 1.0f
+
+        /**
+         * Normalizes [deltaTimeMs] relative to [UdpSoundSyncPacket.PACKET_INTERVAL_MS] so
+         * frame-to-frame exponential smoothing stays consistent regardless of capture cadence.
+         */
+        internal fun normalizeFrameDelta(deltaTimeMs: Long): Float =
+            (deltaTimeMs.coerceAtLeast(1L).toFloat() / UdpSoundSyncPacket.PACKET_INTERVAL_MS)
+                .coerceIn(MIN_FRAME_MULTIPLIER, MAX_FRAME_MULTIPLIER)
     }
 }

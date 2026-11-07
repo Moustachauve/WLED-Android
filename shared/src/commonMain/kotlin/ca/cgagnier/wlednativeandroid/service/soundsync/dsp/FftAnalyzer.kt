@@ -90,7 +90,7 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
         if (samples.isEmpty()) {
             return FftResult(ByteArray(FFT_CHANNEL_COUNT), 0f, 0f)
         }
-        val normalizedFrames = normalizeFrameDelta(deltaTimeMs)
+        val normalizedFrames = SoundSyncProcessor.normalizeFrameDelta(deltaTimeMs)
         if (isSilent) {
             return decaySilentResult(normalizedFrames)
         }
@@ -135,10 +135,6 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
     fun reset() {
         smoothedLinearChannels.fill(0f)
     }
-
-    private fun normalizeFrameDelta(deltaTimeMs: Long): Float =
-        (deltaTimeMs.coerceAtLeast(1L) / REFERENCE_PACKET_INTERVAL_MS)
-            .coerceIn(MIN_FRAME_MULTIPLIER, MAX_FRAME_MULTIPLIER)
 
     private fun decaySilentResult(normalizedFrames: Float): FftResult {
         val channels = ByteArray(FFT_CHANNEL_COUNT)
@@ -301,11 +297,6 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
 
         /** WLED channel decay factor per frame when the noise gate is closed (`0.85f` in `audio_reactive.cpp`). */
         private const val SILENCE_CHANNEL_DECAY = 0.85f
-
-        /** Reference 20 ms packet interval for normalizing frame-to-frame smoothing weights. */
-        private const val REFERENCE_PACKET_INTERVAL_MS = 20f
-        private const val MIN_FRAME_MULTIPLIER = 0.25f
-        private const val MAX_FRAME_MULTIPLIER = 6f
 
         /** Minimum linear channel magnitude before snapping to zero (`4.0f` in `audio_reactive.cpp`). */
         private const val MIN_LINEAR_CHANNEL_MAGNITUDE = 4.0f

@@ -15,8 +15,6 @@ final class SoundSyncViewModel {
 
     // MARK: - Observable Properties
 
-    private static let effectiveGainUpdateEpsilon: Float = 0.05
-
     var isRunning: Bool = false
     var gain: Float = 1.0
     var effectiveGain: Float = 1.0
@@ -121,9 +119,6 @@ final class SoundSyncViewModel {
     /// Updates the manual gain in real-time while dragging.
     func updateLiveGain(_ newGain: Float) {
         gain = newGain
-        if !agcEnabled || !isRunning {
-            effectiveGain = newGain
-        }
         gainUpdateTask?.cancel()
         gainUpdateTask = Task { [soundSyncManager] in
             await soundSyncManager.setGain(newGain)
@@ -143,9 +138,6 @@ final class SoundSyncViewModel {
     /// Toggles AGC and persists the preference.
     func setAgcEnabled(_ enabled: Bool) {
         agcEnabled = enabled
-        if !enabled {
-            effectiveGain = gain
-        }
         Task {
             await soundSyncManager.setAgcEnabled(enabled)
             try? await userPreferencesRepository.updateSoundSyncAgcEnabled(enabled: enabled)
@@ -159,9 +151,6 @@ final class SoundSyncViewModel {
             if gain != initialState.gain {
                 gain = initialState.gain
             }
-            if effectiveGain != initialState.effectiveGain {
-                effectiveGain = initialState.effectiveGain
-            }
             if agcEnabled != initialState.agcEnabled {
                 agcEnabled = initialState.agcEnabled
             }
@@ -173,9 +162,6 @@ final class SoundSyncViewModel {
         guard !Task.isCancelled else { return }
         if gain != resolvedGain {
             gain = resolvedGain
-        }
-        if effectiveGain != resolvedGain {
-            effectiveGain = resolvedGain
         }
         await soundSyncManager.setGain(resolvedGain)
 
@@ -192,11 +178,7 @@ final class SoundSyncViewModel {
         if isRunning != state.isRunning {
             isRunning = state.isRunning
         }
-        if !state.isRunning || !state.agcEnabled {
-            if effectiveGain != state.gain {
-                effectiveGain = state.gain
-            }
-        } else if abs(effectiveGain - state.effectiveGain) >= Self.effectiveGainUpdateEpsilon {
+        if effectiveGain != state.effectiveGain {
             effectiveGain = state.effectiveGain
         }
         if fftChannels != state.fftChannels {

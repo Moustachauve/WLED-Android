@@ -194,6 +194,30 @@ class FftAnalyzerTest {
         }
     }
 
+    @Test
+    fun analyze_normalizesChannelRiseAndSilentDecayAcrossFrameDeltas() {
+        val samples = generateSineWave(
+            frequency = 1000f,
+            sampleRate = FftAnalyzer.DEFAULT_SAMPLE_RATE,
+            count = FftAnalyzer.DEFAULT_FFT_SIZE,
+            amplitude = 0.4f,
+        )
+        val twentyMsAnalyzer = FftAnalyzer()
+        val fortyMsAnalyzer = FftAnalyzer()
+
+        twentyMsAnalyzer.analyze(samples, isSilent = false, deltaTimeMs = 20L)
+        val twoTwentyMsRise = twentyMsAnalyzer.analyze(samples, isSilent = false, deltaTimeMs = 20L)
+        val oneFortyMsRise = fortyMsAnalyzer.analyze(samples, isSilent = false, deltaTimeMs = 40L)
+
+        assertTrue(twoTwentyMsRise.fftChannels.contentEquals(oneFortyMsRise.fftChannels))
+
+        twentyMsAnalyzer.analyze(samples, isSilent = true, deltaTimeMs = 20L)
+        val twoTwentyMsDecay = twentyMsAnalyzer.analyze(samples, isSilent = true, deltaTimeMs = 20L)
+        val oneFortyMsDecay = fortyMsAnalyzer.analyze(samples, isSilent = true, deltaTimeMs = 40L)
+
+        assertTrue(twoTwentyMsDecay.fftChannels.contentEquals(oneFortyMsDecay.fftChannels))
+    }
+
     private fun generateSineWave(frequency: Float, sampleRate: Int, count: Int, amplitude: Float = 0.5f): FloatArray =
         FloatArray(count) { i ->
             sin(2.0 * PI * frequency * i / sampleRate).toFloat() * amplitude

@@ -15,7 +15,10 @@ actor MicrophoneAudioCapture {
 
     // MARK: - Properties
 
-    private static let preferredIOBufferDuration: TimeInterval = 0.02
+    /// Requests ~10 ms hardware I/O buffers (hint; CoreAudio typically selects a nearby power-of-two
+    /// frame count such as 512 frames / ~10.7 ms at 48 kHz) so `SoundSyncProcessor` receives two
+    /// sub-frames per 20 ms (~50 Hz) UDP packet interval without boundary-jitter frame drops.
+    private static let preferredIOBufferDuration: TimeInterval = 0.01
 
     private var engine: AVAudioEngine?
     private var sinkNode: AVAudioSinkNode?
@@ -80,7 +83,9 @@ actor MicrophoneAudioCapture {
         }
 
         // Use AVAudioSinkNode rather than installTap, as installTap enforces a 100 ms minimum
-        // buffer duration (~10 Hz) on iOS regardless of the requested bufferSize.
+        // buffer duration (~10 Hz) on iOS regardless of the requested bufferSize. The receiver
+        // block runs on the real-time audio I/O thread; copying the small mono frame slice and
+        // yielding into the bounded AsyncStream is accepted for capture-only use.
         let sink = AVAudioSinkNode { _, frameCount, audioBufferList -> OSStatus in
             guard frameCount > 0 else { return noErr }
             let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: audioBufferList))

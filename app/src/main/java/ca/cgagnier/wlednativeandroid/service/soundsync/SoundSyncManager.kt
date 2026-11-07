@@ -19,10 +19,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.time.TimeSource
 
 private const val TAG = "SoundSyncManager"
 private const val EFFECTIVE_GAIN_UPDATE_EPSILON = 0.05f
 private val logger = Logger.withTag(TAG)
+private val monotonicTimeMark = TimeSource.Monotonic.markNow()
 
 /**
  * Locale-independent error codes for Sound Sync failures, resolved to localized strings in the UI.
@@ -59,6 +61,7 @@ class SoundSyncManager(
     private val ioDispatcher: CoroutineDispatcher,
     audioSource: AudioSource? = null,
     private val senderFactory: () -> SoundSyncPacketSender = { UdpSoundSyncSender() },
+    private val currentTimeMs: () -> Long = { monotonicTimeMark.elapsedNow().inWholeMilliseconds },
 ) {
     private val managerScope = CoroutineScope(
         coroutineScope.coroutineContext + SupervisorJob(coroutineScope.coroutineContext[Job]) + ioDispatcher,
@@ -103,7 +106,6 @@ class SoundSyncManager(
         _state.update {
             it.copy(
                 gain = clampedGain,
-                effectiveGain = clampedGain,
                 agcEnabled = agcEnabled,
                 error = null,
             )
@@ -128,7 +130,7 @@ class SoundSyncManager(
         _state.update {
             it.copy(
                 isRunning = true,
-                effectiveGain = if (agcEnabled) initialEffectiveGain else clampedGain,
+                effectiveGain = initialEffectiveGain,
             )
         }
 
@@ -137,7 +139,6 @@ class SoundSyncManager(
             _state.update {
                 it.copy(
                     isRunning = false,
-                    effectiveGain = it.gain,
                     error = SoundSyncError.CAPTURE_FAILED,
                 )
             }
@@ -155,7 +156,7 @@ class SoundSyncManager(
     fun stop() {
         if (!_state.value.isRunning) return
 
-        _state.update { it.copy(isRunning = false, effectiveGain = it.gain) }
+        _state.update { it.copy(isRunning = false) }
         _latestPacket.value = UdpSoundSyncPacket()
         audioSource.stop()
         cleanup()
@@ -168,12 +169,7 @@ class SoundSyncManager(
         synchronized(processorLock) {
             processor.setGain(clampedGain)
         }
-        _state.update {
-            it.copy(
-                gain = clampedGain,
-                effectiveGain = if (it.agcEnabled && it.isRunning) it.effectiveGain else clampedGain,
-            )
-        }
+        _state.update { it.copy(gain = clampedGain) }
     }
 
     /** Toggles automatic gain control in real-time. */
@@ -185,7 +181,7 @@ class SoundSyncManager(
         _state.update {
             it.copy(
                 agcEnabled = enabled,
-                effectiveGain = if (enabled && it.isRunning) currentEffectiveGain else it.gain,
+                effectiveGain = if (enabled) currentEffectiveGain else it.effectiveGain,
             )
         }
     }
@@ -200,7 +196,7 @@ class SoundSyncManager(
     private fun processAudioSamples(samples: FloatArray) {
         val (packet, currentEffectiveGain) = synchronized(processorLock) {
             if (!_state.value.isRunning) return
-            val emitted = processor.process(samples, System.currentTimeMillis()) ?: return
+            val emitted = processor.process(samples, currentTimeMs()) ?: return
             emitted to processor.effectiveGain
         }
         udpSender?.sendPacket(packet)

@@ -32,17 +32,16 @@ class GainControl(
 
     // AGC state
     private var agcGain = initialAgcGain
-    private var displayAgcGain = mappedAgcGain()
     private var peakEnvelope = 0f
 
     /**
      * Effective gain on the `0.0..MAX_MANUAL_GAIN` UI slider scale.
      *
-     * Returns [manualGain] when AGC is disabled, or a smoothed representation of the
-     * active automatic gain when AGC is enabled.
+     * Returns [manualGain] when AGC is disabled, or the active automatic gain mapped
+     * to the slider range when AGC is enabled.
      */
     val effectiveGain: Float
-        get() = if (agcEnabled) displayAgcGain else manualGain
+        get() = if (agcEnabled) mappedAgcGain() else manualGain
 
     /**
      * Processes a block of audio samples through the gain stage.
@@ -87,7 +86,6 @@ class GainControl(
     /** Clears AGC state. Call when switching audio sources. */
     fun reset() {
         agcGain = initialAgcGain
-        displayAgcGain = mappedAgcGain()
         peakEnvelope = 0f
     }
 
@@ -116,11 +114,6 @@ class GainControl(
             val desiredGain = targetLevel / peakEnvelope
             agcGain = (agcGain * AGC_SMOOTHING + desiredGain * (1f - AGC_SMOOTHING))
                 .coerceIn(MIN_AGC_GAIN, MAX_AGC_GAIN)
-            val targetDisplayGain = mappedAgcGain()
-            displayAgcGain = (
-                displayAgcGain * DISPLAY_AGC_SMOOTHING +
-                    targetDisplayGain * (1f - DISPLAY_AGC_SMOOTHING)
-                ).coerceIn(0f, MAX_MANUAL_GAIN)
         }
     }
 
@@ -133,9 +126,6 @@ class GainControl(
         private const val AGC_UPDATE_INTERVAL = 256
         private const val AGC_RELEASE = 0.95f
         private const val AGC_SMOOTHING = 0.5f
-
-        /** Heavy low-pass retention for UI display of AGC gain to prevent rapid slider jitter. */
-        private const val DISPLAY_AGC_SMOOTHING = 0.92f
 
         /** Minimum envelope level below which AGC gain is not updated (noise gate). */
         private const val AGC_MIN_ENVELOPE = 0.005f
