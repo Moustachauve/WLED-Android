@@ -79,7 +79,7 @@ fun DeviceListDetail(
     val selectedDeviceMacAddress = navigator.currentDestination?.contentKey as? String
     val selectedDevice = rememberSelectedDevice(devices, selectedDeviceMacAddress)
 
-    val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
+    val showSoundSync by deviceWebsocketListViewModel.soundSyncBetaEnabled.collectAsStateWithLifecycle()
     val isWLEDCaptivePortal by viewModel.isWLEDCaptivePortal.collectAsStateWithLifecycle()
     val isAddDeviceDialogVisible by viewModel.isAddDeviceDialogVisible.collectAsStateWithLifecycle()
 
@@ -102,7 +102,7 @@ fun DeviceListDetail(
                 DrawerSheetContent(
                     coroutineScope = coroutineScope,
                     drawerState = drawerState,
-                    showHiddenDevices = showHiddenDevices,
+                    showSoundSync = showSoundSync,
                     viewModel = viewModel,
                     actions = actions,
                 )
@@ -126,6 +126,7 @@ fun DeviceListDetail(
                             actions = DeviceListActions(
                                 onItemClick = navigateToDetail,
                                 onAddDevice = { viewModel.showAddDeviceDialog() },
+                                onOpenSoundSync = actions.openSoundSync,
                                 onShowHiddenDevices = { viewModel.toggleShowHiddenDevices() },
                                 onRequestLocalNetworkAccess = localNetworkPermission.requestLocalNetworkAccess,
                                 onRefresh = { viewModel.startDiscoveryServiceTimed() },
@@ -191,12 +192,14 @@ private fun rememberSelectedDevice(
 private fun DrawerSheetContent(
     coroutineScope: CoroutineScope,
     drawerState: DrawerState,
-    showHiddenDevices: Boolean,
+    showSoundSync: Boolean,
     viewModel: DeviceListDetailViewModel,
     actions: DeviceListDetailActions,
 ) {
+    val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
     DrawerContent(
         showHiddenDevices = showHiddenDevices,
+        showSoundSync = showSoundSync,
         actions = DrawerActions(
             addDevice = {
                 coroutineScope.launch {

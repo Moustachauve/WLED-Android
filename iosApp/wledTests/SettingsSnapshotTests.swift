@@ -32,6 +32,7 @@ struct SettingsSnapshotTests {
             showOfflineDevicesLast: .constant(true),
             theme: .constant(.auto),
             autoDiscovery: .constant(true),
+            soundSyncBetaEnabled: .constant(false),
             onShowChangelog: {},
             appVersion: "7.2.0",
             buildNumber: "100"

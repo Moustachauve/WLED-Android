@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
+import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncManager
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -20,6 +22,7 @@ private const val SUBSCRIPTION_TIMEOUT_MS = 5000L
 class DeviceWebsocketListViewModel(
     userPreferencesRepository: UserPreferencesRepository,
     private val deviceConnectionManager: DeviceConnectionManager,
+    soundSyncManager: SoundSyncManager,
 ) : ViewModel() {
 
     val allDevicesWithState: StateFlow<List<DeviceWithState>> =
@@ -38,6 +41,22 @@ class DeviceWebsocketListViewModel(
             started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
             initialValue = false,
         )
+
+    val soundSyncBetaEnabled: StateFlow<Boolean> =
+        userPreferencesRepository.soundSyncBetaEnabled.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+            initialValue = false,
+        )
+
+    val isSoundSyncRunning: StateFlow<Boolean> =
+        soundSyncManager.state
+            .map { it.isRunning }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+                initialValue = soundSyncManager.state.value.isRunning,
+            )
 
     val isPaused: StateFlow<Boolean> = deviceConnectionManager.isPaused
 

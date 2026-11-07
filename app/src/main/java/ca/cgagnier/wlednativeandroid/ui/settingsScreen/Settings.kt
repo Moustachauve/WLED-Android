@@ -44,6 +44,7 @@ fun Settings(navigateUp: () -> Unit, viewModel: SettingsViewModel = koinViewMode
             setAutoDiscover = { viewModel.setAutoDiscover(it) },
             setShowOfflineDevicesLast = { viewModel.setShowOfflineDevicesLast(it) },
             setTheme = { viewModel.setTheme(it) },
+            setSoundSyncBetaEnabled = { viewModel.setSoundSyncBetaEnabled(it) },
         )
     }
     SettingsContent(
@@ -63,6 +64,7 @@ data class SettingsActions(
     val setAutoDiscover: (Boolean) -> Unit = {},
     val setShowOfflineDevicesLast: (Boolean) -> Unit = {},
     val setTheme: (ThemeSettings) -> Unit = {},
+    val setSoundSyncBetaEnabled: (Boolean) -> Unit = {},
 )
 
 @Composable
@@ -105,6 +107,10 @@ fun SettingsContent(
                     ThemeOptions(
                         currentTheme = settingsState.theme,
                         setTheme = actions.setTheme,
+                    )
+                    BetaOptions(
+                        isSoundSyncBetaEnabled = settingsState.isSoundSyncBetaEnabled,
+                        setSoundSyncBetaEnabled = actions.setSoundSyncBetaEnabled,
                     )
                 },
             )
@@ -228,6 +234,25 @@ fun ThemeOptions(currentTheme: ThemeSettings, setTheme: (ThemeSettings) -> Unit 
                     },
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun BetaOptions(isSoundSyncBetaEnabled: Boolean, setSoundSyncBetaEnabled: (Boolean) -> Unit = {}) {
+    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                stringResource(R.string.beta_features),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            SwitchRow(
+                label = stringResource(R.string.sound_sync_beta_setting),
+                checked = isSoundSyncBetaEnabled,
+                onCheckedChange = setSoundSyncBetaEnabled,
+                description = stringResource(R.string.sound_sync_beta_setting_description),
+            )
         }
     }
 }

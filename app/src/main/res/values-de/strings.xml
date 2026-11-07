@@ -168,5 +168,10 @@
     <string name="sound_sync_notification_channel_description">Wird angezeigt, wenn Sound Sync aktiv ist</string>
     <string name="sound_sync_error_permission">Mikrofonberechtigung ist erforderlich</string>
     <string name="sound_sync_error_capture">Audioaufnahme konnte nicht gestartet werden.</string>
+    <string name="beta_features">Beta-Funktionen</string>
+    <string name="beta_badge">BETA</string>
+    <string name="sound_sync_beta_setting">Sound Sync (Beta)</string>
+    <string name="sound_sync_beta_setting_description">Aktiviere die Sound-Sync-Beta, um diese Funktion vorab auszuprobieren.</string>
+    <string name="sound_sync_beta_notice">Diese Funktion befindet sich derzeit in der Beta-Phase und kann sich in zukünftigen Updates ändern.</string>
 
 </resources>

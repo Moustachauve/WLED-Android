@@ -13,7 +13,8 @@
   "showHiddenDevices": false,
   "lastChangelogVersionSeen": "",
   "soundSyncGain": 1.0,
-  "soundSyncAgcEnabled": false
+  "soundSyncAgcEnabled": false,
+  "soundSyncBetaEnabled": false
 }
 ╔═ readFrom_partialJson_usesDefaultValuesForMissingFields ═╗
 {
@@ -30,7 +31,8 @@
   "showHiddenDevices": false,
   "lastChangelogVersionSeen": "",
   "soundSyncGain": 1.0,
-  "soundSyncAgcEnabled": false
+  "soundSyncAgcEnabled": false,
+  "soundSyncBetaEnabled": false
 }
 ╔═ readFrom_unknownKeys_ignoresThemGracefully ═╗
 {
@@ -47,7 +49,8 @@
   "showHiddenDevices": false,
   "lastChangelogVersionSeen": "",
   "soundSyncGain": 1.0,
-  "soundSyncAgcEnabled": false
+  "soundSyncAgcEnabled": false,
+  "soundSyncBetaEnabled": false
 }
 ╔═ roundTrip_serializesAndDeserializesCorrectly ═╗
 {
@@ -64,6 +67,7 @@
   "showHiddenDevices": true,
   "lastChangelogVersionSeen": "1.5.0",
   "soundSyncGain": 1.0,
-  "soundSyncAgcEnabled": false
+  "soundSyncAgcEnabled": false,
+  "soundSyncBetaEnabled": false
 }
 ╔═ [end of file] ═╗

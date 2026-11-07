@@ -281,6 +281,7 @@ struct DeviceWebsocketListViewModelTests {
         viewModel.showOfflineDevicesLast = false
         viewModel.theme = .dark
         viewModel.autoDiscovery = false
+        viewModel.soundSyncBetaEnabled = true
 
         try await waitUntil {
             let preferences = database.userPreferencesRepository
@@ -288,7 +289,12 @@ struct DeviceWebsocketListViewModelTests {
             let showOfflineLast = await preferences.showOfflineDevicesLast.firstValue()?.boolValue
             let currentTheme = await preferences.themeMode.firstValue()
             let autoDiscovery = await preferences.autoDiscovery.firstValue()?.boolValue
-            return showHidden == true && showOfflineLast == false && currentTheme == .dark && autoDiscovery == false
+            let soundSyncBeta = await preferences.soundSyncBetaEnabled.firstValue()?.boolValue
+            return showHidden == true
+                && showOfflineLast == false
+                && currentTheme == .dark
+                && autoDiscovery == false
+                && soundSyncBeta == true
         }
 
         #expect(viewModel.visibleDevices.map(\.device.displayName) == ["Hidden Device"])

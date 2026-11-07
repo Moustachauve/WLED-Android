@@ -144,7 +144,13 @@ val appModule: Module = module {
     }
 
     viewModelOf(::MainViewModel)
-    viewModelOf(::SettingsViewModel)
+    viewModel {
+        SettingsViewModel(
+            preferencesRepository = get(),
+            soundSyncManager = get(),
+            ioDispatcher = get(IO_DISPATCHER),
+        )
+    }
     viewModelOf(::ChangelogViewModel)
     viewModelOf(::ThemeViewModel)
     viewModel {

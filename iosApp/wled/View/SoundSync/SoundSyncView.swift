@@ -30,6 +30,19 @@ struct SoundSyncView: View {
             .navigationTitle("Sound Sync")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 6) {
+                        Text("Sound Sync")
+                            .font(.headline)
+                        Text("BETA")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.accentColor.opacity(0.15))
+                            .foregroundStyle(.tint)
+                            .clipShape(Capsule())
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         dismiss()
@@ -55,8 +68,13 @@ struct SoundSyncView: View {
             HStack(spacing: 12) {
                 Image(systemName: "waveform")
                     .foregroundStyle(.tint)
-                Text("Send audio-reactive data to your WLED devices using UDP Sound Sync. Devices must be set to Receive mode in their audio sync settings.")
-                    .font(.subheadline)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Send audio-reactive data to your WLED devices using UDP Sound Sync. Devices must be set to Receive mode in their audio sync settings.")
+                        .font(.subheadline)
+                    Text("This feature is currently in beta and may change in future updates.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }

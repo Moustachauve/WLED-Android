@@ -20,6 +20,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -65,6 +66,8 @@ data class DeviceListState(
     val isLocalNetworkDenied: Boolean = false,
     val showOfflineDevicesLast: Boolean = true,
     val showHiddenDevices: Boolean = false,
+    val showSoundSync: Boolean = false,
+    val isSoundSyncRunning: Boolean = false,
     val isInitialLoading: Boolean = false,
     val currentTime: Long = 0L,
 )
@@ -73,6 +76,7 @@ data class DeviceListActions(
     val onItemClick: (DeviceWithState) -> Unit = {},
     val onItemEdit: (DeviceWithState) -> Unit = {},
     val onAddDevice: () -> Unit = {},
+    val onOpenSoundSync: () -> Unit = {},
     val onShowHiddenDevices: () -> Unit = {},
     val onRequestLocalNetworkAccess: () -> Unit = {},
     val onRefresh: () -> Unit = {},
@@ -93,6 +97,8 @@ fun DeviceList(
     val allDevices by viewModel.allDevicesWithState.collectAsStateWithLifecycle()
     val showOfflineDevicesLast by viewModel.showOfflineDevicesLast.collectAsStateWithLifecycle()
     val showHiddenDevices by viewModel.showHiddenDevices.collectAsStateWithLifecycle()
+    val showSoundSync by viewModel.soundSyncBetaEnabled.collectAsStateWithLifecycle()
+    val isSoundSyncRunning by viewModel.isSoundSyncRunning.collectAsStateWithLifecycle()
 
     var isInitialLoading by rememberSaveable { mutableStateOf(true) }
 
@@ -123,6 +129,8 @@ fun DeviceList(
             isLocalNetworkDenied = isLocalNetworkDenied,
             showOfflineDevicesLast = showOfflineDevicesLast,
             showHiddenDevices = showHiddenDevices,
+            showSoundSync = showSoundSync,
+            isSoundSyncRunning = isSoundSyncRunning,
             isInitialLoading = isInitialLoading,
             currentTime = currentTime,
         ),
@@ -167,8 +175,8 @@ fun DeviceListContent(state: DeviceListState, actions: DeviceListActions = Devic
     Scaffold(
         topBar = {
             DeviceListAppBar(
-                onOpenDrawer = actions.onOpenDrawer,
-                onAddDevice = actions.onAddDevice,
+                state = state,
+                actions = actions,
             )
         },
     ) { innerPadding ->
@@ -412,21 +420,34 @@ fun LazyItemScope.DeviceRow(
 }
 
 @Composable
-fun DeviceListAppBar(modifier: Modifier = Modifier, onOpenDrawer: () -> Unit, onAddDevice: () -> Unit) {
+fun DeviceListAppBar(state: DeviceListState, actions: DeviceListActions, modifier: Modifier = Modifier) {
     CenterAlignedTopAppBar(modifier = modifier, title = {
         Image(
             painter = painterResource(id = R.drawable.wled_logo_akemi),
             contentDescription = stringResource(R.string.app_logo),
         )
     }, navigationIcon = {
-        IconButton(onClick = onOpenDrawer) {
+        IconButton(onClick = actions.onOpenDrawer) {
             Icon(
                 imageVector = Icons.Filled.Menu,
                 contentDescription = stringResource(R.string.description_menu_button),
             )
         }
     }, actions = {
-        IconButton(onClick = onAddDevice) {
+        if (state.showSoundSync) {
+            IconButton(onClick = actions.onOpenSoundSync) {
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_graphic_eq_24),
+                    contentDescription = stringResource(R.string.sound_sync),
+                    tint = if (state.isSoundSyncRunning) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        LocalContentColor.current
+                    },
+                )
+            }
+        }
+        IconButton(onClick = actions.onAddDevice) {
             Icon(
                 imageVector = Icons.Filled.Add,
                 contentDescription = stringResource(R.string.add_a_device),

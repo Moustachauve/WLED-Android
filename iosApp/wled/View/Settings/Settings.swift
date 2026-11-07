@@ -13,6 +13,7 @@ struct Settings: View {
     @Binding var showOfflineDevicesLast: Bool
     @Binding var theme: ThemeSettings
     @Binding var autoDiscovery: Bool
+    @Binding var soundSyncBetaEnabled: Bool
     var onShowChangelog: (() -> Void)?
     /// Injectable so snapshot tests don't change with every release.
     var appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -51,6 +52,16 @@ struct Settings: View {
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
+                }
+
+                Section {
+                    Toggle(isOn: $soundSyncBetaEnabled) {
+                        Label("Sound Sync (Beta)", systemImage: "waveform")
+                    }
+                } header: {
+                    Text("Beta Features")
+                } footer: {
+                    Text("Activate the sound sync beta to try this feature early.")
                 }
 
                 Section {
@@ -97,6 +108,7 @@ struct Settings: View {
         showHiddenDevices: .constant(true),
         showOfflineDevicesLast: .constant(true),
         theme: .constant(.auto),
-        autoDiscovery: .constant(true)
+        autoDiscovery: .constant(true),
+        soundSyncBetaEnabled: .constant(false)
     )
 }

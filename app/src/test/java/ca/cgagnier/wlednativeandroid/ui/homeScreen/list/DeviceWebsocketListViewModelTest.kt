@@ -3,6 +3,8 @@ package ca.cgagnier.wlednativeandroid.ui.homeScreen.list
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.repository.UserPreferencesRepository
 import ca.cgagnier.wlednativeandroid.service.DeviceConnectionManager
+import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncManager
+import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncState
 import ca.cgagnier.wlednativeandroid.service.websocket.DeviceWithState
 import ca.cgagnier.wlednativeandroid.service.websocket.WebsocketStatus
 import io.mockk.coEvery
@@ -13,8 +15,11 @@ import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -31,9 +36,12 @@ class DeviceWebsocketListViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private val userPreferencesRepository: UserPreferencesRepository = mockk(relaxed = true)
     private val deviceConnectionManager: DeviceConnectionManager = mockk(relaxed = true)
+    private val soundSyncManager: SoundSyncManager = mockk(relaxed = true)
 
     private val allDevicesWithStateFlow = MutableStateFlow<List<DeviceWithState>>(emptyList())
     private val isPausedFlow = MutableStateFlow(false)
+    private val soundSyncBetaEnabledFlow = MutableStateFlow(false)
+    private val soundSyncStateFlow = MutableStateFlow(SoundSyncState())
 
     private val sampleDevice = Device(
         macAddress = "AA:BB:CC:DD:EE:01",
@@ -50,8 +58,10 @@ class DeviceWebsocketListViewModelTest {
         Dispatchers.setMain(testDispatcher)
         every { userPreferencesRepository.showOfflineDevicesLast } returns flowOf(true)
         every { userPreferencesRepository.showHiddenDevices } returns flowOf(false)
+        every { userPreferencesRepository.soundSyncBetaEnabled } returns soundSyncBetaEnabledFlow
         every { deviceConnectionManager.allDevicesWithState } returns allDevicesWithStateFlow
         every { deviceConnectionManager.isPaused } returns isPausedFlow
+        every { soundSyncManager.state } returns soundSyncStateFlow
     }
 
     @AfterEach
@@ -62,6 +72,7 @@ class DeviceWebsocketListViewModelTest {
     private fun createViewModel(): DeviceWebsocketListViewModel = DeviceWebsocketListViewModel(
         userPreferencesRepository = userPreferencesRepository,
         deviceConnectionManager = deviceConnectionManager,
+        soundSyncManager = soundSyncManager,
     )
 
     @Test
@@ -120,5 +131,31 @@ class DeviceWebsocketListViewModelTest {
         advanceUntilIdle()
 
         coVerify { deviceConnectionManager.deleteDevice(sampleDevice) }
+    }
+
+    @Test
+    fun `soundSyncBetaEnabled reflects preferences repository flow`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.soundSyncBetaEnabled.collect()
+        }
+
+        soundSyncBetaEnabledFlow.value = true
+        advanceUntilIdle()
+
+        assertTrue(viewModel.soundSyncBetaEnabled.value)
+    }
+
+    @Test
+    fun `isSoundSyncRunning reflects sound sync manager state`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.isSoundSyncRunning.collect()
+        }
+
+        soundSyncStateFlow.value = SoundSyncState(isRunning = true)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.isSoundSyncRunning.value)
     }
 }

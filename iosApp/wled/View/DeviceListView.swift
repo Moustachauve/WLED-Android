@@ -85,6 +85,7 @@ struct DeviceListView: View {
                             showOfflineDevicesLast: $viewModel.showOfflineDevicesLast,
                             theme: $viewModel.theme,
                             autoDiscovery: $viewModel.autoDiscovery,
+                            soundSyncBetaEnabled: $viewModel.soundSyncBetaEnabled,
                             onShowChangelog: {
                                 pendingShowChangelog = true
                                 showSettingsSheet = false
@@ -137,6 +138,13 @@ struct DeviceListView: View {
         }
         .onChange(of: viewModel.theme, initial: true) { _, newTheme in
             newTheme.applyToWindows()
+        }
+        .onChange(of: viewModel.soundSyncBetaEnabled) { _, isEnabled in
+            if !isEnabled, let soundSyncViewModel {
+                Task {
+                    await soundSyncViewModel.stop()
+                }
+            }
         }
         .task {
             async let observeTask: Void = viewModel.observe()
@@ -322,21 +330,23 @@ private extension DeviceListView {
             }
 
             // 2. Sound Sync Button
-            Button {
-                if soundSyncViewModel == nil {
-                    soundSyncViewModel = SoundSyncViewModel(
-                        userPreferencesRepository: database.userPreferencesRepository,
-                        deviceRepository: database.deviceRepository
+            if viewModel.soundSyncBetaEnabled {
+                Button {
+                    if soundSyncViewModel == nil {
+                        soundSyncViewModel = SoundSyncViewModel(
+                            userPreferencesRepository: database.userPreferencesRepository,
+                            deviceRepository: database.deviceRepository
+                        )
+                    }
+                    showSoundSyncSheet.toggle()
+                } label: {
+                    let isSoundSyncRunning = soundSyncViewModel?.isRunning == true
+                    Label(
+                        "Sound Sync",
+                        systemImage: isSoundSyncRunning ? "waveform.badge.mic" : "waveform"
                     )
+                    .symbolEffect(.variableColor.iterative, isActive: isSoundSyncRunning)
                 }
-                showSoundSyncSheet.toggle()
-            } label: {
-                let isSoundSyncRunning = soundSyncViewModel?.isRunning == true
-                Label(
-                    "Sound Sync",
-                    systemImage: isSoundSyncRunning ? "waveform.badge.mic" : "waveform"
-                )
-                .symbolEffect(.variableColor.iterative, isActive: isSoundSyncRunning)
             }
 
             // 3. Settings Button
