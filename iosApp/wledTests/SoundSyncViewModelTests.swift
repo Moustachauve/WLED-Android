@@ -5,7 +5,7 @@ import Shared
 import Testing
 @testable import WLED
 
-private actor FakeSoundSyncManager: SoundSyncManaging {
+actor FakeSoundSyncManager: SoundSyncManaging {
     private var state: SoundSyncState
     private let permissionLock: OSAllocatedUnfairLock<AVAudioApplication.recordPermission>
     private let requestPermissionResult: Bool
