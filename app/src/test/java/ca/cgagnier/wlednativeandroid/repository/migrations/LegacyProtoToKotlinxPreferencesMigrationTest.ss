@@ -14,6 +14,8 @@
   "lastChangelogVersionSeen": "2.1.0",
   "soundSyncGain": 1.0,
   "soundSyncAgcEnabled": false,
+  "soundSyncAgcMode": "NORMAL",
+  "soundSyncSquelch": 10,
   "soundSyncBetaEnabled": false
 }
 ╔═ migrate_withV0LegacyProto_setsExpectedDefaultsAndResetsDataSharingFlags ═╗
@@ -32,6 +34,8 @@
   "lastChangelogVersionSeen": "7.0.1",
   "soundSyncGain": 1.0,
   "soundSyncAgcEnabled": false,
+  "soundSyncAgcMode": "NORMAL",
+  "soundSyncSquelch": 10,
   "soundSyncBetaEnabled": false
 }
 ╔═ [end of file] ═╗

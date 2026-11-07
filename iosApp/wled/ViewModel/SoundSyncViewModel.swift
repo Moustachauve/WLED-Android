@@ -19,6 +19,8 @@ final class SoundSyncViewModel {
     var gain: Float = 1.0
     var effectiveGain: Float = 1.0
     var agcEnabled: Bool = false
+    var agcMode: AgcMode = .normal
+    var squelch: Int32 = SoundSyncProcessor.Companion.shared.DEFAULT_SQUELCH
     var fftChannels: [UInt8] = Array(repeating: 0, count: Int(UdpSoundSyncPacket.Companion.shared.FFT_CHANNEL_COUNT))
     var sampleLevel: Float = 0
     var isPeak: Bool = false
@@ -41,6 +43,7 @@ final class SoundSyncViewModel {
     private let openSettings: @MainActor () -> Void
     @ObservationIgnored private var deviceObservationTask: Task<Void, Never>?
     @ObservationIgnored private var gainUpdateTask: Task<Void, Never>?
+    @ObservationIgnored private var squelchUpdateTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
@@ -99,6 +102,8 @@ final class SoundSyncViewModel {
         let started = await soundSyncManager.start(
             gain: gain,
             agcEnabled: agcEnabled,
+            agcMode: agcMode,
+            squelch: squelch,
             deviceAddresses: addresses
         )
         let currentState = await soundSyncManager.getState()
@@ -135,7 +140,7 @@ final class SoundSyncViewModel {
         }
     }
 
-    /// Toggles AGC and persists the preference.
+    /// Updates the AGC toggle and persists the preference.
     func setAgcEnabled(_ enabled: Bool) {
         agcEnabled = enabled
         Task {
@@ -144,7 +149,49 @@ final class SoundSyncViewModel {
         }
     }
 
+    /// Updates the AGC preset mode and persists the preference.
+    func setAgcMode(_ mode: AgcMode) {
+        agcMode = mode
+        Task {
+            await soundSyncManager.setAgcMode(mode)
+            try? await userPreferencesRepository.updateSoundSyncAgcMode(mode: mode)
+        }
+    }
+
+    /// Updates the squelch threshold in real-time while dragging.
+    func updateLiveSquelch(_ newSquelch: Int32) {
+        let clamped = clampSquelch(newSquelch)
+        squelch = clamped
+        squelchUpdateTask?.cancel()
+        squelchUpdateTask = Task { [soundSyncManager] in
+            await soundSyncManager.setSquelch(clamped)
+        }
+    }
+
+    /// Persists the squelch preference when slider editing finishes.
+    func saveSquelch() {
+        let currentSquelch = squelch
+        squelchUpdateTask?.cancel()
+        squelchUpdateTask = Task { [soundSyncManager, userPreferencesRepository] in
+            await soundSyncManager.setSquelch(currentSquelch)
+            try? await userPreferencesRepository.updateSoundSyncSquelch(squelch: currentSquelch)
+        }
+    }
+
+    /// Updates the squelch threshold by a discrete step and immediately persists the preference.
+    func setSquelch(_ newSquelch: Int32) {
+        squelch = clampSquelch(newSquelch)
+        saveSquelch()
+    }
+
     // MARK: - Private
+
+    private func clampSquelch(_ value: Int32) -> Int32 {
+        min(
+            max(value, SoundSyncProcessor.Companion.shared.MIN_SQUELCH),
+            SoundSyncProcessor.Companion.shared.MAX_SQUELCH
+        )
+    }
 
     private func syncInitialPreferences(from initialState: SoundSyncState) async {
         if initialState.isRunning {
@@ -153,6 +200,12 @@ final class SoundSyncViewModel {
             }
             if agcEnabled != initialState.agcEnabled {
                 agcEnabled = initialState.agcEnabled
+            }
+            if agcMode != initialState.agcMode {
+                agcMode = initialState.agcMode
+            }
+            if squelch != initialState.squelch {
+                squelch = initialState.squelch
             }
             return
         }
@@ -165,13 +218,29 @@ final class SoundSyncViewModel {
         }
         await soundSyncManager.setGain(resolvedGain)
 
-        let resolvedAgc = await userPreferencesRepository.soundSyncAgcEnabled.firstValue()?.boolValue
+        let resolvedAgcEnabled = await userPreferencesRepository.soundSyncAgcEnabled.firstValue()?.boolValue
             ?? initialState.agcEnabled
         guard !Task.isCancelled else { return }
-        if agcEnabled != resolvedAgc {
-            agcEnabled = resolvedAgc
+        if agcEnabled != resolvedAgcEnabled {
+            agcEnabled = resolvedAgcEnabled
         }
-        await soundSyncManager.setAgcEnabled(resolvedAgc)
+        await soundSyncManager.setAgcEnabled(resolvedAgcEnabled)
+
+        let resolvedAgcMode = await userPreferencesRepository.soundSyncAgcMode.firstValue()
+            ?? initialState.agcMode
+        guard !Task.isCancelled else { return }
+        if agcMode != resolvedAgcMode {
+            agcMode = resolvedAgcMode
+        }
+        await soundSyncManager.setAgcMode(resolvedAgcMode)
+
+        let resolvedSquelch = await userPreferencesRepository.soundSyncSquelch.firstValue()?.int32Value
+            ?? initialState.squelch
+        guard !Task.isCancelled else { return }
+        if squelch != resolvedSquelch {
+            squelch = resolvedSquelch
+        }
+        await soundSyncManager.setSquelch(resolvedSquelch)
     }
 
     private func applyState(_ state: SoundSyncState) {

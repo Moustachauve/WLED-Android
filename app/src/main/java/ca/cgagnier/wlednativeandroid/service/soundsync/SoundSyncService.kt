@@ -16,6 +16,8 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import ca.cgagnier.wlednativeandroid.R
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.AgcMode
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.SoundSyncProcessor
 import ca.cgagnier.wlednativeandroid.ui.MainActivity
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineScope
@@ -53,7 +55,12 @@ class SoundSyncService : Service() {
                 }
                 val gain = intent.getFloatExtra(EXTRA_GAIN, 1.0f)
                 val agcEnabled = intent.getBooleanExtra(EXTRA_AGC_ENABLED, false)
-                val started = soundSyncManager.start(gain, agcEnabled)
+                val agcModeName = intent.getStringExtra(EXTRA_AGC_MODE)
+                val agcMode = agcModeName?.let { name ->
+                    AgcMode.entries.firstOrNull { it.name == name }
+                } ?: AgcMode.NORMAL
+                val squelch = intent.getIntExtra(EXTRA_SQUELCH, SoundSyncProcessor.DEFAULT_SQUELCH)
+                val started = soundSyncManager.start(gain, agcEnabled, agcMode, squelch)
                 if (!started) {
                     ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -176,12 +183,16 @@ class SoundSyncService : Service() {
         const val ACTION_STOP = "ca.cgagnier.wlednativeandroid.action.STOP_SOUND_SYNC"
         const val EXTRA_GAIN = "extra_gain"
         const val EXTRA_AGC_ENABLED = "extra_agc_enabled"
+        const val EXTRA_AGC_MODE = "extra_agc_mode"
+        const val EXTRA_SQUELCH = "extra_squelch"
 
-        fun startIntent(context: Context, gain: Float, agcEnabled: Boolean): Intent =
+        fun startIntent(context: Context, gain: Float, agcEnabled: Boolean, agcMode: AgcMode, squelch: Int): Intent =
             Intent(context, SoundSyncService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_GAIN, gain)
                 putExtra(EXTRA_AGC_ENABLED, agcEnabled)
+                putExtra(EXTRA_AGC_MODE, agcMode.name)
+                putExtra(EXTRA_SQUELCH, squelch)
             }
 
         fun stopIntent(context: Context): Intent = Intent(context, SoundSyncService::class.java).apply {

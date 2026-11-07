@@ -153,6 +153,17 @@
     <string name="sound_sync_gain">Gain</string>
     <string name="sound_sync_gain_value">%1$.1fx</string>
     <string name="sound_sync_agc">Automatic Gain Control</string>
+    <string name="sound_sync_agc_description">Automatically adjusts gain based on ambient volume</string>
+    <string name="sound_sync_agc_mode_normal">Normal</string>
+    <string name="sound_sync_agc_mode_vivid">Vivid</string>
+    <string name="sound_sync_agc_mode_lazy">Lazy</string>
+    <string name="sound_sync_agc_mode_normal_description">Smoothly follows changes in volume. A good default for most setups.</string>
+    <string name="sound_sync_agc_mode_vivid_description">Reacts quickly to volume changes for a more dramatic response to dynamics.</string>
+    <string name="sound_sync_agc_mode_lazy_description">Slower to adjust. Works well for GEQ effects or music with wide dynamic range.</string>
+    <string name="sound_sync_squelch">Squelch</string>
+    <string name="sound_sync_squelch_decrease">Decrease squelch</string>
+    <string name="sound_sync_squelch_increase">Increase squelch</string>
+    <string name="sound_sync_squelch_description">Ignores background noise below this threshold when no music is playing.</string>
     <string name="sound_sync_start">Start Sound Sync</string>
     <string name="sound_sync_stop">Stop Sound Sync</string>
     <string name="sound_sync_running">Sound sync is running</string>

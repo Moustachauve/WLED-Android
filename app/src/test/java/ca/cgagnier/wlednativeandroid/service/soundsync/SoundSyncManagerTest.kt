@@ -4,6 +4,7 @@ import android.content.Context
 import ca.cgagnier.wlednativeandroid.model.Device
 import ca.cgagnier.wlednativeandroid.repository.DeviceRepository
 import ca.cgagnier.wlednativeandroid.service.soundsync.audio.AudioSource
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.AgcMode
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +36,7 @@ class SoundSyncManagerTest {
         val audioSource = FakeAudioSource(permissionGranted = false)
         val manager = createManager(audioSource = audioSource)
 
-        val started = manager.start(gain = 2.0f, agcEnabled = true)
+        val started = manager.start(gain = 2.0f, agcEnabled = true, agcMode = AgcMode.NORMAL)
 
         assertFalse(started)
         assertFalse(manager.state.value.isRunning)
@@ -84,17 +85,27 @@ class SoundSyncManagerTest {
     fun processAudioSamples_whenAgcEnabled_updatesEffectiveGainAndPreservesManualGain() = runTest {
         val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
         val manager = createManager(audioSource = audioSource)
-        manager.start(gain = 1.5f, agcEnabled = true)
+        manager.start(gain = 1.5f, agcEnabled = true, agcMode = AgcMode.VIVID)
 
         val quietSineSamples = FloatArray(4096) { i ->
             0.02f * sin(2.0 * PI * 440.0 * i / audioSource.sampleRate).toFloat()
         }
-        repeat(3) {
+        repeat(5) {
             audioSource.emitSamples(quietSineSamples)
         }
 
         assertEquals(1.5f, manager.state.value.gain, 0.001f)
         assertTrue(manager.state.value.effectiveGain > 2.0f)
+    }
+
+    @Test
+    fun setSquelch_clampsAndUpdatesState() = runTest {
+        val audioSource = FakeAudioSource(permissionGranted = true, startResult = true)
+        val manager = createManager(audioSource = audioSource)
+
+        manager.setSquelch(42)
+
+        assertEquals(42, manager.state.value.squelch)
     }
 
     @Test

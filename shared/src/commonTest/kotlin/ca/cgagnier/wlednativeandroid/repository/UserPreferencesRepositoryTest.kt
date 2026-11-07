@@ -1,5 +1,7 @@
 package ca.cgagnier.wlednativeandroid.repository
 
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.AgcMode
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.SoundSyncProcessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -61,6 +63,8 @@ class UserPreferencesRepositoryTest {
         assertEquals("", repo.lastChangelogVersionSeen.first())
         assertEquals(1.0f, repo.soundSyncGain.first())
         assertFalse(repo.soundSyncAgcEnabled.first())
+        assertEquals(AgcMode.NORMAL, repo.soundSyncAgcMode.first())
+        assertEquals(SoundSyncProcessor.DEFAULT_SQUELCH, repo.soundSyncSquelch.first())
         assertFalse(repo.soundSyncBetaEnabled.first())
     }
 
@@ -122,6 +126,24 @@ class UserPreferencesRepositoryTest {
     fun updateSoundSyncAgcEnabled_updatesFlow() = withRepository { repo ->
         repo.updateSoundSyncAgcEnabled(true)
         assertTrue(repo.soundSyncAgcEnabled.first())
+
+        repo.updateSoundSyncAgcEnabled(false)
+        assertFalse(repo.soundSyncAgcEnabled.first())
+    }
+
+    @Test
+    fun updateSoundSyncAgcMode_updatesFlow() = withRepository { repo ->
+        repo.updateSoundSyncAgcMode(AgcMode.VIVID)
+        assertEquals(AgcMode.VIVID, repo.soundSyncAgcMode.first())
+    }
+
+    @Test
+    fun updateSoundSyncSquelch_clampsAndUpdatesFlow() = withRepository { repo ->
+        repo.updateSoundSyncSquelch(35)
+        assertEquals(35, repo.soundSyncSquelch.first())
+
+        repo.updateSoundSyncSquelch(150)
+        assertEquals(SoundSyncProcessor.MAX_SQUELCH, repo.soundSyncSquelch.first())
     }
 
     @Test

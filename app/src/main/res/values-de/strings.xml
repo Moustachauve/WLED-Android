@@ -152,6 +152,17 @@
     <string name="sound_sync_gain">Verstärkung</string>
     <string name="sound_sync_gain_value">%1$.1fx</string>
     <string name="sound_sync_agc">Automatische Verstärkungsregelung</string>
+    <string name="sound_sync_agc_description">Passt die Verstärkung automatisch an die Umgebungslautstärke an</string>
+    <string name="sound_sync_agc_mode_normal">Normal</string>
+    <string name="sound_sync_agc_mode_vivid">Lebhaft</string>
+    <string name="sound_sync_agc_mode_lazy">Träge</string>
+    <string name="sound_sync_agc_mode_normal_description">Folgt Lautstärkeänderungen gleichmäßig. Ein guter Standardwert.</string>
+    <string name="sound_sync_agc_mode_vivid_description">Reagiert schnell auf Lautstärkeänderungen für eine dramatischere Dynamik.</string>
+    <string name="sound_sync_agc_mode_lazy_description">Passt sich langsamer an. Gut für GEQ-Effekte oder Musik mit großem Dynamikumfang.</string>
+    <string name="sound_sync_squelch">Rauschsperre (Squelch)</string>
+    <string name="sound_sync_squelch_decrease">Rauschsperre verringern</string>
+    <string name="sound_sync_squelch_increase">Rauschsperre erhöhen</string>
+    <string name="sound_sync_squelch_description">Ignoriert Hintergrundgeräusche unterhalb dieses Schwellenwerts bei Stille.</string>
     <string name="sound_sync_start">Sound Sync starten</string>
     <string name="sound_sync_stop">Sound Sync stoppen</string>
     <string name="sound_sync_running">Sound Sync läuft</string>

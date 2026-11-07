@@ -10,6 +10,8 @@ import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncError
 import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncManager
 import ca.cgagnier.wlednativeandroid.service.soundsync.SoundSyncService
 import ca.cgagnier.wlednativeandroid.service.soundsync.UdpSoundSyncPacket
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.AgcMode
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.SoundSyncProcessor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +34,8 @@ class SoundSyncViewModel(
             if (!soundSyncManager.state.value.isRunning) {
                 soundSyncManager.setGain(preferencesRepository.soundSyncGain.first())
                 soundSyncManager.setAgcEnabled(preferencesRepository.soundSyncAgcEnabled.first())
+                soundSyncManager.setAgcMode(preferencesRepository.soundSyncAgcMode.first())
+                soundSyncManager.setSquelch(preferencesRepository.soundSyncSquelch.first())
             }
         }
     }
@@ -45,6 +49,8 @@ class SoundSyncViewModel(
             gain = state.gain,
             effectiveGain = state.effectiveGain,
             agcEnabled = state.agcEnabled,
+            agcMode = state.agcMode,
+            squelch = state.squelch,
             error = state.error,
             hasRecordAudioPermission = hasPermission,
         )
@@ -57,6 +63,8 @@ class SoundSyncViewModel(
                 gain = current.gain,
                 effectiveGain = current.effectiveGain,
                 agcEnabled = current.agcEnabled,
+                agcMode = current.agcMode,
+                squelch = current.squelch,
                 error = current.error,
                 hasRecordAudioPermission = hasRecordAudioPermission.value,
             )
@@ -75,6 +83,8 @@ class SoundSyncViewModel(
             context = context,
             gain = current.gain,
             agcEnabled = current.agcEnabled,
+            agcMode = current.agcMode,
+            squelch = current.squelch,
         )
         ContextCompat.startForegroundService(context, intent)
     }
@@ -102,6 +112,33 @@ class SoundSyncViewModel(
         }
     }
 
+    fun setAgcMode(mode: AgcMode) {
+        soundSyncManager.setAgcMode(mode)
+        viewModelScope.launch {
+            preferencesRepository.updateSoundSyncAgcMode(mode)
+        }
+    }
+
+    fun setSquelch(squelch: Int) {
+        soundSyncManager.setSquelch(squelch)
+    }
+
+    fun stepSquelch(delta: Int) {
+        val nextSquelch = (soundSyncManager.state.value.squelch + delta)
+            .coerceIn(SoundSyncProcessor.MIN_SQUELCH, SoundSyncProcessor.MAX_SQUELCH)
+        soundSyncManager.setSquelch(nextSquelch)
+        viewModelScope.launch {
+            preferencesRepository.updateSoundSyncSquelch(nextSquelch)
+        }
+    }
+
+    fun saveSquelch() {
+        val currentSquelch = soundSyncManager.state.value.squelch
+        viewModelScope.launch {
+            preferencesRepository.updateSoundSyncSquelch(currentSquelch)
+        }
+    }
+
     fun refreshPermissionState() {
         hasRecordAudioPermission.update { soundSyncManager.hasRecordAudioPermission() }
     }
@@ -117,6 +154,8 @@ data class SoundSyncUiState(
     val gain: Float = 1.0f,
     val effectiveGain: Float = 1.0f,
     val agcEnabled: Boolean = false,
+    val agcMode: AgcMode = AgcMode.NORMAL,
+    val squelch: Int = SoundSyncProcessor.DEFAULT_SQUELCH,
     val error: SoundSyncError? = null,
     val hasRecordAudioPermission: Boolean = false,
 ) {

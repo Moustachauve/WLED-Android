@@ -1,6 +1,8 @@
 package ca.cgagnier.wlednativeandroid.repository
 
 import androidx.datastore.core.DataStore
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.AgcMode
+import ca.cgagnier.wlednativeandroid.service.soundsync.dsp.SoundSyncProcessor
 import ca.cgagnier.wlednativeandroid.shared.currentTimeMillis
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +27,12 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
     }.distinctUntilChanged()
     val soundSyncAgcEnabled: Flow<Boolean> = dataStore.data.map {
         it.soundSyncAgcEnabled
+    }.distinctUntilChanged()
+    val soundSyncAgcMode: Flow<AgcMode> = dataStore.data.map {
+        it.soundSyncAgcMode
+    }.distinctUntilChanged()
+    val soundSyncSquelch: Flow<Int> = dataStore.data.map {
+        it.soundSyncSquelch
     }.distinctUntilChanged()
     val soundSyncBetaEnabled: Flow<Boolean> = dataStore.data.map {
         it.soundSyncBetaEnabled
@@ -105,6 +113,27 @@ class UserPreferencesRepository(private val dataStore: DataStore<UserPreferences
         dataStore.updateData {
             it.copy(
                 soundSyncAgcEnabled = enabled,
+                dateLastWritten = currentTimeMillis(),
+            )
+        }
+    }
+
+    suspend fun updateSoundSyncAgcMode(mode: AgcMode) {
+        logger.d { "updateSoundSyncAgcMode" }
+        dataStore.updateData {
+            it.copy(
+                soundSyncAgcMode = mode,
+                dateLastWritten = currentTimeMillis(),
+            )
+        }
+    }
+
+    suspend fun updateSoundSyncSquelch(squelch: Int) {
+        logger.d { "updateSoundSyncSquelch" }
+        val clamped = squelch.coerceIn(SoundSyncProcessor.MIN_SQUELCH, SoundSyncProcessor.MAX_SQUELCH)
+        dataStore.updateData {
+            it.copy(
+                soundSyncSquelch = clamped,
                 dateLastWritten = currentTimeMillis(),
             )
         }

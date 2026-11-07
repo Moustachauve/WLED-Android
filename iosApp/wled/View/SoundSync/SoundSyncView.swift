@@ -17,7 +17,6 @@ struct SoundSyncView: View {
         NavigationStack {
             Form {
                 descriptionSection
-                startStopSection
 
                 if let errorMessage = viewModel.errorMessage {
                     errorSection(errorMessage)
@@ -29,6 +28,7 @@ struct SoundSyncView: View {
 
                 gainSection
             }
+            .animation(.default, value: viewModel.agcEnabled)
             .navigationTitle("Sound Sync")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -66,51 +66,134 @@ struct SoundSyncView: View {
 
     private var descriptionSection: some View {
         Section {
-            HStack(spacing: 12) {
-                Image(systemName: "waveform")
-                    .foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Send audio-reactive data to your WLED devices using UDP Sound Sync. Devices must be set to Receive mode in their audio sync settings.")
-                        .font(.subheadline)
-                    Text("This feature is currently in beta and may change in future updates.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: "waveform")
+                        .foregroundStyle(.tint)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Send audio-reactive data to your WLED devices using UDP Sound Sync. Devices must be set to Receive mode in their audio sync settings.")
+                            .font(.subheadline)
+                        Text("This feature is currently in beta and may change in future updates.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+
+                startStopControls
             }
+            .padding(.vertical, 4)
         }
     }
 
     private var gainSection: some View {
-        Section("Gain") {
-            HStack {
+        Section {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Gain")
+
+                HStack {
+                    Slider(
+                        value: Binding(
+                            get: { viewModel.displayedGain },
+                            set: { viewModel.updateLiveGain($0) }
+                        ),
+                        in: 0...GainControl.Companion.shared.MAX_MANUAL_GAIN
+                    ) {
+                        Text("Gain")
+                    } onEditingChanged: { editing in
+                        if !editing {
+                            viewModel.saveGain()
+                        }
+                    }
+                    .labelsHidden()
+                    .disabled(viewModel.agcEnabled)
+                    .animation(viewModel.agcEnabled ? .smooth : nil, value: viewModel.displayedGain)
+
+                    Text("\(viewModel.displayedGain.formatted(.number.precision(.fractionLength(1))))x")
+                        .monospacedDigit()
+                }
+            }
+            .padding(.vertical, 4)
+
+            Toggle(
+                isOn: Binding(
+                    get: { viewModel.agcEnabled },
+                    set: { enabled in
+                        withAnimation {
+                            viewModel.setAgcEnabled(enabled)
+                        }
+                    }
+                )
+            ) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Automatic Gain Control")
+                    Text("Automatically adjusts gain based on ambient volume")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if viewModel.agcEnabled {
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker(
+                        "Automatic Gain Control",
+                        selection: Binding(
+                            get: { viewModel.agcMode },
+                            set: { viewModel.setAgcMode($0) }
+                        )
+                    ) {
+                        ForEach(AgcMode.allCases, id: \.self) { mode in
+                            Text(mode.localizedTitle).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+
+                    Text(viewModel.agcMode.localizedDescription)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                let minSquelchInt = SoundSyncProcessor.Companion.shared.MIN_SQUELCH
+                let maxSquelchInt = SoundSyncProcessor.Companion.shared.MAX_SQUELCH
+                HStack {
+                    Text("Squelch")
+                    Spacer()
+                    Text(verbatim: viewModel.squelch.formatted(.number))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    Stepper(
+                        "Squelch",
+                        value: Binding(
+                            get: { viewModel.squelch },
+                            set: { viewModel.setSquelch($0) }
+                        ),
+                        in: minSquelchInt...maxSquelchInt,
+                        step: 1
+                    )
+                    .labelsHidden()
+                }
                 Slider(
                     value: Binding(
-                        get: { viewModel.displayedGain },
-                        set: { viewModel.updateLiveGain($0) }
+                        get: { Float(viewModel.squelch) },
+                        set: { viewModel.updateLiveSquelch(Int32($0.rounded())) }
                     ),
-                    in: 0...GainControl.Companion.shared.MAX_MANUAL_GAIN
+                    in: Float(minSquelchInt)...Float(maxSquelchInt)
                 ) {
-                    Text("Gain")
+                    Text("Squelch")
                 } onEditingChanged: { editing in
                     if !editing {
-                        viewModel.saveGain()
+                        viewModel.saveSquelch()
                     }
                 }
                 .labelsHidden()
-                .disabled(viewModel.agcEnabled)
-                .animation(viewModel.agcEnabled ? .smooth : nil, value: viewModel.displayedGain)
-
-                Text("\(viewModel.displayedGain.formatted(.number.precision(.fractionLength(1))))x")
-                    .monospacedDigit()
+                Text("Ignores background noise below this threshold when no music is playing.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-
-            Toggle(
-                "Automatic Gain Control",
-                isOn: Binding(
-                    get: { viewModel.agcEnabled },
-                    set: { viewModel.setAgcEnabled($0) }
-                )
-            )
+            .padding(.vertical, 4)
         }
     }
 
@@ -131,43 +214,48 @@ struct SoundSyncView: View {
         }
     }
 
-    private var startStopSection: some View {
-        Section {
-            if viewModel.isRunning {
-                VStack(spacing: 8) {
-                    Text("Sound sync is running")
-                        .foregroundStyle(.tint)
+    @ViewBuilder
+    private var startStopControls: some View {
+        if viewModel.isRunning {
+            VStack(spacing: 8) {
+                Text("Sound sync is running")
+                    .foregroundStyle(.tint)
 
-                    Button("Stop Sound Sync", role: .destructive) {
-                        Task {
-                            await viewModel.stop()
-                        }
+                Button(role: .destructive) {
+                    Task {
+                        await viewModel.stop()
                     }
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity)
+                } label: {
+                    Text("Stop Sound Sync")
+                        .frame(maxWidth: .infinity)
                 }
-            } else if viewModel.isPermissionDenied {
-                VStack(spacing: 8) {
-                    Text("Microphone permission is required for sound sync")
-                        .foregroundStyle(.red)
+                .buttonStyle(.borderedProminent)
+            }
+        } else if viewModel.isPermissionDenied {
+            VStack(spacing: 8) {
+                Text("Microphone permission is required for sound sync")
+                    .foregroundStyle(.red)
 
-                    Button("Grant Permission") {
-                        Task {
-                            await viewModel.start()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity)
-                }
-            } else {
-                Button("Start Sound Sync") {
+                Button {
                     Task {
                         await viewModel.start()
                     }
+                } label: {
+                    Text("Grant Permission")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity)
             }
+        } else {
+            Button {
+                Task {
+                    await viewModel.start()
+                }
+            } label: {
+                Text("Start Sound Sync")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
         }
     }
 }
@@ -316,6 +404,32 @@ private final class VisualizationSmoother {
             normalizedChannels: smoothedChannels,
             sampleLevel: smoothedSampleLevel
         )
+    }
+}
+
+// MARK: - AgcMode Localization
+
+private extension AgcMode {
+    var localizedTitle: LocalizedStringResource {
+        switch self {
+        case .normal:
+            "Normal"
+        case .vivid:
+            "Vivid"
+        case .lazy:
+            "Lazy"
+        }
+    }
+
+    var localizedDescription: LocalizedStringResource {
+        switch self {
+        case .normal:
+            "Smoothly follows changes in volume. A good default for most setups."
+        case .vivid:
+            "Reacts quickly to volume changes for a more dramatic response to dynamics."
+        case .lazy:
+            "Slower to adjust. Works well for GEQ effects or music with wide dynamic range."
+        }
     }
 }
 

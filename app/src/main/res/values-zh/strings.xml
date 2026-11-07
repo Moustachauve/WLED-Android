@@ -150,6 +150,17 @@
     <string name="sound_sync_gain">增益</string>
     <string name="sound_sync_gain_value">%1$.1fx</string>
     <string name="sound_sync_agc">自动增益控制</string>
+    <string name="sound_sync_agc_description">根据环境音量自动调节增益</string>
+    <string name="sound_sync_agc_mode_normal">正常</string>
+    <string name="sound_sync_agc_mode_vivid">生动</string>
+    <string name="sound_sync_agc_mode_lazy">平缓</string>
+    <string name="sound_sync_agc_mode_normal_description">平滑跟随音量变化，适合大多数场景。</string>
+    <string name="sound_sync_agc_mode_vivid_description">快速响应音量变化，呈现更显著的动态效果。</string>
+    <string name="sound_sync_agc_mode_lazy_description">调节较慢，适合频谱效果或大动态范围音乐。</string>
+    <string name="sound_sync_squelch">静噪阈值 (Squelch)</string>
+    <string name="sound_sync_squelch_decrease">降低静噪阈值</string>
+    <string name="sound_sync_squelch_increase">提高静噪阈值</string>
+    <string name="sound_sync_squelch_description">无音乐播放时忽略低于此阈值的背景噪音。</string>
     <string name="sound_sync_start">开始声音同步</string>
     <string name="sound_sync_stop">停止声音同步</string>
     <string name="sound_sync_running">声音同步正在运行</string>
