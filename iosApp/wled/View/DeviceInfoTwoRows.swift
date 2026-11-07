@@ -46,7 +46,7 @@ struct DeviceInfoTwoRows: View {
                 if let batteryPercentage = device.stateInfo?.info.userMods?.batteryPercentage?.doubleValue {
                     let roundedBattery = Int(batteryPercentage.rounded())
                     Label {
-                        Text("Battery: \(roundedBattery)%")
+                        Text("Battery: \(roundedBattery, format: .percent)")
                     } icon: {
                         Image(systemName: Self.batteryIconName(for: batteryPercentage))
                             .font(.caption2)
