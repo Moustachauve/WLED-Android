@@ -68,7 +68,10 @@ class FftAnalyzerTest {
         val analyzer = FftAnalyzer(fftSize = 512, sampleRate = sampleRate)
         val samples = generateSineWave(frequency = 440f, sampleRate = sampleRate, count = 512, amplitude = 0.5f)
         val result = analyzer.analyze(samples)
-        assertTrue(result.magnitude > 0f, "Magnitude should be positive for non-silent signal")
+        assertTrue(
+            result.magnitude > 500f,
+            "Magnitude should be scaled to WLED range (0..4096) for non-silent signal, got ${result.magnitude}",
+        )
     }
 
     @Test
@@ -125,6 +128,23 @@ class FftAnalyzerTest {
             }
         }
         assertTrue(differences > 0, "Different frequencies should produce different channel patterns")
+    }
+
+    @Test
+    fun analyze_defaultFftSize_scalesPeakChannelIntoWledUpperRange() {
+        val analyzer = FftAnalyzer()
+        val samples = generateSineWave(
+            frequency = 1000f,
+            sampleRate = FftAnalyzer.DEFAULT_SAMPLE_RATE,
+            count = FftAnalyzer.DEFAULT_FFT_SIZE,
+            amplitude = 0.5f,
+        )
+        val result = analyzer.analyze(samples)
+        val maxChannelLevel = result.fftChannels.maxOf { it.toInt() and 0xFF }
+        assertTrue(
+            maxChannelLevel > 150,
+            "Expected peak GEQ channel to reach WLED upper byte range (> 150), got $maxChannelLevel",
+        )
     }
 
     private fun generateSineWave(frequency: Float, sampleRate: Int, count: Int, amplitude: Float = 0.5f): FloatArray =

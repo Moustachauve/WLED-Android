@@ -7,10 +7,11 @@ import kotlin.math.min
  * Gain control stage combining a manual gain slider with optional automatic
  * gain control (AGC).
  *
- * The manual gain is applied first, then AGC adjusts the overall level to
- * approach [targetLevel]. AGC uses a simple peak-tracking algorithm with
- * attack/release smoothing so gain changes are not jarring. AGC updates
- * are applied in chunks so that gain converges within a single large block.
+ * When AGC is disabled, [manualGain] scales the input directly. When AGC is
+ * enabled (and the manual gain slider is disabled in the UI), AGC tracks the
+ * unscaled input peak envelope and adjusts gain automatically to approach
+ * [targetLevel]. AGC updates are applied in chunks with attack/release smoothing
+ * so gain converges smoothly within a single large block.
  *
  * Output is hard-clipped to [-maxAmplitude, maxAmplitude] to prevent
  * distortion when gain is high.
@@ -20,6 +21,7 @@ class GainControl(
     agcEnabled: Boolean = false,
     private val targetLevel: Float = DEFAULT_TARGET_LEVEL,
     private val maxAmplitude: Float = 1.0f,
+    private val manualGainMultiplier: Float = 1.0f,
 ) {
     var manualGain: Float = manualGain.coerceIn(0f, MAX_MANUAL_GAIN)
         private set
@@ -44,8 +46,9 @@ class GainControl(
         while (offset < samples.size) {
             val chunkSize = min(AGC_UPDATE_INTERVAL, samples.size - offset)
 
-            // Apply current gain to this chunk
-            val totalGain = manualGain * agcGain
+            // Apply current gain to this chunk (use agcGain when AGC is active so a previously
+            // saved manualGain value does not mute or clip AGC while the slider is disabled)
+            val totalGain = if (agcEnabled) agcGain else manualGain * manualGainMultiplier
             for (i in 0 until chunkSize) {
                 output[offset + i] = (samples[offset + i] * totalGain).coerceIn(-maxAmplitude, maxAmplitude)
             }
@@ -76,10 +79,10 @@ class GainControl(
     }
 
     private fun updateAgc(samples: FloatArray, offset: Int, count: Int) {
-        // Track the peak amplitude in this chunk
+        // Track the unscaled peak amplitude in this chunk
         var chunkPeak = 0f
         for (i in offset until offset + count) {
-            val amplitude = abs(samples[i] * manualGain)
+            val amplitude = abs(samples[i])
             if (amplitude > chunkPeak) chunkPeak = amplitude
         }
 
@@ -100,14 +103,14 @@ class GainControl(
 
     companion object {
         const val MAX_MANUAL_GAIN = 10.0f
-        const val DEFAULT_TARGET_LEVEL = 0.5f
+        const val DEFAULT_TARGET_LEVEL = 0.75f
         private const val MIN_AGC_GAIN = 0.1f
-        private const val MAX_AGC_GAIN = 20.0f
+        private const val MAX_AGC_GAIN = 32.0f
         private const val AGC_UPDATE_INTERVAL = 256
         private const val AGC_RELEASE = 0.95f
         private const val AGC_SMOOTHING = 0.5f
 
-        /** Minimum envelope level below which AGC gain is not updated. */
-        private const val AGC_MIN_ENVELOPE = 0.001f
+        /** Minimum envelope level below which AGC gain is not updated (noise gate). */
+        private const val AGC_MIN_ENVELOPE = 0.005f
     }
 }

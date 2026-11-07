@@ -2,7 +2,6 @@ package ca.cgagnier.wlednativeandroid.service.soundsync.dsp
 
 import kotlin.math.PI
 import kotlin.math.cos
-import kotlin.math.ln
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -37,7 +36,8 @@ data class FftResult(val fftChannels: ByteArray, val magnitude: Float, val major
  * Uses an iterative radix-2 Cooley-Tukey FFT and maps frequency bins to
  * 16 logarithmic channels matching WLED audioreactive's frequency boundaries.
  *
- * @param fftSize FFT window size (must be a power of 2). Default 512.
+ * @param fftSize FFT window size (must be a power of 2). Default 1024 (~43 Hz/bin at 44.1 kHz,
+ *   matching WLED's 512-sample FFT resolution at 22.05 kHz).
  * @param sampleRate Audio sample rate in Hz. Default 44100.
  */
 class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampleRate: Int = DEFAULT_SAMPLE_RATE) {
@@ -49,6 +49,9 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
 
     private val binFrequencyWidth = sampleRate.toFloat() / fftSize
     private val numBins = fftSize / NYQUIST_DIVISOR + DC_BIN_COUNT
+
+    // Scale factor converting normalized float FFT bin magnitudes to WLED's 16-bit FFT scale (0..4096)
+    private val wledBinScale = WLED_FFT_SCALE_NUMERATOR / fftSize
 
     // Precomputed channel boundary bin indices
     private val channelBinRanges: List<IntRange> = computeChannelBinRanges()
@@ -101,8 +104,9 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
             }
         }
         val majorPeakFrequency = maxBin * binFrequencyWidth
+        val wledMagnitude = maxMagnitude * wledBinScale
 
-        // Map bins to 16 GEQ channels
+        // Map bins to 16 GEQ channels using WLED's pink-noise adjustment and square-root scaling
         val channels = ByteArray(FFT_CHANNEL_COUNT)
         for (ch in 0 until FFT_CHANNEL_COUNT) {
             val range = channelBinRanges[ch]
@@ -112,17 +116,28 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
                     sum += magnitudes[bin]
                 }
             }
-            // Scale to 0-255 range with logarithmic compression
-            val avgMagnitude = if (range.isEmpty()) 0f else sum / range.count()
-            val scaled = (ln(1.0 + avgMagnitude * CHANNEL_SCALE) / LOG_DENOMINATOR).toFloat()
-            channels[ch] = (scaled * CHANNEL_MAX_VALUE).toInt().coerceIn(0, CHANNEL_MAX_VALUE_INT).toByte()
+            val avgMagnitude = if (range.isEmpty()) 0f else sum / range.count() * wledBinScale
+            channels[ch] = scaleChannelToWledRange(avgMagnitude, ch)
         }
 
         return FftResult(
             fftChannels = channels,
-            magnitude = maxMagnitude,
-            majorPeak = if (maxMagnitude > 0.001f) majorPeakFrequency else 0f,
+            magnitude = wledMagnitude,
+            majorPeak = if (maxMagnitude > MIN_PEAK_MAGNITUDE) majorPeakFrequency else 0f,
         )
+    }
+
+    /**
+     * Scales a channel's average WLED-normalized magnitude into `0..255` using WLED's
+     * pink-noise equalization (`fftResultPink`) and default square-root scaling (`FFTScalingMode = 3`).
+     */
+    private fun scaleChannelToWledRange(avgWledMagnitude: Float, channelIndex: Int): Byte {
+        var currentResult = avgWledMagnitude * FFT_RESULT_PINK[channelIndex] * FFT_DOWNSCALE
+        currentResult = currentResult * SQRT_PRE_SCALE - SQRT_NOISE_OFFSET
+        currentResult = if (currentResult > SQRT_MIN_THRESHOLD) sqrt(currentResult) else 0f
+        currentResult *= SQRT_FREQ_BOOST_BASE + (channelIndex / SQRT_FREQ_BOOST_DIVISOR)
+        val mapped = currentResult * (CHANNEL_MAX_VALUE / SQRT_DOMAIN_MAX)
+        return mapped.toInt().coerceIn(0, CHANNEL_MAX_VALUE_INT).toByte()
     }
 
     /**
@@ -131,13 +146,14 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
      */
     private fun computeChannelBinRanges(): List<IntRange> {
         var nextMinBin = 1
+        val maxBinIndex = numBins - 1
         return GEQ_FREQ_BOUNDARIES.mapIndexed { index, upperFreq ->
             val lowerFreq = if (index == 0) 0f else GEQ_FREQ_BOUNDARIES[index - 1]
-            val rawLowerBin = (lowerFreq / binFrequencyWidth).toInt().coerceIn(1, numBins - 1)
-            val rawUpperBin = (upperFreq / binFrequencyWidth).toInt().coerceIn(1, numBins - 1)
-            val lowerBin = maxOf(rawLowerBin, nextMinBin).coerceAtMost(rawUpperBin)
-            val upperBin = maxOf(lowerBin, rawUpperBin)
-            nextMinBin = (upperBin + 1).coerceAtMost(numBins - 1)
+            val rawLowerBin = (lowerFreq / binFrequencyWidth).toInt().coerceIn(1, maxBinIndex)
+            val rawUpperBin = (upperFreq / binFrequencyWidth).toInt().coerceIn(1, maxBinIndex)
+            val lowerBin = maxOf(rawLowerBin, nextMinBin).coerceAtMost(maxBinIndex)
+            val upperBin = maxOf(lowerBin, rawUpperBin).coerceAtMost(maxBinIndex)
+            nextMinBin = (upperBin + 1).coerceAtMost(maxBinIndex)
             lowerBin..upperBin
         }
     }
@@ -197,7 +213,7 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
     }
 
     companion object {
-        const val DEFAULT_FFT_SIZE = 512
+        const val DEFAULT_FFT_SIZE = 1024
         const val DEFAULT_SAMPLE_RATE = 44100
         const val FFT_CHANNEL_COUNT = 16
 
@@ -207,8 +223,35 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
         /** Number of bins at DC (always 1). */
         private const val DC_BIN_COUNT = 1
 
-        /** Maximum input magnitude used for logarithmic compression scaling. */
-        private const val CHANNEL_MAX_INPUT = 100.0
+        /**
+         * Numerator converting Hann-windowed float FFT magnitudes (where a full-scale sine
+         * has peak `0.25 * fftSize`) to WLED's 16-bit FFT magnitude scale (`0..4096`).
+         */
+        private const val WLED_FFT_SCALE_NUMERATOR = 8192f
+
+        /** Minimum raw FFT bin magnitude required to report a non-zero majorPeak frequency. */
+        private const val MIN_PEAK_MAGNITUDE = 0.001f
+
+        /** WLED window downscaling factor (`FFT_DOWNSCALE` in `audio_reactive.cpp`). */
+        private const val FFT_DOWNSCALE = 0.46f
+
+        /** WLED square-root scaling pre-multiplier (`FFTScalingMode = 3` in `audio_reactive.cpp`). */
+        private const val SQRT_PRE_SCALE = 0.38f
+
+        /** WLED square-root scaling noise floor offset (`-6.0f` in `audio_reactive.cpp`). */
+        private const val SQRT_NOISE_OFFSET = 6.0f
+
+        /** Minimum post-offset threshold before taking `sqrt` in WLED square-root mode. */
+        private const val SQRT_MIN_THRESHOLD = 1.0f
+
+        /** Base high-frequency compensation multiplier in WLED square-root mode. */
+        private const val SQRT_FREQ_BOOST_BASE = 0.85f
+
+        /** Per-channel high-frequency boost divisor in WLED square-root mode (`i / 4.5f`). */
+        private const val SQRT_FREQ_BOOST_DIVISOR = 4.5f
+
+        /** Upper domain bound (`sqrt(256) = 16.0`) mapped to `255` in WLED square-root mode. */
+        private const val SQRT_DOMAIN_MAX = 16.0f
 
         /** Maximum channel output value (0-255 range). */
         private const val CHANNEL_MAX_VALUE = 255f
@@ -244,10 +287,13 @@ class FftAnalyzer(private val fftSize: Int = DEFAULT_FFT_SIZE, private val sampl
             811f, 1134f, 1587f, 2221f, 3108f, 4350f, 6087f, 8513f,
         )
 
-        /** Scaling factor for channel magnitude compression. */
-        private const val CHANNEL_SCALE = 10.0
-
-        /** Precomputed denominator for logarithmic compression scaling. */
-        private val LOG_DENOMINATOR = ln(1.0 + CHANNEL_SCALE * CHANNEL_MAX_INPUT)
+        /**
+         * WLED pink-noise equalization multipliers (`fftResultPink` in `audio_reactive.cpp`)
+         * that balance natural 1/f spectral rolloff across the 16 GEQ channels.
+         */
+        private val FFT_RESULT_PINK = floatArrayOf(
+            1.70f, 1.71f, 1.73f, 1.78f, 1.68f, 1.56f, 1.55f, 1.63f,
+            1.79f, 1.62f, 1.80f, 2.06f, 2.47f, 3.35f, 6.83f, 9.55f,
+        )
     }
 }

@@ -36,21 +36,43 @@ class SoundSyncProcessorTest {
     @Test
     fun process_accumulatesFilteredAndGainedSamplesDuringThrottledIntervals() {
         val processor = SoundSyncProcessor(sampleRate = 44100, manualGain = 4.0f)
-        val silence = FloatArray(512) { 0f }
+        val windowSize = SoundSyncProcessor.FFT_WINDOW_SIZE
+        val silence = FloatArray(windowSize) { 0f }
         // Emit initial silent frame at t = 0
         assertNotNull(processor.process(silence, nowMs = 0L))
 
-        // Feed a 512-sample 1000 Hz sine wave during a throttled interval (t = 10ms)
-        val sineWave = generateSineWave(frequency = 1000f, sampleRate = 44100, count = 512, amplitude = 0.2f)
+        // Feed a full-window 1000 Hz sine wave during a throttled interval (t = 10ms)
+        val sineWave = generateSineWave(frequency = 1000f, sampleRate = 44100, count = windowSize, amplitude = 0.2f)
         assertNull(processor.process(sineWave, nowMs = 10L))
 
-        // At t = 20ms, feed a tiny 1-sample chunk; the FFT window should contain the gained 1000 Hz wave from t = 10ms
+        // At t = 20ms, feed a tiny 1-sample chunk; the FFT window and peak should retain the throttled samples
         val packet = assertNotNull(processor.process(floatArrayOf(0f), nowMs = 20L))
-        val binWidth = 44100f / 512
+        val binWidth = 44100f / windowSize
+        assertTrue(packet.sampleRaw > 100f, "Peak from throttled chunk should be retained in sampleRaw")
         assertTrue(packet.fftMagnitude > 0f, "FFT window should retain throttled samples")
         assertTrue(
             abs(packet.fftMajorPeak - 1000f) < binWidth * 2,
             "Expected major peak near 1000 Hz from accumulated throttled samples, got ${packet.fftMajorPeak}",
+        )
+    }
+
+    @Test
+    fun process_sampleSmthTracksPeakEnvelopeAndDecaysSmoothly() {
+        val processor = SoundSyncProcessor(sampleRate = 44100, manualGain = 1.0f)
+        val windowSize = SoundSyncProcessor.FFT_WINDOW_SIZE
+        val loudWave = generateSineWave(frequency = 440f, sampleRate = 44100, count = windowSize, amplitude = 0.8f)
+        val silence = FloatArray(windowSize) { 0f }
+
+        val activePacket = assertNotNull(processor.process(loudWave, nowMs = 0L))
+        val decayingPacket = assertNotNull(processor.process(silence, nowMs = 20L))
+
+        assertTrue(
+            activePacket.sampleSmth > 180f,
+            "sampleSmth should reach WLED's upper range on loud signal, got ${activePacket.sampleSmth}",
+        )
+        assertTrue(
+            decayingPacket.sampleSmth > 0f && decayingPacket.sampleSmth < activePacket.sampleSmth,
+            "sampleSmth should decay smoothly on silence, got ${decayingPacket.sampleSmth}",
         )
     }
 
@@ -73,9 +95,10 @@ class SoundSyncProcessorTest {
         processor.configureSampleRate(48000)
         assertEquals(48000, processor.sampleRate)
 
-        val samples = generateSineWave(frequency = 2000f, sampleRate = 48000, count = 512, amplitude = 0.5f)
+        val windowSize = SoundSyncProcessor.FFT_WINDOW_SIZE
+        val samples = generateSineWave(frequency = 2000f, sampleRate = 48000, count = windowSize, amplitude = 0.5f)
         val packet = assertNotNull(processor.process(samples, nowMs = 100L))
-        val binWidth = 48000f / 512
+        val binWidth = 48000f / windowSize
         assertTrue(
             abs(packet.fftMajorPeak - 2000f) < binWidth * 2,
             "Expected major peak near 2000 Hz at 48 kHz sample rate, got ${packet.fftMajorPeak}",
